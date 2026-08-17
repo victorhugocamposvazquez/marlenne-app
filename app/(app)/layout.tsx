@@ -1,10 +1,8 @@
 import BottomNav from '@/components/BottomNav';
-import { getSession } from '@/lib/queries';
-import { redirect } from 'next/navigation';
+import { requireSession } from '@/lib/queries';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const me = await getSession();
-  if (!me) redirect('/login');
+  const me = await requireSession();
 
   return (
     <div className="mx-auto flex h-[100dvh] max-w-[440px] flex-col overflow-hidden bg-surface-bg">

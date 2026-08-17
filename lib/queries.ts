@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { toTimestamp, dateFromOffset } from '@/lib/time';
 import type { AgendaAppt, AgendaBlock, Provider, WeekDay } from '@/lib/types';
@@ -37,8 +38,15 @@ export async function getSession() {
     .from('staff')
     .select('id, full_name, role, salon_id, initials, color, job_title')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
   return data;
+}
+
+/** El layout y la página se ejecutan en paralelo: no basta con redirigir solo en el layout. */
+export async function requireSession() {
+  const me = await getSession();
+  if (!me) redirect('/login');
+  return me;
 }
 
 export async function listStaff(): Promise<Provider[]> {
@@ -55,6 +63,7 @@ export const listProviders = async () =>
   (await listStaff()).filter(s => s.role === 'provider');
 
 export async function getDayAgenda(date: Date, providerIds: string[]) {
+  if (providerIds.length === 0) return { appointments: [], blocks: [] as AgendaBlock[] };
   const sb = createClient();
   const from = toTimestamp(date, 0);
   const to = toTimestamp(date, 24 * 60 - 1);
@@ -75,9 +84,14 @@ export async function getDayAgenda(date: Date, providerIds: string[]) {
 }
 
 export async function getWeekCounts(providerIds: string[]): Promise<WeekDay[]> {
-  const sb = createClient();
   const today = new Date();
   const dow0 = (today.getDay() + 6) % 7; // lunes = 0
+  if (providerIds.length === 0) {
+    return ['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((dow, i) => ({
+      offset: i - dow0, dow, num: dateFromOffset(i - dow0).getDate(), isToday: i - dow0 === 0, appointments: [],
+    }));
+  }
+  const sb = createClient();
   const monday = dateFromOffset(-dow0);
   const sunday = dateFromOffset(6 - dow0);
 

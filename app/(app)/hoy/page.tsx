@@ -1,11 +1,11 @@
-import { getSession, listProviders, getDayAgenda, countWaitlist } from '@/lib/queries';
+import { requireSession, listProviders, getDayAgenda, countWaitlist } from '@/lib/queries';
 import { fmt, durLbl, minutesOfDay } from '@/lib/time';
 import { CATEGORIES } from '@/lib/categories';
 import { setStatus } from '@/app/actions/appointments';
 import { Bell } from 'lucide-react';
 
 export default async function HoyPage() {
-  const me = (await getSession())!;
+  const me = await requireSession();
   const all = await listProviders();
   const providers = me.role === 'provider' ? all.filter(p => p.id === me.id) : all;
   const { appointments } = await getDayAgenda(new Date(), providers.map(p => p.id));
@@ -14,7 +14,7 @@ export default async function HoyPage() {
   const revenue = appointments.reduce((s, a) => s + (a.price_cents ?? 0), 0) / 100;
   const cash = appointments.filter(a => a.status === 'done').reduce((s, a) => s + (a.price_cents ?? 0), 0) / 100;
   const booked = appointments.reduce((s, a) => s + a.duration_min, 0);
-  const occ = Math.round((100 * booked) / (providers.length * 660));
+  const occ = providers.length ? Math.round((100 * booked) / (providers.length * 660)) : 0;
   const live = appointments.filter(a => a.status === 'curso');
   const next = appointments.filter(a => a.status === 'prog').sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at)).slice(0, 6);
   const h = new Date().getHours();
