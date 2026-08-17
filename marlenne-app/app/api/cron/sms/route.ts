@@ -9,6 +9,12 @@ export async function GET(req: Request) {
     return new Response('Unauthorized', { status: 401 });
   }
 
+  // Sin Twilio no hay nada que enviar: mejor no tocar sms_log, porque su
+  // unique(appointment_id, to_phone) daría por avisada una cita que nunca lo fue.
+  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_FROM) {
+    return Response.json({ ok: true, sent: 0, skipped: 'twilio sin configurar' });
+  }
+
   const sb = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,

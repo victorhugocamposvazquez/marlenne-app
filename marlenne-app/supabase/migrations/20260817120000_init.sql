@@ -23,6 +23,31 @@ create type staff_role as enum ('admin', 'reception', 'provider');
 
 create type block_reason as enum ('comida', 'descanso', 'cabina', 'personal', 'vacaciones');
 
+-- ─────────────── Utilidades ───────────────
+
+-- Postgres exige que las expresiones de columna generada sean inmutables, y no
+-- lo son ni upper() (depende de la collation) ni timestamptz + interval
+-- (depende de TimeZone). Estas columnas las mantienen triggers BEFORE, que se
+-- ejecutan antes de las constraints, así que los índices de exclusión y los
+-- NOT NULL siguen viendo el valor ya calculado.
+
+create or replace function set_initials() returns trigger
+language plpgsql as $$
+begin
+  new.initials := upper(
+    left(split_part(new.full_name, ' ', 1), 1) ||
+    coalesce(left(split_part(new.full_name, ' ', 2), 1), '')
+  );
+  return new;
+end $$;
+
+create or replace function set_ends_at() returns trigger
+language plpgsql as $$
+begin
+  new.ends_at := new.starts_at + (new.duration_min || ' minutes')::interval;
+  return new;
+end $$;
+
 -- ─────────────── Centro / equipo ───────────────
 
 create table salons (
@@ -39,10 +64,7 @@ create table staff (
   id            uuid primary key references auth.users(id) on delete cascade,
   salon_id      uuid not null references salons(id) on delete cascade,
   full_name     text not null,
-  initials      text generated always as (
-                  upper(left(split_part(full_name,' ',1),1) ||
-                        coalesce(left(split_part(full_name,' ',2),1),''))
-                ) stored,
+  initials      text,                       -- lo calcula el trigger staff_initials
   role          staff_role not null,
   job_title     text,                       -- "Técnico láser · aparatología"
   color         text,                       -- hex del avatar/columna
@@ -53,6 +75,9 @@ create table staff (
   created_at    timestamptz not null default now()
 );
 create index on staff (salon_id, is_active, sort_order);
+
+create trigger staff_initials before insert or update of full_name on staff
+  for each row execute function set_initials();
 
 -- ─────────────── Catálogo ───────────────
 
@@ -126,8 +151,7 @@ create table appointments (
   session_no    int,
   starts_at     timestamptz not null,
   duration_min  int not null check (duration_min > 0),
-  ends_at       timestamptz generated always as
-                  (starts_at + (duration_min || ' minutes')::interval) stored,
+  ends_at       timestamptz not null,       -- lo calcula el trigger appointments_ends_at
   status        appointment_status not null default 'prog',
   price_cents   int,                          -- congela el precio del catálogo
   note          text,
@@ -136,6 +160,9 @@ create table appointments (
   updated_at    timestamptz not null default now(),
   check (client_id is not null or client_name is not null)
 );
+create trigger appointments_ends_at before insert or update of starts_at, duration_min on appointments
+  for each row execute function set_ends_at();
+
 create index on appointments (salon_id, starts_at);
 create index on appointments (provider_id, starts_at);
 create index on appointments (client_id, starts_at desc);
@@ -151,11 +178,13 @@ create table time_blocks (
   label         text,
   starts_at     timestamptz not null,
   duration_min  int not null check (duration_min > 0),
-  ends_at       timestamptz generated always as
-                  (starts_at + (duration_min || ' minutes')::interval) stored,
+  ends_at       timestamptz not null,       -- lo calcula el trigger time_blocks_ends_at
   created_at    timestamptz not null default now()
 );
 create index on time_blocks (provider_id, starts_at);
+
+create trigger time_blocks_ends_at before insert or update of starts_at, duration_min on time_blocks
+  for each row execute function set_ends_at();
 
 -- ── Sin solapes por profesional (citas activas y bloqueos) ──
 -- Las canceladas se borran, así que basta excluir noshow del bloqueo.
