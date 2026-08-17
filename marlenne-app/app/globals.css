@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body { margin: 0; background: #EEECFA; -webkit-font-smoothing: antialiased; }
+  body { overscroll-behavior: none; }
+  a { color: #8B5CF6; }
+  a:hover { color: #6D28D9; }
+  ::-webkit-scrollbar { display: none; }
+  * { scrollbar-width: none; }
+  :focus-visible { outline: 2px solid #8B5CF6; outline-offset: 2px; }
+}
