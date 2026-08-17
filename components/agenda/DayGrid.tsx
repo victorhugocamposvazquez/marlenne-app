@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useCallback, useState, useTransition } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { CATEGORIES, STATUS, avatarColor } from '@/lib/categories';
 import { fmt, minutesOfDay, DAY_START, DAY_END } from '@/lib/time';
 import { moveAppointment } from '@/app/actions/appointments';
@@ -21,6 +22,15 @@ export default function DayGrid({
   const gridH = (DAY_END - DAY_START) * pxPerMin;
   const [, startTransition] = useTransition();
   const [optimistic, setOptimistic] = useState<Record<string, { start: number; provider: string }>>({});
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+
+  const openAppt = useCallback((id: string) => {
+    const next = new URLSearchParams(params.toString());
+    next.set('appt', id);
+    router.push(`${pathname}?${next.toString()}`, { scroll: false });
+  }, [params, pathname, router]);
 
   const { drag, onPointerDown } = useDragAppointment({
     pxPerMin,
@@ -30,6 +40,7 @@ export default function DayGrid({
       setOptimistic(o => ({ ...o, [id]: { start, provider: providerId } }));
       startTransition(() => { void moveAppointment({ id, date, startMin: start, providerId }); });
     },
+    onTap: openAppt,
   });
 
   const hours = [];
@@ -121,7 +132,11 @@ export default function DayGrid({
                         <div
                           key={a.id}
                           data-id={a.id}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`${a.client_label}, ${a.service_name}, ${fmt(pos.start)}`}
                           onPointerDown={e => onPointerDown(e, a.id, pos.start, p.id, a.duration_min, a.status)}
+                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAppt(a.id); } }}
                           className="absolute left-0 right-2 overflow-hidden rounded-pill px-2.5 py-1.5 transition-shadow"
                           style={{
                             top: (pos.start - DAY_START) * pxPerMin + 2,

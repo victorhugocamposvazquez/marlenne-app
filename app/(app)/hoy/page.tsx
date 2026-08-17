@@ -91,7 +91,11 @@ export default async function HoyPage() {
         {next.map(a => {
           const cat = CATEGORIES[a.category];
           return (
-            <div key={a.id} className="flex items-center gap-3 rounded-row border border-surface-line bg-white p-3 shadow-card">
+            <Link
+              key={a.id}
+              href={`/agenda?appt=${a.id}`}
+              className="flex items-center gap-3 rounded-row border border-surface-line bg-white p-3 shadow-card transition hover:border-v/40"
+            >
               <div className="w-[52px] shrink-0 rounded-[13px] bg-v-tint py-[7px] text-center">
                 <div className="text-[13.5px] font-extrabold leading-none text-v-d tabular-nums">{fmt(minutesOfDay(a.starts_at))}</div>
                 <div className="mt-0.5 text-[9.5px] font-semibold text-ink-3">{durLbl(a.duration_min)}</div>
@@ -103,7 +107,7 @@ export default async function HoyPage() {
               <span className="shrink-0 rounded-[9px] px-2 py-1 text-[10px] font-bold" style={{ background: cat.bg, color: cat.fg }}>
                 {cat.label}
               </span>
-            </div>
+            </Link>
           );
         })}
       </div>
