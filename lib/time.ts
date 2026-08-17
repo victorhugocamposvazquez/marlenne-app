@@ -25,11 +25,37 @@ export function dateFromOffset(offset: number) {
   return d;
 }
 
-/** Combina un día y minutos-desde-medianoche en un instante UTC. */
-export function toTimestamp(date: Date, startMin: number) {
-  const d = new Date(date);
-  d.setHours(Math.floor(startMin / 60), startMin % 60, 0, 0);
-  return d.toISOString();
+/**
+ * Día civil del centro (Europe/Madrid) en formato YYYY-MM-DD. Acepta un
+ * 'YYYY-MM-DD' ya resuelto, un ISO completo o un Date: un ISO en UTC cae en el
+ * día anterior si se recorta a pelo, así que siempre se pasa por la zona.
+ */
+export function dayKey(date: Date | string) {
+  if (typeof date === 'string' && date.length <= 10) return date;
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(typeof date === 'string' ? new Date(date) : date);
+}
+
+/** Desplazamiento de Madrid respecto a UTC, en ms, para un instante dado. */
+function tzOffsetMs(utcMs: number) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  }).formatToParts(new Date(utcMs));
+  const at = (t: string) => Number(parts.find(p => p.type === t)?.value ?? 0);
+  return Date.UTC(at('year'), at('month') - 1, at('day'), at('hour') % 24, at('minute'), at('second')) - utcMs;
+}
+
+/**
+ * Combina un día y minutos-desde-medianoche en un instante UTC, leyendo siempre
+ * la hora como hora del centro. No usar setHours: en Vercel el proceso va en UTC
+ * y las citas se guardarían con el desfase de Madrid.
+ */
+export function toTimestamp(date: Date | string, startMin: number) {
+  const [y, m, d] = dayKey(date).split('-').map(Number);
+  const naive = Date.UTC(y, m - 1, d, Math.floor(startMin / 60), startMin % 60);
+  return new Date(naive - tzOffsetMs(naive)).toISOString();
 }
 
 export function dayTitle(offset: number) {

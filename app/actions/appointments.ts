@@ -12,7 +12,7 @@ export async function moveAppointment({
   const sb = createClient();
   const { error } = await sb
     .from('appointments')
-    .update({ starts_at: toTimestamp(new Date(date), startMin), provider_id: providerId })
+    .update({ starts_at: toTimestamp(date, startMin), provider_id: providerId })
     .eq('id', id);
 
   revalidatePath('/agenda');
@@ -29,7 +29,7 @@ export async function moveAppointment({
 export async function slotsFor(
   providerId: string, date: string, durationMin: number, excludeId?: string,
 ) {
-  const slots = await freeSlots(providerId, new Date(date), durationMin, excludeId);
+  const slots = await freeSlots(providerId, date, durationMin, excludeId);
   return slots.map(minutesOfDay);
 }
 
@@ -76,7 +76,7 @@ export async function createAppointment(input: {
     client_name: input.clientName ?? null,
     service_id: input.serviceId,
     provider_id: input.providerId,
-    starts_at: toTimestamp(new Date(input.date), input.startMin),
+    starts_at: toTimestamp(input.date, input.startMin),
     duration_min: input.durationMin,
     price_cents: input.priceCents,
     created_by: me.data.user!.id,

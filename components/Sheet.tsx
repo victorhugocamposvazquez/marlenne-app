@@ -8,6 +8,20 @@ import { X } from 'lucide-react';
 const SHEET_PARAMS = ['new', 'appt'];
 const DISMISS_PX = 90;
 
+/** Cierra el sheet quitando sus parámetros y conservando el día y la vista. */
+export function useCloseSheet() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+
+  return useCallback(() => {
+    const next = new URLSearchParams(params.toString());
+    for (const p of SHEET_PARAMS) next.delete(p);
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [params, pathname, router]);
+}
+
 export default function Sheet({
   title, subtitle, children, footer,
 }: {
@@ -16,18 +30,9 @@ export default function Sheet({
   children: React.ReactNode;
   footer?: React.ReactNode;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const params = useSearchParams();
+  const close = useCloseSheet();
   const [dy, setDy] = useState(0);
   const from = useRef<number | null>(null);
-
-  const close = useCallback(() => {
-    const next = new URLSearchParams(params.toString());
-    for (const p of SHEET_PARAMS) next.delete(p);
-    const qs = next.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [params, pathname, router]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
@@ -89,10 +94,10 @@ export default function Sheet({
 /** Piezas compartidas por los dos sheets, para que no se separen los estilos. */
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="mb-3.5 block">
-      <span className="mb-1.5 block text-[11.5px] font-bold uppercase tracking-[.03em] text-ink-3">{label}</span>
+    <div className="mb-3.5">
+      <div className="mb-1.5 text-[11.5px] font-bold uppercase tracking-[.03em] text-ink-3">{label}</div>
       {children}
-    </label>
+    </div>
   );
 }
 

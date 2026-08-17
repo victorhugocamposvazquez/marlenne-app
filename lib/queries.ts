@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { toTimestamp, dateFromOffset } from '@/lib/time';
+import { toTimestamp, dateFromOffset, dayKey } from '@/lib/time';
 import type {
   AgendaAppt, AgendaBlock, ClientOption, Provider, ServiceOption, WeekDay,
 } from '@/lib/types';
@@ -133,7 +133,7 @@ export async function getWeekCounts(providerIds: string[]): Promise<WeekDay[]> {
     return {
       offset, dow, num: d.getDate(), isToday: offset === 0,
       appointments: (data ?? [])
-        .filter(a => new Date(a.starts_at).toDateString() === d.toDateString())
+        .filter(a => dayKey(a.starts_at) === dayKey(d))
         .map((a: any) => ({
           id: a.id, starts_at: a.starts_at, duration_min: a.duration_min,
           category: a.service?.category ?? 'corporal',
@@ -188,11 +188,13 @@ export async function countWaitlist() {
 }
 
 /** Huecos libres vía la función SQL free_slots(). */
-export async function freeSlots(providerId: string, date: Date, durationMin: number, excludeId?: string) {
+export async function freeSlots(
+  providerId: string, date: Date | string, durationMin: number, excludeId?: string,
+) {
   const sb = createClient();
   const { data } = await sb.rpc('free_slots', {
     p_provider: providerId,
-    p_date: date.toISOString().slice(0, 10),
+    p_date: dayKey(date),
     p_duration: durationMin,
     p_exclude: excludeId ?? null,
   });
