@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { toTimestamp } from '@/lib/time';
+import { freeSlots } from '@/lib/queries';
+import { minutesOfDay, toTimestamp } from '@/lib/time';
 
 /** Mover una cita (drag & drop): nueva hora y/o nueva profesional. */
 export async function moveAppointment({
@@ -15,9 +16,21 @@ export async function moveAppointment({
     .eq('id', id);
 
   revalidatePath('/agenda');
+  revalidatePath('/hoy');
   // El índice de exclusión y el trigger de bloqueos rechazan solapes:
   // devolvemos el error para que el cliente revierta el movimiento optimista.
   return { ok: !error, error: error?.message ?? null };
+}
+
+/**
+ * Huecos que caben en la jornada de la profesional, ya sin solapes ni bloqueos.
+ * Los sheets la llaman al cambiar servicio, profesional o día.
+ */
+export async function slotsFor(
+  providerId: string, date: string, durationMin: number, excludeId?: string,
+) {
+  const slots = await freeSlots(providerId, new Date(date), durationMin, excludeId);
+  return slots.map(minutesOfDay);
 }
 
 /** Reprogramar desde el modal: día, profesional y hora. */
@@ -38,6 +51,15 @@ export async function setStatus(formData: FormData) {
   await sb.from('appointments').update({ status }).eq('id', id);
   revalidatePath('/agenda');
   revalidatePath('/hoy');
+}
+
+/** La misma cosa desde los sheets, que necesitan saber si ha fallado. */
+export async function updateStatus(id: string, status: string) {
+  const sb = createClient();
+  const { error } = await sb.from('appointments').update({ status }).eq('id', id);
+  revalidatePath('/agenda');
+  revalidatePath('/hoy');
+  return { ok: !error, error: error?.message ?? null };
 }
 
 export async function createAppointment(input: {
@@ -61,13 +83,16 @@ export async function createAppointment(input: {
   });
 
   revalidatePath('/agenda');
+  revalidatePath('/hoy');
   return { ok: !error, error: error?.message ?? null };
 }
 
 export async function cancelAppointment(id: string) {
   const sb = createClient();
-  await sb.from('appointments').delete().eq('id', id);
+  const { error } = await sb.from('appointments').delete().eq('id', id);
   revalidatePath('/agenda');
+  revalidatePath('/hoy');
+  return { ok: !error, error: error?.message ?? null };
 }
 
 /** Cierre de sesión (todo opcional): parámetros, nota, medidas y fotos. */

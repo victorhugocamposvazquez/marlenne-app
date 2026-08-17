@@ -42,3 +42,17 @@ export type WeekDay = {
   isToday: boolean;
   appointments: Pick<AgendaAppt, 'id' | 'starts_at' | 'duration_min' | 'category'>[];
 };
+
+export type ServiceOption = {
+  id: string;
+  name: string;
+  category: CategoryId;
+  duration_min: number;
+  price_cents: number;
+};
+
+export type ClientOption = {
+  id: string;
+  full_name: string;
+  phone: string | null;
+};

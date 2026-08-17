@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { toTimestamp, dateFromOffset } from '@/lib/time';
-import type { AgendaAppt, AgendaBlock, Provider, WeekDay } from '@/lib/types';
+import type {
+  AgendaAppt, AgendaBlock, ClientOption, Provider, ServiceOption, WeekDay,
+} from '@/lib/types';
 
 const APPT_SELECT = `
   id, provider_id, client_id, client_name, starts_at, ends_at, duration_min,
@@ -61,6 +63,30 @@ export async function listStaff(): Promise<Provider[]> {
 
 export const listProviders = async () =>
   (await listStaff()).filter(s => s.role === 'provider');
+
+export async function listServices(): Promise<ServiceOption[]> {
+  const sb = createClient();
+  const { data } = await sb
+    .from('services')
+    .select('id, name, category, duration_min, price_cents')
+    .eq('is_active', true)
+    .order('category')
+    .order('sort_order');
+  return (data ?? []) as ServiceOption[];
+}
+
+/** Solo lo que necesita el selector del sheet de nueva cita. */
+export async function listClientOptions(): Promise<ClientOption[]> {
+  const sb = createClient();
+  const { data } = await sb.from('clients').select('id, full_name, phone').order('full_name');
+  return (data ?? []) as ClientOption[];
+}
+
+export async function getAppointment(id: string): Promise<AgendaAppt | null> {
+  const sb = createClient();
+  const { data } = await sb.from('appointments').select(APPT_SELECT).eq('id', id).maybeSingle();
+  return data ? mapAppt(data) : null;
+}
 
 export async function getDayAgenda(date: Date, providerIds: string[]) {
   if (providerIds.length === 0) return { appointments: [], blocks: [] as AgendaBlock[] };
