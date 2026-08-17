@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { requireSession, listProviders, getDayAgenda, countWaitlist } from '@/lib/queries';
 import { fmt, durLbl, minutesOfDay } from '@/lib/time';
 import { CATEGORIES } from '@/lib/categories';
