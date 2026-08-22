@@ -9,9 +9,10 @@ El diseño de referencia es `../design_handoff_marlenne/Marlenne.dc.html`
 ## Acceso
 
 `/login` pide el email y la contraseña de cada miembro del equipo (Supabase Auth).
-Cada persona cambia la suya en **Más**. El seed de demo crea usuarios
-`*@marlenne.test` con `DEMO_PASSWORD`; hay que cambiarlas antes de meter
-clientas reales (fotos, medidas y notas son datos de salud, RGPD art. 9).
+Cada persona cambia la suya en **Más**. El seed crea usuarios `*@marlenne.test`
+solo si no existen; **no pisa** contraseñas que ya haya. Antes de clientas
+reales: checklist en Más (dirección) y el apartado de abajo. Fotos, medidas y
+notas son datos de salud (RGPD art. 9).
 
 ## Puesta en marcha
 
@@ -42,14 +43,33 @@ npm run seed
 
 Crea los usuarios de Supabase Auth del equipo (dirección, recepción y cuatro
 profesionales), sus filas en `staff`, seis clientas y las citas de hoy. Es
-idempotente. La contraseña de todos los perfiles es `DEMO_PASSWORD`.
+idempotente. `DEMO_PASSWORD` solo se aplica a altas nuevas. Para realinearlas
+a propósito: `SEED_RESET_PASSWORDS=1 npm run seed`.
 
-### 3. Vercel
+### 3. Antes de clientas reales
+
+En **Más** (dirección) hay un semáforo. A mano queda:
+
+1. **Auth → URL Configuration** en el proyecto Supabase:
+   - Site URL: `https://marlenne-app-three.vercel.app`
+   - Redirect URLs: `https://marlenne-app-three.vercel.app/recuperar`,
+     `https://marlenne-app-three.vercel.app/**`, `http://localhost:3000/**`
+2. **Auth → Settings**: desactivar altas públicas (*Allow new users to sign up*).
+   El equipo se da de alta desde Más, no desde `/login`.
+3. Crear el equipo con emails reales y desactivar `*@marlenne.test`. Cada
+   persona cambia su contraseña en Más o con «Olvidé la contraseña».
+4. Borrar las clientas de siembra (`*@demo.test`).
+5. Si van a mandarse recordatorios: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`,
+   `TWILIO_FROM` y `CRON_SECRET` en Vercel. Sin eso el cron no escribe
+   `sms_log` a propósito.
+6. `DEMO_PASSWORD` no va en Vercel.
+
+### 4. Vercel
 
 Conectar el repo, añadir las variables de `.env.example` y desplegar.
 `vercel.json` ya programa el cron de SMS a las 08:00.
 
-### 4. Tipos
+### 5. Tipos
 
 ```bash
 SUPABASE_PROJECT_ID=xxxx npm run types:gen
@@ -76,7 +96,8 @@ SUPABASE_PROJECT_ID=xxxx npm run types:gen
 | ✅ | Supabase Realtime en la agenda del día, Hoy y lista de espera |
 | ✅ | Cierre de sesión clínico (parámetros y medidas al marcar Hecha) |
 | ✅ | Subida de fotos a Storage con compresión en cliente |
-| ✅ | Consentimientos RGPD en la ficha y al alta |
+| ✅ | Consentimientos RGPD (alta + confirmación en ficha) |
+| ✅ | No-show desde Hoy; estado del SMS en la cita |
 | ✅ | Bloquear / quitar huecos de agenda |
 | ✅ | Recuperar contraseña por email |
 | ✅ | Editar catálogo (precio, duración, ocultar) |

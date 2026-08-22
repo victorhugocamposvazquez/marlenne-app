@@ -73,9 +73,11 @@ async function upsertMember(salonId, m) {
     fail(`createUser ${m.email}`, error);
     user = data.user;
     console.log(`  + usuario ${m.email}`);
-  } else {
-    // Realinea la contraseña si el script se ejecuta con otra DEMO_PASSWORD.
+  } else if (process.env.SEED_RESET_PASSWORDS === '1') {
     fail(`updateUser ${m.email}`, (await sb.auth.admin.updateUserById(user.id, { password: PASSWORD })).error);
+    console.log(`  ~ contraseña de ${m.email} realineada`);
+  } else {
+    console.log(`  = usuario ${m.email} (contraseña intacta)`);
   }
 
   const { error } = await sb.from('staff').upsert({
@@ -317,4 +319,5 @@ if (!lunch) {
   })).error);
 }
 
-console.log('\nListo. Contraseña de todos los perfiles: DEMO_PASSWORD de .env.local');
+console.log('\nListo. Los usuarios nuevos usan DEMO_PASSWORD; los que ya existían no se tocan.');
+console.log('Para realinearlas: SEED_RESET_PASSWORDS=1 npm run seed');

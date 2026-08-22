@@ -30,6 +30,7 @@ export async function requestPasswordReset(formData: FormData) {
   if (!email) return { ok: false, error: 'Pon el email' };
   const sb = createClient();
   const origin = headers().get('origin')
+    ?? process.env.APP_URL?.replace(/\/$/, '')
     ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL
       ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
       : 'http://localhost:3000');

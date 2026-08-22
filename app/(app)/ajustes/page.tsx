@@ -1,4 +1,5 @@
 import { requireSession, listStaff, listServices } from '@/lib/queries';
+import { getReadyStatus } from '@/lib/ready';
 import { signOut } from '@/app/actions/auth';
 import { avatarColor } from '@/lib/categories';
 import { LogOut } from 'lucide-react';
@@ -18,14 +19,16 @@ const ROADMAP = [
   { done: true, label: 'Editar precios y duración del catálogo' },
   { done: true, label: 'Recuperar contraseña por email' },
   { done: true, label: 'Alta y baja de equipo; filtro por profesional' },
+  { done: true, label: 'No-show desde Hoy y SMS visible en la cita' },
   { done: false, label: 'App offline usable (agenda del día en local)' },
 ];
 
 export default async function AjustesPage() {
   const me = await requireSession();
-  const [team, services] = await Promise.all([
+  const [team, services, ready] = await Promise.all([
     listStaff({ includeInactive: me.role === 'admin' }),
     me.role === 'admin' ? listServices({ includeInactive: true }) : Promise.resolve([]),
+    me.role === 'admin' ? getReadyStatus() : Promise.resolve([]),
   ]);
 
   return (
@@ -66,6 +69,25 @@ export default async function AjustesPage() {
           </h2>
           <p className="mb-2.5 text-[12px] font-medium text-ink-3">Toca un servicio para cambiar precio, duración o ocultarlo.</p>
           <CatalogEditor services={services} />
+        </section>
+      )}
+
+      {me.role === 'admin' && ready.length > 0 && (
+        <section className="mt-6">
+          <h2 className="mb-2.5 text-[13px] font-extrabold uppercase tracking-[.04em] text-ink-3">
+            Antes de clientas reales
+          </h2>
+          <ul className="rounded-row border border-surface-line bg-white px-3.5 py-2 shadow-card">
+            {ready.map(item => (
+              <li key={item.label} className="flex items-start gap-2.5 border-b border-surface-line py-2.5 last:border-0">
+                <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${item.ok ? 'bg-emerald-500' : 'bg-pink-500'}`} />
+                <span>
+                  <span className="block text-[13px] font-semibold">{item.label}</span>
+                  <span className="block text-[11.5px] font-medium leading-snug text-ink-3">{item.hint}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 

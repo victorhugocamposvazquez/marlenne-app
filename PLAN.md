@@ -79,10 +79,11 @@ proyecto aparte; no mezclarlo con el white-label ni con Stripe.
 
 ## Orden de trabajo
 
-1. **Ahora** — pulir la app del centro (primer tenant). SMS reales, no-show,
-   consentimientos con más peso, etc.
-2. **Antes de clientas reales** — contraseñas de demo fuera, URL de
-   `/recuperar` en Supabase, Twilio si se van a mandar SMS, desplegar.
+1. **Hecho** — pulir la app del centro (primer tenant): no-show, SMS visible,
+   consentimientos con texto, realtime, cierre clínico, fotos, equipo.
+2. **Antes de clientas reales** — checklist en Más. A mano: URL de
+   `/recuperar` en Supabase, altas públicas off, equipo real, Twilio si se
+   van a mandar SMS, desplegar. El seed ya no pisa contraseñas.
 3. **Al segundo centro** — nombre/logo/color por salón; provisionar otro
    `salons`.
 4. **Al cobrar** — web corporativa + consola + Stripe.
