@@ -7,7 +7,7 @@ import {
 } from '@/lib/queries';
 import { CATEGORIES } from '@/lib/categories';
 import { dateFromOffset, dayKey, dayTitle, fmt, minutesOfDay } from '@/lib/time';
-import { bestNameMatches, bestServiceMatches, matchCategory } from '@/lib/voice';
+import { bestNameMatches, bestServiceMatches, matchCategory, saidServiceVariant, serviceFamily } from '@/lib/voice';
 
 export type PendingBook = {
   who: string;
@@ -250,6 +250,24 @@ export async function voicePreviewBook(
       corporal.length ? corporal : cats,
       null,
       false,
+    );
+  }
+
+  const kin = serviceFamily(picked.name, allServices, s => s.name);
+  if (kin.length > 1 && !saidServiceVariant(serviceQ)) {
+    const names = kin.map(s => s.name);
+    const bits = names.map(n => {
+      if (/\+\s*cavit/i.test(n)) return 'con cavitación';
+      if (/1 hora/i.test(n)) return 'de una hora';
+      if (/2 h/i.test(n)) return 'de dos horas';
+      return 'de media hora';
+    });
+    const family = picked.name.replace(/\s*[-+–].*$/, '').trim();
+    return askService(
+      `Tengo ${family} ${spoken(bits, 4)}. ¿Cuál le hacemos a ${whoLabel}?`,
+      names,
+      serviceQ,
+      true,
     );
   }
 

@@ -374,6 +374,8 @@ const SERVICE_ALIASES: Record<string, string> = {
   vacumterapia: 'vacumterapia',
   vaconterapia: 'vacumterapia',
   conterapia: 'vacumterapia',
+  conterpia: 'vacumterapia',
+  conterpi: 'vacumterapia',
   conterapi: 'vacumterapia',
   vacumterapiacavitacion: 'vacumterapiacavitacion',
   vacumterapiaycavitacion: 'vacumterapiacavitacion',
@@ -394,6 +396,7 @@ function normalizeServiceHeard(raw: string) {
     .replace(/\bva con\b/g, 'vacum')
     .replace(/\b(una |el |la )?con terapia\b/g, 'vacumterapia')
     .replace(/\bconterapia\b/g, 'vacumterapia')
+    .replace(/\bconterpia\b/g, 'vacumterapia')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -476,6 +479,22 @@ export function bestNameMatches<T>(rows: T[], needle: string, label: (row: T) =>
   if (ranked.length === 0) return [];
   const top = ranked[0].score;
   return ranked.filter(x => x.score === top).map(x => x.row);
+}
+
+/** «Vacumterapia», «Vacumterapia - 1 hora», «Vacumterapia + cavitación». */
+export function serviceFamily<T>(pickedName: string, rows: T[], label: (row: T) => string): T[] {
+  const base = fold(pickedName).replace(/\s*[-+–].*$/, '').trim();
+  if (base.length < 4) return [];
+  const hits = rows.filter(row => {
+    const n = fold(label(row));
+    return n === base || n.startsWith(`${base} `) || n.startsWith(`${base}-`) || n.startsWith(`${base}+`);
+  });
+  return hits.length > 1 ? hits : [];
+}
+
+export function saidServiceVariant(q: string) {
+  const t = fold(q);
+  return /cavit|1 hora|una hora|media hora|treinta|sesenta|\b60\b|\b45\b|\b30\b|corta|larga/.test(t);
 }
 
 export function bestServiceMatches<T>(rows: T[], needle: string, label: (row: T) => string): T[] {

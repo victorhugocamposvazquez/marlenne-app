@@ -171,14 +171,12 @@ function speakDimeNow(onDone: () => void) {
 }
 
 const ttsCache = new Map<string, string>();
-let ttsCloud: boolean | null = null;
 let ttsAudio: HTMLAudioElement | null = null;
 let speakGen = 0;
 
 function stopSpeak() {
   speakGen += 1;
   window.clearTimeout(speakTimer);
-  try { window.speechSynthesis?.cancel(); } catch { /* */ }
   if (ttsAudio) {
     ttsAudio.onended = null;
     ttsAudio.onerror = null;
@@ -191,47 +189,37 @@ function speakLocal(text: string, ask: boolean, onDone: () => void) {
     onDone();
     return;
   }
-  const parts = text.split(/(?<=[.?!,])\s+/).map(s => s.trim()).filter(Boolean);
-  const chunks = parts.length ? parts : [text];
-  let i = 0;
-  const next = () => {
-    if (i >= chunks.length) {
-      onDone();
-      return;
-    }
-    const part = chunks[i++];
-    const last = i >= chunks.length;
-    const q = ask && (part.includes('?') || last);
-    const u = new SpeechSynthesisUtterance(part);
-    const voice = pickWomanVoice();
-    if (voice) {
-      u.voice = voice;
-      u.lang = voice.lang;
-    } else {
-      u.lang = 'es-ES';
-    }
-    u.rate = q ? 0.86 : 0.9;
-    u.pitch = q ? 1.14 : 1.04;
-    u.onend = () => { speakTimer = window.setTimeout(next, q ? 60 : 120); };
-    u.onerror = onDone;
-    window.speechSynthesis.speak(u);
-  };
-  speakTimer = window.setTimeout(() => {
-    try { window.speechSynthesis.cancel(); } catch { /* */ }
-    next();
-  }, 80);
+  const u = new SpeechSynthesisUtterance(text);
+  const voice = pickWomanVoice();
+  if (voice) {
+    u.voice = voice;
+    u.lang = voice.lang;
+  } else {
+    u.lang = 'es-ES';
+  }
+  u.rate = ask ? 0.88 : 0.92;
+  u.pitch = ask ? 1.1 : 1.04;
+  u.onend = onDone;
+  u.onerror = onDone;
+  window.speechSynthesis.speak(u);
+}
+
+function withTime<T>(p: Promise<T>, ms: number) {
+  return new Promise<T | null>(resolve => {
+    const t = window.setTimeout(() => resolve(null), ms);
+    p.then(v => { window.clearTimeout(t); resolve(v); }).catch(() => {
+      window.clearTimeout(t);
+      resolve(null);
+    });
+  });
 }
 
 async function cloudMp3Url(text: string, kind: 'ask' | 'say') {
   const key = `${kind}:${text}`;
   const hit = ttsCache.get(key);
   if (hit) return hit;
-  const b64 = await voiceSpeakMp3(text, kind);
-  if (!b64) {
-    ttsCloud = false;
-    return null;
-  }
-  ttsCloud = true;
+  const b64 = await withTime(voiceSpeakMp3(text, kind), 2200);
+  if (!b64) return null;
   const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
   const url = URL.createObjectURL(new Blob([bin], { type: 'audio/mpeg' }));
   ttsCache.set(key, url);
@@ -270,15 +258,7 @@ async function playCloud(text: string, kind: 'ask' | 'say') {
     });
     return true;
   } catch {
-    return new Promise<boolean>(resolve => {
-      ttsAudio ??= new Audio();
-      const el = ttsAudio;
-      el.onended = () => resolve(true);
-      el.onerror = () => resolve(false);
-      el.src = url;
-      el.volume = 1;
-      void el.play().catch(() => resolve(false));
-    });
+    return false;
   }
 }
 
@@ -297,18 +277,16 @@ function speak(text: string, onDone?: () => void) {
     done = true;
     onDone?.();
   };
+  window.setTimeout(finish, 4800);
 
   void (async () => {
-    if (ttsCloud !== false) {
-      const ok = await playCloud(ear, ask ? 'ask' : 'say');
-      if (gen !== speakGen) return;
-      if (ok) {
-        finish();
-        return;
-      }
+    const ok = await playCloud(ear, ask ? 'ask' : 'say');
+    if (gen !== speakGen) return;
+    if (ok) {
+      finish();
+      return;
     }
     speakLocal(ear, ask, finish);
-    if (onDone) window.setTimeout(finish, Math.min(9000, 900 + ear.length * 70));
   })();
 }
 
@@ -548,6 +526,13 @@ export default function VoiceFab() {
     return () => document.removeEventListener('pointerdown', onDown);
   }, [open]);
 
+  const speakThenListen = (say: string) => {
+    speak(say, () => startListen({ overlay: true }));
+    window.setTimeout(() => {
+      if (!listenRef.current) startListen({ overlay: true });
+    }, 5000);
+  };
+
   const finish = (say: string, href?: string) => {
     const gen = ++genRef.current;
     killRec();
@@ -559,7 +544,7 @@ export default function VoiceFab() {
       setPanel({ mode: 'idle' });
       setOpen(false);
       startWakeRef.current();
-    }, 2800);
+    }, 4500);
   };
 
   const applyTalk = (r: VoiceTalkResult) => {
@@ -572,37 +557,37 @@ export default function VoiceFab() {
         pick: r.cancel ? 'cancel' : 'status',
         run: async () => ({ ok: false, say: 'Elige una' }),
       });
-      speak(r.say, () => startListen({ overlay: true }));
+      speakThenListen(r.say);
       return;
     }
     if (r.ready && r.draft && r.move) {
       pendingRef.current = null;
       const draft = r.draft as { id: string; date: string; startMin: number; providerId: string };
       setPanel({ mode: 'confirm', say: r.say, run: () => voiceApplyMove(draft) });
-      speak(r.say, () => startListen({ overlay: true }));
+      speakThenListen(r.say);
       return;
     }
     if (r.ready && r.draft && !r.move && !r.draft.who) {
       pendingRef.current = null;
       const draft = r.draft as Parameters<typeof voiceConfirmBook>[0];
       setPanel({ mode: 'confirm', say: r.say, run: () => voiceConfirmBook(draft) });
-      speak(r.say, () => startListen({ overlay: true }));
+      speakThenListen(r.say);
       return;
     }
     if (r.draft && typeof r.draft.who === 'string') {
       const who = r.draft.who;
       setPanel({ mode: 'confirm', say: r.say, run: () => voiceAddWait(who) });
-      speak(r.say, () => startListen({ overlay: true }));
+      speakThenListen(r.say);
       return;
     }
     if (r.matches?.length === 1 && r.cancel) {
       setPanel({ mode: 'confirm', say: r.say, run: () => voiceApplyCancel(r.matches![0].id) });
-      speak(r.say, () => startListen({ overlay: true }));
+      speakThenListen(r.say);
       return;
     }
     if (r.matches?.length === 1 && r.status) {
       setPanel({ mode: 'confirm', say: r.say, run: () => voiceApplyStatus(r.matches![0].id, r.status!) });
-      speak(r.say, () => startListen({ overlay: true }));
+      speakThenListen(r.say);
       return;
     }
     if ((r.need === 'service' || r.need === 'time') && r.pending) {
@@ -612,7 +597,7 @@ export default function VoiceFab() {
         return `${h}:${String(m % 60).padStart(2, '0')}`;
       }) ?? [];
       setPanel({ mode: 'ask', say: r.say, options: r.options, href: r.href });
-      speak(r.say, () => startListen({ overlay: true }));
+      speakThenListen(r.say);
       return;
     }
     pendingRef.current = null;
@@ -724,7 +709,7 @@ export default function VoiceFab() {
           say: `¿Apunto a ${who} en espera?`,
           run: () => voiceAddWait(who),
         });
-        speak(`¿Apunto a ${who} en espera?`, () => startListen({ overlay: true }));
+        speakThenListen(`¿Apunto a ${who} en espera?`);
         return;
       }
       if (cmd.kind === 'status') {
@@ -740,7 +725,7 @@ export default function VoiceFab() {
             say: preview.say,
             run: () => voiceApplyStatus(id, cmd.status),
           });
-          speak(preview.say, () => startListen({ overlay: true }));
+          speakThenListen(preview.say);
           return;
         }
         setPanel({
@@ -751,7 +736,7 @@ export default function VoiceFab() {
           choices: preview.matches,
           run: async () => ({ ok: false, say: 'Elige una' }),
         });
-        speak(preview.say, () => startListen({ overlay: true }));
+        speakThenListen(preview.say);
         return;
       }
       if (cmd.kind === 'slots') {
@@ -772,7 +757,7 @@ export default function VoiceFab() {
         if (preview.matches.length === 1) {
           const id = preview.matches[0].id;
           setPanel({ mode: 'confirm', say: preview.say, run: () => voiceApplyCancel(id) });
-          speak(preview.say, () => startListen({ overlay: true }));
+          speakThenListen(preview.say);
           return;
         }
         setPanel({
@@ -782,7 +767,7 @@ export default function VoiceFab() {
           choices: preview.matches,
           run: async () => ({ ok: false, say: 'Elige una' }),
         });
-        speak(preview.say, () => startListen({ overlay: true }));
+        speakThenListen(preview.say);
         return;
       }
       if (cmd.kind === 'move') {
@@ -793,7 +778,7 @@ export default function VoiceFab() {
         }
         const draft = preview.draft;
         setPanel({ mode: 'confirm', say: preview.say, run: () => voiceApplyMove(draft) });
-        speak(preview.say, () => startListen({ overlay: true }));
+        speakThenListen(preview.say);
       }
     });
   };
