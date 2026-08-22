@@ -5,6 +5,12 @@ export const TZ = 'Europe/Madrid';
 export const fmt = (min: number) =>
   `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
 
+/** Fecha corta en la zona del centro: "17 ago 2026". */
+export const dateLbl = (iso: string) =>
+  new Date(iso).toLocaleDateString('es-ES', {
+    timeZone: TZ, day: 'numeric', month: 'short', year: 'numeric',
+  });
+
 export const durLbl = (min: number) =>
   min >= 60 ? (min % 60 ? `${Math.floor(min / 60)} h ${min % 60} m` : `${Math.floor(min / 60)} h`) : `${min} min`;
 

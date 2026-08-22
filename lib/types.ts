@@ -56,3 +56,57 @@ export type ClientOption = {
   full_name: string;
   phone: string | null;
 };
+
+export type ClientRow = {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+  birth_date: string | null;
+  tags: string[];
+  notes: string | null;
+  sms_opt_in: boolean;
+  created_at: string;
+};
+
+export type Measurement = {
+  id: string;
+  metric: string;
+  value_num: number | null;
+  value_text: string | null;
+  unit: string | null;
+  session_no: number | null;
+  is_baseline: boolean;
+  measured_at: string;
+};
+
+export type TreatmentPhoto = {
+  id: string;
+  kind: 'before' | 'after';
+  zone: string | null;
+  session_no: number | null;
+  storage_path: string;
+  taken_at: string;
+};
+
+export type TreatmentRow = {
+  id: string;
+  zone: string | null;
+  sessions_done: number;
+  sessions_total: number;
+  last_params: Record<string, string>;
+  note: string | null;
+  opened_at: string;
+  closed_at: string | null;
+  service: { name: string; category: CategoryId } | null;
+  provider: { full_name: string } | null;
+  measurements: Measurement[];
+  treatment_photos: TreatmentPhoto[];
+};
+
+export type Consent = {
+  id: string;
+  kind: string;
+  signed_at: string;
+  expires_at: string | null;
+};

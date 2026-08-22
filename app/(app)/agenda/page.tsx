@@ -12,7 +12,7 @@ import { dateFromOffset, dayKey } from '@/lib/time';
 export default async function AgendaPage({
   searchParams,
 }: {
-  searchParams: { day?: string; mode?: string; new?: string; appt?: string };
+  searchParams: { day?: string; mode?: string; new?: string; appt?: string; client?: string };
 }) {
   const parsed = Number(searchParams.day ?? 0);
   const day = Number.isFinite(parsed) ? parsed : 0;
@@ -57,6 +57,7 @@ export default async function AgendaPage({
           providers={providers}
           services={services}
           clients={clients}
+          preselected={clients.find(c => c.id === searchParams.client) ?? null}
         />
       )}
 

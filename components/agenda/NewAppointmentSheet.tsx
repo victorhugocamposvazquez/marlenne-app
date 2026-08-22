@@ -9,18 +9,19 @@ import { durLbl, fmt } from '@/lib/time';
 import type { ClientOption, Provider, ServiceOption } from '@/lib/types';
 
 export default function NewAppointmentSheet({
-  day, providers, services, clients,
+  day, providers, services, clients, preselected = null,
 }: {
   day: string;
   providers: Provider[];
   services: ServiceOption[];
   clients: ClientOption[];
+  preselected?: ClientOption | null;
 }) {
   const close = useCloseSheet();
   const [pending, startTransition] = useTransition();
 
   const [query, setQuery] = useState('');
-  const [client, setClient] = useState<ClientOption | null>(null);
+  const [client, setClient] = useState<ClientOption | null>(preselected);
   const [serviceId, setServiceId] = useState('');
   const [providerId, setProviderId] = useState(providers[0]?.id ?? '');
   const [date, setDate] = useState(day);

@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { toTimestamp, dateFromOffset, dayKey } from '@/lib/time';
 import type {
-  AgendaAppt, AgendaBlock, ClientOption, Provider, ServiceOption, WeekDay,
+  AgendaAppt, AgendaBlock, ClientOption, ClientRow, Consent, Provider, ServiceOption,
+  TreatmentRow, WeekDay,
 } from '@/lib/types';
 
 const APPT_SELECT = `
@@ -33,15 +34,19 @@ function mapAppt(row: any): AgendaAppt {
 }
 
 export async function getSession() {
-  const sb = createClient();
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return null;
-  const { data } = await sb
-    .from('staff')
-    .select('id, full_name, role, salon_id, initials, color, job_title')
-    .eq('id', user.id)
-    .maybeSingle();
-  return data;
+  try {
+    const sb = createClient();
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return null;
+    const { data } = await sb
+      .from('staff')
+      .select('id, full_name, role, salon_id, initials, color, job_title')
+      .eq('id', user.id)
+      .maybeSingle();
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 /** El layout y la página se ejecutan en paralelo: no basta con redirigir solo en el layout. */
@@ -52,13 +57,17 @@ export async function requireSession() {
 }
 
 export async function listStaff(): Promise<Provider[]> {
-  const sb = createClient();
-  const { data } = await sb
-    .from('staff')
-    .select('id, full_name, initials, role, job_title, color')
-    .eq('is_active', true)
-    .order('sort_order');
-  return data ?? [];
+  try {
+    const sb = createClient();
+    const { data } = await sb
+      .from('staff')
+      .select('id, full_name, initials, role, job_title, color')
+      .eq('is_active', true)
+      .order('sort_order');
+    return data ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export const listProviders = async () =>
@@ -163,7 +172,7 @@ export async function listClients(q: string) {
 export async function getClient(id: string) {
   const sb = createClient();
   const [client, treatments] = await Promise.all([
-    sb.from('clients').select('*').eq('id', id).single(),
+    sb.from('clients').select('*').eq('id', id).maybeSingle(),
     sb.from('treatments')
       .select(`
         id, zone, sessions_done, sessions_total, last_params, note, opened_at, closed_at,
@@ -175,7 +184,46 @@ export async function getClient(id: string) {
       .eq('client_id', id)
       .order('opened_at', { ascending: false }),
   ]);
-  return { client: client.data, treatments: treatments.data ?? [] };
+  return {
+    client: (client.data ?? null) as ClientRow | null,
+    treatments: (treatments.data ?? []) as unknown as TreatmentRow[],
+  };
+}
+
+export async function listClientAppointments(clientId: string): Promise<AgendaAppt[]> {
+  const sb = createClient();
+  const { data } = await sb
+    .from('appointments')
+    .select(APPT_SELECT)
+    .eq('client_id', clientId)
+    .order('starts_at', { ascending: false })
+    .limit(60);
+  return (data ?? []).map(mapAppt);
+}
+
+export async function listConsents(clientId: string): Promise<Consent[]> {
+  const sb = createClient();
+  const { data } = await sb
+    .from('consents')
+    .select('id, kind, signed_at, expires_at')
+    .eq('client_id', clientId)
+    .order('signed_at', { ascending: false });
+  return (data ?? []) as Consent[];
+}
+
+/**
+ * El bucket de fotos es privado: hay que firmar cada ruta. Media hora basta
+ * para mirar una ficha y evita repartir enlaces que sobrevivan a la sesión.
+ */
+export async function signedPhotoUrls(paths: string[]) {
+  const map: Record<string, string> = {};
+  if (!paths.length) return map;
+  const sb = createClient();
+  const { data } = await sb.storage.from('treatment-photos').createSignedUrls(paths, 60 * 30);
+  for (const item of data ?? []) {
+    if (item.path && item.signedUrl) map[item.path] = item.signedUrl;
+  }
+  return map;
 }
 
 export async function countWaitlist() {
