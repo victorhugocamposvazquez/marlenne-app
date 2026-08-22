@@ -58,14 +58,15 @@ export async function requireSession() {
   return me;
 }
 
-export async function listStaff(): Promise<Provider[]> {
+export async function listStaff(opts?: { includeInactive?: boolean }): Promise<Provider[]> {
   try {
     const sb = createClient();
-    const { data } = await sb
+    let query = sb
       .from('staff')
-      .select('id, full_name, initials, role, job_title, color')
-      .eq('is_active', true)
+      .select('id, full_name, initials, role, job_title, color, is_active')
       .order('sort_order');
+    if (!opts?.includeInactive) query = query.eq('is_active', true);
+    const { data } = await query;
     return data ?? [];
   } catch {
     return [];

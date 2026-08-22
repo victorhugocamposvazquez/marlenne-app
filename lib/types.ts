@@ -1,12 +1,15 @@
 import type { CategoryId, StatusId } from './categories';
 
+export type StaffRole = 'admin' | 'reception' | 'provider';
+
 export type Provider = {
   id: string;
   full_name: string;
   initials: string | null;
-  role: 'admin' | 'reception' | 'provider';
+  role: StaffRole;
   job_title: string | null;
   color: string | null;
+  is_active?: boolean;
 };
 
 export type AgendaAppt = {

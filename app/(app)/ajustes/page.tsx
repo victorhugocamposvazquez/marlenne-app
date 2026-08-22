@@ -4,6 +4,7 @@ import { avatarColor } from '@/lib/categories';
 import { LogOut } from 'lucide-react';
 import PasswordForm from '@/components/PasswordForm';
 import CatalogEditor from '@/components/CatalogEditor';
+import TeamEditor from '@/components/TeamEditor';
 
 const ROADMAP = [
   { done: true, label: 'Agenda día y semana, arrastrar citas' },
@@ -16,13 +17,14 @@ const ROADMAP = [
   { done: true, label: 'Consentimientos RGPD y bloqueos de agenda' },
   { done: true, label: 'Editar precios y duración del catálogo' },
   { done: true, label: 'Recuperar contraseña por email' },
+  { done: true, label: 'Alta y baja de equipo; filtro por profesional' },
   { done: false, label: 'App offline usable (agenda del día en local)' },
 ];
 
 export default async function AjustesPage() {
   const me = await requireSession();
   const [team, services] = await Promise.all([
-    listStaff(),
+    listStaff({ includeInactive: me.role === 'admin' }),
     me.role === 'admin' ? listServices({ includeInactive: true }) : Promise.resolve([]),
   ]);
 
@@ -32,23 +34,29 @@ export default async function AjustesPage() {
       <p className="mt-px text-[13px] font-medium text-ink-2">{me.full_name} · {me.job_title ?? me.role}</p>
 
       <section className="mt-5">
-        <h2 className="mb-2.5 text-[13px] font-extrabold uppercase tracking-[.04em] text-ink-3">Equipo</h2>
-        <div className="flex flex-col gap-2">
-          {team.map(p => (
-            <div key={p.id} className="flex items-center gap-3 rounded-row border border-surface-line bg-white p-3 shadow-card">
-              <span
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] text-[11px] font-bold text-white"
-                style={{ background: p.color ?? avatarColor(p.full_name) }}
-              >
-                {p.initials}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[14px] font-bold">{p.full_name}</span>
-                <span className="block truncate text-[11.5px] font-medium text-ink-3">{p.job_title}</span>
-              </span>
+        {me.role === 'admin' ? (
+          <TeamEditor team={team} meId={me.id} />
+        ) : (
+          <>
+            <h2 className="mb-2.5 text-[13px] font-extrabold uppercase tracking-[.04em] text-ink-3">Equipo</h2>
+            <div className="flex flex-col gap-2">
+              {team.map(p => (
+                <div key={p.id} className="flex items-center gap-3 rounded-row border border-surface-line bg-white p-3 shadow-card">
+                  <span
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] text-[11px] font-bold text-white"
+                    style={{ background: p.color ?? avatarColor(p.full_name) }}
+                  >
+                    {p.initials}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[14px] font-bold">{p.full_name}</span>
+                    <span className="block truncate text-[11.5px] font-medium text-ink-3">{p.job_title}</span>
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        )}
       </section>
 
       {me.role === 'admin' && (

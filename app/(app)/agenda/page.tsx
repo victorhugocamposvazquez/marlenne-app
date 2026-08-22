@@ -14,7 +14,7 @@ import { dateFromOffset, dayKey } from '@/lib/time';
 export default async function AgendaPage({
   searchParams,
 }: {
-  searchParams: { day?: string; mode?: string; new?: string; appt?: string; client?: string; wait?: string; close?: string; block?: string; bloqueo?: string };
+  searchParams: { day?: string; mode?: string; new?: string; appt?: string; client?: string; wait?: string; close?: string; block?: string; bloqueo?: string; pro?: string };
 }) {
   const parsed = Number(searchParams.day ?? 0);
   const day = Number.isFinite(parsed) ? parsed : 0;
@@ -23,8 +23,16 @@ export default async function AgendaPage({
 
   const all = await listProviders();
   // Una profesional solo ve su propia columna.
-  const providers = me.role === 'provider' ? all.filter(p => p.id === me.id) : all;
+  const team = me.role === 'provider' ? all.filter(p => p.id === me.id) : all;
+  const selectedPro = me.role === 'provider'
+    ? me.id
+    : (team.some(p => p.id === searchParams.pro) ? searchParams.pro : undefined);
+  const providers = selectedPro ? team.filter(p => p.id === selectedPro) : team;
   const canMoveProvider = me.role !== 'provider';
+  const canFilter = me.role !== 'provider';
+  const sheetProviders = selectedPro
+    ? [team.find(p => p.id === selectedPro)!, ...team.filter(p => p.id !== selectedPro)]
+    : team;
 
   const opensNew = searchParams.new === '1';
   const opensWait = searchParams.wait === '1';
@@ -48,8 +56,11 @@ export default async function AgendaPage({
       <AgendaHeader
         day={day}
         mode={mode}
-        label={me.role === 'provider' ? 'Tu agenda' : 'Agenda del centro'}
+        label={me.role === 'provider' ? 'Tu agenda' : selectedPro ? `Agenda de ${providers[0]?.full_name.split(' ')[0]}` : 'Agenda del centro'}
         waiting={waiting}
+        providers={team}
+        selectedPro={selectedPro}
+        canFilter={canFilter}
       />
       {mode === 'dia' ? (
         <DayGrid
@@ -66,7 +77,7 @@ export default async function AgendaPage({
       {opensNew && (
         <NewAppointmentSheet
           day={dayKey(dateFromOffset(day))}
-          providers={providers}
+          providers={sheetProviders}
           services={services}
           clients={clients}
           preselected={clients.find(c => c.id === searchParams.client) ?? null}
@@ -76,7 +87,7 @@ export default async function AgendaPage({
       {appt && (
         <AppointmentSheet
           appt={appt}
-          providers={providers}
+          providers={sheetProviders}
           canMoveProvider={canMoveProvider}
           startClosing={searchParams.close === '1'}
         />
@@ -89,7 +100,7 @@ export default async function AgendaPage({
       {(searchParams.block === '1' || existingBlock) && (
         <BlockSheet
           day={dayKey(dateFromOffset(day))}
-          providers={providers}
+          providers={sheetProviders}
           existing={existingBlock}
         />
       )}
