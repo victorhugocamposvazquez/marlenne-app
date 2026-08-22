@@ -5,7 +5,8 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Mic, Square, X } from 'lucide-react';
 import {
   voiceAddWait, voiceApplyCancel, voiceApplyMove, voiceApplyStatus, voiceConfirmBook,
-  voicePreviewBook, voicePreviewCancel, voicePreviewMove, voicePreviewStatus, voiceSlots, voiceToday,
+  voiceMatchClient, voicePreviewBook, voicePreviewCancel, voicePreviewMove, voicePreviewStatus,
+  voiceSlots, voiceToday,
   type PendingBook,
 } from '@/app/actions/voice';
 import type { VoiceTalkResult } from '@/app/actions/voice-talk';
@@ -221,37 +222,64 @@ function speakLocal(text: string, ask: boolean, onDone: () => void) {
   }, 80);
 }
 
-async function playCloud(text: string, kind: 'ask' | 'say') {
+async function cloudMp3Url(text: string, kind: 'ask' | 'say') {
   const key = `${kind}:${text}`;
-  let url = ttsCache.get(key);
-  if (!url) {
-    const b64 = await voiceSpeakMp3(text, kind);
-    if (!b64) {
-      ttsCloud = false;
-      return false;
-    }
-    ttsCloud = true;
-    const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-    url = URL.createObjectURL(new Blob([bin], { type: 'audio/mpeg' }));
-    ttsCache.set(key, url);
-    if (ttsCache.size > 40) {
-      const first = ttsCache.keys().next().value;
-      if (first) {
-        const old = ttsCache.get(first);
-        if (old) URL.revokeObjectURL(old);
-        ttsCache.delete(first);
-      }
+  const hit = ttsCache.get(key);
+  if (hit) return hit;
+  const b64 = await voiceSpeakMp3(text, kind);
+  if (!b64) {
+    ttsCloud = false;
+    return null;
+  }
+  ttsCloud = true;
+  const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bin], { type: 'audio/mpeg' }));
+  ttsCache.set(key, url);
+  if (ttsCache.size > 40) {
+    const first = ttsCache.keys().next().value;
+    if (first) {
+      const old = ttsCache.get(first);
+      if (old) URL.revokeObjectURL(old);
+      ttsCache.delete(first);
     }
   }
-  return new Promise<boolean>(resolve => {
-    ttsAudio ??= new Audio();
-    const el = ttsAudio;
-    el.onended = () => resolve(true);
-    el.onerror = () => resolve(false);
-    el.src = url;
-    el.volume = 1;
-    void el.play().catch(() => resolve(false));
-  });
+  return url;
+}
+
+/** Misma vía que el pitido: Safari no corta este canal tras el dictado. */
+async function playCloud(text: string, kind: 'ask' | 'say') {
+  const url = await cloudMp3Url(text, kind);
+  if (!url) return false;
+  try {
+    const ctx = audioCtx();
+    await ctx.resume();
+    const raw = await (await fetch(url)).arrayBuffer();
+    const buf = await ctx.decodeAudioData(raw.slice(0));
+    const src = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    src.buffer = buf;
+    gain.gain.value = 1;
+    src.connect(gain);
+    gain.connect(ctx.destination);
+    await new Promise<void>(resolve => {
+      let done = false;
+      const end = () => { if (done) return; done = true; resolve(); };
+      src.onended = end;
+      src.start();
+      window.setTimeout(end, Math.round(buf.duration * 1000) + 80);
+    });
+    return true;
+  } catch {
+    return new Promise<boolean>(resolve => {
+      ttsAudio ??= new Audio();
+      const el = ttsAudio;
+      el.onended = () => resolve(true);
+      el.onerror = () => resolve(false);
+      el.src = url;
+      el.volume = 1;
+      void el.play().catch(() => resolve(false));
+    });
+  }
 }
 
 function speak(text: string, onDone?: () => void) {
@@ -271,9 +299,8 @@ function speak(text: string, onDone?: () => void) {
   };
 
   void (async () => {
-    // Preguntas: voz local, si no el micro no abre y parece que se ha parado.
-    if (!ask && ttsCloud !== false) {
-      const ok = await playCloud(ear, 'say');
+    if (ttsCloud !== false) {
+      const ok = await playCloud(ear, ask ? 'ask' : 'say');
       if (gen !== speakGen) return;
       if (ok) {
         finish();
@@ -656,10 +683,19 @@ export default function VoiceFab() {
       }
       if (held) pendingRef.current = null;
 
-      if (cmd.kind === 'help' || cmd.kind === 'unknown') {
-        const say = cmd.kind === 'unknown'
-          ? `No he pillado «${cmd.text}». Dime el servicio, la hora, o una cita.`
-          : `Puedo: ${VOICE_HELP}`;
+      if (cmd.kind === 'unknown') {
+        const named = await voiceMatchClient(cmd.text);
+        if (named) {
+          applyTalk(await voicePreviewBook(cmd.text, null, null, 0, null));
+          return;
+        }
+        const say = `No he pillado «${cmd.text}». Dime el servicio, la hora, o una cita.`;
+        speak(say, () => startListen());
+        setPanel({ mode: 'msg', say });
+        return;
+      }
+      if (cmd.kind === 'help') {
+        const say = `Puedo: ${VOICE_HELP}`;
         speak(say, () => startListen());
         setPanel({ mode: 'msg', say });
         return;

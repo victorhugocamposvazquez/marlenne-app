@@ -43,6 +43,13 @@ async function scope() {
   return { me, providers };
 }
 
+/** Si el dictado es solo el nombre de una clienta, empezamos cita. */
+export async function voiceMatchClient(q: string) {
+  const clients = await listClientOptions();
+  const hits = bestNameMatches(clients, q.trim(), c => c.full_name);
+  return hits.length === 1 ? hits[0].full_name : null;
+}
+
 export async function voiceToday() {
   const { providers } = await scope();
   const { appointments } = await getDayAgenda(new Date(), providers.map(p => p.id));
@@ -155,7 +162,6 @@ export async function voicePreviewBook(
   const whenLbl = dayTitle(dayOffset);
   const whenBit = dayOffset === 0 ? '' : `, ${whenLbl.toLowerCase()}`;
   const withPro = providerQ ? ` con ${providers[0].full_name.split(' ')[0]}` : '';
-  const hora = startMin !== null ? ` a las ${fmt(startMin)}` : '';
   const cats = Object.values(CATEGORIES).map(c => c.label);
   const spoken = (items: string[], max = 5) => {
     const short = items.slice(0, max);
@@ -186,18 +192,14 @@ export async function voicePreviewBook(
 
   const [clients, allServices] = await Promise.all([listClientOptions(), listServices()]);
   const clientHits = bestNameMatches(clients, who, c => c.full_name);
+  const whoLabel = clientHits.length === 1 ? clientHits[0].full_name : who;
   const fromList = choices?.length
     ? allServices.filter(s => choices.some(c => c.toLowerCase() === s.name.toLowerCase()))
     : [];
   const services = fromList.length ? fromList : allServices;
 
   if (!serviceQ) {
-    return askService(
-      `¿Qué le hacemos a ${who}${hora}${whenBit}${withPro}? Dime el servicio, o categoría: ${spoken(cats, 6)}.`,
-      cats,
-      null,
-      false,
-    );
+    return askService(`¿Qué le hacemos a ${whoLabel}?`, cats, null, false);
   }
 
   const exact = services.filter(s => s.name.localeCompare(serviceQ, 'es', { sensitivity: 'accent' }) === 0
@@ -209,7 +211,7 @@ export async function voicePreviewBook(
     if (named.length === 1) picked = named[0];
     else if (named.length > 1) {
       const names = named.map(s => s.name);
-      return askService(`Hay varias. ${spoken(names)}. ¿Cuál le hacemos a ${who}?`, names, serviceQ, true);
+      return askService(`Hay varias. ${spoken(names)}. ¿Cuál le hacemos a ${whoLabel}?`, names, serviceQ, true);
     }
   }
 
@@ -221,7 +223,7 @@ export async function voicePreviewBook(
       else if (inCat.length > 1) {
         const names = inCat.map(s => s.name);
         return askService(
-          `En ${CATEGORIES[cat].label.toLowerCase()} tengo ${spoken(names)}. ¿Cuál le hacemos a ${who}?`,
+          `En ${CATEGORIES[cat].label.toLowerCase()} tengo ${spoken(names)}. ¿Cuál le hacemos a ${whoLabel}?`,
           names,
           null,
           true,
@@ -237,7 +239,7 @@ export async function voicePreviewBook(
     if (named.length === 1) picked = named[0];
     else if (named.length > 1) {
       const names = named.map(s => s.name);
-      return askService(`Hay varias. ${spoken(names)}. ¿Cuál le hacemos a ${who}?`, names, serviceQ, true);
+      return askService(`Hay varias. ${spoken(names)}. ¿Cuál le hacemos a ${whoLabel}?`, names, serviceQ, true);
     }
   }
 
@@ -264,7 +266,7 @@ export async function voicePreviewBook(
       },
       options: holes.map(fmt),
       href,
-      say: `¿A qué hora le hacemos ${picked.name} a ${who}${whenBit}${withPro}?${holeBit}`,
+      say: `¿A qué hora le hacemos ${picked.name} a ${whoLabel}${whenBit}${withPro}?${holeBit}`,
     };
   }
   const service = picked;
@@ -293,7 +295,6 @@ export async function voicePreviewBook(
     return { ok: false as const, ready: false as const, href, say: 'No queda hueco ese día. Abro el alta.' };
   }
   const client = clientHits.length === 1 ? clientHits[0] : null;
-  const whoLabel = client?.full_name ?? who;
   return {
     ok: true as const,
     ready: true as const,
