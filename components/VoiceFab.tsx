@@ -38,9 +38,28 @@ function pickWomanVoice(): SpeechSynthesisVoice | null {
   return womanVoiceCache;
 }
 
-function speak(text: string) {
+let speakTimer = 0;
+
+function unlockSpeak() {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
+  const warm = new SpeechSynthesisUtterance('.');
+  warm.volume = 0;
+  warm.rate = 2;
+  window.speechSynthesis.speak(warm);
+}
+
+function speak(text: string, onDone?: () => void) {
+  if (typeof window === 'undefined' || !window.speechSynthesis) {
+    onDone?.();
+    return;
+  }
+  window.clearTimeout(speakTimer);
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    onDone?.();
+  };
   const u = new SpeechSynthesisUtterance(text);
   const voice = pickWomanVoice();
   if (voice) {
@@ -51,7 +70,13 @@ function speak(text: string) {
   }
   u.pitch = 1.08;
   u.rate = 1;
-  window.speechSynthesis.speak(u);
+  u.onend = finish;
+  u.onerror = finish;
+  speakTimer = window.setTimeout(() => {
+    try { window.speechSynthesis.cancel(); } catch { /* */ }
+    window.speechSynthesis.speak(u);
+    if (onDone) window.setTimeout(finish, Math.min(8000, 800 + text.length * 70));
+  }, 120);
 }
 
 type RecApi = {
@@ -89,8 +114,11 @@ export default function VoiceFab() {
   const confirmRef = useRef<Extract<Panel, { mode: 'confirm' }> | null>(null);
   const genRef = useRef(0);
   const listenRef = useRef(false);
+  const overlayRef = useRef(false);
   const draftRef = useRef('');
   const commitRef = useRef<() => void>(() => {});
+  const [hearDraft, setHearDraft] = useState('');
+  const [hearing, setHearing] = useState(false);
   const ignoreOutsideRef = useRef(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const [hasMic, setHasMic] = useState(false);
@@ -111,7 +139,10 @@ export default function VoiceFab() {
   const dismiss = () => {
     genRef.current += 1;
     listenRef.current = false;
+    overlayRef.current = false;
     draftRef.current = '';
+    setHearing(false);
+    setHearDraft('');
     killRec();
     try { window.speechSynthesis?.cancel(); } catch { /* */ }
     pendingRef.current = null;
@@ -123,7 +154,10 @@ export default function VoiceFab() {
   const restIdle = (say?: string) => {
     genRef.current += 1;
     listenRef.current = false;
+    overlayRef.current = false;
     draftRef.current = '';
+    setHearing(false);
+    setHearDraft('');
     killRec();
     setOpen(true);
     setPanel(say ? { mode: 'msg', say } : { mode: 'idle' });
@@ -220,7 +254,7 @@ export default function VoiceFab() {
     if ((r.need === 'service' || r.need === 'time') && r.pending) {
       pendingRef.current = r.pending;
       setPanel({ mode: 'ask', say: r.say, options: r.options, href: r.href });
-      speak(r.say);
+      speak(r.say, () => startListen({ overlay: true }));
       return;
     }
     pendingRef.current = null;
@@ -262,7 +296,9 @@ export default function VoiceFab() {
               return;
             }
           }
-          const serviceQ = cmd.kind === 'book' && cmd.serviceQ ? cmd.serviceQ : text.trim();
+          const serviceQ = cmd.kind === 'book' && cmd.serviceQ
+            ? cmd.serviceQ
+            : text.trim().replace(/^(pues |mira |vale |una |un |de |el |la |le hacemos |hacemos )/i, '').trim();
           await continueBook({ serviceQ });
           return;
         }
@@ -378,13 +414,21 @@ export default function VoiceFab() {
   const commitListen = () => {
     if (!listenRef.current) return;
     const text = draftRef.current.trim() || typed.trim();
+    const overlay = overlayRef.current;
     listenRef.current = false;
+    overlayRef.current = false;
     genRef.current += 1;
     killRec();
+    setHearing(false);
+    setHearDraft('');
     if (text) {
       setTyped('');
       draftRef.current = '';
       runText(text);
+      return;
+    }
+    if (overlay) {
+      setOpen(true);
       return;
     }
     setOpen(true);
@@ -392,21 +436,25 @@ export default function VoiceFab() {
   };
   commitRef.current = commitListen;
 
-  const startListen = () => {
+  const startListen = (opts?: { overlay?: boolean }) => {
     const gen = ++genRef.current;
     draftRef.current = '';
     listenRef.current = true;
+    overlayRef.current = !!opts?.overlay;
+    setHearing(true);
+    setHearDraft('');
+    unlockSpeak();
     killRec();
     const rec = makeRec();
     if (!rec) {
       setOpen(true);
-      setPanel({ mode: 'msg', say: 'Este Safari no dicta. Escribe el comando abajo.' });
+      if (!opts?.overlay) setPanel({ mode: 'msg', say: 'Este Safari no dicta. Escribe el comando abajo.' });
       return;
     }
     recRef.current = rec;
     ignoreOutsideRef.current = Date.now() + 2000;
     setOpen(true);
-    setPanel({ mode: 'listen', draft: '' });
+    if (!opts?.overlay) setPanel({ mode: 'listen', draft: '' });
     rec.onresult = ev => {
       if (gen !== genRef.current) return;
       let text = '';
@@ -414,7 +462,8 @@ export default function VoiceFab() {
         text += ev.results[i]?.[0]?.transcript ?? '';
       }
       draftRef.current = text.trim();
-      setPanel({ mode: 'listen', draft: draftRef.current });
+      if (overlayRef.current) setHearDraft(draftRef.current);
+      else setPanel({ mode: 'listen', draft: draftRef.current });
       if (ev.results[ev.results.length - 1]?.isFinal && draftRef.current) {
         commitListen();
       }
@@ -422,6 +471,12 @@ export default function VoiceFab() {
     rec.onerror = ev => {
       if (gen !== genRef.current) return;
       if (ev.error === 'not-allowed') {
+        if (overlayRef.current) {
+          listenRef.current = false;
+          overlayRef.current = false;
+          killRec();
+          return;
+        }
         restIdle('Sin permiso de micro. Puedes escribir el comando.');
         return;
       }
@@ -434,6 +489,11 @@ export default function VoiceFab() {
     try {
       rec.start();
     } catch {
+      if (opts?.overlay) {
+        listenRef.current = false;
+        overlayRef.current = false;
+        return;
+      }
       restIdle('No he podido oír. Toca el micro otra vez.');
     }
   };
@@ -466,15 +526,21 @@ export default function VoiceFab() {
           {panel.mode === 'ask' && (
             <div>
               <p className="text-[13px] font-semibold text-ink-2">{panel.say}</p>
+              <p className="mt-1 text-[12px] font-semibold text-v-d">
+                {hearDraft || (hearing ? 'Dilo: vacumterapia, facial…' : 'Toca el micro y dilo, o elige abajo.')}
+              </p>
               {panel.options && panel.options.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {panel.options.map(opt => (
                     <button
                       key={opt}
                       disabled={pending}
-                      onClick={() => startTransition(async () => {
-                        await continueBook({ serviceQ: opt });
-                      })}
+                      onClick={() => {
+                        unlockSpeak();
+                        startTransition(async () => {
+                          await continueBook({ serviceQ: opt });
+                        });
+                      }}
                       className="rounded-[10px] bg-v-soft px-2.5 py-1.5 text-[11.5px] font-bold text-v-d"
                     >
                       {opt}
@@ -578,18 +644,19 @@ export default function VoiceFab() {
       )}
       <button
         type="button"
-        aria-label={panel.mode === 'listen' ? 'Dejar de escuchar' : 'Hablar con Marlenne'}
-        aria-pressed={panel.mode === 'listen'}
+        aria-label={hearing ? 'Dejar de escuchar' : 'Hablar con Marlenne'}
+        aria-pressed={hearing}
         onClick={() => {
-          if (!open) startListen();
-          else if (panel.mode === 'listen') commitListen();
+          if (hearing) commitListen();
+          else if (!open) startListen();
+          else if (panel.mode === 'ask') startListen({ overlay: true });
           else startListen();
         }}
         className={`pointer-events-auto grid h-14 w-14 place-items-center rounded-[18px] text-white shadow-btn ${
-          panel.mode === 'listen' ? 'bg-pink-600' : 'bg-grad'
+          hearing ? 'bg-pink-600' : 'bg-grad'
         }`}
       >
-        {panel.mode === 'listen' ? <Square size={20} strokeWidth={2.4} /> : <Mic size={22} strokeWidth={2.2} />}
+        {hearing ? <Square size={20} strokeWidth={2.4} /> : <Mic size={22} strokeWidth={2.2} />}
       </button>
       {!hasMic && open && (
         <p className="pointer-events-none mt-1 text-right text-[10.5px] font-semibold text-ink-3">

@@ -1,5 +1,6 @@
 /** Comandos de voz / texto. Diccionario local: no hace falta un modelo. */
 
+import { CATEGORIES, type CategoryId } from '@/lib/categories';
 import { madridNow } from '@/lib/time';
 
 export type VoiceCmd =
@@ -31,6 +32,20 @@ const TIME_RE = new RegExp(
 
 export function fold(s: string) {
   return s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+}
+
+/** «Facial», «láser», «corporal» → categoría. No pisa un nombre de servicio. */
+export function matchCategory(q: string): CategoryId | null {
+  const t = fold(q);
+  if (!t) return null;
+  for (const id of Object.keys(CATEGORIES) as CategoryId[]) {
+    if (t === id || t === fold(CATEGORIES[id].label)) return id;
+  }
+  for (const id of Object.keys(CATEGORIES) as CategoryId[]) {
+    const label = fold(CATEGORIES[id].label);
+    if (t.length >= 5 && (label.includes(t) || t.includes(label) || t.includes(id))) return id;
+  }
+  return null;
 }
 
 function hourOf(token: string): number | null {
@@ -254,14 +269,43 @@ export function parseVoice(text: string): VoiceCmd {
   return { kind: 'unknown', text: raw };
 }
 
+function compact(s: string) {
+  return fold(s).replace(/[^a-z0-9ñ]/g, '');
+}
+
+/** Cómo suele oír el dictado algunos tratamientos. */
+const SERVICE_ALIASES: Record<string, string> = {
+  vacum: 'vacumterapia',
+  vacuum: 'vacumterapia',
+  vacunterapia: 'vacumterapia',
+  vacuumterapia: 'vacumterapia',
+  vacunoterapia: 'vacumterapia',
+  bakumterapia: 'vacumterapia',
+  vacumterapia: 'vacumterapia',
+  presioterapia: 'presoterapia',
+  crioliposis: 'criolipolisis',
+  criolipolisis: 'criolipolisis',
+};
+
+function serviceNeedle(raw: string) {
+  const stripped = fold(raw)
+    .replace(/^(pues |mira |vale |una |un |de |el |la |le hacemos |hacemos |quiero |ponle |para ella |para lucia )/, '')
+    .trim();
+  const c = compact(stripped);
+  return { folded: stripped, compact: SERVICE_ALIASES[c] ?? c };
+}
+
 export function scoreName(haystack: string, needle: string) {
   const h = fold(haystack);
-  const n = fold(needle);
-  if (!n) return 0;
-  if (h === n) return 4;
-  if (h.startsWith(n)) return 3;
-  if (h.split(' ').some(w => w.startsWith(n))) return 2;
-  if (h.includes(n)) return 1;
+  const n = serviceNeedle(needle);
+  if (!n.folded && !n.compact) return 0;
+  const hc = compact(h);
+  if (h === n.folded || hc === n.compact) return 5;
+  if (hc.startsWith(n.compact) && n.compact.length >= 5) return 4;
+  if (h.startsWith(n.folded)) return 3;
+  if (h.split(' ').some(w => w.startsWith(n.folded) || compact(w) === n.compact)) return 2;
+  if (h.includes(n.folded) || hc.includes(n.compact)) return 1;
+  if (n.compact.length >= 8 && n.compact.includes(hc)) return 1;
   return 0;
 }
 

@@ -7,7 +7,7 @@ import {
 } from '@/lib/queries';
 import { CATEGORIES } from '@/lib/categories';
 import { dateFromOffset, dayKey, dayTitle, fmt, minutesOfDay } from '@/lib/time';
-import { bestNameMatches } from '@/lib/voice';
+import { bestNameMatches, matchCategory } from '@/lib/voice';
 
 export type PendingBook = {
   who: string;
@@ -135,48 +135,65 @@ export async function voicePreviewBook(
   const href = `/agenda?${qs.toString()}`;
   const whenLbl = dayTitle(dayOffset);
   const withPro = providerQ ? ` con ${providers[0].full_name.split(' ')[0]}` : '';
-  const pending = { who, startMin, dayOffset, providerQ, serviceQ };
-
-  if (!serviceQ) {
-    const hora = startMin !== null ? ` a las ${fmt(startMin)}` : '';
-    return {
-      ok: true as const,
-      ready: false as const,
-      need: 'service' as const,
-      pending: { ...pending, need: 'service' as const },
-      options: Object.values(CATEGORIES).map(c => c.label),
-      href,
-      say: `¿Qué servicio para ${who}${hora} ${whenLbl}${withPro}?`,
-    };
-  }
+  const hora = startMin !== null ? ` a las ${fmt(startMin)}` : '';
+  const cats = Object.values(CATEGORIES).map(c => c.label);
+  const askService = (say: string, options: string[], q: string | null = serviceQ) => ({
+    ok: true as const,
+    ready: false as const,
+    need: 'service' as const,
+    pending: { who, startMin, dayOffset, providerQ, serviceQ: q, need: 'service' as const },
+    options,
+    href,
+    say,
+  });
 
   const [clients, services] = await Promise.all([listClientOptions(), listServices()]);
   const clientHits = bestNameMatches(clients, who, c => c.full_name);
-  const serviceHits = bestNameMatches(services, serviceQ, s => s.name);
-  if (serviceHits.length !== 1) {
-    return {
-      ok: true as const,
-      ready: false as const,
-      need: 'service' as const,
-      pending: { ...pending, need: 'service' as const },
-      options: serviceHits.length ? serviceHits.map(s => s.name) : Object.values(CATEGORIES).map(c => c.label),
-      href,
-      say: serviceHits.length
-        ? `Hay varios. ¿Cuál para ${who}?`
-        : `No encuentro «${serviceQ}». ¿Qué servicio es?`,
-    };
+
+  if (!serviceQ) {
+    return askService(`¿Qué le hacemos a ${who}${hora} ${whenLbl}${withPro}?`, cats);
   }
+
+  const exact = services.filter(s => s.name.localeCompare(serviceQ, 'es', { sensitivity: 'accent' }) === 0
+    || s.name.toLowerCase() === serviceQ.toLowerCase());
+  let picked = exact.length === 1 ? exact[0] : null;
+
+  if (!picked) {
+    const named = bestNameMatches(services, serviceQ, s => s.name);
+    if (named.length === 1) picked = named[0];
+    else if (named.length > 1) {
+      return askService(`Hay varios. ¿Cuál para ${who}?`, named.map(s => s.name));
+    }
+  }
+
+  if (!picked) {
+    const cat = matchCategory(serviceQ);
+    if (cat) {
+      const inCat = services.filter(s => s.category === cat);
+      if (inCat.length === 1) picked = inCat[0];
+      else if (inCat.length > 1) {
+        return askService(`¿Cuál de ${CATEGORIES[cat].label} para ${who}?`, inCat.map(s => s.name));
+      } else {
+        return askService(`No hay servicios de ${CATEGORIES[cat].label}. ¿Otra categoría?`, cats, null);
+      }
+    }
+  }
+
+  if (!picked) {
+    return askService(`No encuentro «${serviceQ}». ¿Qué categoría?`, cats, null);
+  }
+
   if (startMin === null) {
     return {
       ok: true as const,
       ready: false as const,
       need: 'time' as const,
-      pending: { ...pending, serviceQ, need: 'time' as const },
+      pending: { who, startMin, dayOffset, providerQ, serviceQ: picked.name, need: 'time' as const },
       href,
-      say: `¿A qué hora ${who} · ${serviceHits[0].name} ${whenLbl}${withPro}?`,
+      say: `¿A qué hora ${who} · ${picked.name} ${whenLbl}${withPro}?`,
     };
   }
-  const service = serviceHits[0];
+  const service = picked;
   let providerId: string | null = null;
   for (const p of providers) {
     const slots = await freeSlots(p.id, when, service.duration_min);
