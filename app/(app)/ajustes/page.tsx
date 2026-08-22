@@ -6,6 +6,7 @@ import { LogOut } from 'lucide-react';
 import PasswordForm from '@/components/PasswordForm';
 import CatalogEditor from '@/components/CatalogEditor';
 import TeamEditor from '@/components/TeamEditor';
+import IosShortcutsCard from '@/components/IosShortcutsCard';
 
 const ROADMAP = [
   { done: true, label: 'Agenda día y semana, arrastrar citas' },
@@ -20,6 +21,7 @@ const ROADMAP = [
   { done: true, label: 'Recuperar contraseña por email' },
   { done: true, label: 'Alta y baja de equipo; filtro por profesional' },
   { done: true, label: 'No-show desde Hoy' },
+  { done: true, label: 'Hablar o escribir comandos de agenda' },
   { done: false, label: 'App offline usable (agenda del día en local)' },
 ];
 
@@ -90,6 +92,8 @@ export default async function AjustesPage() {
           </ul>
         </section>
       )}
+
+      <IosShortcutsCard />
 
       <PasswordForm />
 

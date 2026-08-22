@@ -10,11 +10,12 @@ import {
   listServices, listClientOptions, getAppointment, getAppointmentSms, listWaitlist,
 } from '@/lib/queries';
 import { dateFromOffset, dayKey } from '@/lib/time';
+import { bestNameMatches } from '@/lib/voice';
 
 export default async function AgendaPage({
   searchParams,
 }: {
-  searchParams: { day?: string; mode?: string; new?: string; appt?: string; client?: string; wait?: string; close?: string; block?: string; bloqueo?: string; pro?: string };
+  searchParams: { day?: string; mode?: string; new?: string; appt?: string; client?: string; wait?: string; close?: string; block?: string; bloqueo?: string; pro?: string; nombre?: string; hora?: string; servicio?: string };
 }) {
   const parsed = Number(searchParams.day ?? 0);
   const day = Number.isFinite(parsed) ? parsed : 0;
@@ -81,7 +82,13 @@ export default async function AgendaPage({
           providers={sheetProviders}
           services={services}
           clients={clients}
-          preselected={clients.find(c => c.id === searchParams.client) ?? null}
+          preselected={
+            clients.find(c => c.id === searchParams.client)
+            ?? (searchParams.nombre ? bestNameMatches(clients, searchParams.nombre, c => c.full_name)[0] ?? null : null)
+          }
+          initialName={searchParams.nombre ?? ''}
+          initialHora={searchParams.hora ?? ''}
+          initialServiceQ={searchParams.servicio ?? ''}
         />
       )}
 

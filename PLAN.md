@@ -94,30 +94,35 @@ pasa por los servidores de Apple, Google o Amazon.
 Misma regla de roles que en la PWA: una profesional solo su columna;
 dirección/recepción el centro.
 
-### Cómo encaja cada uno
+### Techo usable (2026)
 
-| Puerta | Qué es hoy | Encaje real |
-| --- | --- | --- |
-| **Siri** | Atajos (PWA) y, con app nativa, App Intents | La más útil en iPhone/iPad de recepción. “Oye Siri, qué hay hoy en Marlenne.” |
-| **Google** | Las Actions conversacionales ya no existen. Quedan atajos de Android y, si hay APK, App Actions | “Ok Google” de terceros está muy cerrado. No diseñar un “skill” tipo 2020. |
-| **Alexa** | Skill propia + account linking + certificación | Sirve en un Echo de cabina. Es la que más papeleo tiene y la menos natural para una tablet. |
+Lo más avanzado de verdad no es un “skill” por plataforma. Es **un juego de
+herramientas de agenda** (listar día, crear cita, estado, huecos) y que cada
+asistente las llame. El diálogo lo pone el modelo de Apple/Amazon/Google; nosotros
+ejecutamos y confirmamos.
 
-Las tres tienen que acabar en **las mismas acciones**, no en tres backends.
-La PWA ya abre por URL (`/hoy`, `/agenda?new=1`, `/agenda?wait=1`,
-`/agenda?appt=`). Eso es el contrato. Siri/Google/Alexa solo son puertas.
+| Dónde | Techo conversacional | Qué hace falta | Usable para un centro |
+| --- | --- | --- | --- |
+| **Dentro de Marlenne** (mic en la PWA) | El más alto *ya*: multi-turno, “Lucía no vino”, “pasa”, huecos. Verbos de estética, no de calendario genérico | STT + LLM con tools sobre la API de equipo | **Lo más usable este año** en el iPad, manos ocupadas |
+| **Siri / Apple Intelligence** | El más alto *en el sistema*: iOS 27 App Intents + App Schemas. Siri aclara y confirma. Dominio calendario encaja con citas. “No vino” / “pasa” son intents propios (peor routing) | App nativa (Capacitor), App Store, iPhone/iPad con Apple Intelligence | La mejor “Oye Siri…” cuando haya ficha en store |
+| **Alexa+** | Bueno en un Echo: Alexa+ habla y llama un **MCP** de esas mismas tools. Account linking al staff | Servidor MCP + Echo + Alexa+ | Cabina con altavoz; no el iPad |
+| **Google / Gemini** | Assistant en el móvil **se apaga el 4 sep 2026**. Queda Gemini + App Actions en un APK. No hay “Ok Google, abre Marlenne” tipo 2020 | APK en Play | No diseñar para Assistant. Gemini solo si hay app Android |
+
+No construir tres conversaciones. Construir **una API / MCP** y enchufarla.
+
+Lo que *no* es el techo: Atajos que abren `/hoy`. Eso es el suelo, ya está.
 
 ### Fases
 
-0. **Ahora (PWA)** — atajos del manifesto y, a mano, Atajos de Siri que abren
-   esas URLs. No escriben en la agenda; abren la pantalla.
-1. **API de equipo** — las server actions de hoy no sirven para Alexa ni para
-   un intent de Siri. Hará falta un endpoint autenticado (sesión o token de
-   staff) que cree cita, cambie estado, liste el día. Reutilizar RLS /
-   `my_salon()`.
-2. **App nativa (Capacitor)** — App Intents (Siri) y shortcuts de Android
-   sobre esa API. Coincide con “ficha en stores”.
-3. **Alexa** — skill que llama la misma API. Account linking al staff. Solo
-   cuando un centro lo pida (altavoz en cabina).
+0. **Ahora (PWA)** — micrófono / texto en la app (Hoy, pasa, no vino, cita,
+   espera). Atajos de Siri a mano que abren URLs. El manifesto tiene shortcuts.
+1. **API de equipo (o MCP)** — las server actions de hoy no las puede llamar
+   Siri ni Alexa. Mismas tools: crear cita, estado, listar día, huecos.
+   Auth de staff + RLS / `my_salon()`.
+2. **Voz dentro de la PWA** — mic + esas tools. Es el techo usable sin store.
+3. **App nativa** — App Intents / Schemas (Siri) y App Actions (Gemini) sobre
+   las mismas tools. Coincide con “ficha en stores”.
+4. **Alexa+** — MCP de las mismas tools. Solo si un centro pone un Echo.
 
 No montar la API ni la skill hasta que el primer centro use la app todos los
 días. Si se adelanta, se construye contra aire.

@@ -6,29 +6,37 @@ import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet'
 import { CATEGORIES, avatarColor } from '@/lib/categories';
 import { createAppointment, slotsFor } from '@/app/actions/appointments';
 import { durLbl, fmt } from '@/lib/time';
+import { bestNameMatches, parseClock } from '@/lib/voice';
 import type { ClientOption, Provider, ServiceOption } from '@/lib/types';
 
 export default function NewAppointmentSheet({
   day, providers, services, clients, preselected = null,
+  initialName = '', initialHora = '', initialServiceQ = '',
 }: {
   day: string;
   providers: Provider[];
   services: ServiceOption[];
   clients: ClientOption[];
   preselected?: ClientOption | null;
+  initialName?: string;
+  initialHora?: string;
+  initialServiceQ?: string;
 }) {
   const close = useCloseSheet();
   const [pending, startTransition] = useTransition();
 
-  const [query, setQuery] = useState('');
+  const guessedService = initialServiceQ
+    ? bestNameMatches(services, initialServiceQ, s => s.name)
+    : [];
+  const [query, setQuery] = useState(preselected ? '' : initialName);
   const [client, setClient] = useState<ClientOption | null>(preselected);
-  const [serviceId, setServiceId] = useState('');
+  const [serviceId, setServiceId] = useState(guessedService.length === 1 ? guessedService[0].id : '');
   const [providerId, setProviderId] = useState(providers[0]?.id ?? '');
   const [date, setDate] = useState(day);
-  const [startMin, setStartMin] = useState<number | null>(null);
+  const [startMin, setStartMin] = useState<number | null>(parseClock(initialHora));
   const [slots, setSlots] = useState<number[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [serviceQ, setServiceQ] = useState('');
+  const [serviceQ, setServiceQ] = useState(initialServiceQ);
 
   const service = services.find(s => s.id === serviceId) ?? null;
 
