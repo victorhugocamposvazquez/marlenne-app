@@ -1,17 +1,34 @@
 /** Comandos de voz / texto. Sin LLM: frases cortas en español de recepción. */
 
+import { madridNow } from '@/lib/time';
+
 export type VoiceCmd =
   | { kind: 'go'; href: string; say: string }
   | { kind: 'today' }
   | { kind: 'search'; q: string }
   | { kind: 'status'; status: 'curso' | 'noshow'; who: string }
-  | { kind: 'book'; who: string; startMin: number | null; serviceQ: string | null }
+  | { kind: 'book'; who: string; startMin: number | null; serviceQ: string | null; dayOffset: number }
   | { kind: 'wait'; who: string | null }
   | { kind: 'help' }
   | { kind: 'unknown'; text: string };
 
+const WEEKDAYS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] as const;
+
 export function fold(s: string) {
   return s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+}
+
+/** 0 = hoy. «el miércoles» es el próximo (si hoy es sábado, el que viene). */
+export function weekdayOffset(token: string): number | null {
+  const t = fold(token);
+  if (t === 'hoy') return 0;
+  if (t === 'manana') return 1;
+  if (t === 'pasado manana') return 2;
+  const i = WEEKDAYS.indexOf(t as typeof WEEKDAYS[number]);
+  if (i < 0) return null;
+  const { y, m, d } = madridNow();
+  const todayMon0 = (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
+  return (i - todayMon0 + 7) % 7;
 }
 
 export function parseClock(raw: string): number | null {
@@ -27,6 +44,39 @@ export function parseClock(raw: string): number | null {
 
 function tidyWho(s: string) {
   return s.replace(/^(a|de|la|el)\s+/i, '').replace(/\s+/g, ' ').trim();
+}
+
+function parseBook(t: string): VoiceCmd | null {
+  let rest = t
+    .replace(/^(crea(?:r)?(?:me)? |haz(?:me)? )/, '')
+    .replace(/^(una )/, '')
+    .replace(/^(nueva )?cita( nueva)? /, '')
+    .replace(/^(apunta|anota|ponle|pon|agendar?) /, '')
+    .replace(/^(para |a |de )/, '')
+    .trim();
+  if (!rest) return null;
+
+  const time = rest.match(/ (?:a las |a la |las )(\d{1,2})(?:[:h](\d{2})| y media| y (\d{2}))?(?: (?:de |a )(.+))?$/);
+  if (!time) return null;
+
+  let minutes = '00';
+  if (time[0].includes('y media')) minutes = '30';
+  else if (time[2]) minutes = time[2];
+  else if (time[3]) minutes = time[3];
+  const startMin = parseClock(`${time[1]}:${minutes}`);
+  const serviceQ = time[4] ? tidyWho(time[4]) : null;
+
+  let head = rest.slice(0, time.index).trim();
+  let dayOffset = 0;
+  const day = head.match(/ (?:el |este |proximo )?((?:pasado )?manana|hoy|lunes|martes|miercoles|jueves|viernes|sabado|domingo)$/);
+  if (day) {
+    const off = weekdayOffset(day[1]);
+    if (off !== null) dayOffset = off;
+    head = head.slice(0, day.index).trim();
+  }
+  const who = tidyWho(head);
+  if (who.length < 2) return null;
+  return { kind: 'book', who, startMin, serviceQ, dayOffset };
 }
 
 export function parseVoice(text: string): VoiceCmd {
@@ -65,20 +115,8 @@ export function parseVoice(text: string): VoiceCmd {
   m = t.match(/^espera(?: a)? (.+)$/);
   if (m) return { kind: 'wait', who: tidyWho(m[1]) };
 
-  m = t.match(
-    /^(?:cita|apunta|anota|ponle|pon|agendar?) (?:para |a |de )?(.+?) (?:a las |a la |las )(\d{1,2}) y media(?: (?:de |a )?(.+))?$/,
-  );
-  if (m) {
-    const start = parseClock(`${m[2]}:30`);
-    return { kind: 'book', who: tidyWho(m[1]), startMin: start, serviceQ: m[3] ? tidyWho(m[3]) : null };
-  }
-  m = t.match(
-    /^(?:cita|apunta|anota|ponle|pon|agendar?) (?:para |a |de )?(.+?) (?:a las |a la |las )(\d{1,2})(?:[:h](\d{2}))?(?: (?:de |a )?(.+))?$/,
-  );
-  if (m) {
-    const start = parseClock(m[3] ? `${m[2]}:${m[3]}` : m[2]);
-    return { kind: 'book', who: tidyWho(m[1]), startMin: start, serviceQ: m[4] ? tidyWho(m[4]) : null };
-  }
+  const booked = parseBook(t);
+  if (booked) return booked;
   if (/^(nueva cita|apuntar|anotar|agendar)$/.test(t)) {
     return { kind: 'go', href: '/agenda?new=1', say: 'Nueva cita' };
   }
@@ -121,11 +159,8 @@ export function bestNameMatches<T>(rows: T[], needle: string, label: (row: T) =>
 }
 
 export const VOICE_HELP = [
+  'crea una cita para Lucía Ferrer el miércoles a las 11:30',
   'qué hay hoy',
   'pasa Lucía',
   'Lucía no ha venido',
-  'cita Lucía a las 11 de láser',
-  'busca Alba',
-  'pon Nerea en espera',
-  'nueva cita',
 ].join(' · ');

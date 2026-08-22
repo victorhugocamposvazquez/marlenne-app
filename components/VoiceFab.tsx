@@ -136,7 +136,7 @@ export default function VoiceFab() {
         return;
       }
       if (cmd.kind === 'book') {
-        const preview = await voicePreviewBook(cmd.who, cmd.startMin, cmd.serviceQ);
+        const preview = await voicePreviewBook(cmd.who, cmd.startMin, cmd.serviceQ, cmd.dayOffset);
         if (!preview.ready) {
           finish(preview.say, preview.href);
           return;
@@ -190,7 +190,7 @@ export default function VoiceFab() {
         <div className="pointer-events-auto mb-2 w-full max-w-[360px] rounded-[18px] border border-surface-line bg-white p-3 shadow-toast">
           {panel.mode === 'listen' && (
             <p className="text-[13px] font-semibold text-ink-2">
-              {panel.draft || 'Habla… «qué hay hoy», «pasa Lucía»'}
+              {panel.draft || 'Te escucho. Suelta al terminar.'}
             </p>
           )}
           {panel.mode === 'msg' && (
@@ -240,7 +240,14 @@ export default function VoiceFab() {
             </div>
           )}
           {panel.mode === 'idle' && (
-            <p className="text-[12px] font-medium text-ink-3">{VOICE_HELP}</p>
+            <div className="text-[12.5px] font-medium leading-snug text-ink-2">
+              <p className="font-bold text-ink">Así se usa</p>
+              <p className="mt-1">1. Toca otra vez el micro para hablar, o escribe abajo.</p>
+              <p>2. Si va a guardar, te pide confirmación.</p>
+              <p className="mt-2 text-[12px] text-ink-3">
+                Ejemplo: crea una cita para Lucía Ferrer el miércoles a las 11:30
+              </p>
+            </div>
           )}
           <form
             className="mt-2 flex gap-2"
@@ -254,7 +261,7 @@ export default function VoiceFab() {
           >
             <input
               className="min-w-0 flex-1 rounded-[12px] border border-surface-line px-3 py-2 text-[13px] font-semibold"
-              placeholder="O escribe el comando"
+              placeholder="Escribe o dicta el comando"
               value={typed}
               onChange={e => setTyped(e.target.value)}
               aria-label="Comando"

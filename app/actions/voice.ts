@@ -5,7 +5,7 @@ import { createAppointment, updateStatus } from '@/app/actions/appointments';
 import {
   freeSlots, getDayAgenda, listClientOptions, listProviders, listServices, requireSession,
 } from '@/lib/queries';
-import { dayKey, fmt, minutesOfDay } from '@/lib/time';
+import { dateFromOffset, dayKey, dayTitle, fmt, minutesOfDay } from '@/lib/time';
 import { bestNameMatches } from '@/lib/voice';
 
 async function scope() {
@@ -61,18 +61,24 @@ export async function voiceApplyStatus(id: string, status: 'curso' | 'noshow') {
   };
 }
 
-export async function voicePreviewBook(who: string, startMin: number | null, serviceQ: string | null) {
+export async function voicePreviewBook(
+  who: string, startMin: number | null, serviceQ: string | null, dayOffset = 0,
+) {
+  const when = dateFromOffset(dayOffset);
   const qs = new URLSearchParams({ new: '1', nombre: who });
+  if (dayOffset) qs.set('day', String(dayOffset));
   if (startMin !== null) qs.set('hora', fmt(startMin));
   if (serviceQ) qs.set('servicio', serviceQ);
   const href = `/agenda?${qs.toString()}`;
+  const whenLbl = dayTitle(dayOffset);
 
   if (startMin === null || !serviceQ) {
+    const hora = startMin !== null ? ` a las ${fmt(startMin)}` : '';
     return {
       ok: true as const,
       ready: false as const,
       href,
-      say: 'Abro el alta; falta hora o servicio.',
+      say: `Abro el alta de ${who} · ${whenLbl}${hora}. Elige el servicio y guarda.`,
     };
   }
 
@@ -81,12 +87,12 @@ export async function voicePreviewBook(who: string, startMin: number | null, ser
   const clientHits = bestNameMatches(clients, who, c => c.full_name);
   const serviceHits = bestNameMatches(services, serviceQ, s => s.name);
   if (serviceHits.length !== 1) {
-    return { ok: true as const, ready: false as const, href, say: 'Abro el alta para elegir el servicio.' };
+    return { ok: true as const, ready: false as const, href, say: `Abro el alta de ${who} · ${whenLbl}. Elige el servicio.` };
   }
   const service = serviceHits[0];
   let providerId: string | null = null;
   for (const p of providers) {
-    const slots = await freeSlots(p.id, dayKey(new Date()), service.duration_min);
+    const slots = await freeSlots(p.id, when, service.duration_min);
     const mins = slots.map(minutesOfDay);
     if (mins.includes(startMin)) { providerId = p.id; break; }
   }
@@ -99,13 +105,13 @@ export async function voicePreviewBook(who: string, startMin: number | null, ser
     ok: true as const,
     ready: true as const,
     href,
-    say: `Cita de ${whoLabel} a las ${fmt(startMin)} de ${service.name}. ¿La guardo?`,
+    say: `Cita de ${whoLabel} ${whenLbl} a las ${fmt(startMin)} de ${service.name}. ¿La guardo?`,
     draft: {
       clientId: client?.id,
       clientName: client ? undefined : who,
       serviceId: service.id,
       providerId,
-      date: dayKey(new Date()),
+      date: dayKey(when),
       startMin,
       durationMin: service.duration_min,
       priceCents: service.price_cents,
