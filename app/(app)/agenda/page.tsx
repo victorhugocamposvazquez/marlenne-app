@@ -3,16 +3,17 @@ import WeekGrid from '@/components/agenda/WeekGrid';
 import AgendaHeader from '@/components/agenda/AgendaHeader';
 import AppointmentSheet from '@/components/agenda/AppointmentSheet';
 import NewAppointmentSheet from '@/components/agenda/NewAppointmentSheet';
+import WaitlistSheet from '@/components/agenda/WaitlistSheet';
 import {
   requireSession, listProviders, getDayAgenda, getWeekCounts, countWaitlist,
-  listServices, listClientOptions, getAppointment,
+  listServices, listClientOptions, getAppointment, listWaitlist,
 } from '@/lib/queries';
 import { dateFromOffset, dayKey } from '@/lib/time';
 
 export default async function AgendaPage({
   searchParams,
 }: {
-  searchParams: { day?: string; mode?: string; new?: string; appt?: string; client?: string };
+  searchParams: { day?: string; mode?: string; new?: string; appt?: string; client?: string; wait?: string };
 }) {
   const parsed = Number(searchParams.day ?? 0);
   const day = Number.isFinite(parsed) ? parsed : 0;
@@ -25,11 +26,14 @@ export default async function AgendaPage({
   const canMoveProvider = me.role !== 'provider';
 
   const opensNew = searchParams.new === '1';
-  const [waiting, services, clients, appt] = await Promise.all([
+  const opensWait = searchParams.wait === '1';
+  const needsCatalog = opensNew || opensWait;
+  const [waiting, services, clients, appt, waitItems] = await Promise.all([
     countWaitlist(),
-    opensNew ? listServices() : Promise.resolve([]),
-    opensNew ? listClientOptions() : Promise.resolve([]),
+    needsCatalog ? listServices() : Promise.resolve([]),
+    needsCatalog ? listClientOptions() : Promise.resolve([]),
     searchParams.appt ? getAppointment(searchParams.appt) : Promise.resolve(null),
+    opensWait ? listWaitlist() : Promise.resolve([]),
   ]);
 
   return (
@@ -63,6 +67,10 @@ export default async function AgendaPage({
 
       {appt && (
         <AppointmentSheet appt={appt} providers={providers} canMoveProvider={canMoveProvider} />
+      )}
+
+      {opensWait && (
+        <WaitlistSheet items={waitItems} clients={clients} services={services} />
       )}
     </div>
   );

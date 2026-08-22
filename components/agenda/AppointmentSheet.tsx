@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { CalendarClock, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { CalendarClock, Trash2, UserRound } from 'lucide-react';
 import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet';
 import { CATEGORIES, STATUS, type StatusId } from '@/lib/categories';
 import {
@@ -88,6 +89,16 @@ export default function AppointmentSheet({
           ))}
         </div>
       </Field>
+
+      {appt.client_id && (
+        <Link
+          href={`/clientas/${appt.client_id}`}
+          className="mb-3 flex w-full items-center justify-center gap-2 rounded-field border border-surface-line bg-white py-3 text-[14px] font-bold text-v-d shadow-card"
+        >
+          <UserRound size={17} strokeWidth={2.2} />
+          Ver ficha
+        </Link>
+      )}
 
       {!moving ? (
         <button

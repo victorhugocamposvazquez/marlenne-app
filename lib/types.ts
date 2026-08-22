@@ -110,3 +110,13 @@ export type Consent = {
   signed_at: string;
   expires_at: string | null;
 };
+
+export type WaitItem = {
+  id: string;
+  client_id: string | null;
+  client_name: string | null;
+  preference: string | null;
+  created_at: string;
+  service: { name: string; category: CategoryId } | null;
+  client: { full_name: string; phone: string | null } | null;
+};

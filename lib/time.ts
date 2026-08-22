@@ -24,11 +24,24 @@ export function minutesOfDay(iso: string) {
   return h * 60 + m;
 }
 
+/** Instantáneo civil del centro. En Vercel Date() va en UTC y mentiría. */
+export function madridNow() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(new Date());
+  const at = (t: string) => Number(parts.find(p => p.type === t)?.value ?? 0);
+  return { y: at('year'), m: at('month'), d: at('day'), h: at('hour') % 24, min: at('minute') };
+}
+
+export function nowMinutes() {
+  const { h, min } = madridNow();
+  return h * 60 + min;
+}
+
 export function dateFromOffset(offset: number) {
-  const d = new Date();
-  d.setDate(d.getDate() + offset);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  const { y, m, d } = madridNow();
+  return new Date(Date.UTC(y, m - 1, d + offset));
 }
 
 /**
@@ -68,7 +81,7 @@ export function dayTitle(offset: number) {
   if (offset === 0) return 'Hoy';
   if (offset === 1) return 'Mañana';
   const s = dateFromOffset(offset).toLocaleDateString('es-ES', {
-    weekday: 'long', day: 'numeric', month: 'short',
+    timeZone: TZ, weekday: 'long', day: 'numeric', month: 'short',
   });
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
@@ -76,5 +89,7 @@ export function dayTitle(offset: number) {
 export function dayName(offset: number) {
   if (offset === 0) return 'Hoy';
   if (offset === 1) return 'Mañana';
-  return dateFromOffset(offset).toLocaleDateString('es-ES', { weekday: 'short' }).replace('.', '');
+  return dateFromOffset(offset).toLocaleDateString('es-ES', {
+    timeZone: TZ, weekday: 'short',
+  }).replace('.', '');
 }

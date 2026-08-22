@@ -41,7 +41,10 @@ export default function AgendaHeader({
           <button className={seg(mode === 'dia')} onClick={() => go(day, 'dia')}>Día</button>
           <button className={seg(mode === 'semana')} onClick={() => go(day, 'semana')}>Semana</button>
         </div>
-        <button className="ml-auto flex items-center gap-[7px] rounded-[13px] border border-surface-line bg-white px-3 py-2 text-[12.5px] font-bold shadow-card">
+        <button
+          onClick={() => router.push(`/agenda?day=${day}&mode=${mode}&wait=1`)}
+          className="ml-auto flex items-center gap-[7px] rounded-[13px] border border-surface-line bg-white px-3 py-2 text-[12.5px] font-bold shadow-card"
+        >
           <Clock size={15} className="text-v" strokeWidth={2.2} />
           Espera
           <span className="rounded-lg bg-v-soft px-1.5 text-[11px] text-v-d">{waiting}</span>

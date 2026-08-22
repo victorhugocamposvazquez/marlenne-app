@@ -84,6 +84,7 @@ export async function createAppointment(input: {
 
   revalidatePath('/agenda');
   revalidatePath('/hoy');
+  revalidatePath('/clientas');
   return { ok: !error, error: error?.message ?? null };
 }
 

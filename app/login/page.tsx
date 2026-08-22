@@ -1,13 +1,18 @@
-import { listStaff } from '@/lib/queries';
+export const dynamic = 'force-dynamic';
+
+import { listLoginProviders } from '@/lib/queries';
 import { signInAs } from '@/app/actions/auth';
+import { madridNow } from '@/lib/time';
 import { ChevronRight, Sparkles } from 'lucide-react';
 
 export default async function LoginPage() {
-  const staff = await listStaff();
+  const providers = await listLoginProviders();
+  const h = madridNow().h;
+  const hello = h < 13 ? 'Buenos días.' : h < 20 ? 'Buenas tardes.' : 'Buenas noches.';
   const profiles = [
     { id: 'admin', name: 'Dirección', desc: 'Acceso completo al centro', initials: 'DI', color: '' },
     { id: 'reception', name: 'Recepción', desc: 'Agenda y clientas', initials: 'RE', color: '' },
-    ...staff.filter(s => s.role === 'provider').map(s => ({
+    ...providers.map(s => ({
       id: s.id, name: s.full_name, desc: s.job_title ?? 'Solo su agenda',
       initials: s.initials ?? '', color: s.color ?? '#8B5CF6',
     })),
@@ -23,7 +28,7 @@ export default async function LoginPage() {
           </div>
           <div className="text-[13px] font-semibold tracking-[.02em] text-v">Marlenne · Estética avanzada</div>
           <h1 className="mt-1 text-[30px] font-extrabold leading-[1.15] tracking-[-.02em]">
-            Buenos días.<br />¿Quién entra hoy?
+            {hello}<br />¿Quién entra hoy?
           </h1>
           <p className="mt-2.5 max-w-[300px] text-sm font-medium leading-relaxed text-ink-2">
             Elige tu perfil. Cada uno ve exactamente lo que necesita.

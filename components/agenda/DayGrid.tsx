@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback, useState, useTransition } from 'react';
+import { useCallback, useEffect, useState, useTransition } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { CATEGORIES, STATUS, avatarColor } from '@/lib/categories';
-import { fmt, minutesOfDay, DAY_START, DAY_END } from '@/lib/time';
+import { fmt, minutesOfDay, nowMinutes, dayKey, DAY_START, DAY_END } from '@/lib/time';
 import { moveAppointment } from '@/app/actions/appointments';
 import type { AgendaAppt, AgendaBlock, Provider } from '@/lib/types';
 import { useDragAppointment, COL_W } from '@/hooks/useDragAppointment';
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 
 export default function DayGrid({
   date, providers, appointments, blocks, canMoveProvider,
@@ -22,7 +23,13 @@ export default function DayGrid({
   const gridH = (DAY_END - DAY_START) * pxPerMin;
   const [, startTransition] = useTransition();
   const [optimistic, setOptimistic] = useState<Record<string, { start: number; provider: string }>>({});
+  const [now, setNow] = useState(nowMinutes);
   const router = useRouter();
+  useRealtimeRefresh(['appointments', 'time_blocks']);
+  useEffect(() => {
+    const t = setInterval(() => setNow(nowMinutes()), 60_000);
+    return () => clearInterval(t);
+  }, []);
   const pathname = usePathname();
   const params = useSearchParams();
 
@@ -106,6 +113,16 @@ export default function DayGrid({
               {providers.slice(1).map((_, i) => (
                 <div key={i} className="absolute top-0 w-px bg-grid-v" style={{ left: (i + 1) * COL_W - 4, height: gridH }} />
               ))}
+
+              {dayKey(date) === dayKey(new Date()) && now >= DAY_START && now <= DAY_END && (
+                <div
+                  className="pointer-events-none absolute z-[8] flex items-center"
+                  style={{ top: (now - DAY_START) * pxPerMin, width: providers.length * COL_W }}
+                >
+                  <span className="-ml-1 h-2 w-2 shrink-0 rounded-full bg-[#EC4899] shadow-[0_0_0_3px_rgba(236,72,153,.25)]" />
+                  <span className="h-px flex-1 bg-[#EC4899]" />
+                </div>
+              )}
 
               <div className="relative flex">
                 {providers.map(p => (

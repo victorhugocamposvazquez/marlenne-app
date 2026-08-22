@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { toTimestamp, dateFromOffset, dayKey } from '@/lib/time';
 import type {
   AgendaAppt, AgendaBlock, ClientOption, ClientRow, Consent, Provider, ServiceOption,
-  TreatmentRow, WeekDay,
+  TreatmentRow, WaitItem, WeekDay,
 } from '@/lib/types';
 
 const APPT_SELECT = `
@@ -72,6 +72,22 @@ export async function listStaff(): Promise<Provider[]> {
 
 export const listProviders = async () =>
   (await listStaff()).filter(s => s.role === 'provider');
+
+/** El login no tiene sesión: RLS de staff no deja leer. Solo nombres e iniciales. */
+export async function listLoginProviders(): Promise<Provider[]> {
+  try {
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const { data } = await createAdminClient()
+      .from('staff')
+      .select('id, full_name, initials, role, job_title, color')
+      .eq('is_active', true)
+      .eq('role', 'provider')
+      .order('sort_order');
+    return (data ?? []) as Provider[];
+  } catch {
+    return [];
+  }
+}
 
 export async function listServices(): Promise<ServiceOption[]> {
   const sb = createClient();
@@ -233,6 +249,16 @@ export async function countWaitlist() {
     .select('id', { count: 'exact', head: true })
     .is('resolved_at', null);
   return count ?? 0;
+}
+
+export async function listWaitlist(): Promise<WaitItem[]> {
+  const sb = createClient();
+  const { data } = await sb
+    .from('waitlist')
+    .select('id, client_id, client_name, preference, created_at, service:services(name, category), client:clients(full_name, phone)')
+    .is('resolved_at', null)
+    .order('created_at');
+  return (data ?? []) as unknown as WaitItem[];
 }
 
 /** Huecos libres vía la función SQL free_slots(). */

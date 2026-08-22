@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { requireSession, listProviders, getDayAgenda, countWaitlist } from '@/lib/queries';
-import { fmt, durLbl, minutesOfDay } from '@/lib/time';
+import { fmt, durLbl, minutesOfDay, madridNow } from '@/lib/time';
 import { CATEGORIES } from '@/lib/categories';
 import { setStatus } from '@/app/actions/appointments';
 import { Bell } from 'lucide-react';
@@ -18,7 +18,7 @@ export default async function HoyPage() {
   const occ = providers.length ? Math.round((100 * booked) / (providers.length * 660)) : 0;
   const live = appointments.filter(a => a.status === 'curso');
   const next = appointments.filter(a => a.status === 'prog').sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at)).slice(0, 6);
-  const h = new Date().getHours();
+  const h = madridNow().h;
   const greeting = h < 13 ? 'Buenos días ☀️' : h < 20 ? 'Buenas tardes' : 'Buenas noches';
 
   return (
@@ -28,17 +28,21 @@ export default async function HoyPage() {
           <div className="text-[13px] font-medium text-ink-2">Hola {me.full_name}</div>
           <div className="text-2xl font-extrabold leading-[1.15] tracking-[-.025em]">{greeting}</div>
         </div>
-        <button className="relative grid h-[42px] w-[42px] place-items-center rounded-[14px] border border-surface-line bg-white shadow-card" aria-label="Lista de espera">
+        <Link
+          href="/agenda?wait=1"
+          className="relative grid h-[42px] w-[42px] place-items-center rounded-[14px] border border-surface-line bg-white shadow-card"
+          aria-label="Lista de espera"
+        >
           <Bell size={19} strokeWidth={2} />
           {waiting > 0 && <span className="absolute right-2.5 top-2 h-2 w-2 rounded-full border-2 border-white bg-v" />}
-        </button>
+        </Link>
       </div>
 
       <div className="relative mb-3 overflow-hidden rounded-[22px] bg-grad px-5 py-[18px] text-white shadow-hero">
         <div className="absolute -right-10 -top-10 h-[150px] w-[150px] rounded-full bg-white/[.13]" />
         <div className="relative">
           <div className="text-xs font-semibold opacity-85">
-            {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+            {new Date().toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid', weekday: 'long', day: 'numeric', month: 'long' })}
           </div>
           <div className="mt-1.5 flex items-end gap-2">
             <div className="text-[40px] font-extrabold leading-none tracking-[-.03em]">{appointments.length}</div>

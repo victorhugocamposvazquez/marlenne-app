@@ -69,10 +69,11 @@ SUPABASE_PROJECT_ID=xxxx npm run types:gen
 | ✅ | Server actions: crear, mover, reprogramar, estado, cancelar, cierre de sesión |
 | ✅ | Cron de recordatorio SMS con Twilio y log antiduplicados |
 | ✅ | Manifest PWA |
-| ⬜ | Sheets: nueva cita, detalle/reprogramar, cierre de sesión, lista de espera |
-| ⬜ | Ficha de clienta: pestañas Tratamientos / Medidas / Fotos / Historial |
-| ⬜ | Ajustes: equipo, catálogo, roadmap |
-| ⬜ | Supabase Realtime en la agenda del día |
+| ✅ | Sheets: nueva cita, detalle/reprogramar, lista de espera, alta de clienta |
+| ✅ | Ficha de clienta: pestañas Tratamientos / Medidas / Fotos / Historial |
+| ✅ | Ajustes: equipo, catálogo, cierre de sesión, roadmap |
+| ✅ | Supabase Realtime en la agenda del día |
+| ⬜ | Cierre de sesión clínico (parámetros y medidas al marcar Hecha) |
 | ⬜ | Service worker (next-pwa o Serwist) |
 | ⬜ | Subida de fotos a Storage con compresión en cliente |
 

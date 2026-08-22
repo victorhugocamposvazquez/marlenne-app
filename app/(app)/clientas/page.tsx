@@ -1,16 +1,28 @@
 import Link from 'next/link';
 import { listClients } from '@/lib/queries';
 import { avatarColor, initials } from '@/lib/categories';
-import { Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
+import NewClientSheet from '@/components/clienta/NewClientSheet';
 
-export default async function ClientasPage({ searchParams }: { searchParams: { q?: string } }) {
+export default async function ClientasPage({ searchParams }: { searchParams: { q?: string; alta?: string } }) {
   const clients = await listClients(searchParams.q ?? '');
 
   return (
     <div className="flex h-full flex-col">
       <header className="shrink-0 px-5 pb-3 pt-5">
-        <h1 className="text-[23px] font-extrabold tracking-[-.025em]">Clientas</h1>
-        <p className="mt-px text-[13px] font-medium text-ink-2">{clients.length} en la base</p>
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-[23px] font-extrabold tracking-[-.025em]">Clientas</h1>
+            <p className="mt-px text-[13px] font-medium text-ink-2">{clients.length} en la base</p>
+          </div>
+          <Link
+            href="/clientas?alta=1"
+            aria-label="Nueva clienta"
+            className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px] bg-grad text-white shadow-btn"
+          >
+            <Plus size={20} strokeWidth={2.4} />
+          </Link>
+        </div>
         <form className="mt-3.5 flex items-center gap-2.5 rounded-field border border-surface-line bg-white px-3.5 shadow-card">
           <Search size={17} className="text-ink-3" strokeWidth={2.2} />
           <input
@@ -46,6 +58,7 @@ export default async function ClientasPage({ searchParams }: { searchParams: { q
           </Link>
         ))}
       </div>
+      {searchParams.alta === '1' && <NewClientSheet />}
     </div>
   );
 }
