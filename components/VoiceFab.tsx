@@ -12,6 +12,7 @@ import {
 import type { VoiceTalkResult } from '@/app/actions/voice-talk';
 import { voiceSpeakMp3 } from '@/app/actions/voice-speak';
 import { DIME_WAV_B64 } from '@/lib/dime-wav';
+import { QUE_HACEMOS_WAV_B64 } from '@/lib/que-hacemos-wav';
 import { VOICE_HELP, fold, forEar, isVoiceYes, parseVoice, pickSpokenIndex, splitWake, takeTime, wakeRestIsCommand } from '@/lib/voice';
 import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/lib/voice-prefs';
 
@@ -60,38 +61,64 @@ function unlockSpeak() {
 }
 
 let beepCtx: AudioContext | null = null;
-let dimeBuf: AudioBuffer | null = null;
-let dimeLoad: Promise<AudioBuffer | null> | null = null;
+const wavBuf = new Map<string, AudioBuffer>();
+const wavLoad = new Map<string, Promise<AudioBuffer | null>>();
 
 function audioCtx() {
   beepCtx ??= new AudioContext();
   return beepCtx;
 }
 
-function loadDime() {
-  if (dimeBuf) return Promise.resolve(dimeBuf);
-  dimeLoad ??= (async () => {
+function loadWav(key: string, b64: string) {
+  const hit = wavBuf.get(key);
+  if (hit) return Promise.resolve(hit);
+  const pending = wavLoad.get(key);
+  if (pending) return pending;
+  const p = (async () => {
     try {
       const ctx = audioCtx();
-      const bin = Uint8Array.from(atob(DIME_WAV_B64), c => c.charCodeAt(0));
-      dimeBuf = await ctx.decodeAudioData(bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength));
-      return dimeBuf;
+      const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+      const buf = await ctx.decodeAudioData(bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength));
+      wavBuf.set(key, buf);
+      return buf;
     } catch {
       return null;
     }
   })();
-  return dimeLoad;
+  wavLoad.set(key, p);
+  return p;
+}
+
+function playBuffer(buf: AudioBuffer, onDone: () => void) {
+  try {
+    const ctx = audioCtx();
+    void ctx.resume();
+    const src = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    src.buffer = buf;
+    src.playbackRate.value = 0.96;
+    gain.gain.value = 0.82;
+    src.connect(gain);
+    gain.connect(ctx.destination);
+    let done = false;
+    const finish = () => { if (done) return; done = true; onDone(); };
+    src.onended = finish;
+    src.start();
+    window.setTimeout(finish, Math.round((buf.duration / 0.96) * 1000) + 80);
+  } catch {
+    onDone();
+  }
 }
 
 function warmAudio() {
   try {
     void audioCtx().resume();
-    void loadDime();
+    void loadWav('dime', DIME_WAV_B64);
+    void loadWav('que', QUE_HACEMOS_WAV_B64);
   } catch { /* */ }
   unlockSpeak();
 }
 
-/** «Dime» por el mismo audio que el pitido: Safari no bloquea este canal. */
 function sayDime(onDone: () => void) {
   let done = false;
   const finish = () => {
@@ -99,33 +126,33 @@ function sayDime(onDone: () => void) {
     done = true;
     onDone();
   };
-
-  const start = (buf: AudioBuffer) => {
-    try {
-      const ctx = audioCtx();
-      void ctx.resume();
-      const src = ctx.createBufferSource();
-      const gain = ctx.createGain();
-      src.buffer = buf;
-      src.playbackRate.value = 0.96;
-      gain.gain.value = 0.82;
-      src.connect(gain);
-      gain.connect(ctx.destination);
-      src.onended = () => finish();
-      src.start();
-      window.setTimeout(finish, Math.round(buf.duration * 1000) + 100);
-    } catch {
-      speakDimeNow(finish);
-    }
-  };
-
-  if (dimeBuf) {
-    start(dimeBuf);
-    return;
-  }
-  void loadDime().then(buf => {
-    if (buf) start(buf);
+  void loadWav('dime', DIME_WAV_B64).then(buf => {
+    if (buf) playBuffer(buf, finish);
     else speakDimeNow(finish);
+  });
+}
+
+/** Misma vía que «Dime»: se oye siempre, y luego el nombre. */
+function speakQueLeHacemos(who: string, onDone: () => void) {
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    onDone();
+  };
+  window.setTimeout(finish, 4200);
+  void loadWav('que', QUE_HACEMOS_WAV_B64).then(buf => {
+    if (!buf) {
+      speak(`¿Qué le hacemos a ${who}?`, finish);
+      return;
+    }
+    playBuffer(buf, () => {
+      void (async () => {
+        const ok = await playCloud(who, 'ask');
+        if (!ok) speakLocal(who, true, finish);
+        else finish();
+      })();
+    });
   });
 }
 
@@ -403,7 +430,8 @@ export default function VoiceFab() {
     const onVoices = () => pickWomanVoice();
     window.speechSynthesis?.addEventListener('voiceschanged', onVoices);
     syncPrefs();
-    void loadDime();
+    void loadWav('dime', DIME_WAV_B64);
+    void loadWav('que', QUE_HACEMOS_WAV_B64);
     const onFirst = () => warmAudio();
     window.addEventListener('pointerdown', onFirst, { once: true });
     window.addEventListener('touchstart', onFirst, { once: true });
@@ -578,6 +606,14 @@ export default function VoiceFab() {
         return `${h}:${String(m % 60).padStart(2, '0')}`;
       }) ?? [];
       setPanel({ mode: 'ask', say: r.say, options: r.options, href: r.href });
+      const whoAsk = r.say.match(/^¿Qué le hacemos a (.+)\?$/);
+      if (whoAsk) {
+        speakQueLeHacemos(whoAsk[1], () => startListen({ overlay: true }));
+        window.setTimeout(() => {
+          if (!listenRef.current) startListen({ overlay: true });
+        }, 5000);
+        return;
+      }
       speakThenListen(r.say);
       return;
     }
