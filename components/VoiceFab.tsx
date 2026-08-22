@@ -9,7 +9,8 @@ import {
   type PendingBook,
 } from '@/app/actions/voice';
 import type { VoiceTalkResult } from '@/app/actions/voice-talk';
-import { VOICE_HELP, fold, isVoiceYes, parseVoice, splitWake, takeTime, wakeRestIsCommand } from '@/lib/voice';
+import { voiceSpeakMp3 } from '@/app/actions/voice-speak';
+import { VOICE_HELP, fold, forEar, isVoiceYes, parseVoice, splitWake, takeTime, wakeRestIsCommand } from '@/lib/voice';
 import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/lib/voice-prefs';
 
 type Choice = { id: string; label: string };
@@ -156,35 +157,119 @@ function speakDimeNow(onDone: () => void) {
   window.speechSynthesis.speak(u);
 }
 
+const ttsCache = new Map<string, string>();
+let ttsCloud: boolean | null = null;
+let ttsAudio: HTMLAudioElement | null = null;
+let speakGen = 0;
+
+function stopSpeak() {
+  speakGen += 1;
+  window.clearTimeout(speakTimer);
+  try { window.speechSynthesis?.cancel(); } catch { /* */ }
+  if (ttsAudio) {
+    ttsAudio.onended = null;
+    ttsAudio.onerror = null;
+    ttsAudio.pause();
+  }
+}
+
+function speakLocal(text: string, ask: boolean, onDone: () => void) {
+  if (typeof window === 'undefined' || !window.speechSynthesis) {
+    onDone();
+    return;
+  }
+  const parts = text.split(/(?<=[.?!,])\s+/).map(s => s.trim()).filter(Boolean);
+  const chunks = parts.length ? parts : [text];
+  let i = 0;
+  const next = () => {
+    if (i >= chunks.length) {
+      onDone();
+      return;
+    }
+    const part = chunks[i++];
+    const last = i >= chunks.length;
+    const q = ask && (part.includes('?') || last);
+    const u = new SpeechSynthesisUtterance(part);
+    const voice = pickWomanVoice();
+    if (voice) {
+      u.voice = voice;
+      u.lang = voice.lang;
+    } else {
+      u.lang = 'es-ES';
+    }
+    u.rate = q ? 0.86 : 0.9;
+    u.pitch = q ? 1.14 : 1.04;
+    u.onend = () => { speakTimer = window.setTimeout(next, q ? 60 : 120); };
+    u.onerror = onDone;
+    window.speechSynthesis.speak(u);
+  };
+  speakTimer = window.setTimeout(() => {
+    try { window.speechSynthesis.cancel(); } catch { /* */ }
+    next();
+  }, 80);
+}
+
+async function playCloud(text: string, kind: 'ask' | 'say') {
+  const key = `${kind}:${text}`;
+  let url = ttsCache.get(key);
+  if (!url) {
+    const b64 = await voiceSpeakMp3(text, kind);
+    if (!b64) {
+      ttsCloud = false;
+      return false;
+    }
+    ttsCloud = true;
+    const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    url = URL.createObjectURL(new Blob([bin], { type: 'audio/mpeg' }));
+    ttsCache.set(key, url);
+    if (ttsCache.size > 40) {
+      const first = ttsCache.keys().next().value;
+      if (first) {
+        const old = ttsCache.get(first);
+        if (old) URL.revokeObjectURL(old);
+        ttsCache.delete(first);
+      }
+    }
+  }
+  return new Promise<boolean>(resolve => {
+    ttsAudio ??= new Audio();
+    const el = ttsAudio;
+    el.onended = () => resolve(true);
+    el.onerror = () => resolve(false);
+    el.src = url;
+    el.volume = 1;
+    void el.play().catch(() => resolve(false));
+  });
+}
+
 function speak(text: string, onDone?: () => void) {
-  if (typeof window === 'undefined' || !getVoicePrefs().speak || !window.speechSynthesis) {
+  if (typeof window === 'undefined' || !getVoicePrefs().speak) {
     onDone?.();
     return;
   }
-  window.clearTimeout(speakTimer);
+  stopSpeak();
+  const gen = speakGen;
+  const ear = forEar(text);
+  const ask = /\?/.test(text);
   let done = false;
   const finish = () => {
-    if (done) return;
+    if (done || gen !== speakGen) return;
     done = true;
     onDone?.();
   };
-  const u = new SpeechSynthesisUtterance(text);
-  const voice = pickWomanVoice();
-  if (voice) {
-    u.voice = voice;
-    u.lang = voice.lang;
-  } else {
-    u.lang = 'es-ES';
-  }
-  u.pitch = 1;
-  u.rate = 0.92;
-  u.onend = finish;
-  u.onerror = finish;
-  speakTimer = window.setTimeout(() => {
-    try { window.speechSynthesis.cancel(); } catch { /* */ }
-    window.speechSynthesis.speak(u);
-    if (onDone) window.setTimeout(finish, Math.min(8000, 800 + text.length * 70));
-  }, 120);
+
+  void (async () => {
+    if (ttsCloud !== false) {
+      const ok = await playCloud(ear, ask ? 'ask' : 'say');
+      if (gen !== speakGen) return;
+      if (ok) {
+        finish();
+        return;
+      }
+    }
+    speakLocal(ear, ask, finish);
+    if (onDone) window.setTimeout(finish, Math.min(9000, 900 + ear.length * 70));
+  })();
 }
 
 type RecApi = {
@@ -292,7 +377,7 @@ export default function VoiceFab() {
     setHearing(false);
     setHearDraft('');
     killRec();
-    try { window.speechSynthesis?.cancel(); } catch { /* */ }
+    stopSpeak();
     pendingRef.current = null;
     setTyped('');
     setPanel({ mode: 'idle' });
@@ -567,10 +652,10 @@ export default function VoiceFab() {
         const who = cmd.who;
         setPanel({
           mode: 'confirm',
-          say: `¿Pongo a ${who} en espera?`,
+          say: `¿Apunto a ${who} en espera?`,
           run: () => voiceAddWait(who),
         });
-        speak(`¿Pongo a ${who} en espera? Di sí o no.`, () => startListen({ overlay: true }));
+        speak(`¿Apunto a ${who} en espera?`, () => startListen({ overlay: true }));
         return;
       }
       if (cmd.kind === 'status') {

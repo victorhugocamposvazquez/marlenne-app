@@ -34,6 +34,31 @@ export function fold(s: string) {
   return s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
 }
 
+const CLOCK_SPOKE = ['doce', 'una', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez', 'once'] as const;
+
+/** 690 → «once y media». Para decir la hora, no para pantallas. */
+export function spokenClock(min: number) {
+  const h12 = Math.floor(min / 60) % 12 || 12;
+  const m = min % 60;
+  const hour = CLOCK_SPOKE[h12 % 12];
+  if (m === 0) return hour;
+  if (m === 15) return `${hour} y cuarto`;
+  if (m === 30) return `${hour} y media`;
+  if (m === 45) return `${CLOCK_SPOKE[(h12 % 12 + 1) % 12]} menos cuarto`;
+  return `${hour} ${m}`;
+}
+
+/** Lo que se oye: horas dichas, comas en vez de ·, sin «di sí o no». */
+export function forEar(text: string) {
+  return text
+    .replace(/[·•]/g, ',')
+    .replace(/\b(\d{1,2}):(\d{2})\b/g, (_, h, m) => spokenClock(Number(h) * 60 + Number(m)))
+    .replace(/\ba las una\b/gi, 'a la una')
+    .replace(/\s*[.!]?\s*Di sí o no\.?/gi, '.')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /** «Facial», «láser», «corporal» → categoría. No pisa un nombre de servicio. */
 export function matchCategory(q: string): CategoryId | null {
   const t = fold(q);

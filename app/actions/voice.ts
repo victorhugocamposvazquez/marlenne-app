@@ -56,9 +56,9 @@ export async function voicePreviewStatus(who: string, status: 'curso' | 'noshow'
   }
   const verb = status === 'curso' ? 'Pasa a cabina' : 'No vino';
   if (matches.length === 1) {
-    return { ok: true as const, say: `${verb}: ${matches[0].label}. ¿Lo hago?`, matches };
+    return { ok: true as const, say: `${verb}: ${matches[0].label}. ¿Lo marco?`, matches };
   }
-  return { ok: true as const, say: `Hay varias. ¿Cuál?`, matches };
+  return { ok: true as const, say: `Hay varias. ¿Cuál es?`, matches };
 }
 
 export async function voiceApplyStatus(id: string, status: 'curso' | 'noshow') {
@@ -136,6 +136,7 @@ export async function voicePreviewBook(
   }
   const href = `/agenda?${qs.toString()}`;
   const whenLbl = dayTitle(dayOffset);
+  const whenBit = dayOffset === 0 ? '' : `, ${whenLbl.toLowerCase()}`;
   const withPro = providerQ ? ` con ${providers[0].full_name.split(' ')[0]}` : '';
   const hora = startMin !== null ? ` a las ${fmt(startMin)}` : '';
   const cats = Object.values(CATEGORIES).map(c => c.label);
@@ -166,7 +167,7 @@ export async function voicePreviewBook(
   const services = fromList.length ? fromList : allServices;
 
   if (!serviceQ) {
-    return askService(`¿Qué le hacemos a ${who}${hora} ${whenLbl}${withPro}?`, cats);
+    return askService(`¿Qué le hacemos a ${who}${hora}${whenBit}${withPro}?`, cats);
   }
 
   const exact = services.filter(s => s.name.localeCompare(serviceQ, 'es', { sensitivity: 'accent' }) === 0
@@ -178,7 +179,7 @@ export async function voicePreviewBook(
     if (named.length === 1) picked = named[0];
     else if (named.length > 1) {
       const names = named.map(s => s.name);
-      return askService(`Hay varias: ${spoken(names)}. ¿Cuál para ${who}?`, names);
+      return askService(`Hay varias. ${spoken(names)}. ¿Cuál le hacemos a ${who}?`, names);
     }
   }
 
@@ -189,7 +190,7 @@ export async function voicePreviewBook(
       if (inCat.length === 1) picked = inCat[0];
       else if (inCat.length > 1) {
         const names = inCat.map(s => s.name);
-        return askService(`De ${CATEGORIES[cat].label}: ${spoken(names)}. ¿Cuál para ${who}?`, names);
+        return askService(`En ${CATEGORIES[cat].label.toLowerCase()} tengo ${spoken(names)}. ¿Cuál le hacemos a ${who}?`, names);
       } else {
         return askService(`No hay servicios de ${CATEGORIES[cat].label}. ¿Otra categoría?`, cats, null);
       }
@@ -201,7 +202,7 @@ export async function voicePreviewBook(
     if (named.length === 1) picked = named[0];
     else if (named.length > 1) {
       const names = named.map(s => s.name);
-      return askService(`Hay varias: ${spoken(names)}. ¿Cuál para ${who}?`, names);
+      return askService(`Hay varias. ${spoken(names)}. ¿Cuál le hacemos a ${who}?`, names);
     }
   }
 
@@ -216,7 +217,7 @@ export async function voicePreviewBook(
       need: 'time' as const,
       pending: { who, startMin, dayOffset, providerQ, serviceQ: picked.name, need: 'time' as const },
       href,
-      say: `¿A qué hora ${who} · ${picked.name} ${whenLbl}${withPro}?`,
+      say: `¿A qué hora le hacemos ${picked.name} a ${who}${whenBit}${withPro}?`,
     };
   }
   const service = picked;
@@ -235,7 +236,7 @@ export async function voicePreviewBook(
     ok: true as const,
     ready: true as const,
     href,
-    say: `Cita de ${whoLabel} ${whenLbl} a las ${fmt(startMin)} de ${service.name}${withPro}. ¿La guardo? Di sí o no.`,
+    say: `${whoLabel}, ${whenLbl.toLowerCase()} a las ${fmt(startMin)}, ${service.name}${withPro}. ¿La guardo?`,
     draft: {
       clientId: client?.id,
       clientName: client ? undefined : who,
@@ -280,7 +281,7 @@ export async function voicePreviewCancel(who: string, dayOffset = 0) {
   }
   return {
     ok: true as const,
-    say: matches.length === 1 ? `Cancelar ${matches[0].label}. ¿Lo hago?` : 'Hay varias. ¿Cuál cancelo?',
+    say: matches.length === 1 ? `Cancelo ${matches[0].label}. ¿De acuerdo?` : 'Hay varias. ¿Cuál cancelo?',
     matches,
   };
 }
@@ -317,7 +318,7 @@ export async function voicePreviewMove(
   return {
     ok: true as const,
     ready: true as const,
-    say: `Mover a ${appt.client_label} ${dayTitle(dayOffset)} a las ${fmt(startMin)} con ${provider.full_name.split(' ')[0]}. ¿Lo hago?`,
+    say: `Paso a ${appt.client_label} ${dayTitle(dayOffset).toLowerCase()} a las ${fmt(startMin)} con ${provider.full_name.split(' ')[0]}. ¿De acuerdo?`,
     draft: { id: appt.id, date: dayKey(when), startMin, providerId: provider.id },
   };
 }
