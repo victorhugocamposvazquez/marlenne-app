@@ -4,13 +4,12 @@ Scaffold de la PWA de agenda del centro. El diseño de referencia es
 `../design_handoff_marlenne/Marlenne.dc.html` (prototipo completo) y su
 `README.md` lleva todos los tokens y especificaciones pantalla a pantalla.
 
-## ⚠️ El acceso todavía no es un login real
+## Acceso
 
-`/login` es el selector de perfil del prototipo: entra con una contraseña común
-que vive en las variables de entorno, sin autenticar a la persona. **Cualquiera
-con la URL entra.** Es aceptable con datos de prueba; hay que sustituirlo por
-login por usuario antes de meter una sola clienta real (fotos, medidas y notas
-son datos de salud, RGPD art. 9).
+`/login` pide el email y la contraseña de cada miembro del equipo (Supabase Auth).
+Cada persona cambia la suya en **Más**. El seed de demo crea usuarios
+`*@marlenne.test` con `DEMO_PASSWORD`; hay que cambiarlas antes de meter
+clientas reales (fotos, medidas y notas son datos de salud, RGPD art. 9).
 
 ## Puesta en marcha
 
@@ -60,7 +59,7 @@ SUPABASE_PROJECT_ID=xxxx npm run types:gen
 | --- | --- |
 | ✅ | Tokens en `tailwind.config.ts` y fuente Plus Jakarta Sans |
 | ✅ | Shell de 440px + navegación inferior con reglas por rol |
-| ⚠️ | Selector de perfil provisional — pendiente de login real por usuario |
+| ✅ | Login por email y contraseña; cada una cambia la suya |
 | ✅ | Agenda vista día: rejilla, columnas, bloqueos, línea de ahora |
 | ✅ | **Drag & drop** con pointer events, snap de 15 min y update optimista (`hooks/useDragAppointment.ts`) |
 | ✅ | Agenda vista semana |
@@ -75,8 +74,9 @@ SUPABASE_PROJECT_ID=xxxx npm run types:gen
 | ✅ | Supabase Realtime en la agenda del día, Hoy y lista de espera |
 | ✅ | Cierre de sesión clínico (parámetros y medidas al marcar Hecha) |
 | ✅ | Subida de fotos a Storage con compresión en cliente |
+| ✅ | Consentimientos RGPD en la ficha y al alta |
+| ✅ | Bloquear / quitar huecos de agenda |
 | ⚠️ | Service worker mínimo (instalable; sin caché offline) |
-| ⬜ | Login real por usuario (sigue el selector de perfil) |
 
 Las piezas pendientes están todas especificadas en el README del handoff:
 medidas, colores, copys y comportamiento exactos.

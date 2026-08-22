@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { Ban, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { dayTitle } from '@/lib/time';
 
 export default function AgendaHeader({
@@ -42,8 +42,15 @@ export default function AgendaHeader({
           <button className={seg(mode === 'semana')} onClick={() => go(day, 'semana')}>Semana</button>
         </div>
         <button
+          onClick={() => router.push(`/agenda?day=${day}&mode=${mode}&block=1`)}
+          aria-label="Bloquear hueco"
+          className="ml-auto grid h-[38px] w-[38px] place-items-center rounded-[13px] border border-surface-line bg-white shadow-card"
+        >
+          <Ban size={15} className="text-ink-2" strokeWidth={2.2} />
+        </button>
+        <button
           onClick={() => router.push(`/agenda?day=${day}&mode=${mode}&wait=1`)}
-          className="ml-auto flex items-center gap-[7px] rounded-[13px] border border-surface-line bg-white px-3 py-2 text-[12.5px] font-bold shadow-card"
+          className="flex items-center gap-[7px] rounded-[13px] border border-surface-line bg-white px-3 py-2 text-[12.5px] font-bold shadow-card"
         >
           <Clock size={15} className="text-v" strokeWidth={2.2} />
           Espera

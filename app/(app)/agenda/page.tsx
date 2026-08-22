@@ -4,6 +4,7 @@ import AgendaHeader from '@/components/agenda/AgendaHeader';
 import AppointmentSheet from '@/components/agenda/AppointmentSheet';
 import NewAppointmentSheet from '@/components/agenda/NewAppointmentSheet';
 import WaitlistSheet from '@/components/agenda/WaitlistSheet';
+import BlockSheet from '@/components/agenda/BlockSheet';
 import {
   requireSession, listProviders, getDayAgenda, getWeekCounts, countWaitlist,
   listServices, listClientOptions, getAppointment, listWaitlist,
@@ -13,7 +14,7 @@ import { dateFromOffset, dayKey } from '@/lib/time';
 export default async function AgendaPage({
   searchParams,
 }: {
-  searchParams: { day?: string; mode?: string; new?: string; appt?: string; client?: string; wait?: string; close?: string };
+  searchParams: { day?: string; mode?: string; new?: string; appt?: string; client?: string; wait?: string; close?: string; block?: string; bloqueo?: string };
 }) {
   const parsed = Number(searchParams.day ?? 0);
   const day = Number.isFinite(parsed) ? parsed : 0;
@@ -28,13 +29,19 @@ export default async function AgendaPage({
   const opensNew = searchParams.new === '1';
   const opensWait = searchParams.wait === '1';
   const needsCatalog = opensNew || opensWait;
-  const [waiting, services, clients, appt, waitItems] = await Promise.all([
+  const [waiting, services, clients, appt, waitItems, dayAgenda] = await Promise.all([
     countWaitlist(),
     needsCatalog ? listServices() : Promise.resolve([]),
     needsCatalog ? listClientOptions() : Promise.resolve([]),
     searchParams.appt ? getAppointment(searchParams.appt) : Promise.resolve(null),
     opensWait ? listWaitlist() : Promise.resolve([]),
+    mode === 'dia'
+      ? getDayAgenda(dateFromOffset(day), providers.map(p => p.id))
+      : Promise.resolve({ appointments: [], blocks: [] }),
   ]);
+  const existingBlock = searchParams.bloqueo
+    ? dayAgenda.blocks.find(b => b.id === searchParams.bloqueo) ?? null
+    : null;
 
   return (
     <div className="flex h-full flex-col">
@@ -48,7 +55,8 @@ export default async function AgendaPage({
         <DayGrid
           date={dateFromOffset(day).toISOString()}
           providers={providers}
-          {...(await getDayAgenda(dateFromOffset(day), providers.map(p => p.id)))}
+          appointments={dayAgenda.appointments}
+          blocks={dayAgenda.blocks}
           canMoveProvider={canMoveProvider}
         />
       ) : (
@@ -76,6 +84,14 @@ export default async function AgendaPage({
 
       {opensWait && (
         <WaitlistSheet items={waitItems} clients={clients} services={services} />
+      )}
+
+      {(searchParams.block === '1' || existingBlock) && (
+        <BlockSheet
+          day={dayKey(dateFromOffset(day))}
+          providers={providers}
+          existing={existingBlock}
+        />
       )}
     </div>
   );

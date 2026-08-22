@@ -75,17 +75,19 @@ export async function listStaff(): Promise<Provider[]> {
 export const listProviders = async () =>
   (await listStaff()).filter(s => s.role === 'provider');
 
-/** El login no tiene sesión: RLS de staff no deja leer. Solo nombres e iniciales. */
-export async function listLoginProviders(): Promise<Provider[]> {
+/** Emails del equipo para rellenar el login (el login no tiene sesión). */
+export async function listLoginTeam(): Promise<{ name: string; email: string }[]> {
   try {
     const { createAdminClient } = await import('@/lib/supabase/admin');
-    const { data } = await createAdminClient()
-      .from('staff')
-      .select('id, full_name, initials, role, job_title, color')
-      .eq('is_active', true)
-      .eq('role', 'provider')
-      .order('sort_order');
-    return (data ?? []) as Provider[];
+    const admin = createAdminClient();
+    const [{ data: staff }, { data: users }] = await Promise.all([
+      admin.from('staff').select('id, full_name').eq('is_active', true).order('sort_order'),
+      admin.auth.admin.listUsers({ perPage: 200 }),
+    ]);
+    const emailById = new Map((users?.users ?? []).map(u => [u.id, u.email ?? '']));
+    return (staff ?? [])
+      .map(s => ({ name: s.full_name, email: emailById.get(s.id) ?? '' }))
+      .filter(s => s.email);
   } catch {
     return [];
   }

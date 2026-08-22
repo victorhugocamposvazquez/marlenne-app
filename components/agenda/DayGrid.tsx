@@ -143,13 +143,19 @@ export default function DayGrid({
                     {blocks.filter(b => b.provider_id === p.id).map(b => {
                       const start = minutesOfDay(b.starts_at);
                       return (
-                        <div
+                        <button
                           key={b.id}
+                          type="button"
+                          onClick={() => {
+                            const next = new URLSearchParams(params.toString());
+                            next.set('bloqueo', b.id);
+                            router.push(`${pathname}?${next.toString()}`, { scroll: false });
+                          }}
                           className="absolute left-0.5 right-[9px] flex items-center justify-center rounded-[13px] border border-dashed border-[#CFC8E6] bg-block text-[11px] font-bold text-ink-3"
                           style={{ top: (start - DAY_START) * pxPerMin + 2, height: b.duration_min * pxPerMin - 6 }}
                         >
                           {b.label ?? b.reason}
-                        </div>
+                        </button>
                       );
                     })}
 

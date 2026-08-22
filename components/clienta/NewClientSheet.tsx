@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Sheet, { Field, inputCls, useCloseSheet } from '@/components/Sheet';
-import { createClientRecord } from '@/app/actions/clients';
+import { addConsent, createClientRecord } from '@/app/actions/clients';
 
 export default function NewClientSheet() {
   const close = useCloseSheet();
@@ -13,6 +13,8 @@ export default function NewClientSheet() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [vip, setVip] = useState(false);
+  const [foto, setFoto] = useState(false);
+  const [salud, setSalud] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const save = () => {
@@ -26,6 +28,8 @@ export default function NewClientSheet() {
       });
       if (!r.ok || !r.id) setError(r.error ?? 'No se ha podido guardar');
       else {
+        if (foto) await addConsent({ clientId: r.id, kind: 'fotografia' });
+        if (salud) await addConsent({ clientId: r.id, kind: 'datos_salud' });
         close();
         router.push(`/clientas/${r.id}`);
       }
@@ -61,6 +65,14 @@ export default function NewClientSheet() {
       <label className="mb-2 flex items-center gap-2 text-[13.5px] font-bold">
         <input type="checkbox" checked={vip} onChange={e => setVip(e.target.checked)} className="h-4 w-4 accent-[#8B5CF6]" />
         Marcar como VIP
+      </label>
+      <label className="mb-2 flex items-center gap-2 text-[13.5px] font-bold">
+        <input type="checkbox" checked={salud} onChange={e => setSalud(e.target.checked)} className="h-4 w-4 accent-[#8B5CF6]" />
+        Consentimiento de datos de salud
+      </label>
+      <label className="mb-2 flex items-center gap-2 text-[13.5px] font-bold">
+        <input type="checkbox" checked={foto} onChange={e => setFoto(e.target.checked)} className="h-4 w-4 accent-[#8B5CF6]" />
+        Consentimiento de fotografías
       </label>
     </Sheet>
   );

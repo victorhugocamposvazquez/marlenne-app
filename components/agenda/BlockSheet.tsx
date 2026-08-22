@@ -1,0 +1,130 @@
+'use client';
+
+import { useState, useTransition } from 'react';
+import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet';
+import { createBlock, deleteBlock } from '@/app/actions/blocks';
+import { BLOCK_REASONS, type BlockReason } from '@/lib/consents';
+import { DAY_START, durLbl, fmt } from '@/lib/time';
+import type { AgendaBlock, Provider } from '@/lib/types';
+
+const DURATIONS = [30, 45, 60, 90, 120];
+
+export default function BlockSheet({
+  day, providers, existing,
+}: {
+  day: string;
+  providers: Provider[];
+  existing?: AgendaBlock | null;
+}) {
+  const close = useCloseSheet();
+  const [pending, startTransition] = useTransition();
+  const [providerId, setProviderId] = useState(existing?.provider_id ?? providers[0]?.id ?? '');
+  const [date, setDate] = useState(day);
+  const [startMin, setStartMin] = useState(DAY_START + 180);
+  const [duration, setDuration] = useState(60);
+  const [reason, setReason] = useState<BlockReason>('comida');
+  const [label, setLabel] = useState(existing?.label ?? '');
+  const [error, setError] = useState<string | null>(null);
+
+  if (existing) {
+    return (
+      <Sheet title={existing.label ?? BLOCK_REASONS[existing.reason as BlockReason] ?? 'Bloqueo'} subtitle="Quitar este hueco de la agenda">
+        {error && <p className="mb-3 text-[12px] font-semibold text-pink-700">{error}</p>}
+        <div className="flex gap-2 pb-2">
+          <button onClick={close} className="flex-1 rounded-field border border-surface-line bg-white py-3 text-[13.5px] font-bold text-ink-2">
+            Dejarlo
+          </button>
+          <button
+            disabled={pending}
+            onClick={() => startTransition(async () => {
+              const r = await deleteBlock(existing.id);
+              if (!r.ok) setError(r.error ?? 'No se ha podido borrar');
+              else close();
+            })}
+            className="flex-1 rounded-field bg-pink-600 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-40"
+          >
+            Quitar bloqueo
+          </button>
+        </div>
+      </Sheet>
+    );
+  }
+
+  const save = () => {
+    setError(null);
+    startTransition(async () => {
+      const r = await createBlock({
+        providerId, date, startMin, durationMin: duration, reason, label,
+      });
+      if (!r.ok) setError(r.error ?? 'No se ha podido bloquear');
+      else close();
+    });
+  };
+
+  return (
+    <Sheet
+      title="Bloquear hueco"
+      subtitle="Comida, descanso o cabina ocupada"
+      footer={
+        <>
+          {error && <p className="mb-2 text-[12px] font-semibold text-pink-700">{error}</p>}
+          <button
+            onClick={save}
+            disabled={pending || !providerId}
+            className="w-full rounded-field bg-grad py-3.5 text-[15px] font-extrabold text-white shadow-btn disabled:opacity-40"
+          >
+            {pending ? 'Guardando…' : 'Bloquear'}
+          </button>
+        </>
+      }
+    >
+      {providers.length > 1 && (
+        <Field label="Profesional">
+          <div className="flex flex-wrap gap-2">
+            {providers.map(p => (
+              <Chip key={p.id} active={p.id === providerId} onClick={() => setProviderId(p.id)}>
+                {p.full_name.split(' ')[0]}
+              </Chip>
+            ))}
+          </div>
+        </Field>
+      )}
+      <Field label="Motivo">
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(BLOCK_REASONS) as BlockReason[]).map(id => (
+            <Chip key={id} active={id === reason} onClick={() => setReason(id)}>
+              {BLOCK_REASONS[id]}
+            </Chip>
+          ))}
+        </div>
+      </Field>
+      <Field label="Día">
+        <input type="date" className={inputCls} value={date} onChange={e => setDate(e.target.value)} aria-label="Día" />
+      </Field>
+      <Field label="Empieza">
+        <input
+          type="time"
+          className={inputCls}
+          value={fmt(startMin)}
+          onChange={e => {
+            const [h, m] = e.target.value.split(':').map(Number);
+            setStartMin(h * 60 + m);
+          }}
+          aria-label="Hora de inicio"
+        />
+      </Field>
+      <Field label="Duración">
+        <div className="flex flex-wrap gap-2">
+          {DURATIONS.map(d => (
+            <Chip key={d} active={d === duration} onClick={() => setDuration(d)}>
+              {durLbl(d)}
+            </Chip>
+          ))}
+        </div>
+      </Field>
+      <Field label="Etiqueta">
+        <input className={inputCls} placeholder="Comida, formación…" value={label} onChange={e => setLabel(e.target.value)} />
+      </Field>
+    </Sheet>
+  );
+}

@@ -3,30 +3,36 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 
-/**
- * Placeholder del selector de perfil del prototipo.
- * En producción: magic link o email + contraseña por miembro del equipo,
- * y esta pantalla desaparece (un usuario = un perfil).
- */
-export async function signInAs(formData: FormData) {
-  const profile = String(formData.get('profile'));
+function homeFor(role: string | null) {
+  return role === 'admin' || role === 'reception' ? '/hoy' : '/agenda';
+}
+
+export async function signIn(formData: FormData) {
+  const email = String(formData.get('email') ?? '').trim();
+  const password = String(formData.get('password') ?? '');
+  if (!email || !password) return { ok: false, error: 'Pon el email y la contraseña' };
+
   const sb = createClient();
-  const password = process.env.DEMO_PASSWORD;
-
-  let email = process.env[`DEMO_EMAIL_${profile.toUpperCase()}`];
-  // Las profesionales entran con su UUID de staff (= auth.users.id).
-  if (!email && /^[0-9a-f-]{36}$/i.test(profile)) {
-    const { createAdminClient } = await import('@/lib/supabase/admin');
-    const { data } = await createAdminClient().auth.admin.getUserById(profile);
-    email = data.user?.email ?? undefined;
-  }
-
-  if (!email || !password) throw new Error('Configura las credenciales del equipo en Supabase Auth');
-
   const { error } = await sb.auth.signInWithPassword({ email, password });
-  if (error) throw error;
+  if (error) return { ok: false, error: 'Email o contraseña incorrectos' };
 
-  redirect(profile === 'admin' || profile === 'reception' ? '/hoy' : '/agenda');
+  const { data: { user } } = await sb.auth.getUser();
+  const { data: staff } = user
+    ? await sb.from('staff').select('role').eq('id', user.id).maybeSingle()
+    : { data: null };
+
+  redirect(homeFor(staff?.role ?? null));
+}
+
+export async function changePassword(formData: FormData) {
+  const password = String(formData.get('password') ?? '');
+  const confirm = String(formData.get('confirm') ?? '');
+  if (password.length < 8) return { ok: false, error: 'Mínimo 8 caracteres' };
+  if (password !== confirm) return { ok: false, error: 'Las contraseñas no coinciden' };
+
+  const sb = createClient();
+  const { error } = await sb.auth.updateUser({ password });
+  return { ok: !error, error: error?.message ?? null };
 }
 
 export async function signOut() {

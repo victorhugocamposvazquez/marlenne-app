@@ -3,6 +3,7 @@ import { signOut } from '@/app/actions/auth';
 import { CATEGORIES, avatarColor } from '@/lib/categories';
 import { durLbl } from '@/lib/time';
 import { LogOut } from 'lucide-react';
+import PasswordForm from '@/components/PasswordForm';
 
 const ROADMAP = [
   { done: true, label: 'Agenda día y semana, arrastrar citas' },
@@ -11,7 +12,8 @@ const ROADMAP = [
   { done: true, label: 'Realtime en la agenda del día' },
   { done: true, label: 'Cierre de sesión clínico al marcar Hecha' },
   { done: true, label: 'Subida de fotos a Storage' },
-  { done: false, label: 'Login real por usuario (ahora es un selector de perfil)' },
+  { done: true, label: 'Login por email y contraseña' },
+  { done: true, label: 'Consentimientos RGPD y bloqueos de agenda' },
   { done: false, label: 'Service worker con caché offline' },
 ];
 
@@ -75,6 +77,8 @@ export default async function AjustesPage() {
           </div>
         </section>
       )}
+
+      <PasswordForm />
 
       <section className="mt-6">
         <h2 className="mb-2.5 text-[13px] font-extrabold uppercase tracking-[.04em] text-ink-3">En el radar</h2>

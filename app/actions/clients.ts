@@ -87,6 +87,19 @@ export async function updateClientRecord(input: {
   return { ok: !error, error: error?.message ?? null };
 }
 
+export async function addConsent(input: { clientId: string; kind: string }) {
+  const { sb, salonId } = await mySalon();
+  if (!salonId) return { ok: false, error: 'Sin sesión' };
+  const { data: { user } } = await sb.auth.getUser();
+  const { error } = await sb.from('consents').insert({
+    client_id: input.clientId,
+    kind: input.kind,
+    taken_by: user?.id ?? null,
+  });
+  revalidatePath(`/clientas/${input.clientId}`);
+  return { ok: !error, error: error?.message ?? null };
+}
+
 export async function resolveWaitlist(id: string) {
   const sb = createClient();
   const { error } = await sb.from('waitlist').update({ resolved_at: new Date().toISOString() }).eq('id', id);

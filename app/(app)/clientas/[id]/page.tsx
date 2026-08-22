@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, CalendarPlus, Mail, Pencil, Phone } from 'lucide-react';
 import EditClientSheet from '@/components/clienta/EditClientSheet';
+import ConsentsCard from '@/components/clienta/ConsentsCard';
 import Tabs, { parseTab } from '@/components/clienta/Tabs';
 import TreatmentsTab from '@/components/clienta/TreatmentsTab';
 import MeasurementsTab from '@/components/clienta/MeasurementsTab';
@@ -124,6 +125,8 @@ export default async function ClientaPage({
             {client.notes}
           </p>
         )}
+
+        <ConsentsCard clientId={client.id} consents={consents} canEdit={canEdit} />
 
         <div className="mt-3.5">
           <Tabs
