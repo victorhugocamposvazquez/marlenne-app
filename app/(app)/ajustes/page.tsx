@@ -1,9 +1,9 @@
 import { requireSession, listStaff, listServices } from '@/lib/queries';
 import { signOut } from '@/app/actions/auth';
-import { CATEGORIES, avatarColor } from '@/lib/categories';
-import { durLbl } from '@/lib/time';
+import { avatarColor } from '@/lib/categories';
 import { LogOut } from 'lucide-react';
 import PasswordForm from '@/components/PasswordForm';
+import CatalogEditor from '@/components/CatalogEditor';
 
 const ROADMAP = [
   { done: true, label: 'Agenda día y semana, arrastrar citas' },
@@ -14,12 +14,17 @@ const ROADMAP = [
   { done: true, label: 'Subida de fotos a Storage' },
   { done: true, label: 'Login por email y contraseña' },
   { done: true, label: 'Consentimientos RGPD y bloqueos de agenda' },
-  { done: false, label: 'Service worker con caché offline' },
+  { done: true, label: 'Editar precios y duración del catálogo' },
+  { done: true, label: 'Recuperar contraseña por email' },
+  { done: true, label: 'Caché offline de la PWA' },
 ];
 
 export default async function AjustesPage() {
   const me = await requireSession();
-  const [team, services] = await Promise.all([listStaff(), listServices()]);
+  const [team, services] = await Promise.all([
+    listStaff(),
+    me.role === 'admin' ? listServices({ includeInactive: true }) : Promise.resolve([]),
+  ]);
 
   return (
     <div className="px-5 pb-6 pt-5">
@@ -51,30 +56,8 @@ export default async function AjustesPage() {
           <h2 className="mb-2.5 text-[13px] font-extrabold uppercase tracking-[.04em] text-ink-3">
             Catálogo · {services.length} servicios
           </h2>
-          <div className="flex flex-col gap-3">
-            {Object.entries(CATEGORIES).map(([id, cat]) => {
-              const list = services.filter(s => s.category === id);
-              if (!list.length) return null;
-              return (
-                <div key={id}>
-                  <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-bold" style={{ color: cat.fg }}>
-                    <span className="h-2 w-2 rounded-sm" style={{ background: cat.color }} />
-                    {cat.label}
-                  </div>
-                  <div className="overflow-hidden rounded-row border border-surface-line bg-white">
-                    {list.map(s => (
-                      <div key={s.id} className="flex items-baseline justify-between gap-3 border-b border-surface-line px-3.5 py-2.5 last:border-0">
-                        <span className="min-w-0 truncate text-[13px] font-semibold">{s.name}</span>
-                        <span className="shrink-0 text-[11.5px] font-bold tabular-nums text-ink-3">
-                          {durLbl(s.duration_min)} · {(s.price_cents / 100).toFixed(0)} €
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <p className="mb-2.5 text-[12px] font-medium text-ink-3">Toca un servicio para cambiar precio, duración o ocultarlo.</p>
+          <CatalogEditor services={services} />
         </section>
       )}
 

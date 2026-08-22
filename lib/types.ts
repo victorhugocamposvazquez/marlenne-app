@@ -51,6 +51,7 @@ export type ServiceOption = {
   category: CategoryId;
   duration_min: number;
   price_cents: number;
+  is_active?: boolean;
 };
 
 export type ClientOption = {

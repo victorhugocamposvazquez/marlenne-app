@@ -93,14 +93,15 @@ export async function listLoginTeam(): Promise<{ name: string; email: string }[]
   }
 }
 
-export async function listServices(): Promise<ServiceOption[]> {
+export async function listServices(opts?: { includeInactive?: boolean }): Promise<ServiceOption[]> {
   const sb = createClient();
-  const { data } = await sb
+  let query = sb
     .from('services')
-    .select('id, name, category, duration_min, price_cents')
-    .eq('is_active', true)
+    .select('id, name, category, duration_min, price_cents, is_active')
     .order('category')
     .order('sort_order');
+  if (!opts?.includeInactive) query = query.eq('is_active', true);
+  const { data } = await query;
   return (data ?? []) as ServiceOption[];
 }
 

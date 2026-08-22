@@ -28,6 +28,7 @@ export default function NewAppointmentSheet({
   const [startMin, setStartMin] = useState<number | null>(null);
   const [slots, setSlots] = useState<number[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [serviceQ, setServiceQ] = useState('');
 
   const service = services.find(s => s.id === serviceId) ?? null;
 
@@ -155,6 +156,13 @@ export default function NewAppointmentSheet({
       </Field>
 
       <Field label="Servicio">
+        <input
+          className={`${inputCls} mb-2`}
+          placeholder="Buscar servicio…"
+          value={serviceQ}
+          onChange={e => setServiceQ(e.target.value)}
+          aria-label="Buscar servicio"
+        />
         <select
           className={inputCls}
           aria-label="Servicio"
@@ -163,7 +171,8 @@ export default function NewAppointmentSheet({
         >
           <option value="">Elegir servicio…</option>
           {Object.entries(CATEGORIES).map(([id, cat]) => {
-            const list = services.filter(s => s.category === id);
+            const q = serviceQ.trim().toLowerCase();
+            const list = services.filter(s => s.category === id && (!q || s.name.toLowerCase().includes(q)));
             if (!list.length) return null;
             return (
               <optgroup key={id} label={cat.label}>

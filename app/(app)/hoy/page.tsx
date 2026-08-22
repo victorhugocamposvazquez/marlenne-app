@@ -4,6 +4,7 @@ import { fmt, durLbl, minutesOfDay, madridNow } from '@/lib/time';
 import { CATEGORIES } from '@/lib/categories';
 import { Bell } from 'lucide-react';
 import LiveRefresh from '@/components/LiveRefresh';
+import { setStatus } from '@/app/actions/appointments';
 
 export default async function HoyPage() {
   const me = await requireSession();
@@ -103,23 +104,31 @@ export default async function HoyPage() {
         {next.map(a => {
           const cat = CATEGORIES[a.category];
           return (
-            <Link
+            <div
               key={a.id}
-              href={`/agenda?appt=${a.id}`}
-              className="flex items-center gap-3 rounded-row border border-surface-line bg-white p-3 shadow-card transition hover:border-v/40"
+              className="flex items-center gap-3 rounded-row border border-surface-line bg-white p-3 shadow-card"
             >
-              <div className="w-[52px] shrink-0 rounded-[13px] bg-v-tint py-[7px] text-center">
-                <div className="text-[13.5px] font-extrabold leading-none text-v-d tabular-nums">{fmt(minutesOfDay(a.starts_at))}</div>
-                <div className="mt-0.5 text-[9.5px] font-semibold text-ink-3">{durLbl(a.duration_min)}</div>
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-bold tracking-[-.01em]">{a.client_label}</div>
-                <div className="truncate text-[11.5px] font-medium text-ink-3">{a.service_name} · {a.provider_name}</div>
-              </div>
-              <span className="shrink-0 rounded-[9px] px-2 py-1 text-[10px] font-bold" style={{ background: cat.bg, color: cat.fg }}>
-                {cat.label}
-              </span>
-            </Link>
+              <Link href={`/agenda?appt=${a.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="w-[52px] shrink-0 rounded-[13px] bg-v-tint py-[7px] text-center">
+                  <div className="text-[13.5px] font-extrabold leading-none text-v-d tabular-nums">{fmt(minutesOfDay(a.starts_at))}</div>
+                  <div className="mt-0.5 text-[9.5px] font-semibold text-ink-3">{durLbl(a.duration_min)}</div>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-bold tracking-[-.01em]">{a.client_label}</div>
+                  <div className="truncate text-[11.5px] font-medium text-ink-3">{a.service_name} · {a.provider_name}</div>
+                </div>
+                <span className="shrink-0 rounded-[9px] px-2 py-1 text-[10px] font-bold" style={{ background: cat.bg, color: cat.fg }}>
+                  {cat.label}
+                </span>
+              </Link>
+              <form action={setStatus}>
+                <input type="hidden" name="id" value={a.id} />
+                <input type="hidden" name="status" value="curso" />
+                <button className="shrink-0 rounded-[13px] bg-v px-3 py-2.5 text-[12px] font-bold text-white">
+                  Pasa
+                </button>
+              </form>
+            </div>
           );
         })}
       </div>

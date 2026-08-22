@@ -1,5 +1,6 @@
 'use server';
 
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 
@@ -22,6 +23,18 @@ export async function signIn(formData: FormData) {
     : { data: null };
 
   redirect(homeFor(staff?.role ?? null));
+}
+
+export async function requestPasswordReset(formData: FormData) {
+  const email = String(formData.get('email') ?? '').trim();
+  if (!email) return { ok: false, error: 'Pon el email' };
+  const sb = createClient();
+  const origin = headers().get('origin')
+    ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : 'http://localhost:3000');
+  await sb.auth.resetPasswordForEmail(email, { redirectTo: `${origin}/recuperar` });
+  return { ok: true, error: null };
 }
 
 export async function changePassword(formData: FormData) {

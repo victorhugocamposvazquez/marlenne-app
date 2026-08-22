@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { signIn } from '@/app/actions/auth';
+import { requestPasswordReset, signIn } from '@/app/actions/auth';
 import { inputCls } from '@/components/Sheet';
 
 export default function LoginForm({ emails }: { emails: { name: string; email: string }[] }) {
@@ -9,6 +9,7 @@ export default function LoginForm({ emails }: { emails: { name: string; email: s
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   const submit = () => {
     setError(null);
@@ -50,6 +51,9 @@ export default function LoginForm({ emails }: { emails: { name: string; email: s
       {error && (
         <p className="rounded-[12px] bg-pink-50 px-3 py-2 text-[12px] font-semibold text-pink-700">{error}</p>
       )}
+      {info && (
+        <p className="rounded-[12px] bg-emerald-50 px-3 py-2 text-[12px] font-semibold text-emerald-800">{info}</p>
+      )}
 
       <button
         onClick={submit}
@@ -57,6 +61,24 @@ export default function LoginForm({ emails }: { emails: { name: string; email: s
         className="mt-1 w-full rounded-field bg-grad py-3.5 text-[15px] font-extrabold text-white shadow-btn disabled:opacity-40"
       >
         {pending ? 'Entrando…' : 'Entrar'}
+      </button>
+      <button
+        type="button"
+        disabled={pending || !email}
+        onClick={() => {
+          setError(null);
+          setInfo(null);
+          const fd = new FormData();
+          fd.set('email', email);
+          startTransition(async () => {
+            const r = await requestPasswordReset(fd);
+            if (!r.ok) setError(r.error ?? 'No se ha podido enviar');
+            else setInfo('Si el email existe, te hemos mandado un enlace para cambiar la contraseña.');
+          });
+        }}
+        className="text-[12.5px] font-bold text-v-d"
+      >
+        Olvidé la contraseña
       </button>
 
       {emails.length > 0 && (

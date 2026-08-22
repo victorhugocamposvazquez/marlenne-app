@@ -76,7 +76,9 @@ SUPABASE_PROJECT_ID=xxxx npm run types:gen
 | ✅ | Subida de fotos a Storage con compresión en cliente |
 | ✅ | Consentimientos RGPD en la ficha y al alta |
 | ✅ | Bloquear / quitar huecos de agenda |
-| ⚠️ | Service worker mínimo (instalable; sin caché offline) |
+| ✅ | Recuperar contraseña por email |
+| ✅ | Editar catálogo (precio, duración, ocultar) |
+| ✅ | Service worker con caché de estáticos |
 
 Las piezas pendientes están todas especificadas en el README del handoff:
 medidas, colores, copys y comportamiento exactos.
