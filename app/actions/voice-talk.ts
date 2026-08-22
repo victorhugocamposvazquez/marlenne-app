@@ -31,6 +31,7 @@ export type VoiceTalkResult = {
     providerQ: string | null;
     serviceQ: string | null;
     need: 'service' | 'time';
+    choices?: string[];
   };
   options?: string[];
 };

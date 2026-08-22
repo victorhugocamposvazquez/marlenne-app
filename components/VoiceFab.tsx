@@ -9,7 +9,7 @@ import {
   type PendingBook,
 } from '@/app/actions/voice';
 import type { VoiceTalkResult } from '@/app/actions/voice-talk';
-import { VOICE_HELP, VOICE_YES, fold, parseVoice, takeTime } from '@/lib/voice';
+import { VOICE_HELP, fold, isVoiceYes, parseVoice, takeTime } from '@/lib/voice';
 
 type Choice = { id: string; label: string };
 type Panel =
@@ -27,14 +27,21 @@ let womanVoiceCache: SpeechSynthesisVoice | null = null;
 function pickWomanVoice(): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices();
   if (!voices.length) return womanVoiceCache;
-  const es = voices.filter(v => v.lang.toLowerCase().startsWith('es'));
-  const pool = es.length ? es : voices;
-  const women = pool.filter(v => WOMAN_VOICE.test(v.name) && !MAN_VOICE.test(v.name));
-  womanVoiceCache = women.find(v => v.lang.toLowerCase().startsWith('es-es'))
-    ?? women[0]
-    ?? pool.find(v => v.lang.toLowerCase().startsWith('es-es'))
-    ?? pool[0]
-    ?? null;
+  const ranked = voices
+    .map(v => {
+      const n = `${v.name} ${v.voiceURI}`.toLowerCase();
+      let s = 0;
+      if (v.lang.toLowerCase().startsWith('es')) s += 12;
+      if (v.lang.toLowerCase().startsWith('es-es')) s += 6;
+      if (/enhanced|premium|neural|wavenet|studio|natural/.test(n)) s += 24;
+      if (/compact|eloquence|espeak|robot/.test(n)) s -= 22;
+      if (WOMAN_VOICE.test(v.name)) s += 10;
+      if (MAN_VOICE.test(v.name)) s -= 18;
+      if (v.localService) s += 2;
+      return { v, s };
+    })
+    .sort((a, b) => b.s - a.s);
+  womanVoiceCache = ranked[0]?.v ?? null;
   return womanVoiceCache;
 }
 
@@ -68,8 +75,8 @@ function speak(text: string, onDone?: () => void) {
   } else {
     u.lang = 'es-ES';
   }
-  u.pitch = 1.08;
-  u.rate = 1;
+  u.pitch = 1;
+  u.rate = 0.92;
   u.onend = finish;
   u.onerror = finish;
   speakTimer = window.setTimeout(() => {
@@ -220,35 +227,37 @@ export default function VoiceFab() {
         pick: r.cancel ? 'cancel' : 'status',
         run: async () => ({ ok: false, say: 'Elige una' }),
       });
-      speak(r.say);
+      speak(r.say, () => startListen({ overlay: true }));
       return;
     }
     if (r.ready && r.draft && r.move) {
+      pendingRef.current = null;
       const draft = r.draft as { id: string; date: string; startMin: number; providerId: string };
       setPanel({ mode: 'confirm', say: r.say, run: () => voiceApplyMove(draft) });
-      speak(r.say);
+      speak(r.say, () => startListen({ overlay: true }));
       return;
     }
     if (r.ready && r.draft && !r.move && !r.draft.who) {
+      pendingRef.current = null;
       const draft = r.draft as Parameters<typeof voiceConfirmBook>[0];
       setPanel({ mode: 'confirm', say: r.say, run: () => voiceConfirmBook(draft) });
-      speak(r.say);
+      speak(r.say, () => startListen({ overlay: true }));
       return;
     }
     if (r.draft && typeof r.draft.who === 'string') {
       const who = r.draft.who;
       setPanel({ mode: 'confirm', say: r.say, run: () => voiceAddWait(who) });
-      speak(r.say);
+      speak(r.say, () => startListen({ overlay: true }));
       return;
     }
     if (r.matches?.length === 1 && r.cancel) {
       setPanel({ mode: 'confirm', say: r.say, run: () => voiceApplyCancel(r.matches![0].id) });
-      speak(r.say);
+      speak(r.say, () => startListen({ overlay: true }));
       return;
     }
     if (r.matches?.length === 1 && r.status) {
       setPanel({ mode: 'confirm', say: r.say, run: () => voiceApplyStatus(r.matches![0].id, r.status!) });
-      speak(r.say);
+      speak(r.say, () => startListen({ overlay: true }));
       return;
     }
     if ((r.need === 'service' || r.need === 'time') && r.pending) {
@@ -263,18 +272,24 @@ export default function VoiceFab() {
 
   const continueBook = async (patch: Partial<PendingBook>) => {
     const p = { ...pendingRef.current!, ...patch };
-    const preview = await voicePreviewBook(p.who, p.startMin, p.serviceQ, p.dayOffset, p.providerQ);
+    const preview = await voicePreviewBook(
+      p.who, p.startMin, p.serviceQ, p.dayOffset, p.providerQ, pendingRef.current?.choices ?? null,
+    );
     applyTalk(preview);
   };
 
   const runText = (text: string) => {
     const said = fold(text);
     const confirming = confirmRef.current;
-    if (confirming && VOICE_YES.test(said)) {
+    if (confirming && isVoiceYes(said)) {
       startTransition(async () => {
         const r = await confirming.run();
         finish(r.say, r.href);
       });
+      return;
+    }
+    if (confirming && (/^(no|ahora no|mejor no|cancelar?)\b/.test(said) || parseVoice(text).kind === 'dismiss')) {
+      dismiss();
       return;
     }
 
@@ -337,7 +352,7 @@ export default function VoiceFab() {
           say: `¿Pongo a ${who} en espera?`,
           run: () => voiceAddWait(who),
         });
-        speak(`¿Pongo a ${who} en espera?`);
+        speak(`¿Pongo a ${who} en espera? Di sí o no.`, () => startListen({ overlay: true }));
         return;
       }
       if (cmd.kind === 'status') {
@@ -353,7 +368,7 @@ export default function VoiceFab() {
             say: preview.say,
             run: () => voiceApplyStatus(id, cmd.status),
           });
-          speak(preview.say);
+          speak(preview.say, () => startListen({ overlay: true }));
           return;
         }
         setPanel({
@@ -364,7 +379,7 @@ export default function VoiceFab() {
           choices: preview.matches,
           run: async () => ({ ok: false, say: 'Elige una' }),
         });
-        speak(preview.say);
+        speak(preview.say, () => startListen({ overlay: true }));
         return;
       }
       if (cmd.kind === 'slots') {
@@ -385,7 +400,7 @@ export default function VoiceFab() {
         if (preview.matches.length === 1) {
           const id = preview.matches[0].id;
           setPanel({ mode: 'confirm', say: preview.say, run: () => voiceApplyCancel(id) });
-          speak(preview.say);
+          speak(preview.say, () => startListen({ overlay: true }));
           return;
         }
         setPanel({
@@ -395,7 +410,7 @@ export default function VoiceFab() {
           choices: preview.matches,
           run: async () => ({ ok: false, say: 'Elige una' }),
         });
-        speak(preview.say);
+        speak(preview.say, () => startListen({ overlay: true }));
         return;
       }
       if (cmd.kind === 'move') {
@@ -406,7 +421,7 @@ export default function VoiceFab() {
         }
         const draft = preview.draft;
         setPanel({ mode: 'confirm', say: preview.say, run: () => voiceApplyMove(draft) });
-        speak(preview.say);
+        speak(preview.say, () => startListen({ overlay: true }));
       }
     });
   };
@@ -562,6 +577,9 @@ export default function VoiceFab() {
           {panel.mode === 'confirm' && (
             <div>
               <p className="text-[13px] font-semibold text-ink-2">{panel.say}</p>
+              <p className="mt-1 text-[12px] font-semibold text-v-d">
+                {hearDraft || (hearing ? 'Di sí o no.' : 'Di sí, o toca Sí.')}
+              </p>
               {panel.choices && (
                 <div className="mt-2 flex flex-col gap-1.5">
                   {panel.choices.map(c => (
@@ -649,7 +667,7 @@ export default function VoiceFab() {
         onClick={() => {
           if (hearing) commitListen();
           else if (!open) startListen();
-          else if (panel.mode === 'ask') startListen({ overlay: true });
+          else if (panel.mode === 'ask' || panel.mode === 'confirm') startListen({ overlay: true });
           else startListen();
         }}
         className={`pointer-events-auto grid h-14 w-14 place-items-center rounded-[18px] text-white shadow-btn ${

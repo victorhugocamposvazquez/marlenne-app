@@ -16,6 +16,7 @@ export type PendingBook = {
   providerQ: string | null;
   serviceQ: string | null;
   need: 'service' | 'time';
+  choices?: string[];
 };
 
 async function scope() {
@@ -112,6 +113,7 @@ export async function voiceSlots(
 
 export async function voicePreviewBook(
   who: string, startMin: number | null, serviceQ: string | null, dayOffset = 0, providerQ: string | null = null,
+  choices: string[] | null = null,
 ) {
   const when = dateFromOffset(dayOffset);
   const qs = new URLSearchParams({ new: '1', nombre: who });
@@ -150,14 +152,18 @@ export async function voicePreviewBook(
     ok: true as const,
     ready: false as const,
     need: 'service' as const,
-    pending: { who, startMin, dayOffset, providerQ, serviceQ: q, need: 'service' as const },
+    pending: { who, startMin, dayOffset, providerQ, serviceQ: q, need: 'service' as const, choices: options },
     options,
     href,
     say,
   });
 
-  const [clients, services] = await Promise.all([listClientOptions(), listServices()]);
+  const [clients, allServices] = await Promise.all([listClientOptions(), listServices()]);
   const clientHits = bestNameMatches(clients, who, c => c.full_name);
+  const fromList = choices?.length
+    ? allServices.filter(s => choices.some(c => c.toLowerCase() === s.name.toLowerCase()))
+    : [];
+  const services = fromList.length ? fromList : allServices;
 
   if (!serviceQ) {
     return askService(`¿Qué le hacemos a ${who}${hora} ${whenLbl}${withPro}?`, cats);
@@ -187,6 +193,15 @@ export async function voicePreviewBook(
       } else {
         return askService(`No hay servicios de ${CATEGORIES[cat].label}. ¿Otra categoría?`, cats, null);
       }
+    }
+  }
+
+  if (!picked && fromList.length) {
+    const named = bestNameMatches(allServices, serviceQ, s => s.name);
+    if (named.length === 1) picked = named[0];
+    else if (named.length > 1) {
+      const names = named.map(s => s.name);
+      return askService(`Hay varias: ${spoken(names)}. ¿Cuál para ${who}?`, names);
     }
   }
 
@@ -220,7 +235,7 @@ export async function voicePreviewBook(
     ok: true as const,
     ready: true as const,
     href,
-    say: `Cita de ${whoLabel} ${whenLbl} a las ${fmt(startMin)} de ${service.name}${withPro}. ¿La guardo?`,
+    say: `Cita de ${whoLabel} ${whenLbl} a las ${fmt(startMin)} de ${service.name}${withPro}. ¿La guardo? Di sí o no.`,
     draft: {
       clientId: client?.id,
       clientName: client ? undefined : who,

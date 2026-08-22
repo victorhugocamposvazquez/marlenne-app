@@ -273,6 +273,14 @@ function compact(s: string) {
   return fold(s).replace(/[^a-z0-9ñ]/g, '');
 }
 
+function glue(c: string) {
+  return c
+    .replace(/terapiay/g, 'terapia')
+    .replace(/terapiamas/g, 'terapia')
+    .replace(/terapiacon/g, 'terapia')
+    .replace(/terapiaplus/g, 'terapia');
+}
+
 /** Cómo suele oír el dictado algunos tratamientos. */
 const SERVICE_ALIASES: Record<string, string> = {
   vacum: 'vacumterapia',
@@ -282,6 +290,9 @@ const SERVICE_ALIASES: Record<string, string> = {
   vacunoterapia: 'vacumterapia',
   bakumterapia: 'vacumterapia',
   vacumterapia: 'vacumterapia',
+  vacumterapiacavitacion: 'vacumterapiacavitacion',
+  vacumterapiaycavitacion: 'vacumterapiacavitacion',
+  vacumterapiamascavitacion: 'vacumterapiacavitacion',
   presioterapia: 'presoterapia',
   crioliposis: 'criolipolisis',
   criolipolisis: 'criolipolisis',
@@ -291,7 +302,7 @@ function serviceNeedle(raw: string) {
   const stripped = fold(raw)
     .replace(/^(pues |mira |vale |una |un |de |el |la |le hacemos |hacemos |quiero |ponle |para ella |para lucia )/, '')
     .trim();
-  const c = compact(stripped);
+  const c = glue(compact(stripped));
   return { folded: stripped, compact: SERVICE_ALIASES[c] ?? c };
 }
 
@@ -299,13 +310,14 @@ export function scoreName(haystack: string, needle: string) {
   const h = fold(haystack);
   const n = serviceNeedle(needle);
   if (!n.folded && !n.compact) return 0;
-  const hc = compact(h);
-  if (h === n.folded || hc === n.compact) return 5;
-  if (hc.startsWith(n.compact) && n.compact.length >= 5) return 4;
-  if (h.startsWith(n.folded)) return 3;
-  if (h.split(' ').some(w => w.startsWith(n.folded) || compact(w) === n.compact)) return 2;
-  if (h.includes(n.folded) || hc.includes(n.compact)) return 1;
-  if (n.compact.length >= 8 && n.compact.includes(hc)) return 1;
+  const hc = glue(compact(h));
+  const nc = n.compact;
+  if (!nc) return 0;
+  if (hc === nc) return 100 + Math.min(hc.length, 30);
+  if (nc.length >= 5 && hc.startsWith(nc)) return 70 + nc.length;
+  if (nc.length >= 5 && hc.includes(nc)) return 55 + nc.length;
+  if (hc.length >= 6 && nc.includes(hc)) return Math.round(35 * (hc.length / nc.length));
+  if (h.startsWith(n.folded)) return 25;
   return 0;
 }
 
@@ -319,7 +331,14 @@ export function bestNameMatches<T>(rows: T[], needle: string, label: (row: T) =>
   return ranked.filter(x => x.score === top).map(x => x.row);
 }
 
-export const VOICE_YES = /^(si|vale|ok|okay|confirmo|hazlo|adelante|guardo|guardala)$/;
+export const VOICE_YES = /^(si|sip|vale|ok|okay|confirmo|hazlo|adelante|guardo|guardala|guardar|dale|perfecto|correcto)(\b.*)?$/;
+
+export function isVoiceYes(text: string) {
+  const t = fold(text);
+  if (!t) return false;
+  if (VOICE_YES.test(t)) return true;
+  return /^(si|vale|ok)\b/.test(t) && /guard|confirma|hazlo|adelante|dale/.test(t);
+}
 
 export const VOICE_HELP = [
   'cita para Lucía el miércoles a las once y media con Valeria',
