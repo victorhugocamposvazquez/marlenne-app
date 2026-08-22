@@ -17,7 +17,24 @@ export type PendingBook = {
   serviceQ: string | null;
   need: 'service' | 'time';
   choices?: string[];
+  slotMins?: number[];
 };
+
+async function firstFreeMins(
+  providers: { id: string }[],
+  when: Date,
+  durationMin: number,
+  limit = 4,
+) {
+  const seen = new Set<number>();
+  for (const p of providers) {
+    for (const iso of await freeSlots(p.id, when, durationMin)) {
+      seen.add(minutesOfDay(iso));
+    }
+    if (seen.size >= 12) break;
+  }
+  return [...seen].sort((a, b) => a - b).slice(0, limit);
+}
 
 async function scope() {
   const me = await requireSession();
@@ -235,13 +252,19 @@ export async function voicePreviewBook(
   }
 
   if (startMin === null) {
+    const holes = await firstFreeMins(providers, when, picked.duration_min);
+    const holeBit = holes.length ? ` Tengo ${spoken(holes.map(fmt), 4)}.` : '';
     return {
       ok: true as const,
       ready: false as const,
       need: 'time' as const,
-      pending: { who, startMin, dayOffset, providerQ, serviceQ: picked.name, need: 'time' as const },
+      pending: {
+        who, startMin, dayOffset, providerQ, serviceQ: picked.name, need: 'time' as const,
+        slotMins: holes,
+      },
+      options: holes.map(fmt),
       href,
-      say: `¿A qué hora le hacemos ${picked.name} a ${who}${whenBit}${withPro}?`,
+      say: `¿A qué hora le hacemos ${picked.name} a ${who}${whenBit}${withPro}?${holeBit}`,
     };
   }
   const service = picked;
@@ -252,7 +275,22 @@ export async function voicePreviewBook(
     if (mins.includes(startMin)) { providerId = p.id; break; }
   }
   if (!providerId) {
-    return { ok: false as const, ready: false as const, href, say: 'Esa hora no está libre. Abro el alta.' };
+    const holes = await firstFreeMins(providers, when, service.duration_min);
+    if (holes.length) {
+      return {
+        ok: true as const,
+        ready: false as const,
+        need: 'time' as const,
+        pending: {
+          who, startMin: null, dayOffset, providerQ, serviceQ: service.name, need: 'time' as const,
+          slotMins: holes,
+        },
+        options: holes.map(fmt),
+        href,
+        say: `Esa hora no está libre. Tengo ${spoken(holes.map(fmt), 4)}. ¿Cuál?`,
+      };
+    }
+    return { ok: false as const, ready: false as const, href, say: 'No queda hueco ese día. Abro el alta.' };
   }
   const client = clientHits.length === 1 ? clientHits[0] : null;
   const whoLabel = client?.full_name ?? who;

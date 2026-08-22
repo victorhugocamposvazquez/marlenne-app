@@ -11,7 +11,7 @@ import {
 import type { VoiceTalkResult } from '@/app/actions/voice-talk';
 import { voiceSpeakMp3 } from '@/app/actions/voice-speak';
 import { DIME_WAV_B64 } from '@/lib/dime-wav';
-import { VOICE_HELP, fold, forEar, isVoiceYes, parseVoice, splitWake, takeTime, wakeRestIsCommand } from '@/lib/voice';
+import { VOICE_HELP, fold, forEar, isVoiceYes, parseVoice, pickSpokenIndex, splitWake, takeTime, wakeRestIsCommand } from '@/lib/voice';
 import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/lib/voice-prefs';
 
 type Choice = { id: string; label: string };
@@ -324,6 +324,7 @@ export default function VoiceFab() {
   const listenRef = useRef(false);
   const overlayRef = useRef(false);
   const draftRef = useRef('');
+  const optionsRef = useRef<string[]>([]);
   const commitRef = useRef<() => void>(() => {});
   const [hearDraft, setHearDraft] = useState('');
   const [hearing, setHearing] = useState(false);
@@ -579,6 +580,10 @@ export default function VoiceFab() {
     }
     if ((r.need === 'service' || r.need === 'time') && r.pending) {
       pendingRef.current = r.pending;
+      optionsRef.current = r.options ?? r.pending.slotMins?.map(m => {
+        const h = Math.floor(m / 60);
+        return `${h}:${String(m % 60).padStart(2, '0')}`;
+      }) ?? [];
       setPanel({ mode: 'ask', say: r.say, options: r.options, href: r.href });
       speak(r.say, () => startListen({ overlay: true }));
       return;
@@ -621,12 +626,27 @@ export default function VoiceFab() {
       const abortHeld = cmd.kind === 'today' || cmd.kind === 'cancel' || cmd.kind === 'go'
         || cmd.kind === 'slots' || cmd.kind === 'status' || cmd.kind === 'wait' || cmd.kind === 'move';
       if (held && !abortHeld) {
+        const pick = pickSpokenIndex(text, optionsRef.current.length);
+        if (pick != null) {
+          if (held.need === 'time' && held.slotMins?.[pick] != null) {
+            await continueBook({ startMin: held.slotMins[pick] });
+            return;
+          }
+          await continueBook({ serviceQ: optionsRef.current[pick] });
+          return;
+        }
         if (held.need === 'time') {
           const clock = takeTime(text).startMin ?? (cmd.kind === 'book' ? cmd.startMin : null);
           if (clock !== null) {
             await continueBook({ startMin: clock });
             return;
           }
+          if (held.serviceQ && /hora|cavit|media|corta|larga/.test(said)) {
+            await continueBook({ serviceQ: `${held.serviceQ} ${text}`, startMin: held.startMin });
+            return;
+          }
+          await continueBook({ startMin: null, serviceQ: held.serviceQ });
+          return;
         }
         const serviceQ = cmd.kind === 'book' && cmd.serviceQ
           ? cmd.serviceQ
@@ -638,9 +658,9 @@ export default function VoiceFab() {
 
       if (cmd.kind === 'help' || cmd.kind === 'unknown') {
         const say = cmd.kind === 'unknown'
-          ? `No he pillado «${cmd.text}». Prueba: ${VOICE_HELP}`
+          ? `No he pillado «${cmd.text}». Dime el servicio, la hora, o una cita.`
           : `Puedo: ${VOICE_HELP}`;
-        speak(say);
+        speak(say, () => startListen());
         setPanel({ mode: 'msg', say });
         return;
       }
@@ -951,7 +971,9 @@ export default function VoiceFab() {
             <div>
               <p className="text-[13px] font-semibold text-ink-2">{panel.say}</p>
               <p className="mt-1 text-[12px] font-semibold text-v-d">
-                {hearDraft || (hearing ? 'Dilo: vacumterapia, facial…' : 'Toca el micro y dilo, o elige abajo.')}
+                {hearDraft || (hearing
+                  ? (pendingRef.current?.need === 'time' ? 'Dilo: once y media, o toca una hora.' : 'Dilo: vacumterapia, facial…')
+                  : 'Toca el micro y dilo, o elige abajo.')}
               </p>
               {panel.options && panel.options.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
@@ -962,6 +984,15 @@ export default function VoiceFab() {
                       onClick={() => {
                         unlockSpeak();
                         startTransition(async () => {
+                          const held = pendingRef.current;
+                          if (held?.need === 'time') {
+                            const clock = takeTime(opt).startMin
+                              ?? held.slotMins?.[panel.options?.indexOf(opt) ?? -1];
+                            if (clock != null) {
+                              await continueBook({ startMin: clock });
+                              return;
+                            }
+                          }
                           await continueBook({ serviceQ: opt });
                         });
                       }}

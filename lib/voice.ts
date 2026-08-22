@@ -122,6 +122,12 @@ function tidyWho(s: string) {
 }
 
 function clockFromMatch(m: RegExpMatchArray): number | null {
+  if (m[0].includes('menos cuarto')) {
+    const h = hourOf(m[1]);
+    if (h === null) return null;
+    const prev = h === 1 ? 12 : h - 1;
+    return parseClock(`${prev}:45`);
+  }
   let minutes = '00';
   if (m[0].includes('y media')) minutes = '30';
   else if (m[0].includes('y cuarto')) minutes = '15';
@@ -157,10 +163,23 @@ function takeDay(s: string): { text: string; dayOffset: number } {
   };
 }
 
+const BARE_TIME = new RegExp(
+  `^(?:a )?(?:las |la )?(${HOUR_TOKEN})(?:[:.h](\\d{2})| y media| y cuarto| y (\\d{2})| menos cuarto)?$`,
+);
+
+/** «a las 11:30», «once y media», «las cinco». */
 export function takeTime(s: string): { startMin: number | null } {
-  const m = s.match(TIME_RE);
-  if (!m) return { startMin: null };
-  return { startMin: clockFromMatch(m) };
+  const t = fold(s).replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' ').trim();
+  const m = t.match(TIME_RE);
+  if (m) return { startMin: clockFromMatch(m) };
+  const hm = t.match(/\b(\d{1,2})[:.](\d{2})\b/);
+  if (hm) {
+    const clock = parseClock(`${hm[1]}:${hm[2]}`);
+    if (clock != null) return { startMin: clock };
+  }
+  const bare = t.match(BARE_TIME);
+  if (bare) return { startMin: clockFromMatch(bare) };
+  return { startMin: null };
 }
 
 function stripTime(s: string) {
@@ -432,7 +451,11 @@ function editDist(a: string, b: string) {
 
 /** Servicios: aliases + «conterapia» / oídos típicos. No usar para nombres de personas. */
 export function scoreService(haystack: string, needle: string) {
-  const exact = scoreName(haystack, needle);
+  let exact = scoreName(haystack, needle);
+  const nf = fold(needle);
+  const hf = fold(haystack);
+  if (/cavit/.test(nf) && /cavit/.test(hf)) exact += 22;
+  if (/(1 hora|una hora)/.test(nf) && /1 hora/.test(hf)) exact += 22;
   if (exact >= 55) return exact;
   const hc = glue(compact(haystack));
   const nc = serviceNeedle(needle).compact;
@@ -467,13 +490,30 @@ export function bestServiceMatches<T>(rows: T[], needle: string, label: (row: T)
   return close.filter(x => x.score === top).map(x => x.row);
 }
 
-export const VOICE_YES = /^(si|sip|vale|ok|okay|confirmo|hazlo|adelante|guardo|guardala|guardar|dale|perfecto|correcto)(\b.*)?$/;
+export const VOICE_YES = /^(si+|sip|vale+|ok|okay|confirmo|hazlo|adelante|guardo|guardala|guardar|dale|perfecto|correcto|claro|eso|venga|de acuerdo|por supuesto)(\b.*)?$/;
 
 export function isVoiceYes(text: string) {
   const t = fold(text);
   if (!t) return false;
   if (VOICE_YES.test(t)) return true;
   return /^(si|vale|ok)\b/.test(t) && /guard|confirma|hazlo|adelante|dale/.test(t);
+}
+
+const ORDINALS = ['primer', 'segund', 'tercer', 'cuart', 'quint'];
+
+/** «la primera», «la dos», «opción 3». */
+export function pickSpokenIndex(text: string, n: number): number | null {
+  if (n <= 0) return null;
+  const t = fold(text).replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' ').trim();
+  for (let i = 0; i < ORDINALS.length && i < n; i++) {
+    if (t.includes(ORDINALS[i])) return i;
+  }
+  const words: Record<string, number> = { uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5 };
+  const m = t.match(/^(?:la |el |opcion |la opcion )?(uno|una|dos|tres|cuatro|cinco|\d{1,2})$/);
+  if (!m) return null;
+  const i = words[m[1]] ?? Number(m[1]);
+  if (!i || i < 1 || i > n) return null;
+  return i - 1;
 }
 
 function looksLikeMarlenne(word: string) {
