@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mic, Square } from 'lucide-react';
+import { Mic, Square, X } from 'lucide-react';
 import {
   voiceAddWait, voiceApplyCancel, voiceApplyMove, voiceApplyStatus, voiceConfirmBook,
   voicePreviewBook, voicePreviewCancel, voicePreviewMove, voicePreviewStatus, voiceSlots, voiceToday,
@@ -27,27 +27,24 @@ function speak(text: string) {
   window.speechSynthesis.speak(u);
 }
 
-function makeRec(): {
+type RecApi = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
   start: () => void;
   stop: () => void;
+  abort?: () => void;
   onresult: ((ev: { results: ArrayLike<{ 0: { transcript: string }; isFinal: boolean }> }) => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((ev: { error?: string }) => void) | null;
   onend: (() => void) | null;
-} | null {
-  const Ctor = (window as unknown as { SpeechRecognition?: new () => never; webkitSpeechRecognition?: new () => never })
+};
+
+function makeRec(): RecApi | null {
+  const Ctor = (window as unknown as { SpeechRecognition?: new () => RecApi; webkitSpeechRecognition?: new () => RecApi })
     .SpeechRecognition
-    ?? (window as unknown as { webkitSpeechRecognition?: new () => never }).webkitSpeechRecognition;
+    ?? (window as unknown as { webkitSpeechRecognition?: new () => RecApi }).webkitSpeechRecognition;
   if (!Ctor) return null;
-  const rec = new (Ctor as new () => {
-    lang: string;
-    interimResults: boolean;
-    continuous: boolean;
-    start: () => void;
-    stop: () => void;
-    onresult: ((ev: { results: ArrayLike<{ 0: { transcript: string }; isFinal: boolean }> }) => void) | null;
-    onerror: (() => void) | null;
-    onend: (() => void) | null;
-  })();
+  const rec = new Ctor();
   rec.lang = 'es-ES';
   rec.interimResults = true;
   rec.continuous = false;
@@ -60,10 +57,14 @@ export default function VoiceFab() {
   const [typed, setTyped] = useState('');
   const [panel, setPanel] = useState<Panel>({ mode: 'idle' });
   const [pending, startTransition] = useTransition();
-  const recRef = useRef<ReturnType<typeof makeRec>>(null);
+  const recRef = useRef<RecApi | null>(null);
   const pendingRef = useRef<PendingBook | null>(null);
   const confirmRef = useRef<Extract<Panel, { mode: 'confirm' }> | null>(null);
   const genRef = useRef(0);
+  const listenRef = useRef(false);
+  const draftRef = useRef('');
+  const commitRef = useRef<() => void>(() => {});
+  const ignoreOutsideRef = useRef(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const [hasMic, setHasMic] = useState(false);
 
@@ -76,11 +77,14 @@ export default function VoiceFab() {
     rec.onresult = null;
     rec.onerror = null;
     rec.onend = null;
+    try { rec.abort?.(); } catch { /* */ }
     try { rec.stop(); } catch { /* ya parado */ }
   };
 
   const dismiss = () => {
     genRef.current += 1;
+    listenRef.current = false;
+    draftRef.current = '';
     killRec();
     try { window.speechSynthesis?.cancel(); } catch { /* */ }
     pendingRef.current = null;
@@ -89,14 +93,27 @@ export default function VoiceFab() {
     setOpen(false);
   };
 
+  const restIdle = (say?: string) => {
+    genRef.current += 1;
+    listenRef.current = false;
+    draftRef.current = '';
+    killRec();
+    setOpen(true);
+    setPanel(say ? { mode: 'msg', say } : { mode: 'idle' });
+  };
+
   useEffect(() => {
     setHasMic(!!makeRec());
   }, []);
 
   useEffect(() => {
     if (!open) return;
-    const ms = panel.mode === 'listen' ? 7000
-      : panel.mode === 'idle' || panel.mode === 'msg' ? 6000
+    if (panel.mode === 'listen') {
+      const t = window.setTimeout(() => commitRef.current(), 12000);
+      return () => window.clearTimeout(t);
+    }
+    if (panel.mode === 'idle' && typed.trim()) return;
+    const ms = panel.mode === 'idle' || panel.mode === 'msg' ? 8000
       : panel.mode === 'ask' ? 20000
       : 0;
     if (!ms) return;
@@ -107,6 +124,8 @@ export default function VoiceFab() {
   useEffect(() => {
     if (!open) return;
     const onDown = (e: PointerEvent) => {
+      if (listenRef.current) return;
+      if (Date.now() < ignoreOutsideRef.current) return;
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) dismiss();
     };
     document.addEventListener('pointerdown', onDown);
@@ -325,8 +344,27 @@ export default function VoiceFab() {
     });
   };
 
+  const commitListen = () => {
+    if (!listenRef.current) return;
+    const text = draftRef.current.trim() || typed.trim();
+    listenRef.current = false;
+    genRef.current += 1;
+    killRec();
+    if (text) {
+      setTyped('');
+      draftRef.current = '';
+      runText(text);
+      return;
+    }
+    setOpen(true);
+    setPanel({ mode: 'idle' });
+  };
+  commitRef.current = commitListen;
+
   const startListen = () => {
     const gen = ++genRef.current;
+    draftRef.current = '';
+    listenRef.current = true;
     killRec();
     const rec = makeRec();
     if (!rec) {
@@ -335,39 +373,38 @@ export default function VoiceFab() {
       return;
     }
     recRef.current = rec;
+    ignoreOutsideRef.current = Date.now() + 2000;
     setOpen(true);
     setPanel({ mode: 'listen', draft: '' });
     rec.onresult = ev => {
       if (gen !== genRef.current) return;
-      const last = ev.results[ev.results.length - 1];
-      const text = last?.[0]?.transcript ?? '';
-      setPanel({ mode: 'listen', draft: text });
-      if (last?.isFinal && text.trim()) {
-        try { rec.stop(); } catch { /* */ }
-        runText(text);
+      let text = '';
+      for (let i = 0; i < ev.results.length; i++) {
+        text += ev.results[i]?.[0]?.transcript ?? '';
+      }
+      draftRef.current = text.trim();
+      setPanel({ mode: 'listen', draft: draftRef.current });
+      if (ev.results[ev.results.length - 1]?.isFinal && draftRef.current) {
+        commitListen();
       }
     };
-    rec.onerror = () => {
+    rec.onerror = ev => {
       if (gen !== genRef.current) return;
-      dismiss();
+      if (ev.error === 'not-allowed') {
+        restIdle('Sin permiso de micro. Puedes escribir el comando.');
+        return;
+      }
+      commitListen();
     };
     rec.onend = () => {
       if (gen !== genRef.current) return;
-      window.setTimeout(() => {
-        if (gen !== genRef.current) return;
-        setPanel(p => {
-          if (p.mode === 'listen' && !p.draft.trim()) window.setTimeout(dismiss, 0);
-          return p;
-        });
-      }, 0);
+      window.setTimeout(commitListen, 0);
     };
-    try { rec.start(); } catch { dismiss(); }
-  };
-
-  const stopListen = () => {
-    killRec();
-    if (panel.mode === 'listen' && !panel.draft.trim()) dismiss();
-    else setPanel(p => (p.mode === 'listen' ? { mode: 'idle' } : p));
+    try {
+      rec.start();
+    } catch {
+      restIdle('No he podido oír. Toca el micro otra vez.');
+    }
   };
 
   return (
@@ -377,6 +414,16 @@ export default function VoiceFab() {
     >
       {open && (
         <div className="pointer-events-auto mb-2 w-full max-w-[360px] rounded-[18px] border border-surface-line bg-white p-3 shadow-toast">
+          <div className="mb-1 flex justify-end">
+            <button
+              type="button"
+              onClick={dismiss}
+              aria-label="Cerrar"
+              className="grid h-8 w-8 place-items-center rounded-[10px] text-ink-3"
+            >
+              <X size={16} strokeWidth={2.4} />
+            </button>
+          </div>
           {panel.mode === 'listen' && (
             <p className="text-[13px] font-semibold text-ink-2">
               {panel.draft || 'Te escucho. Suelta al terminar.'}
@@ -470,7 +517,7 @@ export default function VoiceFab() {
           {panel.mode === 'idle' && (
             <div className="text-[12.5px] font-medium leading-snug text-ink-2">
               <p className="font-bold text-ink">Así se usa</p>
-              <p className="mt-1">1. Toca otra vez el micro para hablar, o escribe abajo.</p>
+              <p className="mt-1">1. Toca el micro para hablar, o escribe abajo.</p>
               <p>2. Si va a guardar, te pide confirmación.</p>
               <p className="mt-2 text-[12px] text-ink-3">
                 Ej.: quién tiene hueco el miércoles a las 11:30 · cita para Lucía con Valeria a las 11:30
@@ -503,8 +550,8 @@ export default function VoiceFab() {
         aria-label={panel.mode === 'listen' ? 'Dejar de escuchar' : 'Hablar con Marlenne'}
         aria-pressed={panel.mode === 'listen'}
         onClick={() => {
-          if (panel.mode === 'listen') stopListen();
-          else if (!open) { genRef.current += 1; setOpen(true); setPanel({ mode: 'idle' }); }
+          if (!open) startListen();
+          else if (panel.mode === 'listen') commitListen();
           else startListen();
         }}
         className={`pointer-events-auto grid h-14 w-14 place-items-center rounded-[18px] text-white shadow-btn ${

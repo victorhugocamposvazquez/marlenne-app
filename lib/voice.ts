@@ -24,7 +24,7 @@ const HOUR_WORDS: Record<string, number> = {
 };
 
 const HOUR_TOKEN = `\\d{1,2}|${Object.keys(HOUR_WORDS).join('|')}`;
-const DAY_RE = /(?:el |este |proximo |al )?((?:pasado )?manana|hoy|lunes|martes|miercoles|jueves|viernes|sabado|domingo)/;
+const DAY_RE = /(?:el |este |proximo |al |para (?:el )?|para )?((?:pasado )?manana|hoy|lunes|martes|miercoles|jueves|viernes|sabado|domingo)/;
 const TIME_RE = new RegExp(
   `(?:a las |a la |las )(${HOUR_TOKEN})(?:[:.h](\\d{2})| y media| y cuarto| y (\\d{2}))?`,
 );
@@ -68,6 +68,7 @@ export function parseClock(raw: string): number | null {
 function tidyWho(s: string) {
   return s
     .replace(/^(a|de|la|el|su|una|un)\s+/i, '')
+    .replace(/\s+(para|de|a|el|la)$/i, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -142,6 +143,7 @@ function parseBook(t: string): VoiceCmd | null {
     .replace(/^(reserva(?:r)?(?:me)? )(?:una cita )?(?:para |de )?/, '')
     .replace(/^(apunta|anota|ponle|pon|agendar?) (?:una cita )?(?:para |a |de )?/, '')
     .replace(/^(para |a |de )/, '')
+    .replace(/\s+para$/i, '')
     .trim();
 
   const svc = rest.match(/ (?:de |a )(.+)$/);
