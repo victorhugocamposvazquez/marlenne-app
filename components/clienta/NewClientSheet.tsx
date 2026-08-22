@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Sheet, { Field, inputCls, useCloseSheet } from '@/components/Sheet';
 import { addConsent, createClientRecord } from '@/app/actions/clients';
+import { CONSENT_COPY } from '@/lib/consents';
 
 export default function NewClientSheet() {
   const close = useCloseSheet();
@@ -66,13 +67,23 @@ export default function NewClientSheet() {
         <input type="checkbox" checked={vip} onChange={e => setVip(e.target.checked)} className="h-4 w-4 accent-[#8B5CF6]" />
         Marcar como VIP
       </label>
-      <label className="mb-2 flex items-center gap-2 text-[13.5px] font-bold">
-        <input type="checkbox" checked={salud} onChange={e => setSalud(e.target.checked)} className="h-4 w-4 accent-[#8B5CF6]" />
-        Consentimiento de datos de salud
+      <label className="mb-2 flex items-start gap-2 text-[13.5px] font-bold">
+        <input type="checkbox" checked={salud} onChange={e => setSalud(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#8B5CF6]" />
+        <span>
+          Consentimiento de datos de salud
+          <span className="mt-0.5 block text-[11.5px] font-medium leading-snug text-ink-3">
+            {CONSENT_COPY.datos_salud}
+          </span>
+        </span>
       </label>
-      <label className="mb-2 flex items-center gap-2 text-[13.5px] font-bold">
-        <input type="checkbox" checked={foto} onChange={e => setFoto(e.target.checked)} className="h-4 w-4 accent-[#8B5CF6]" />
-        Consentimiento de fotografías
+      <label className="mb-2 flex items-start gap-2 text-[13.5px] font-bold">
+        <input type="checkbox" checked={foto} onChange={e => setFoto(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#8B5CF6]" />
+        <span>
+          Consentimiento de fotografías
+          <span className="mt-0.5 block text-[11.5px] font-medium leading-snug text-ink-3">
+            {CONSENT_COPY.fotografia}
+          </span>
+        </span>
       </label>
     </Sheet>
   );

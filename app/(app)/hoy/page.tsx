@@ -1,10 +1,9 @@
 import Link from 'next/link';
 import { requireSession, listProviders, getDayAgenda, countWaitlist } from '@/lib/queries';
 import { fmt, durLbl, minutesOfDay, madridNow } from '@/lib/time';
-import { CATEGORIES } from '@/lib/categories';
 import { Bell } from 'lucide-react';
 import LiveRefresh from '@/components/LiveRefresh';
-import { setStatus } from '@/app/actions/appointments';
+import HoyApptRow from '@/components/hoy/HoyApptRow';
 
 export default async function HoyPage() {
   const me = await requireSession();
@@ -18,7 +17,12 @@ export default async function HoyPage() {
   const booked = appointments.reduce((s, a) => s + a.duration_min, 0);
   const occ = providers.length ? Math.round((100 * booked) / (providers.length * 660)) : 0;
   const live = appointments.filter(a => a.status === 'curso');
-  const next = appointments.filter(a => a.status === 'prog').sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at)).slice(0, 6);
+  const nowMin = madridNow().h * 60 + madridNow().min;
+  const pending = appointments.filter(a => a.status === 'prog')
+    .sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at));
+  const overdue = pending.filter(a => minutesOfDay(a.starts_at) + 10 < nowMin);
+  const next = pending.filter(a => minutesOfDay(a.starts_at) + 10 >= nowMin).slice(0, 6);
+  const noshow = appointments.filter(a => a.status === 'noshow').length;
   const h = madridNow().h;
   const greeting = h < 13 ? 'Buenos días ☀️' : h < 20 ? 'Buenas tardes' : 'Buenas noches';
 
@@ -53,6 +57,9 @@ export default async function HoyPage() {
           <div className="mt-3.5 flex flex-wrap gap-2">
             <span className="rounded-xl bg-white/20 px-3 py-1.5 text-xs font-semibold">{revenue} € previstos</span>
             <span className="rounded-xl bg-white/20 px-3 py-1.5 text-xs font-semibold">{occ} % ocupación</span>
+            {noshow > 0 && (
+              <span className="rounded-xl bg-white/20 px-3 py-1.5 text-xs font-semibold">{noshow} no vino</span>
+            )}
           </div>
         </div>
       </div>
@@ -94,43 +101,28 @@ export default async function HoyPage() {
         </>
       )}
 
+      {overdue.length > 0 && (
+        <>
+          <h2 className="mb-2.5 text-base font-extrabold tracking-[-.02em]">Sin llegar</h2>
+          <div className="mb-[22px] flex flex-col gap-2.5">
+            {overdue.map(a => <HoyApptRow key={a.id} appt={a} late />)}
+          </div>
+        </>
+      )}
+
       <h2 className="mb-2.5 text-base font-extrabold tracking-[-.02em]">Siguientes</h2>
       <div className="flex flex-col gap-2.5 pb-2.5">
-        {next.length === 0 && (
+        {next.length === 0 && overdue.length === 0 && (
           <p className="rounded-row border border-dashed border-handle bg-white/60 px-4 py-6 text-center text-[13px] font-semibold text-ink-3">
             No quedan citas pendientes hoy.
           </p>
         )}
-        {next.map(a => {
-          const cat = CATEGORIES[a.category];
-          return (
-            <div
-              key={a.id}
-              className="flex items-center gap-3 rounded-row border border-surface-line bg-white p-3 shadow-card"
-            >
-              <Link href={`/agenda?appt=${a.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="w-[52px] shrink-0 rounded-[13px] bg-v-tint py-[7px] text-center">
-                  <div className="text-[13.5px] font-extrabold leading-none text-v-d tabular-nums">{fmt(minutesOfDay(a.starts_at))}</div>
-                  <div className="mt-0.5 text-[9.5px] font-semibold text-ink-3">{durLbl(a.duration_min)}</div>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-bold tracking-[-.01em]">{a.client_label}</div>
-                  <div className="truncate text-[11.5px] font-medium text-ink-3">{a.service_name} · {a.provider_name}</div>
-                </div>
-                <span className="shrink-0 rounded-[9px] px-2 py-1 text-[10px] font-bold" style={{ background: cat.bg, color: cat.fg }}>
-                  {cat.label}
-                </span>
-              </Link>
-              <form action={setStatus}>
-                <input type="hidden" name="id" value={a.id} />
-                <input type="hidden" name="status" value="curso" />
-                <button className="shrink-0 rounded-[13px] bg-v px-3 py-2.5 text-[12px] font-bold text-white">
-                  Pasa
-                </button>
-              </form>
-            </div>
-          );
-        })}
+        {next.length === 0 && overdue.length > 0 && (
+          <p className="rounded-row border border-dashed border-handle bg-white/60 px-4 py-5 text-center text-[13px] font-semibold text-ink-3">
+            Las que faltan están arriba, con retraso.
+          </p>
+        )}
+        {next.map(a => <HoyApptRow key={a.id} appt={a} />)}
       </div>
     </div>
   );

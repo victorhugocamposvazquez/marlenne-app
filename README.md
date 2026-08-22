@@ -1,8 +1,10 @@
 # Marlenne — Next.js + Supabase + Vercel
 
-Scaffold de la PWA de agenda del centro. El diseño de referencia es
-`../design_handoff_marlenne/Marlenne.dc.html` (prototipo completo) y su
-`README.md` lleva todos los tokens y especificaciones pantalla a pantalla.
+Marlenne es el producto (como Fresha o Booksy). Esta carpeta es la **app del
+centro**. Visión multi-centro, webs y stores: [`PLAN.md`](./PLAN.md).
+
+El diseño de referencia es `../design_handoff_marlenne/Marlenne.dc.html`
+(prototipo completo) y su `README.md` lleva tokens y specs pantalla a pantalla.
 
 ## Acceso
 

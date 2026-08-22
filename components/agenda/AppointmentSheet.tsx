@@ -16,13 +16,20 @@ function needsClinicalClose(appt: AgendaAppt) {
   return !!appt.client_id && appt.category !== 'valoracion' && appt.status !== 'done';
 }
 
+const SMS_LABEL: Record<string, string> = {
+  sent: 'SMS enviado',
+  failed: 'SMS fallido',
+  queued: 'SMS en cola',
+};
+
 export default function AppointmentSheet({
-  appt, providers, canMoveProvider, startClosing = false,
+  appt, providers, canMoveProvider, startClosing = false, sms = null,
 }: {
   appt: AgendaAppt;
   providers: Provider[];
   canMoveProvider: boolean;
   startClosing?: boolean;
+  sms?: { status: string; sent_at: string | null } | null;
 }) {
   const close = useCloseSheet();
   const [pending, startTransition] = useTransition();
@@ -78,6 +85,16 @@ export default function AppointmentSheet({
         {appt.session_no !== null && (
           <span className="rounded-[9px] bg-v-soft px-2.5 py-1.5 text-[11px] font-bold text-v-d">
             Sesión {appt.session_no}
+          </span>
+        )}
+        {sms && (
+          <span className={`rounded-[9px] px-2.5 py-1.5 text-[11px] font-bold ${
+            sms.status === 'sent' ? 'bg-emerald-50 text-emerald-700'
+              : sms.status === 'failed' ? 'bg-pink-50 text-pink-700'
+              : 'bg-surface-bg text-ink-2'
+          }`}
+          >
+            {SMS_LABEL[sms.status] ?? `SMS ${sms.status}`}
           </span>
         )}
       </div>

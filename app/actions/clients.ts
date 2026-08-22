@@ -91,10 +91,14 @@ export async function addConsent(input: { clientId: string; kind: string }) {
   const { sb, salonId } = await mySalon();
   if (!salonId) return { ok: false, error: 'Sin sesión' };
   const { data: { user } } = await sb.auth.getUser();
+  const expires = input.kind === 'fotografia'
+    ? new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10)
+    : null;
   const { error } = await sb.from('consents').insert({
     client_id: input.clientId,
     kind: input.kind,
     taken_by: user?.id ?? null,
+    expires_at: expires,
   });
   revalidatePath(`/clientas/${input.clientId}`);
   return { ok: !error, error: error?.message ?? null };

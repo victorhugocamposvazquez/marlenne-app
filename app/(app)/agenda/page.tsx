@@ -7,7 +7,7 @@ import WaitlistSheet from '@/components/agenda/WaitlistSheet';
 import BlockSheet from '@/components/agenda/BlockSheet';
 import {
   requireSession, listProviders, getDayAgenda, getWeekCounts, countWaitlist,
-  listServices, listClientOptions, getAppointment, listWaitlist,
+  listServices, listClientOptions, getAppointment, getAppointmentSms, listWaitlist,
 } from '@/lib/queries';
 import { dateFromOffset, dayKey } from '@/lib/time';
 
@@ -37,11 +37,12 @@ export default async function AgendaPage({
   const opensNew = searchParams.new === '1';
   const opensWait = searchParams.wait === '1';
   const needsCatalog = opensNew || opensWait;
-  const [waiting, services, clients, appt, waitItems, dayAgenda] = await Promise.all([
+  const [waiting, services, clients, appt, sms, waitItems, dayAgenda] = await Promise.all([
     countWaitlist(),
     needsCatalog ? listServices() : Promise.resolve([]),
     needsCatalog ? listClientOptions() : Promise.resolve([]),
     searchParams.appt ? getAppointment(searchParams.appt) : Promise.resolve(null),
+    searchParams.appt ? getAppointmentSms(searchParams.appt) : Promise.resolve(null),
     opensWait ? listWaitlist() : Promise.resolve([]),
     mode === 'dia'
       ? getDayAgenda(dateFromOffset(day), providers.map(p => p.id))
@@ -90,6 +91,7 @@ export default async function AgendaPage({
           providers={sheetProviders}
           canMoveProvider={canMoveProvider}
           startClosing={searchParams.close === '1'}
+          sms={sms}
         />
       )}
 

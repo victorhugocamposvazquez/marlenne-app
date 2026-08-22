@@ -119,6 +119,18 @@ export async function getAppointment(id: string): Promise<AgendaAppt | null> {
   return data ? mapAppt(data) : null;
 }
 
+export async function getAppointmentSms(id: string) {
+  const sb = createClient();
+  const { data } = await sb
+    .from('sms_log')
+    .select('status, sent_at')
+    .eq('appointment_id', id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data as { status: string; sent_at: string | null } | null;
+}
+
 export async function getDayAgenda(date: Date, providerIds: string[]) {
   if (providerIds.length === 0) return { appointments: [], blocks: [] as AgendaBlock[] };
   const sb = createClient();
