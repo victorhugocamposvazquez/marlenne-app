@@ -78,7 +78,7 @@ SUPABASE_PROJECT_ID=xxxx npm run types:gen
 | ✅ | Bloquear / quitar huecos de agenda |
 | ✅ | Recuperar contraseña por email |
 | ✅ | Editar catálogo (precio, duración, ocultar) |
-| ✅ | Service worker con caché de estáticos |
+| ⬜ | App offline usable (más adelante: agenda del día en local) |
 
 Las piezas pendientes están todas especificadas en el README del handoff:
 medidas, colores, copys y comportamiento exactos.

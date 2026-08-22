@@ -16,7 +16,7 @@ const ROADMAP = [
   { done: true, label: 'Consentimientos RGPD y bloqueos de agenda' },
   { done: true, label: 'Editar precios y duración del catálogo' },
   { done: true, label: 'Recuperar contraseña por email' },
-  { done: true, label: 'Caché offline de la PWA' },
+  { done: false, label: 'App offline usable (agenda del día en local)' },
 ];
 
 export default async function AjustesPage() {
