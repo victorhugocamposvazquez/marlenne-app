@@ -347,6 +347,16 @@ function looksLikeMarlenne(word: string) {
   return t.startsWith('marl') || (t.startsWith('mal') && t.includes('n'));
 }
 
+const WAKE_FILLER = /^(eh+|a+|ah+|um+|uhm+|mm+|este|bueno|pues|oye|hola|dime|ya|vale|ok|okay)$/;
+
+/** Tras el saludo: ¿viene un comando de verdad o solo «Hola Marlenne»? */
+export function wakeRestIsCommand(rest: string) {
+  const t = fold(rest.replace(/[¿?¡!.,]/g, ' ')).replace(/\s+/g, ' ').trim();
+  if (!t || WAKE_FILLER.test(t)) return false;
+  if (t.split(/\s+/).length < 2 && t.length < 8) return false;
+  return true;
+}
+
 /** «Hola Marlenne» / «oye Marlene»… y el resto del comando, si vino en el mismo aliento. */
 export function splitWake(text: string): { woke: boolean; rest: string } {
   const t = fold(text.replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' '));
@@ -356,7 +366,14 @@ export function splitWake(text: string): { woke: boolean; rest: string } {
   if (nameAt >= 0) {
     return { woke: true, rest: words.slice(nameAt + 1).join(' ').trim() };
   }
-  if (words.length === 1 && /^(hola|ola|oye|buenas)$/.test(words[0])) {
+  if (/^(hola|ola|buenas)$/.test(words[0])) {
+    if (words.length === 1) return { woke: true, rest: '' };
+    const second = words[1].replace(/[^a-zñ]/g, '');
+    if (second.length >= 3 && second.length <= 14 && /^m/.test(second)) {
+      return { woke: true, rest: words.slice(2).join(' ').trim() };
+    }
+  }
+  if (words.length === 1 && /^(oye|hey)$/.test(words[0])) {
     return { woke: true, rest: '' };
   }
   return { woke: false, rest: text.trim() };

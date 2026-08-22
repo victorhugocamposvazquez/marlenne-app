@@ -9,7 +9,7 @@ import {
   type PendingBook,
 } from '@/app/actions/voice';
 import type { VoiceTalkResult } from '@/app/actions/voice-talk';
-import { VOICE_HELP, fold, isVoiceYes, parseVoice, splitWake, takeTime } from '@/lib/voice';
+import { VOICE_HELP, fold, isVoiceYes, parseVoice, splitWake, takeTime, wakeRestIsCommand } from '@/lib/voice';
 import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/lib/voice-prefs';
 
 type Choice = { id: string; label: string };
@@ -77,6 +77,83 @@ function chime() {
     osc.start(now);
     osc.stop(now + 0.2);
   } catch { /* */ }
+}
+
+let dimeEl: HTMLAudioElement | null = null;
+
+function getDimeEl() {
+  if (typeof window === 'undefined') return null;
+  dimeEl ??= new Audio('/dime.wav');
+  dimeEl.preload = 'auto';
+  return dimeEl;
+}
+
+function warmAudio() {
+  try {
+    beepCtx ??= new AudioContext();
+    void beepCtx.resume();
+  } catch { /* */ }
+  const el = getDimeEl();
+  if (el) {
+    const prev = el.volume;
+    el.volume = 0.001;
+    void el.play().then(() => {
+      el.pause();
+      el.currentTime = 0;
+      el.volume = 1;
+    }).catch(() => {
+      el.volume = prev || 1;
+    });
+  }
+  unlockSpeak();
+}
+
+/** «Dime» en clip (Safari no suele hablar tras el dictado). Luego sigue. */
+function sayDime(onDone: () => void) {
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    onDone();
+  };
+  const fallback = window.setTimeout(finish, 1600);
+  const wrap = () => {
+    window.clearTimeout(fallback);
+    finish();
+  };
+
+  const el = getDimeEl();
+  if (el) {
+    el.onended = wrap;
+    el.onerror = () => speakDimeNow(wrap);
+    el.volume = 1;
+    el.currentTime = 0;
+    void el.play().catch(() => speakDimeNow(wrap));
+    return;
+  }
+  speakDimeNow(wrap);
+}
+
+function speakDimeNow(onDone: () => void) {
+  if (typeof window === 'undefined' || !window.speechSynthesis) {
+    onDone();
+    return;
+  }
+  try { window.speechSynthesis.cancel(); } catch { /* */ }
+  const u = new SpeechSynthesisUtterance('Dime.');
+  const voice = pickWomanVoice();
+  if (voice) {
+    u.voice = voice;
+    u.lang = voice.lang;
+  } else {
+    u.lang = 'es-ES';
+  }
+  u.rate = 0.95;
+  u.pitch = 1;
+  u.volume = 1;
+  u.onend = onDone;
+  u.onerror = onDone;
+  window.speechSynthesis.speak(u);
 }
 
 function speak(text: string, onDone?: () => void) {
@@ -241,6 +318,9 @@ export default function VoiceFab() {
     const onVoices = () => pickWomanVoice();
     window.speechSynthesis?.addEventListener('voiceschanged', onVoices);
     syncPrefs();
+    const onFirst = () => warmAudio();
+    window.addEventListener('pointerdown', onFirst, { once: true });
+    window.addEventListener('touchstart', onFirst, { once: true });
     if (wakeWanted(prefsRef.current)) {
       arm();
       window.setTimeout(() => startWakeRef.current(), 400);
@@ -275,6 +355,8 @@ export default function VoiceFab() {
       window.speechSynthesis?.removeEventListener('voiceschanged', onVoices);
       document.removeEventListener('visibilitychange', onVis);
       window.removeEventListener(VOICE_PREFS_EVENT, onPrefs);
+      window.removeEventListener('pointerdown', onFirst);
+      window.removeEventListener('touchstart', onFirst);
     };
   }, []);
 
@@ -576,10 +658,8 @@ export default function VoiceFab() {
       setTyped('');
       draftRef.current = '';
       const wake = splitWake(text);
-      if (wake.woke && !wake.rest) {
-        chime();
-        if (prefsRef.current.speak) speak('Dime.');
-        startListen(overlay ? { overlay: true } : undefined);
+      if (wake.woke && !wakeRestIsCommand(wake.rest)) {
+        promptDimeThenListen(overlay ? { overlay: true } : undefined);
         return;
       }
       runText(wake.woke ? wake.rest : text);
@@ -628,21 +708,18 @@ export default function VoiceFab() {
       setWakeOn(false);
       genRef.current += 1;
       killRec();
-      unlockSpeak();
       if (isCmd && !wake.woke) {
         setOpen(true);
         runText(heard);
         return;
       }
-      if (wake.rest.length >= 4) {
+      if (wakeRestIsCommand(wake.rest)) {
         setOpen(true);
         setPanel({ mode: 'listen', draft: wake.rest });
         runText(wake.rest);
         return;
       }
-      chime();
-      startListen();
-      if (prefsRef.current.speak) window.setTimeout(() => speak('Dime.'), 280);
+      promptDimeThenListen();
     };
     rec.onerror = ev => {
       if (gen !== genRef.current) return;
@@ -686,7 +763,6 @@ export default function VoiceFab() {
     overlayRef.current = !!opts?.overlay;
     setHearing(true);
     setHearDraft('');
-    unlockSpeak();
     killRec();
     const rec = makeRec();
     if (!rec) {
@@ -741,6 +817,13 @@ export default function VoiceFab() {
     }
   };
 
+  const promptDimeThenListen = (opts?: { overlay?: boolean }) => {
+    setOpen(true);
+    if (!opts?.overlay) setPanel({ mode: 'listen', draft: '' });
+    chime();
+    sayDime(() => startListen(opts));
+  };
+
   return (
     <div
       ref={rootRef}
@@ -760,7 +843,7 @@ export default function VoiceFab() {
           </div>
           {panel.mode === 'listen' && (
             <p className="text-[13px] font-semibold text-ink-2">
-              {panel.draft || 'Te escucho. Suelta al terminar.'}
+              {panel.draft || 'Dime.'}
             </p>
           )}
           {panel.mode === 'msg' && (
@@ -894,6 +977,7 @@ export default function VoiceFab() {
           aria-label={hearing ? 'Dejar de escuchar' : 'Hablar con Marlenne'}
           aria-pressed={hearing}
           onClick={() => {
+            warmAudio();
             if (hearing) commitListen();
             else if (!open) startListen();
             else if (panel.mode === 'ask' || panel.mode === 'confirm') startListen({ overlay: true });
