@@ -98,17 +98,6 @@ type RecApi = {
   onend: (() => void) | null;
 };
 
-async function unlockMic() {
-  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return false;
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    stream.getTracks().forEach(t => t.stop());
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function makeRec(): RecApi | null {
   const Ctor = (window as unknown as { SpeechRecognition?: new () => RecApi; webkitSpeechRecognition?: new () => RecApi })
     .SpeechRecognition
@@ -149,9 +138,21 @@ export default function VoiceFab() {
   const [hasMic, setHasMic] = useState(false);
 
   const arm = () => {
+    if (hushRef.current) return;
     armedRef.current = true;
     setArmed(true);
-    try { sessionStorage.setItem('marlenne-wake', '1'); } catch { /* */ }
+    try { localStorage.setItem('marlenne-wake', '1'); } catch { /* */ }
+  };
+
+  const hush = () => {
+    hushRef.current = true;
+    armedRef.current = false;
+    setArmed(false);
+    setWakeOn(false);
+    wakeRef.current = false;
+    genRef.current += 1;
+    killRec();
+    try { localStorage.setItem('marlenne-wake', '0'); } catch { /* */ }
   };
 
   confirmRef.current = panel.mode === 'confirm' ? panel : null;
@@ -200,12 +201,13 @@ export default function VoiceFab() {
     pickWomanVoice();
     const onVoices = () => pickWomanVoice();
     window.speechSynthesis?.addEventListener('voiceschanged', onVoices);
-    arm();
-    const boot = () => {
-      if (hushRef.current) return;
-      void unlockMic().then(() => startWakeRef.current());
-    };
-    boot();
+    try {
+      if (localStorage.getItem('marlenne-wake') === '0') hushRef.current = true;
+    } catch { /* */ }
+    if (!hushRef.current) {
+      arm();
+      window.setTimeout(() => startWakeRef.current(), 400);
+    }
     const onVis = () => {
       if (document.hidden) {
         if (wakeRef.current) {
@@ -216,30 +218,20 @@ export default function VoiceFab() {
         }
         return;
       }
-      boot();
-    };
-    const onKick = (e: PointerEvent) => {
-      if (hushRef.current) return;
-      if (listenRef.current || overlayRef.current || wakeRef.current) return;
-      if (rootRef.current?.contains(e.target as Node)) return;
-      arm();
-      boot();
+      if (!hushRef.current) window.setTimeout(() => startWakeRef.current(), 600);
     };
     document.addEventListener('visibilitychange', onVis);
-    document.addEventListener('pointerdown', onKick, true);
-    window.addEventListener('pageshow', boot);
-    const keep = window.setInterval(() => {
-      if (hushRef.current || document.hidden || listenRef.current || overlayRef.current || wakeRef.current) return;
-      startWakeRef.current();
-    }, 2000);
     return () => {
       window.speechSynthesis?.removeEventListener('voiceschanged', onVoices);
       document.removeEventListener('visibilitychange', onVis);
-      document.removeEventListener('pointerdown', onKick, true);
-      window.removeEventListener('pageshow', boot);
-      window.clearInterval(keep);
     };
   }, []);
+
+  useEffect(() => {
+    if (!wakeHeard) return;
+    const t = window.setTimeout(() => setWakeHeard(''), 4000);
+    return () => window.clearTimeout(t);
+  }, [wakeHeard]);
 
   useEffect(() => {
     if (!open) return;
@@ -530,10 +522,10 @@ export default function VoiceFab() {
     killRec();
     const rec = makeRec();
     if (!rec) return;
+    rec.interimResults = false;
     recRef.current = rec;
     wakeRef.current = true;
     setWakeOn(true);
-    setWakeHeard('');
     rec.onresult = ev => {
       if (gen !== genRef.current) return;
       let text = '';
@@ -578,14 +570,18 @@ export default function VoiceFab() {
         setArmed(false);
         return;
       }
-      window.setTimeout(() => startWakeRef.current(), 400);
+      if (ev.error === 'no-speech') {
+        window.setTimeout(() => startWakeRef.current(), 2500);
+        return;
+      }
+      window.setTimeout(() => startWakeRef.current(), 1800);
     };
     rec.onend = () => {
       if (gen !== genRef.current) return;
       wakeRef.current = false;
       setWakeOn(false);
-      if (!armedRef.current || listenRef.current || document.hidden) return;
-      window.setTimeout(() => startWakeRef.current(), 280);
+      if (!armedRef.current || listenRef.current || document.hidden || hushRef.current) return;
+      window.setTimeout(() => startWakeRef.current(), 2200);
     };
     try {
       rec.start();
@@ -809,46 +805,37 @@ export default function VoiceFab() {
           </form>
         </div>
       )}
-      <button
-        type="button"
-        aria-label={hearing ? 'Dejar de escuchar' : 'Hablar con Marlenne'}
-        aria-pressed={hearing}
-        onClick={() => {
-          if (hearing) commitListen();
-          else if (!open) startListen();
-          else if (panel.mode === 'ask' || panel.mode === 'confirm') startListen({ overlay: true });
-          else startListen();
-        }}
-        className={`pointer-events-auto grid h-14 w-14 place-items-center rounded-[18px] text-white shadow-btn ${
-          hearing ? 'bg-pink-600' : 'bg-grad'
-        }`}
-      >
-        {hearing ? <Square size={20} strokeWidth={2.4} /> : <Mic size={22} strokeWidth={2.2} />}
-      </button>
-      {!open && armed && (
+      <div className="relative">
         <button
           type="button"
+          aria-label={hearing ? 'Dejar de escuchar' : 'Hablar con Marlenne'}
+          aria-pressed={hearing}
           onClick={() => {
-            if (wakeOn || armedRef.current) {
-              hushRef.current = true;
-              armedRef.current = false;
-              setArmed(false);
-              setWakeOn(false);
-              wakeRef.current = false;
-              genRef.current += 1;
-              killRec();
-              try { sessionStorage.removeItem('marlenne-wake'); } catch { /* */ }
-              return;
-            }
+            if (hearing) commitListen();
+            else if (!open) startListen();
+            else if (panel.mode === 'ask' || panel.mode === 'confirm') startListen({ overlay: true });
+            else startListen();
           }}
-          className="pointer-events-auto mt-1.5 max-w-[220px] rounded-[10px] bg-white/90 px-2.5 py-1 text-right text-[10.5px] font-bold text-v-d shadow-card"
+          className={`pointer-events-auto grid h-14 w-14 place-items-center rounded-[18px] text-white shadow-btn ${
+            hearing ? 'bg-pink-600' : 'bg-grad'
+          }`}
         >
-          {wakeHeard
-            ? `Oí «${wakeHeard}». Di «Hola Marlenne»`
-            : wakeOn
-              ? 'Oyendo «Hola Marlenne» · toca para callar'
-              : 'Activando oído… di «Hola Marlenne»'}
+          {hearing ? <Square size={20} strokeWidth={2.4} /> : <Mic size={22} strokeWidth={2.2} />}
         </button>
+        {armed && !hearing && !open && (
+          <button
+            type="button"
+            title={wakeOn ? 'Oído en espera. Toca para callar.' : 'Oído en pausa. Toca el micro para hablar.'}
+            aria-label="Callar oído de Hola Marlenne"
+            onClick={e => { e.stopPropagation(); hush(); }}
+            className="pointer-events-auto absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-white/80 shadow"
+          />
+        )}
+      </div>
+      {!open && wakeHeard && (
+        <p className="pointer-events-none mt-1 max-w-[200px] text-right text-[10px] font-semibold text-ink-3">
+          Oí «{wakeHeard}»
+        </p>
       )}
       {!hasMic && open && (
         <p className="pointer-events-none mt-1 text-right text-[10.5px] font-semibold text-ink-3">
