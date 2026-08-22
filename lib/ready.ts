@@ -8,13 +8,6 @@ export type ReadyItem = {
 
 /** Lo que hay que tener cerrado antes de meter clientas reales. */
 export async function getReadyStatus(): Promise<ReadyItem[]> {
-  const smsReady = !!(
-    process.env.TWILIO_ACCOUNT_SID
-    && process.env.TWILIO_AUTH_TOKEN
-    && process.env.TWILIO_FROM
-    && process.env.CRON_SECRET
-  );
-
   let demoStaff = 0;
   let demoClients = 0;
   try {
@@ -32,13 +25,6 @@ export async function getReadyStatus(): Promise<ReadyItem[]> {
   }
 
   return [
-    {
-      ok: smsReady,
-      label: 'Recordatorios SMS',
-      hint: smsReady
-        ? 'Twilio y el cron están listos.'
-        : 'Faltan TWILIO_* o CRON_SECRET en Vercel. Hasta entonces el cron no manda nada.',
-    },
     {
       ok: demoStaff === 0,
       label: 'Cuentas de demo',

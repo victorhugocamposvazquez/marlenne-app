@@ -77,18 +77,80 @@ proyecto aparte; no mezclarlo con el white-label ni con Stripe.
 
 ---
 
+## Asistentes de voz (Siri, Google, Alexa)
+
+Objetivo: recepción o cabina con las manos ocupadas (“cita de Lucía a las
+once”, “quién falta”, “no ha venido”). Marlenne es la app del **equipo**, no
+un booking para la clienta. La voz habla con el centro, no sustituye a
+Fresha/Booksy de cara al público.
+
+### Qué sí y qué no
+
+Por la voz **solo agenda**: ver el día, abrir nueva cita, lista de espera,
+marcar Pasa / No vino, preguntar huecos. Nunca fotos, medidas, notas,
+consentimientos ni historial. Eso es dato de salud (RGPD art. 9) y el audio
+pasa por los servidores de Apple, Google o Amazon.
+
+Misma regla de roles que en la PWA: una profesional solo su columna;
+dirección/recepción el centro.
+
+### Cómo encaja cada uno
+
+| Puerta | Qué es hoy | Encaje real |
+| --- | --- | --- |
+| **Siri** | Atajos (PWA) y, con app nativa, App Intents | La más útil en iPhone/iPad de recepción. “Oye Siri, qué hay hoy en Marlenne.” |
+| **Google** | Las Actions conversacionales ya no existen. Quedan atajos de Android y, si hay APK, App Actions | “Ok Google” de terceros está muy cerrado. No diseñar un “skill” tipo 2020. |
+| **Alexa** | Skill propia + account linking + certificación | Sirve en un Echo de cabina. Es la que más papeleo tiene y la menos natural para una tablet. |
+
+Las tres tienen que acabar en **las mismas acciones**, no en tres backends.
+La PWA ya abre por URL (`/hoy`, `/agenda?new=1`, `/agenda?wait=1`,
+`/agenda?appt=`). Eso es el contrato. Siri/Google/Alexa solo son puertas.
+
+### Fases
+
+0. **Ahora (PWA)** — atajos del manifesto y, a mano, Atajos de Siri que abren
+   esas URLs. No escriben en la agenda; abren la pantalla.
+1. **API de equipo** — las server actions de hoy no sirven para Alexa ni para
+   un intent de Siri. Hará falta un endpoint autenticado (sesión o token de
+   staff) que cree cita, cambie estado, liste el día. Reutilizar RLS /
+   `my_salon()`.
+2. **App nativa (Capacitor)** — App Intents (Siri) y shortcuts de Android
+   sobre esa API. Coincide con “ficha en stores”.
+3. **Alexa** — skill que llama la misma API. Account linking al staff. Solo
+   cuando un centro lo pida (altavoz en cabina).
+
+No montar la API ni la skill hasta que el primer centro use la app todos los
+días. Si se adelanta, se construye contra aire.
+
+### Acciones (borrador)
+
+- “Qué hay hoy” / “quién está en cabina”
+- “Nueva cita” (nombre + hora + servicio; si falta algo, abrir el sheet)
+- “Lucía no ha venido”
+- “Pasa a cabina”
+- “Hueco a las cinco” / “lista de espera”
+
+Confirmación en voz para todo lo que escribe. Un “vale” mal oído no puede
+borrar una cita.
+
+---
+
 ## Orden de trabajo
 
-1. **Hecho** — pulir la app del centro (primer tenant): no-show, SMS visible,
-   consentimientos con texto, realtime, cierre clínico, fotos, equipo.
+1. **Hecho** — pulir la app del centro (primer tenant): no-show, SMS visible
+   en ficha, consentimientos con texto, realtime, cierre clínico, fotos, equipo.
 2. **Antes de clientas reales** — checklist en Más. A mano: URL de
-   `/recuperar` en Supabase, altas públicas off, equipo real, Twilio si se
-   van a mandar SMS, desplegar. El seed ya no pisa contraseñas.
+   `/recuperar` en Supabase, altas públicas off, equipo real, desplegar.
+   El seed ya no pisa contraseñas.
 3. **Al segundo centro** — nombre/logo/color por salón; provisionar otro
    `salons`.
 4. **Al cobrar** — web corporativa + consola + Stripe.
 5. **A petición del centro** — ficha en stores.
 6. **Cuando duela la red** — offline usable.
+7. **Recordatorios SMS** — más adelante, probablemente Labs Mobile. Hay cron
+   y `sms_log`; no contratar Twilio.
+8. **Voz** — primero atajos que abren la PWA; API de equipo y Siri/Alexa
+   cuando el primer centro la use a diario. No skills sueltas por plataforma.
 
 No extraer “framework multi-tenant” ni consola hasta que haga falta. El
 esquema actual aguanta muchos centros sin reescribir la agenda.
@@ -104,3 +166,6 @@ esquema actual aguanta muchos centros sin reescribir la agenda.
 - App nativa “desde cero” en Swift/Kotlin.
 - Offline completo.
 - Dominios por centro.
+- Contratar Twilio ni cablear Labs Mobile todavía.
+- Skill de Alexa, App Intents o “Ok Google” conversacional. Los atajos del
+  manifesto sí; el resto espera a la API de equipo.

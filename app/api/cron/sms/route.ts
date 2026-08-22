@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 /**
- * Recordatorio SMS 24 h antes. Programar en vercel.json.
- * Usa la service role key: solo servidor.
+ * Recordatorio SMS 24 h antes. El envío queda para más adelante
+ * (Labs Mobile). El stub habla con Twilio y, sin claves, no toca sms_log.
  */
 export async function GET(req: Request) {
   if (req.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {

@@ -59,15 +59,14 @@ En **Más** (dirección) hay un semáforo. A mano queda:
 3. Crear el equipo con emails reales y desactivar `*@marlenne.test`. Cada
    persona cambia su contraseña en Más o con «Olvidé la contraseña».
 4. Borrar las clientas de siembra (`*@demo.test`).
-5. Si van a mandarse recordatorios: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`,
-   `TWILIO_FROM` y `CRON_SECRET` en Vercel. Sin eso el cron no escribe
-   `sms_log` a propósito.
-6. `DEMO_PASSWORD` no va en Vercel.
+5. `DEMO_PASSWORD` no va en Vercel.
+
+Los recordatorios SMS quedan para más adelante (Labs Mobile). El cron no
+manda nada si no hay proveedor.
 
 ### 4. Vercel
 
 Conectar el repo, añadir las variables de `.env.example` y desplegar.
-`vercel.json` ya programa el cron de SMS a las 08:00.
 
 ### 5. Tipos
 
@@ -88,7 +87,7 @@ SUPABASE_PROJECT_ID=xxxx npm run types:gen
 | ✅ | Dashboard Hoy: KPIs, en cabina, siguientes |
 | ✅ | Lista de clientas con búsqueda |
 | ✅ | Server actions: crear, mover, reprogramar, estado, cancelar, cierre de sesión |
-| ✅ | Cron de recordatorio SMS con Twilio y log antiduplicados |
+| ⬜ | Recordatorios SMS (más adelante: Labs Mobile; hay cron y `sms_log`) |
 | ✅ | Manifest PWA |
 | ✅ | Sheets: nueva cita, detalle/reprogramar, lista de espera, alta de clienta |
 | ✅ | Ficha de clienta: pestañas Tratamientos / Medidas / Fotos / Historial |
@@ -103,6 +102,7 @@ SUPABASE_PROJECT_ID=xxxx npm run types:gen
 | ✅ | Editar catálogo (precio, duración, ocultar) |
 | ✅ | Alta/baja de equipo y filtro de agenda por profesional |
 | ⬜ | App offline usable (más adelante: agenda del día en local) |
+| ⬜ | Voz (Siri / Google / Alexa): ahora solo atajos que abren la PWA |
 
 Las piezas pendientes están todas especificadas en el README del handoff:
 medidas, colores, copys y comportamiento exactos.

@@ -19,7 +19,7 @@ const ROADMAP = [
   { done: true, label: 'Editar precios y duración del catálogo' },
   { done: true, label: 'Recuperar contraseña por email' },
   { done: true, label: 'Alta y baja de equipo; filtro por profesional' },
-  { done: true, label: 'No-show desde Hoy y SMS visible en la cita' },
+  { done: true, label: 'No-show desde Hoy' },
   { done: false, label: 'App offline usable (agenda del día en local)' },
 ];
 
