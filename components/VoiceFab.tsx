@@ -83,26 +83,6 @@ function loadDime() {
   return dimeLoad;
 }
 
-function chime() {
-  try {
-    const ctx = audioCtx();
-    void ctx.resume();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, now);
-    osc.frequency.setValueAtTime(1175, now + 0.07);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.14, now + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.18);
-  } catch { /* */ }
-}
-
 function warmAudio() {
   try {
     void audioCtx().resume();
@@ -127,7 +107,8 @@ function sayDime(onDone: () => void) {
       const src = ctx.createBufferSource();
       const gain = ctx.createGain();
       src.buffer = buf;
-      gain.gain.value = 1;
+      src.playbackRate.value = 0.96;
+      gain.gain.value = 0.82;
       src.connect(gain);
       gain.connect(ctx.destination);
       src.onended = () => finish();
@@ -154,7 +135,7 @@ function speakDimeNow(onDone: () => void) {
     return;
   }
   try { window.speechSynthesis.cancel(); } catch { /* */ }
-  const u = new SpeechSynthesisUtterance('Dime.');
+  const u = new SpeechSynthesisUtterance('¿Dime?');
   const voice = pickWomanVoice();
   if (voice) {
     u.voice = voice;
@@ -162,8 +143,8 @@ function speakDimeNow(onDone: () => void) {
   } else {
     u.lang = 'es-ES';
   }
-  u.rate = 0.95;
-  u.pitch = 1;
+  u.rate = 0.88;
+  u.pitch = 1.08;
   u.volume = 1;
   u.onend = onDone;
   u.onerror = onDone;
@@ -959,8 +940,7 @@ export default function VoiceFab() {
   const promptDimeThenListen = (opts?: { overlay?: boolean }) => {
     setOpen(true);
     if (!opts?.overlay) setPanel({ mode: 'listen', draft: '' });
-    chime();
-    window.setTimeout(() => sayDime(() => startListen(opts)), 240);
+    sayDime(() => startListen(opts));
   };
 
   return (
@@ -1093,7 +1073,7 @@ export default function VoiceFab() {
           {panel.mode === 'idle' && (
             <div className="text-[12.5px] font-medium leading-snug text-ink-2">
               <p className="font-bold text-ink">Así se usa</p>
-              <p className="mt-1">1. Pitido + «Dime», o toca el micro. En Más se apaga el oído.</p>
+              <p className="mt-1">1. «Dime», o toca el micro. En Más se apaga el oído.</p>
               <p>2. Si va a guardar, te pide confirmación.</p>
               <p className="mt-2 text-[12px] text-ink-3">
                 Ej.: quién tiene hueco el miércoles a las 11:30 · cita para Lucía con Valeria a las 11:30
