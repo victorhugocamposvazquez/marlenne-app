@@ -93,3 +93,10 @@ export function dayName(offset: number) {
     timeZone: TZ, weekday: 'short',
   }).replace('.', '');
 }
+
+/** Desplazamiento de un ISO respecto a hoy civil del centro, para abrir la agenda en ese día. */
+export function offsetFromDay(iso: string) {
+  const [ty, tm, td] = dayKey(iso).split('-').map(Number);
+  const { y, m, d } = madridNow();
+  return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(y, m - 1, d)) / 86_400_000);
+}

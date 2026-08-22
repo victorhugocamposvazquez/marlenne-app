@@ -59,6 +59,34 @@ export async function addToWaitlist(input: {
   return { ok: !error, error: error?.message ?? null };
 }
 
+export async function updateClientRecord(input: {
+  id: string;
+  full_name: string;
+  phone?: string;
+  email?: string;
+  notes?: string;
+  tags?: string[];
+  sms_opt_in?: boolean;
+}) {
+  const name = input.full_name.trim();
+  if (name.length < 2) return { ok: false, error: 'Pon al menos el nombre' };
+  const { sb, salonId } = await mySalon();
+  if (!salonId) return { ok: false, error: 'Sin sesión' };
+
+  const { error } = await sb.from('clients').update({
+    full_name: name,
+    phone: input.phone?.trim() || null,
+    email: input.email?.trim() || null,
+    notes: input.notes?.trim() || null,
+    tags: input.tags ?? [],
+    sms_opt_in: input.sms_opt_in ?? true,
+  }).eq('id', input.id);
+
+  revalidatePath('/clientas');
+  revalidatePath(`/clientas/${input.id}`);
+  return { ok: !error, error: error?.message ?? null };
+}
+
 export async function resolveWaitlist(id: string) {
   const sb = createClient();
   const { error } = await sb.from('waitlist').update({ resolved_at: new Date().toISOString() }).eq('id', id);

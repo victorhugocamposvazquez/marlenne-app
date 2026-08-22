@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { X } from 'lucide-react';
 
 /** Los sheets viven en la URL, así el botón atrás del móvil también los cierra. */
-const SHEET_PARAMS = ['new', 'appt', 'client', 'wait', 'alta'];
+const SHEET_PARAMS = ['new', 'appt', 'client', 'wait', 'alta', 'close', 'editar'];
 const DISMISS_PX = 90;
 
 /** Cierra el sheet quitando sus parámetros y conservando el día y la vista. */

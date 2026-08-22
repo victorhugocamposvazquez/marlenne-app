@@ -13,7 +13,7 @@ import { dateFromOffset, dayKey } from '@/lib/time';
 export default async function AgendaPage({
   searchParams,
 }: {
-  searchParams: { day?: string; mode?: string; new?: string; appt?: string; client?: string; wait?: string };
+  searchParams: { day?: string; mode?: string; new?: string; appt?: string; client?: string; wait?: string; close?: string };
 }) {
   const parsed = Number(searchParams.day ?? 0);
   const day = Number.isFinite(parsed) ? parsed : 0;
@@ -66,7 +66,12 @@ export default async function AgendaPage({
       )}
 
       {appt && (
-        <AppointmentSheet appt={appt} providers={providers} canMoveProvider={canMoveProvider} />
+        <AppointmentSheet
+          appt={appt}
+          providers={providers}
+          canMoveProvider={canMoveProvider}
+          startClosing={searchParams.close === '1'}
+        />
       )}
 
       {opensWait && (

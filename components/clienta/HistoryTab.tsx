@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { CATEGORIES, STATUS } from '@/lib/categories';
-import { dateLbl, fmt, minutesOfDay } from '@/lib/time';
+import { dateLbl, fmt, minutesOfDay, offsetFromDay } from '@/lib/time';
 import type { AgendaAppt } from '@/lib/types';
 import { Empty } from './Tabs';
 
@@ -31,7 +31,7 @@ export default function HistoryTab({ appointments }: { appointments: AgendaAppt[
           return (
             <Link
               key={a.id}
-              href={`/agenda?appt=${a.id}`}
+              href={`/agenda?day=${offsetFromDay(a.starts_at)}&appt=${a.id}`}
               className="flex items-center gap-3 rounded-row border border-surface-line bg-white p-3 shadow-card transition hover:border-v/40"
             >
               <span className="w-[62px] shrink-0 text-center">

@@ -72,10 +72,11 @@ SUPABASE_PROJECT_ID=xxxx npm run types:gen
 | ✅ | Sheets: nueva cita, detalle/reprogramar, lista de espera, alta de clienta |
 | ✅ | Ficha de clienta: pestañas Tratamientos / Medidas / Fotos / Historial |
 | ✅ | Ajustes: equipo, catálogo, cierre de sesión, roadmap |
-| ✅ | Supabase Realtime en la agenda del día |
-| ⬜ | Cierre de sesión clínico (parámetros y medidas al marcar Hecha) |
-| ⬜ | Service worker (next-pwa o Serwist) |
-| ⬜ | Subida de fotos a Storage con compresión en cliente |
+| ✅ | Supabase Realtime en la agenda del día, Hoy y lista de espera |
+| ✅ | Cierre de sesión clínico (parámetros y medidas al marcar Hecha) |
+| ✅ | Subida de fotos a Storage con compresión en cliente |
+| ⚠️ | Service worker mínimo (instalable; sin caché offline) |
+| ⬜ | Login real por usuario (sigue el selector de perfil) |
 
 Las piezas pendientes están todas especificadas en el README del handoff:
 medidas, colores, copys y comportamiento exactos.

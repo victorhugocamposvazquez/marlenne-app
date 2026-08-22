@@ -15,8 +15,10 @@ export type AgendaAppt = {
   provider_name: string;
   client_id: string | null;
   client_label: string;
+  service_id: string;
   service_name: string;
   category: CategoryId;
+  param_keys: string[];
   starts_at: string;
   ends_at: string;
   duration_min: number;

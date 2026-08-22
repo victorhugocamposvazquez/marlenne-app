@@ -2,8 +2,8 @@ import Link from 'next/link';
 import { requireSession, listProviders, getDayAgenda, countWaitlist } from '@/lib/queries';
 import { fmt, durLbl, minutesOfDay, madridNow } from '@/lib/time';
 import { CATEGORIES } from '@/lib/categories';
-import { setStatus } from '@/app/actions/appointments';
 import { Bell } from 'lucide-react';
+import LiveRefresh from '@/components/LiveRefresh';
 
 export default async function HoyPage() {
   const me = await requireSession();
@@ -23,6 +23,7 @@ export default async function HoyPage() {
 
   return (
     <div className="px-5 pb-2 pt-5">
+      <LiveRefresh tables={['appointments', 'waitlist']} />
       <div className="mb-[18px] flex items-center gap-3">
         <div className="flex-1">
           <div className="text-[13px] font-medium text-ink-2">Hola {me.full_name}</div>
@@ -80,11 +81,12 @@ export default async function HoyPage() {
                     {a.service_name} · termina {fmt(minutesOfDay(a.ends_at))}
                   </div>
                 </div>
-                <form action={setStatus}>
-                  <input type="hidden" name="id" value={a.id} />
-                  <input type="hidden" name="status" value="done" />
-                  <button className="shrink-0 rounded-[13px] bg-emerald-500 px-3.5 py-2.5 text-[12.5px] font-bold text-white">Terminar</button>
-                </form>
+                <Link
+                  href={a.client_id ? `/agenda?appt=${a.id}&close=1` : `/agenda?appt=${a.id}`}
+                  className="shrink-0 rounded-[13px] bg-emerald-500 px-3.5 py-2.5 text-[12.5px] font-bold text-white"
+                >
+                  Terminar
+                </Link>
               </div>
             ))}
           </div>
@@ -93,6 +95,11 @@ export default async function HoyPage() {
 
       <h2 className="mb-2.5 text-base font-extrabold tracking-[-.02em]">Siguientes</h2>
       <div className="flex flex-col gap-2.5 pb-2.5">
+        {next.length === 0 && (
+          <p className="rounded-row border border-dashed border-handle bg-white/60 px-4 py-6 text-center text-[13px] font-semibold text-ink-3">
+            No quedan citas pendientes hoy.
+          </p>
+        )}
         {next.map(a => {
           const cat = CATEGORIES[a.category];
           return (

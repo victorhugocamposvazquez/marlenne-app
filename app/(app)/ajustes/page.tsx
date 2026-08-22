@@ -9,9 +9,10 @@ const ROADMAP = [
   { done: true, label: 'Nueva cita, detalle, reprogramar, cancelar' },
   { done: true, label: 'Ficha de clienta y lista de espera' },
   { done: true, label: 'Realtime en la agenda del día' },
+  { done: true, label: 'Cierre de sesión clínico al marcar Hecha' },
+  { done: true, label: 'Subida de fotos a Storage' },
   { done: false, label: 'Login real por usuario (ahora es un selector de perfil)' },
-  { done: false, label: 'Subida de fotos a Storage' },
-  { done: false, label: 'Service worker para instalar la PWA' },
+  { done: false, label: 'Service worker con caché offline' },
 ];
 
 export default async function AjustesPage() {

@@ -96,38 +96,57 @@ export async function cancelAppointment(id: string) {
   return { ok: !error, error: error?.message ?? null };
 }
 
-/** Cierre de sesión (todo opcional): parámetros, nota, medidas y fotos. */
-export async function saveSessionClose(input: {
+/** Marca la cita como hecha y, si el trigger abre tratamiento, guarda la sesión. */
+export async function closeSession(input: {
   appointmentId: string;
-  treatmentId: string;
-  sessionNo: number;
   params?: Record<string, string>;
   note?: string;
   measurements?: { metric: string; value?: number; text?: string; unit?: string }[];
 }) {
   const sb = createClient();
+  const { error: statusErr } = await sb
+    .from('appointments')
+    .update({ status: 'done' })
+    .eq('id', input.appointmentId);
+  if (statusErr) return { ok: false, error: statusErr.message };
 
-  const patch: Record<string, unknown> = {};
-  if (input.params && Object.keys(input.params).length) patch.last_params = input.params;
-  if (input.note) patch.note = input.note;
-  if (Object.keys(patch).length) {
-    await sb.from('treatments').update(patch).eq('id', input.treatmentId);
-  }
+  const { data: appt } = await sb
+    .from('appointments')
+    .select('id, treatment_id, session_no')
+    .eq('id', input.appointmentId)
+    .maybeSingle();
 
-  if (input.measurements?.length) {
-    await sb.from('measurements').insert(
-      input.measurements.map(m => ({
-        treatment_id: input.treatmentId,
-        appointment_id: input.appointmentId,
-        session_no: input.sessionNo,
-        metric: m.metric,
-        value_num: m.value ?? null,
-        value_text: m.text ?? null,
-        unit: m.unit ?? null,
-      })),
+  if (appt?.treatment_id) {
+    const filled = Object.fromEntries(
+      Object.entries(input.params ?? {}).filter(([, v]) => v.trim()),
     );
+    const patch: Record<string, unknown> = {};
+    if (Object.keys(filled).length) patch.last_params = filled;
+    if (input.note?.trim()) patch.note = input.note.trim();
+    if (Object.keys(patch).length) {
+      const { error } = await sb.from('treatments').update(patch).eq('id', appt.treatment_id);
+      if (error) return { ok: false, error: error.message };
+    }
+
+    const measures = (input.measurements ?? []).filter(m => m.value != null || m.text?.trim());
+    if (measures.length) {
+      const { error } = await sb.from('measurements').insert(
+        measures.map(m => ({
+          treatment_id: appt.treatment_id,
+          appointment_id: input.appointmentId,
+          session_no: appt.session_no,
+          metric: m.metric,
+          value_num: m.value ?? null,
+          value_text: m.text?.trim() || null,
+          unit: m.unit ?? null,
+        })),
+      );
+      if (error) return { ok: false, error: error.message };
+    }
   }
 
+  revalidatePath('/agenda');
+  revalidatePath('/hoy');
   revalidatePath('/clientas');
-  return { ok: true };
+  return { ok: true, error: null };
 }

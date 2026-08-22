@@ -13,6 +13,10 @@ export const metadata: Metadata = {
   description: 'Agenda del centro de estética',
   manifest: '/manifest.json',
   appleWebApp: { capable: true, title: 'Marlenne', statusBarStyle: 'default' },
+  icons: {
+    icon: '/icon-192.png',
+    apple: '/icon-192.png',
+  },
 };
 
 export const viewport: Viewport = {

@@ -7,6 +7,7 @@ import Sheet, { Field, inputCls, useCloseSheet } from '@/components/Sheet';
 import { addToWaitlist, resolveWaitlist } from '@/app/actions/clients';
 import { dateLbl } from '@/lib/time';
 import type { ClientOption, ServiceOption, WaitItem } from '@/lib/types';
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 
 export default function WaitlistSheet({
   items, clients, services,
@@ -17,6 +18,7 @@ export default function WaitlistSheet({
 }) {
   const close = useCloseSheet();
   const router = useRouter();
+  useRealtimeRefresh(['waitlist']);
   const [pending, startTransition] = useTransition();
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState('');

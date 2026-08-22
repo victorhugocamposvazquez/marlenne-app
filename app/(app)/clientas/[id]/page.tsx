@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, CalendarPlus, Mail, Phone } from 'lucide-react';
+import { ArrowLeft, CalendarPlus, Mail, Pencil, Phone } from 'lucide-react';
+import EditClientSheet from '@/components/clienta/EditClientSheet';
 import Tabs, { parseTab } from '@/components/clienta/Tabs';
 import TreatmentsTab from '@/components/clienta/TreatmentsTab';
 import MeasurementsTab from '@/components/clienta/MeasurementsTab';
@@ -16,10 +17,11 @@ export default async function ClientaPage({
   params, searchParams,
 }: {
   params: { id: string };
-  searchParams: { tab?: string };
+  searchParams: { tab?: string; editar?: string };
 }) {
-  await requireSession();
+  const me = await requireSession();
   const tab = parseTab(searchParams.tab);
+  const canEdit = me.role === 'admin' || me.role === 'reception';
   const { client, treatments } = await getClient(params.id);
   if (!client) notFound();
 
@@ -66,13 +68,24 @@ export default async function ClientaPage({
               ].filter(Boolean).join(' · ')}
             </p>
           </div>
-          <Link
-            href={`/agenda?new=1&client=${client.id}`}
-            aria-label="Nueva cita para esta clienta"
-            className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px] bg-grad text-white shadow-btn"
-          >
-            <CalendarPlus size={19} strokeWidth={2.2} />
-          </Link>
+          <div className="flex shrink-0 gap-2">
+            {canEdit && (
+              <Link
+                href={`/clientas/${client.id}?tab=${tab}&editar=1`}
+                aria-label="Editar ficha"
+                className="grid h-[42px] w-[42px] place-items-center rounded-[14px] border border-surface-line bg-white text-ink-2 shadow-card"
+              >
+                <Pencil size={17} strokeWidth={2.2} />
+              </Link>
+            )}
+            <Link
+              href={`/agenda?new=1&client=${client.id}`}
+              aria-label="Nueva cita para esta clienta"
+              className="grid h-[42px] w-[42px] place-items-center rounded-[14px] bg-grad text-white shadow-btn"
+            >
+              <CalendarPlus size={19} strokeWidth={2.2} />
+            </Link>
+          </div>
         </div>
 
         {client.tags?.length > 0 && (
@@ -138,6 +151,7 @@ export default async function ClientaPage({
         )}
         {tab === 'historial' && <HistoryTab appointments={appointments} />}
       </div>
+      {canEdit && searchParams.editar === '1' && <EditClientSheet client={client} />}
     </div>
   );
 }

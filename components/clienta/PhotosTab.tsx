@@ -2,6 +2,7 @@ import { ShieldAlert } from 'lucide-react';
 import { dateLbl } from '@/lib/time';
 import type { TreatmentPhoto, TreatmentRow } from '@/lib/types';
 import { Empty } from './Tabs';
+import PhotoUpload from './PhotoUpload';
 
 type Group = {
   key: string;
@@ -61,11 +62,12 @@ export default function PhotosTab({
   }
 
   const list = [...groups.values()].sort((a, b) => +new Date(b.takenAt) - +new Date(a.takenAt));
-  if (!list.length) return <Empty>Todavía no hay fotos de esta clienta.</Empty>;
 
   return (
     <div className="flex flex-col gap-2.5">
-      {!photoConsent && (
+      <PhotoUpload treatments={treatments} />
+      {!list.length && <Empty>Todavía no hay fotos de esta clienta.</Empty>}
+      {list.length > 0 && !photoConsent && (
         <p className="flex items-start gap-2 rounded-row border border-amber-200 bg-amber-50 p-3 text-[12px] font-semibold leading-snug text-amber-800">
           <ShieldAlert size={16} strokeWidth={2.2} className="mt-px shrink-0" />
           Hay fotos guardadas y no consta consentimiento de imagen. Son datos de salud:

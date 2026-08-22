@@ -8,8 +8,8 @@ import type {
 
 const APPT_SELECT = `
   id, provider_id, client_id, client_name, starts_at, ends_at, duration_min,
-  status, price_cents, treatment_id, session_no,
-  service:services(name, category),
+  status, price_cents, treatment_id, session_no, service_id,
+  service:services(name, category, param_keys),
   provider:staff!appointments_provider_id_fkey(full_name),
   client:clients(full_name)
 `;
@@ -21,8 +21,10 @@ function mapAppt(row: any): AgendaAppt {
     provider_name: row.provider?.full_name ?? '',
     client_id: row.client_id,
     client_label: row.client?.full_name ?? row.client_name ?? 'Sin nombre',
+    service_id: row.service_id,
     service_name: row.service?.name ?? '',
     category: row.service?.category ?? 'corporal',
+    param_keys: row.service?.param_keys ?? [],
     starts_at: row.starts_at,
     ends_at: row.ends_at,
     duration_min: row.duration_min,
@@ -271,6 +273,7 @@ export async function freeSlots(
     p_date: dayKey(date),
     p_duration: durationMin,
     p_exclude: excludeId ?? null,
+    p_step: 15,
   });
   return (data ?? []) as string[];
 }

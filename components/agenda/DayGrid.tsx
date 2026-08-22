@@ -8,6 +8,7 @@ import { moveAppointment } from '@/app/actions/appointments';
 import type { AgendaAppt, AgendaBlock, Provider } from '@/lib/types';
 import { useDragAppointment, COL_W } from '@/hooks/useDragAppointment';
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
+import { useToast } from '@/components/Toast';
 
 export default function DayGrid({
   date, providers, appointments, blocks, canMoveProvider,
@@ -25,6 +26,7 @@ export default function DayGrid({
   const [optimistic, setOptimistic] = useState<Record<string, { start: number; provider: string }>>({});
   const [now, setNow] = useState(nowMinutes);
   const router = useRouter();
+  const toast = useToast();
   useRealtimeRefresh(['appointments', 'time_blocks']);
   useEffect(() => {
     const t = setInterval(() => setNow(nowMinutes()), 60_000);
@@ -45,7 +47,18 @@ export default function DayGrid({
     providerIds: canMoveProvider ? providers.map(p => p.id) : [providers[0]?.id],
     onDrop: (id, start, providerId) => {
       setOptimistic(o => ({ ...o, [id]: { start, provider: providerId } }));
-      startTransition(() => { void moveAppointment({ id, date, startMin: start, providerId }); });
+      startTransition(async () => {
+        const r = await moveAppointment({ id, date, startMin: start, providerId });
+        if (r.ok) return;
+        setOptimistic(o => {
+          const next = { ...o };
+          delete next[id];
+          return next;
+        });
+        toast(r.error?.includes('overlap') || r.error?.includes('exclusion')
+          ? 'Ese hueco ya está ocupado'
+          : (r.error ?? 'No se ha podido mover la cita'), 'err');
+      });
     },
     onTap: openAppt,
   });

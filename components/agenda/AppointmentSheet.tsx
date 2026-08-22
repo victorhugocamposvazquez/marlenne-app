@@ -10,17 +10,24 @@ import {
 } from '@/app/actions/appointments';
 import { dayKey, durLbl, fmt, minutesOfDay } from '@/lib/time';
 import type { AgendaAppt, Provider } from '@/lib/types';
+import SessionCloseForm from './SessionCloseForm';
+
+function needsClinicalClose(appt: AgendaAppt) {
+  return !!appt.client_id && appt.category !== 'valoracion' && appt.status !== 'done';
+}
 
 export default function AppointmentSheet({
-  appt, providers, canMoveProvider,
+  appt, providers, canMoveProvider, startClosing = false,
 }: {
   appt: AgendaAppt;
   providers: Provider[];
   canMoveProvider: boolean;
+  startClosing?: boolean;
 }) {
   const close = useCloseSheet();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [closing, setClosing] = useState(startClosing && needsClinicalClose(appt));
 
   const [moving, setMoving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -75,6 +82,13 @@ export default function AppointmentSheet({
         )}
       </div>
 
+      {closing ? (
+        <SessionCloseForm
+          appt={appt}
+          onCancel={() => setClosing(false)}
+          onDone={close}
+        />
+      ) : (
       <Field label="Estado">
         <div className="flex flex-wrap gap-2">
           {(Object.keys(STATUS) as StatusId[]).map(id => (
@@ -82,13 +96,17 @@ export default function AppointmentSheet({
               key={id}
               active={appt.status === id}
               disabled={pending}
-              onClick={() => run(() => updateStatus(appt.id, id))}
+              onClick={() => {
+                if (id === 'done' && needsClinicalClose(appt)) setClosing(true);
+                else run(() => updateStatus(appt.id, id));
+              }}
             >
               {STATUS[id].label}
             </Chip>
           ))}
         </div>
       </Field>
+      )}
 
       {appt.client_id && (
         <Link
