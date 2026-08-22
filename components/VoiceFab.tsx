@@ -98,6 +98,17 @@ type RecApi = {
   onend: (() => void) | null;
 };
 
+async function unlockMic() {
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return false;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach(t => t.stop());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function makeRec(): RecApi | null {
   const Ctor = (window as unknown as { SpeechRecognition?: new () => RecApi; webkitSpeechRecognition?: new () => RecApi })
     .SpeechRecognition
@@ -129,6 +140,7 @@ export default function VoiceFab() {
   const [armed, setArmed] = useState(false);
   const [wakeOn, setWakeOn] = useState(false);
   const armedRef = useRef(false);
+  const hushRef = useRef(false);
   const wakeRef = useRef(false);
   const startWakeRef = useRef<() => void>(() => {});
   const ignoreOutsideRef = useRef(0);
@@ -187,12 +199,12 @@ export default function VoiceFab() {
     pickWomanVoice();
     const onVoices = () => pickWomanVoice();
     window.speechSynthesis?.addEventListener('voiceschanged', onVoices);
-    try {
-      if (sessionStorage.getItem('marlenne-wake') === '1') {
-        armedRef.current = true;
-        setArmed(true);
-      }
-    } catch { /* */ }
+    arm();
+    const boot = () => {
+      if (hushRef.current) return;
+      void unlockMic().then(() => startWakeRef.current());
+    };
+    boot();
     const onVis = () => {
       if (document.hidden) {
         if (wakeRef.current) {
@@ -203,12 +215,28 @@ export default function VoiceFab() {
         }
         return;
       }
-      startWakeRef.current();
+      boot();
+    };
+    const onKick = (e: PointerEvent) => {
+      if (hushRef.current) return;
+      if (listenRef.current || overlayRef.current || wakeRef.current) return;
+      if (rootRef.current?.contains(e.target as Node)) return;
+      arm();
+      boot();
     };
     document.addEventListener('visibilitychange', onVis);
+    document.addEventListener('pointerdown', onKick, true);
+    window.addEventListener('pageshow', boot);
+    const keep = window.setInterval(() => {
+      if (hushRef.current || document.hidden || listenRef.current || overlayRef.current || wakeRef.current) return;
+      startWakeRef.current();
+    }, 2000);
     return () => {
       window.speechSynthesis?.removeEventListener('voiceschanged', onVoices);
       document.removeEventListener('visibilitychange', onVis);
+      document.removeEventListener('pointerdown', onKick, true);
+      window.removeEventListener('pageshow', boot);
+      window.clearInterval(keep);
     };
   }, []);
 
@@ -492,9 +520,11 @@ export default function VoiceFab() {
   commitRef.current = commitListen;
 
   const startWake = () => {
-    if (!armedRef.current || document.hidden) return;
+    if (hushRef.current || document.hidden) return;
     if (listenRef.current || overlayRef.current) return;
+    if (wakeRef.current && recRef.current) return;
     if (!makeRec()) return;
+    arm();
     const gen = ++genRef.current;
     killRec();
     const rec = makeRec();
@@ -553,6 +583,7 @@ export default function VoiceFab() {
   startWakeRef.current = startWake;
 
   const startListen = (opts?: { overlay?: boolean }) => {
+    hushRef.current = false;
     arm();
     wakeRef.current = false;
     setWakeOn(false);
@@ -785,6 +816,7 @@ export default function VoiceFab() {
           type="button"
           onClick={() => {
             if (wakeOn || armedRef.current) {
+              hushRef.current = true;
               armedRef.current = false;
               setArmed(false);
               setWakeOn(false);
@@ -797,7 +829,7 @@ export default function VoiceFab() {
           }}
           className="pointer-events-auto mt-1.5 max-w-[220px] rounded-[10px] bg-white/90 px-2.5 py-1 text-right text-[10.5px] font-bold text-v-d shadow-card"
         >
-          {wakeOn ? 'Oyendo «Hola Marlenne» · toca para callar' : 'Toca el micro y di «Hola Marlenne»'}
+          {wakeOn ? 'Oyendo «Hola Marlenne» · toca para callar' : 'Activando oído… di «Hola Marlenne»'}
         </button>
       )}
       {!hasMic && open && (
