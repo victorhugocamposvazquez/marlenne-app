@@ -139,6 +139,7 @@ export default function VoiceFab() {
   const [hearing, setHearing] = useState(false);
   const [armed, setArmed] = useState(false);
   const [wakeOn, setWakeOn] = useState(false);
+  const [wakeHeard, setWakeHeard] = useState('');
   const armedRef = useRef(false);
   const hushRef = useRef(false);
   const wakeRef = useRef(false);
@@ -532,28 +533,41 @@ export default function VoiceFab() {
     recRef.current = rec;
     wakeRef.current = true;
     setWakeOn(true);
+    setWakeHeard('');
     rec.onresult = ev => {
       if (gen !== genRef.current) return;
       let text = '';
       for (let i = 0; i < ev.results.length; i++) {
         text += ev.results[i]?.[0]?.transcript ?? '';
       }
-      const wake = splitWake(text);
-      if (!wake.woke) return;
+      const heard = text.trim();
+      if (!heard) return;
+      const last = ev.results[ev.results.length - 1];
+      const wake = splitWake(heard);
+      const cmd = parseVoice(heard);
+      const isCmd = cmd.kind !== 'unknown' && cmd.kind !== 'help' && cmd.kind !== 'dismiss';
+      if (!wake.woke && !isCmd) {
+        if (last?.isFinal) setWakeHeard(heard);
+        return;
+      }
       wakeRef.current = false;
       setWakeOn(false);
       genRef.current += 1;
       killRec();
       unlockSpeak();
+      if (isCmd && !wake.woke) {
+        setOpen(true);
+        runText(heard);
+        return;
+      }
       if (wake.rest.length >= 4) {
         setOpen(true);
         setPanel({ mode: 'listen', draft: wake.rest });
         runText(wake.rest);
         return;
       }
-      setOpen(true);
-      setPanel({ mode: 'listen', draft: '' });
-      speak('Dime.', () => startListen());
+      startListen();
+      window.setTimeout(() => speak('Dime.'), 250);
     };
     rec.onerror = ev => {
       if (gen !== genRef.current) return;
@@ -829,7 +843,11 @@ export default function VoiceFab() {
           }}
           className="pointer-events-auto mt-1.5 max-w-[220px] rounded-[10px] bg-white/90 px-2.5 py-1 text-right text-[10.5px] font-bold text-v-d shadow-card"
         >
-          {wakeOn ? 'Oyendo «Hola Marlenne» · toca para callar' : 'Activando oído… di «Hola Marlenne»'}
+          {wakeHeard
+            ? `Oí «${wakeHeard}». Di «Hola Marlenne»`
+            : wakeOn
+              ? 'Oyendo «Hola Marlenne» · toca para callar'
+              : 'Activando oído… di «Hola Marlenne»'}
         </button>
       )}
       {!hasMic && open && (

@@ -340,14 +340,26 @@ export function isVoiceYes(text: string) {
   return /^(si|vale|ok)\b/.test(t) && /guard|confirma|hazlo|adelante|dale/.test(t);
 }
 
-const WAKE_RE = /(?:^|\s)(?:hola|ola|oye|hey|eh|buenas|a ver)\s+(?:marlenne|marlene|marlen|malene|malen|marleni)\b/;
+function looksLikeMarlenne(word: string) {
+  const t = fold(word).replace(/[^a-zñ]/g, '');
+  if (t.length < 4 || t.length > 12) return false;
+  if (/marlen|malen|merlen|marlan|marlin|marleni|marleny|malene|marlene/.test(t)) return true;
+  return t.startsWith('marl') || (t.startsWith('mal') && t.includes('n'));
+}
 
 /** «Hola Marlenne» / «oye Marlene»… y el resto del comando, si vino en el mismo aliento. */
 export function splitWake(text: string): { woke: boolean; rest: string } {
   const t = fold(text.replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' '));
-  const m = t.match(WAKE_RE);
-  if (!m) return { woke: false, rest: text.trim() };
-  return { woke: true, rest: t.slice((m.index ?? 0) + m[0].length).trim() };
+  if (!t) return { woke: false, rest: '' };
+  const words = t.split(/\s+/);
+  const nameAt = words.findIndex(looksLikeMarlenne);
+  if (nameAt >= 0) {
+    return { woke: true, rest: words.slice(nameAt + 1).join(' ').trim() };
+  }
+  if (words.length === 1 && /^(hola|ola|oye|buenas)$/.test(words[0])) {
+    return { woke: true, rest: '' };
+  }
+  return { woke: false, rest: text.trim() };
 }
 
 export const VOICE_HELP = [
