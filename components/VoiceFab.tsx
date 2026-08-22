@@ -10,6 +10,7 @@ import {
 } from '@/app/actions/voice';
 import type { VoiceTalkResult } from '@/app/actions/voice-talk';
 import { voiceSpeakMp3 } from '@/app/actions/voice-speak';
+import { DIME_WAV_B64 } from '@/lib/dime-wav';
 import { VOICE_HELP, fold, forEar, isVoiceYes, parseVoice, splitWake, takeTime, wakeRestIsCommand } from '@/lib/voice';
 import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/lib/voice-prefs';
 
@@ -58,11 +59,32 @@ function unlockSpeak() {
 }
 
 let beepCtx: AudioContext | null = null;
+let dimeBuf: AudioBuffer | null = null;
+let dimeLoad: Promise<AudioBuffer | null> | null = null;
+
+function audioCtx() {
+  beepCtx ??= new AudioContext();
+  return beepCtx;
+}
+
+function loadDime() {
+  if (dimeBuf) return Promise.resolve(dimeBuf);
+  dimeLoad ??= (async () => {
+    try {
+      const ctx = audioCtx();
+      const bin = Uint8Array.from(atob(DIME_WAV_B64), c => c.charCodeAt(0));
+      dimeBuf = await ctx.decodeAudioData(bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength));
+      return dimeBuf;
+    } catch {
+      return null;
+    }
+  })();
+  return dimeLoad;
+}
 
 function chime() {
   try {
-    beepCtx ??= new AudioContext();
-    const ctx = beepCtx;
+    const ctx = audioCtx();
     void ctx.resume();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
@@ -71,45 +93,24 @@ function chime() {
     osc.frequency.setValueAtTime(880, now);
     osc.frequency.setValueAtTime(1175, now + 0.07);
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    gain.gain.exponentialRampToValueAtTime(0.14, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.start(now);
-    osc.stop(now + 0.2);
+    osc.stop(now + 0.18);
   } catch { /* */ }
-}
-
-let dimeEl: HTMLAudioElement | null = null;
-
-function getDimeEl() {
-  if (typeof window === 'undefined') return null;
-  dimeEl ??= new Audio('/dime.wav');
-  dimeEl.preload = 'auto';
-  return dimeEl;
 }
 
 function warmAudio() {
   try {
-    beepCtx ??= new AudioContext();
-    void beepCtx.resume();
+    void audioCtx().resume();
+    void loadDime();
   } catch { /* */ }
-  const el = getDimeEl();
-  if (el) {
-    const prev = el.volume;
-    el.volume = 0.001;
-    void el.play().then(() => {
-      el.pause();
-      el.currentTime = 0;
-      el.volume = 1;
-    }).catch(() => {
-      el.volume = prev || 1;
-    });
-  }
   unlockSpeak();
 }
 
-/** «Dime» en clip (Safari no suele hablar tras el dictado). Luego sigue. */
+/** «Dime» por el mismo audio que el pitido: Safari no bloquea este canal. */
 function sayDime(onDone: () => void) {
   let done = false;
   const finish = () => {
@@ -117,22 +118,33 @@ function sayDime(onDone: () => void) {
     done = true;
     onDone();
   };
-  const fallback = window.setTimeout(finish, 1600);
-  const wrap = () => {
-    window.clearTimeout(fallback);
-    finish();
+
+  const start = (buf: AudioBuffer) => {
+    try {
+      const ctx = audioCtx();
+      void ctx.resume();
+      const src = ctx.createBufferSource();
+      const gain = ctx.createGain();
+      src.buffer = buf;
+      gain.gain.value = 1;
+      src.connect(gain);
+      gain.connect(ctx.destination);
+      src.onended = () => finish();
+      src.start();
+      window.setTimeout(finish, Math.round(buf.duration * 1000) + 100);
+    } catch {
+      speakDimeNow(finish);
+    }
   };
 
-  const el = getDimeEl();
-  if (el) {
-    el.onended = wrap;
-    el.onerror = () => speakDimeNow(wrap);
-    el.volume = 1;
-    el.currentTime = 0;
-    void el.play().catch(() => speakDimeNow(wrap));
+  if (dimeBuf) {
+    start(dimeBuf);
     return;
   }
-  speakDimeNow(wrap);
+  void loadDime().then(buf => {
+    if (buf) start(buf);
+    else speakDimeNow(finish);
+  });
 }
 
 function speakDimeNow(onDone: () => void) {
@@ -403,6 +415,7 @@ export default function VoiceFab() {
     const onVoices = () => pickWomanVoice();
     window.speechSynthesis?.addEventListener('voiceschanged', onVoices);
     syncPrefs();
+    void loadDime();
     const onFirst = () => warmAudio();
     window.addEventListener('pointerdown', onFirst, { once: true });
     window.addEventListener('touchstart', onFirst, { once: true });
@@ -906,7 +919,7 @@ export default function VoiceFab() {
     setOpen(true);
     if (!opts?.overlay) setPanel({ mode: 'listen', draft: '' });
     chime();
-    sayDime(() => startListen(opts));
+    window.setTimeout(() => sayDime(() => startListen(opts)), 240);
   };
 
   return (
