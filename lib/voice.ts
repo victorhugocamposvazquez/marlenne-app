@@ -7,7 +7,8 @@ export type VoiceCmd =
   | { kind: 'today' }
   | { kind: 'search'; q: string }
   | { kind: 'status'; status: 'curso' | 'noshow'; who: string }
-  | { kind: 'book'; who: string; startMin: number | null; serviceQ: string | null; dayOffset: number }
+  | { kind: 'book'; who: string; startMin: number | null; serviceQ: string | null; dayOffset: number; providerQ: string | null }
+  | { kind: 'slots'; dayOffset: number; startMin: number | null; providerQ: string | null }
   | { kind: 'wait'; who: string | null }
   | { kind: 'help' }
   | { kind: 'unknown'; text: string };
@@ -46,8 +47,53 @@ function tidyWho(s: string) {
   return s.replace(/^(a|de|la|el)\s+/i, '').replace(/\s+/g, ' ').trim();
 }
 
+const DAY_RE = /(?:el |este |proximo )?((?:pasado )?manana|hoy|lunes|martes|miercoles|jueves|viernes|sabado|domingo)/;
+const TIME_RE = /(?:a las |a la |las )(\d{1,2})(?:[:h](\d{2})| y media| y (\d{2}))?/;
+
+function takeProvider(s: string): { text: string; providerQ: string | null } {
+  const con = s.match(/ con (?!las |la |el )([a-zñ]+)/);
+  if (con) {
+    return {
+      text: `${s.slice(0, con.index)} ${s.slice((con.index ?? 0) + con[0].length)}`.replace(/\s+/g, ' ').trim(),
+      providerQ: con[1],
+    };
+  }
+  const puede = s.match(/(?:puede|tiene) ([a-zñ]+)/);
+  if (puede) return { text: s, providerQ: puede[1] };
+  return { text: s, providerQ: null };
+}
+
+function takeDay(s: string): { text: string; dayOffset: number } {
+  const m = s.match(DAY_RE);
+  if (!m) return { text: s, dayOffset: 0 };
+  const off = weekdayOffset(m[1]);
+  return {
+    text: `${s.slice(0, m.index)} ${s.slice((m.index ?? 0) + m[0].length)}`.replace(/\s+/g, ' ').trim(),
+    dayOffset: off ?? 0,
+  };
+}
+
+function takeTime(s: string): { startMin: number | null; minutes: string; hour: string } | { startMin: null } {
+  const m = s.match(TIME_RE);
+  if (!m) return { startMin: null };
+  let minutes = '00';
+  if (m[0].includes('y media')) minutes = '30';
+  else if (m[2]) minutes = m[2];
+  else if (m[3]) minutes = m[3];
+  return { startMin: parseClock(`${m[1]}:${minutes}`), minutes, hour: m[1] };
+}
+
+function parseSlots(t: string): VoiceCmd | null {
+  if (!/(hueco|libre|disponib|cuando puede|a que hora)/.test(t)) return null;
+  const p = takeProvider(t);
+  const d = takeDay(p.text);
+  const time = takeTime(d.text);
+  return { kind: 'slots', dayOffset: d.dayOffset, startMin: time.startMin, providerQ: p.providerQ };
+}
+
 function parseBook(t: string): VoiceCmd | null {
-  let rest = t
+  const p = takeProvider(t);
+  let rest = p.text
     .replace(/^(crea(?:r)?(?:me)? |haz(?:me)? )/, '')
     .replace(/^(una )/, '')
     .replace(/^(nueva )?cita( nueva)? /, '')
@@ -67,16 +113,10 @@ function parseBook(t: string): VoiceCmd | null {
   const serviceQ = time[4] ? tidyWho(time[4]) : null;
 
   let head = rest.slice(0, time.index).trim();
-  let dayOffset = 0;
-  const day = head.match(/ (?:el |este |proximo )?((?:pasado )?manana|hoy|lunes|martes|miercoles|jueves|viernes|sabado|domingo)$/);
-  if (day) {
-    const off = weekdayOffset(day[1]);
-    if (off !== null) dayOffset = off;
-    head = head.slice(0, day.index).trim();
-  }
-  const who = tidyWho(head);
+  const d = takeDay(` ${head}`);
+  const who = tidyWho(d.text);
   if (who.length < 2) return null;
-  return { kind: 'book', who, startMin, serviceQ, dayOffset };
+  return { kind: 'book', who, startMin, serviceQ, dayOffset: d.dayOffset, providerQ: p.providerQ };
 }
 
 export function parseVoice(text: string): VoiceCmd {
@@ -115,6 +155,8 @@ export function parseVoice(text: string): VoiceCmd {
   m = t.match(/^espera(?: a)? (.+)$/);
   if (m) return { kind: 'wait', who: tidyWho(m[1]) };
 
+  const slots = parseSlots(t);
+  if (slots) return slots;
   const booked = parseBook(t);
   if (booked) return booked;
   if (/^(nueva cita|apuntar|anotar|agendar)$/.test(t)) {
@@ -159,8 +201,8 @@ export function bestNameMatches<T>(rows: T[], needle: string, label: (row: T) =>
 }
 
 export const VOICE_HELP = [
-  'crea una cita para Lucía Ferrer el miércoles a las 11:30',
+  'crea una cita para Lucía Ferrer el miércoles a las 11:30 con Valeria',
+  'quién tiene hueco el miércoles a las 11:30',
+  'a qué hora puede Valeria mañana',
   'qué hay hoy',
-  'pasa Lucía',
-  'Lucía no ha venido',
 ].join(' · ');

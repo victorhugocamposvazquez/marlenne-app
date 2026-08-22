@@ -4,9 +4,10 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Mic, Square } from 'lucide-react';
 import {
-  voiceAddWait, voiceApplyStatus, voiceConfirmBook, voicePreviewBook,
-  voicePreviewStatus, voiceToday,
+  voiceAddWait, voiceApplyCancel, voiceApplyMove, voiceApplyStatus, voiceConfirmBook,
+  voicePreviewBook, voicePreviewStatus, voiceSlots, voiceToday,
 } from '@/app/actions/voice';
+import { voiceTalk, type VoiceTalkResult, type VoiceTurn } from '@/app/actions/voice-talk';
 import { VOICE_HELP, parseVoice } from '@/lib/voice';
 
 type Choice = { id: string; label: string };
@@ -14,7 +15,7 @@ type Panel =
   | { mode: 'idle' }
   | { mode: 'listen'; draft: string }
   | { mode: 'msg'; say: string }
-  | { mode: 'confirm'; say: string; status?: 'curso' | 'noshow'; run: () => Promise<{ ok: boolean; say: string; href?: string }>; choices?: Choice[] };
+  | { mode: 'confirm'; say: string; status?: 'curso' | 'noshow'; pick?: 'status' | 'cancel'; run: () => Promise<{ ok: boolean; say: string; href?: string }>; choices?: Choice[] };
 
 function speak(text: string) {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
@@ -58,6 +59,7 @@ export default function VoiceFab() {
   const [panel, setPanel] = useState<Panel>({ mode: 'idle' });
   const [pending, startTransition] = useTransition();
   const recRef = useRef<ReturnType<typeof makeRec>>(null);
+  const historyRef = useRef<VoiceTurn[]>([]);
   const [hasMic, setHasMic] = useState(false);
 
   useEffect(() => {
@@ -71,9 +73,64 @@ export default function VoiceFab() {
     window.setTimeout(() => { setPanel({ mode: 'idle' }); setOpen(false); }, 2800);
   };
 
+  const applyTalk = (r: VoiceTalkResult) => {
+    if (r.matches && r.matches.length > 1) {
+      setPanel({
+        mode: 'confirm',
+        say: r.say,
+        status: r.status,
+        choices: r.matches,
+        pick: r.cancel ? 'cancel' : 'status',
+        run: async () => ({ ok: false, say: 'Elige una' }),
+      });
+      speak(r.say);
+      return;
+    }
+    if (r.ready && r.draft && r.move) {
+      const draft = r.draft as { id: string; date: string; startMin: number; providerId: string };
+      setPanel({ mode: 'confirm', say: r.say, run: () => voiceApplyMove(draft) });
+      speak(r.say);
+      return;
+    }
+    if (r.ready && r.draft && !r.move && !r.draft.who) {
+      const draft = r.draft as Parameters<typeof voiceConfirmBook>[0];
+      setPanel({ mode: 'confirm', say: r.say, run: () => voiceConfirmBook(draft) });
+      speak(r.say);
+      return;
+    }
+    if (r.draft && typeof r.draft.who === 'string') {
+      const who = r.draft.who;
+      setPanel({ mode: 'confirm', say: r.say, run: () => voiceAddWait(who) });
+      speak(r.say);
+      return;
+    }
+    if (r.matches?.length === 1 && r.cancel) {
+      setPanel({ mode: 'confirm', say: r.say, run: () => voiceApplyCancel(r.matches![0].id) });
+      speak(r.say);
+      return;
+    }
+    if (r.matches?.length === 1 && r.status) {
+      setPanel({ mode: 'confirm', say: r.say, run: () => voiceApplyStatus(r.matches![0].id, r.status!) });
+      speak(r.say);
+      return;
+    }
+    finish(r.say, r.href);
+  };
+
   const runText = (text: string) => {
-    const cmd = parseVoice(text);
     startTransition(async () => {
+      const talked = await voiceTalk(text, historyRef.current);
+      if (!talked.fallback) {
+        historyRef.current = [
+          ...historyRef.current.slice(-4),
+          { role: 'user', content: text },
+          { role: 'assistant', content: talked.say },
+        ];
+        applyTalk(talked);
+        return;
+      }
+
+      const cmd = parseVoice(text);
       if (cmd.kind === 'help' || cmd.kind === 'unknown') {
         const say = cmd.kind === 'unknown'
           ? `No he pillado «${cmd.text}». Prueba: ${VOICE_HELP}`
@@ -129,14 +186,20 @@ export default function VoiceFab() {
           mode: 'confirm',
           say: preview.say,
           status: cmd.status,
+          pick: 'status',
           choices: preview.matches,
           run: async () => ({ ok: false, say: 'Elige una' }),
         });
         speak(preview.say);
         return;
       }
+      if (cmd.kind === 'slots') {
+        const r = await voiceSlots(cmd.dayOffset, cmd.startMin, cmd.providerQ);
+        finish(r.say, r.href);
+        return;
+      }
       if (cmd.kind === 'book') {
-        const preview = await voicePreviewBook(cmd.who, cmd.startMin, cmd.serviceQ, cmd.dayOffset);
+        const preview = await voicePreviewBook(cmd.who, cmd.startMin, cmd.serviceQ, cmd.dayOffset, cmd.providerQ);
         if (!preview.ready) {
           finish(preview.say, preview.href);
           return;
@@ -206,8 +269,9 @@ export default function VoiceFab() {
                       key={c.id}
                       disabled={pending}
                       onClick={() => startTransition(async () => {
-                        const status = panel.status ?? 'noshow';
-                        const r = await voiceApplyStatus(c.id, status);
+                        const r = panel.pick === 'cancel'
+                          ? await voiceApplyCancel(c.id)
+                          : await voiceApplyStatus(c.id, panel.status ?? 'noshow');
                         finish(r.say, r.href);
                       })}
                       className="rounded-[12px] border border-surface-line bg-v-tint px-3 py-2 text-left text-[12.5px] font-bold text-v-d"
@@ -245,7 +309,7 @@ export default function VoiceFab() {
               <p className="mt-1">1. Toca otra vez el micro para hablar, o escribe abajo.</p>
               <p>2. Si va a guardar, te pide confirmación.</p>
               <p className="mt-2 text-[12px] text-ink-3">
-                Ejemplo: crea una cita para Lucía Ferrer el miércoles a las 11:30
+                Ej.: quién tiene hueco el miércoles a las 11:30 · cita para Lucía con Valeria a las 11:30
               </p>
             </div>
           )}

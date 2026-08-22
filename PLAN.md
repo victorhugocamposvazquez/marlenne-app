@@ -114,8 +114,9 @@ Lo que *no* es el techo: Atajos que abren `/hoy`. Eso es el suelo, ya está.
 
 ### Fases
 
-0. **Ahora (PWA)** — micrófono / texto en la app (Hoy, pasa, no vino, cita,
-   espera). Atajos de Siri a mano que abren URLs. El manifesto tiene shortcuts.
+0. **Ahora (PWA)** — micrófono / texto: Hoy, huecos, cita (día + profesional),
+   pasa, no vino, espera. Si hay `OPENAI_API_KEY`, el modelo usa las mismas
+   tools y se puede hablar normal. Atajos de Siri solo abren URLs.
 1. **API de equipo (o MCP)** — las server actions de hoy no las puede llamar
    Siri ni Alexa. Mismas tools: crear cita, estado, listar día, huecos.
    Auth de staff + RLS / `my_salon()`.

@@ -35,8 +35,9 @@ export default function IosShortcutsCard() {
           icono, prueba la URL <span className="font-bold">webapp://</span>.
         </p>
         <p className="mt-2 text-[12.5px] font-medium leading-snug text-ink-2">
-          Dentro de la app, el micrófono (o escribir) ejecuta: qué hay hoy,
-          pasa Lucía, no ha venido Alba, cita… Solo agenda, nunca ficha clínica.
+          Dentro de la app, el micrófono (o escribir) ejecuta agenda: huecos,
+          citas, pasa, no vino. Si hay clave de modelo, se puede hablar normal.
+          Solo agenda, nunca ficha clínica.
         </p>
         <ul className="mt-3 flex flex-col gap-2">
           {PATHS.map(p => {

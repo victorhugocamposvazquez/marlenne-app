@@ -102,7 +102,7 @@ SUPABASE_PROJECT_ID=xxxx npm run types:gen
 | ✅ | Editar catálogo (precio, duración, ocultar) |
 | ✅ | Alta/baja de equipo y filtro de agenda por profesional |
 | ⬜ | App offline usable (más adelante: agenda del día en local) |
-| ✅ | Voz en la app (mic + texto): Hoy, pasa, no-show, cita, espera |
+| ✅ | Voz en la app: huecos, profesional, cita; modelo si hay OPENAI_API_KEY |
 | ⬜ | Siri nativo / Alexa+ (hace falta app o MCP) |
 
 Las piezas pendientes están todas especificadas en el README del handoff:
