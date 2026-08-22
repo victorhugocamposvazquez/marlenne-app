@@ -7,6 +7,7 @@ import PasswordForm from '@/components/PasswordForm';
 import CatalogEditor from '@/components/CatalogEditor';
 import TeamEditor from '@/components/TeamEditor';
 import IosShortcutsCard from '@/components/IosShortcutsCard';
+import VoiceSettingsCard from '@/components/VoiceSettingsCard';
 
 const ROADMAP = [
   { done: true, label: 'Agenda día y semana, arrastrar citas' },
@@ -92,6 +93,8 @@ export default async function AjustesPage() {
           </ul>
         </section>
       )}
+
+      <VoiceSettingsCard />
 
       <IosShortcutsCard />
 

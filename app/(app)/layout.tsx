@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import BottomNav from '@/components/BottomNav';
 import RegisterSW from '@/components/RegisterSW';
 import ToastProvider from '@/components/Toast';
@@ -12,7 +13,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <RegisterSW />
       <div className="relative mx-auto flex h-[100dvh] max-w-[440px] flex-col overflow-hidden bg-surface-bg">
         <div className="min-h-0 flex-1 overflow-auto">{children}</div>
-        <VoiceFab />
+        <Suspense fallback={null}>
+          <VoiceFab />
+        </Suspense>
         <BottomNav role={me.role} />
       </div>
     </ToastProvider>

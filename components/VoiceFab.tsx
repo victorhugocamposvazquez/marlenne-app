@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Mic, Square, X } from 'lucide-react';
 import {
   voiceAddWait, voiceApplyCancel, voiceApplyMove, voiceApplyStatus, voiceConfirmBook,
@@ -10,6 +10,7 @@ import {
 } from '@/app/actions/voice';
 import type { VoiceTalkResult } from '@/app/actions/voice-talk';
 import { VOICE_HELP, fold, isVoiceYes, parseVoice, splitWake, takeTime } from '@/lib/voice';
+import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/lib/voice-prefs';
 
 type Choice = { id: string; label: string };
 type Panel =
@@ -55,8 +56,31 @@ function unlockSpeak() {
   window.speechSynthesis.speak(warm);
 }
 
+let beepCtx: AudioContext | null = null;
+
+function chime() {
+  try {
+    beepCtx ??= new AudioContext();
+    const ctx = beepCtx;
+    void ctx.resume();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.setValueAtTime(1175, now + 0.07);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.2);
+  } catch { /* */ }
+}
+
 function speak(text: string, onDone?: () => void) {
-  if (typeof window === 'undefined' || !window.speechSynthesis) {
+  if (typeof window === 'undefined' || !getVoicePrefs().speak || !window.speechSynthesis) {
     onDone?.();
     return;
   }
@@ -112,6 +136,8 @@ function makeRec(): RecApi | null {
 
 export default function VoiceFab() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState('');
   const [panel, setPanel] = useState<Panel>({ mode: 'idle' });
@@ -131,20 +157,34 @@ export default function VoiceFab() {
   const [wakeHeard, setWakeHeard] = useState('');
   const armedRef = useRef(false);
   const hushRef = useRef(false);
+  const busyRef = useRef(false);
+  const prefsRef = useRef<VoicePrefs>(getVoicePrefs());
   const wakeRef = useRef(false);
   const startWakeRef = useRef<() => void>(() => {});
   const ignoreOutsideRef = useRef(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const [hasMic, setHasMic] = useState(false);
 
+  const syncPrefs = (p = getVoicePrefs()) => {
+    prefsRef.current = p;
+    hushRef.current = !wakeWanted(p);
+    if (hushRef.current) {
+      armedRef.current = false;
+      setArmed(false);
+      setWakeOn(false);
+      wakeRef.current = false;
+    }
+  };
+
   const arm = () => {
-    if (hushRef.current) return;
+    if (!wakeWanted(prefsRef.current)) return;
+    hushRef.current = false;
     armedRef.current = true;
     setArmed(true);
-    try { localStorage.setItem('marlenne-wake', '1'); } catch { /* */ }
   };
 
   const hush = () => {
+    setVoicePrefs({ hola: false });
     hushRef.current = true;
     armedRef.current = false;
     setArmed(false);
@@ -152,7 +192,6 @@ export default function VoiceFab() {
     wakeRef.current = false;
     genRef.current += 1;
     killRec();
-    try { localStorage.setItem('marlenne-wake', '0'); } catch { /* */ }
   };
 
   confirmRef.current = panel.mode === 'confirm' ? panel : null;
@@ -201,13 +240,24 @@ export default function VoiceFab() {
     pickWomanVoice();
     const onVoices = () => pickWomanVoice();
     window.speechSynthesis?.addEventListener('voiceschanged', onVoices);
-    try {
-      if (localStorage.getItem('marlenne-wake') === '0') hushRef.current = true;
-    } catch { /* */ }
-    if (!hushRef.current) {
+    syncPrefs();
+    if (wakeWanted(prefsRef.current)) {
       arm();
       window.setTimeout(() => startWakeRef.current(), 400);
     }
+    const onPrefs = () => {
+      syncPrefs();
+      if (wakeWanted(prefsRef.current)) {
+        arm();
+        startWakeRef.current();
+      } else {
+        genRef.current += 1;
+        killRec();
+        wakeRef.current = false;
+        setWakeOn(false);
+      }
+    };
+    window.addEventListener(VOICE_PREFS_EVENT, onPrefs);
     const onVis = () => {
       if (document.hidden) {
         if (wakeRef.current) {
@@ -224,6 +274,7 @@ export default function VoiceFab() {
     return () => {
       window.speechSynthesis?.removeEventListener('voiceschanged', onVoices);
       document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener(VOICE_PREFS_EVENT, onPrefs);
     };
   }, []);
 
@@ -232,6 +283,35 @@ export default function VoiceFab() {
     const t = window.setTimeout(() => setWakeHeard(''), 4000);
     return () => window.clearTimeout(t);
   }, [wakeHeard]);
+
+  useEffect(() => {
+    const sheet = ['new', 'appt', 'alta', 'editar', 'close', 'block', 'bloqueo']
+      .some(k => searchParams.get(k));
+    const check = () => {
+      const el = document.activeElement as HTMLElement | null;
+      const tag = el?.tagName;
+      const field = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !!el?.isContentEditable;
+      busyRef.current = field || sheet;
+      if (busyRef.current) {
+        if (wakeRef.current) {
+          genRef.current += 1;
+          wakeRef.current = false;
+          setWakeOn(false);
+          killRec();
+        }
+        return;
+      }
+      startWakeRef.current();
+    };
+    check();
+    document.addEventListener('focusin', check);
+    const onOut = () => window.setTimeout(check, 160);
+    document.addEventListener('focusout', onOut);
+    return () => {
+      document.removeEventListener('focusin', check);
+      document.removeEventListener('focusout', onOut);
+    };
+  }, [pathname, searchParams]);
 
   useEffect(() => {
     if (!open) return;
@@ -497,7 +577,9 @@ export default function VoiceFab() {
       draftRef.current = '';
       const wake = splitWake(text);
       if (wake.woke && !wake.rest) {
-        speak('Dime.', () => startListen(overlay ? { overlay: true } : undefined));
+        chime();
+        if (prefsRef.current.speak) speak('Dime.');
+        startListen(overlay ? { overlay: true } : undefined);
         return;
       }
       runText(wake.woke ? wake.rest : text);
@@ -513,7 +595,7 @@ export default function VoiceFab() {
   commitRef.current = commitListen;
 
   const startWake = () => {
-    if (hushRef.current || document.hidden) return;
+    if (!wakeWanted(prefsRef.current) || hushRef.current || busyRef.current || document.hidden) return;
     if (listenRef.current || overlayRef.current) return;
     if (wakeRef.current && recRef.current) return;
     if (!makeRec()) return;
@@ -558,8 +640,9 @@ export default function VoiceFab() {
         runText(wake.rest);
         return;
       }
+      chime();
       startListen();
-      window.setTimeout(() => speak('Dime.'), 250);
+      if (prefsRef.current.speak) window.setTimeout(() => speak('Dime.'), 280);
     };
     rec.onerror = ev => {
       if (gen !== genRef.current) return;
@@ -580,7 +663,7 @@ export default function VoiceFab() {
       if (gen !== genRef.current) return;
       wakeRef.current = false;
       setWakeOn(false);
-      if (!armedRef.current || listenRef.current || document.hidden || hushRef.current) return;
+      if (!wakeWanted(prefsRef.current) || busyRef.current || listenRef.current || document.hidden || hushRef.current) return;
       window.setTimeout(() => startWakeRef.current(), 2200);
     };
     try {
@@ -593,7 +676,7 @@ export default function VoiceFab() {
   startWakeRef.current = startWake;
 
   const startListen = (opts?: { overlay?: boolean }) => {
-    hushRef.current = false;
+    if (!prefsRef.current.micOnly) hushRef.current = false;
     arm();
     wakeRef.current = false;
     setWakeOn(false);
@@ -777,7 +860,7 @@ export default function VoiceFab() {
           {panel.mode === 'idle' && (
             <div className="text-[12.5px] font-medium leading-snug text-ink-2">
               <p className="font-bold text-ink">Así se usa</p>
-              <p className="mt-1">1. Di «Hola Marlenne» o toca el micro. Responde «Dime».</p>
+              <p className="mt-1">1. Pitido + «Dime», o toca el micro. En Más se apaga el oído.</p>
               <p>2. Si va a guardar, te pide confirmación.</p>
               <p className="mt-2 text-[12px] text-ink-3">
                 Ej.: quién tiene hueco el miércoles a las 11:30 · cita para Lucía con Valeria a las 11:30
