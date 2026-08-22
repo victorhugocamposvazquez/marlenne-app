@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import { Mic, Square } from 'lucide-react';
 import {
   voiceAddWait, voiceApplyCancel, voiceApplyMove, voiceApplyStatus, voiceConfirmBook,
-  voicePreviewBook, voicePreviewStatus, voiceSlots, voiceToday,
+  voicePreviewBook, voicePreviewCancel, voicePreviewMove, voicePreviewStatus, voiceSlots, voiceToday,
   type PendingBook,
 } from '@/app/actions/voice';
-import { voiceTalk, type VoiceTalkResult, type VoiceTurn } from '@/app/actions/voice-talk';
-import { VOICE_HELP, parseVoice, takeTime } from '@/lib/voice';
+import type { VoiceTalkResult } from '@/app/actions/voice-talk';
+import { VOICE_HELP, VOICE_YES, fold, parseVoice, takeTime } from '@/lib/voice';
 
 type Choice = { id: string; label: string };
 type Panel =
@@ -61,19 +61,69 @@ export default function VoiceFab() {
   const [panel, setPanel] = useState<Panel>({ mode: 'idle' });
   const [pending, startTransition] = useTransition();
   const recRef = useRef<ReturnType<typeof makeRec>>(null);
-  const historyRef = useRef<VoiceTurn[]>([]);
   const pendingRef = useRef<PendingBook | null>(null);
+  const confirmRef = useRef<Extract<Panel, { mode: 'confirm' }> | null>(null);
+  const genRef = useRef(0);
+  const rootRef = useRef<HTMLDivElement>(null);
   const [hasMic, setHasMic] = useState(false);
+
+  confirmRef.current = panel.mode === 'confirm' ? panel : null;
+
+  const killRec = () => {
+    const rec = recRef.current;
+    recRef.current = null;
+    if (!rec) return;
+    rec.onresult = null;
+    rec.onerror = null;
+    rec.onend = null;
+    try { rec.stop(); } catch { /* ya parado */ }
+  };
+
+  const dismiss = () => {
+    genRef.current += 1;
+    killRec();
+    try { window.speechSynthesis?.cancel(); } catch { /* */ }
+    pendingRef.current = null;
+    setTyped('');
+    setPanel({ mode: 'idle' });
+    setOpen(false);
+  };
 
   useEffect(() => {
     setHasMic(!!makeRec());
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    const ms = panel.mode === 'listen' ? 7000
+      : panel.mode === 'idle' || panel.mode === 'msg' ? 6000
+      : panel.mode === 'ask' ? 20000
+      : 0;
+    if (!ms) return;
+    const t = window.setTimeout(dismiss, ms);
+    return () => window.clearTimeout(t);
+  }, [open, panel.mode, typed]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) dismiss();
+    };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [open]);
+
   const finish = (say: string, href?: string) => {
+    const gen = ++genRef.current;
+    killRec();
     speak(say);
     setPanel({ mode: 'msg', say });
     if (href) router.push(href);
-    window.setTimeout(() => { setPanel({ mode: 'idle' }); setOpen(false); }, 2800);
+    window.setTimeout(() => {
+      if (gen !== genRef.current) return;
+      setPanel({ mode: 'idle' });
+      setOpen(false);
+    }, 2800);
   };
 
   const applyTalk = (r: VoiceTalkResult) => {
@@ -134,10 +184,25 @@ export default function VoiceFab() {
   };
 
   const runText = (text: string) => {
+    const said = fold(text);
+    const confirming = confirmRef.current;
+    if (confirming && VOICE_YES.test(said)) {
+      startTransition(async () => {
+        const r = await confirming.run();
+        finish(r.say, r.href);
+      });
+      return;
+    }
+
     startTransition(async () => {
+      const cmd = parseVoice(text);
+      if (cmd.kind === 'dismiss') {
+        dismiss();
+        return;
+      }
+
       const held = pendingRef.current;
       if (held) {
-        const cmd = parseVoice(text);
         const isFresh = cmd.kind !== 'unknown' && cmd.kind !== 'help' && cmd.kind !== 'book';
         if (!isFresh) {
           if (held.need === 'time') {
@@ -154,18 +219,6 @@ export default function VoiceFab() {
         pendingRef.current = null;
       }
 
-      const talked = await voiceTalk(text, historyRef.current);
-      if (!talked.fallback) {
-        historyRef.current = [
-          ...historyRef.current.slice(-4),
-          { role: 'user', content: text },
-          { role: 'assistant', content: talked.say },
-        ];
-        applyTalk(talked);
-        return;
-      }
-
-      const cmd = parseVoice(text);
       if (cmd.kind === 'help' || cmd.kind === 'unknown') {
         const say = cmd.kind === 'unknown'
           ? `No he pillado «${cmd.text}». Prueba: ${VOICE_HELP}`
@@ -235,12 +288,46 @@ export default function VoiceFab() {
       }
       if (cmd.kind === 'book') {
         applyTalk(await voicePreviewBook(cmd.who, cmd.startMin, cmd.serviceQ, cmd.dayOffset, cmd.providerQ));
+        return;
+      }
+      if (cmd.kind === 'cancel') {
+        const preview = await voicePreviewCancel(cmd.who, cmd.dayOffset);
+        if (!preview.ok || preview.matches.length === 0) {
+          finish(preview.say);
+          return;
+        }
+        if (preview.matches.length === 1) {
+          const id = preview.matches[0].id;
+          setPanel({ mode: 'confirm', say: preview.say, run: () => voiceApplyCancel(id) });
+          speak(preview.say);
+          return;
+        }
+        setPanel({
+          mode: 'confirm',
+          say: preview.say,
+          pick: 'cancel',
+          choices: preview.matches,
+          run: async () => ({ ok: false, say: 'Elige una' }),
+        });
+        speak(preview.say);
+        return;
+      }
+      if (cmd.kind === 'move') {
+        const preview = await voicePreviewMove(cmd.who, cmd.startMin, cmd.dayOffset, cmd.providerQ);
+        if (!preview.ok || !preview.draft) {
+          finish(preview.say, preview.href);
+          return;
+        }
+        const draft = preview.draft;
+        setPanel({ mode: 'confirm', say: preview.say, run: () => voiceApplyMove(draft) });
+        speak(preview.say);
       }
     });
   };
 
   const startListen = () => {
-    recRef.current?.stop();
+    const gen = ++genRef.current;
+    killRec();
     const rec = makeRec();
     if (!rec) {
       setOpen(true);
@@ -251,28 +338,43 @@ export default function VoiceFab() {
     setOpen(true);
     setPanel({ mode: 'listen', draft: '' });
     rec.onresult = ev => {
+      if (gen !== genRef.current) return;
       const last = ev.results[ev.results.length - 1];
       const text = last?.[0]?.transcript ?? '';
       setPanel({ mode: 'listen', draft: text });
       if (last?.isFinal && text.trim()) {
-        rec.stop();
+        try { rec.stop(); } catch { /* */ }
         runText(text);
       }
     };
-    rec.onerror = () => setPanel({ mode: 'msg', say: 'No he oído. Escribe el comando o prueba otra vez.' });
-    rec.onend = () => {
-      setPanel(p => (p.mode === 'listen' && !p.draft ? { mode: 'idle' } : p));
+    rec.onerror = () => {
+      if (gen !== genRef.current) return;
+      dismiss();
     };
-    rec.start();
+    rec.onend = () => {
+      if (gen !== genRef.current) return;
+      window.setTimeout(() => {
+        if (gen !== genRef.current) return;
+        setPanel(p => {
+          if (p.mode === 'listen' && !p.draft.trim()) window.setTimeout(dismiss, 0);
+          return p;
+        });
+      }, 0);
+    };
+    try { rec.start(); } catch { dismiss(); }
   };
 
   const stopListen = () => {
-    recRef.current?.stop();
-    setPanel(p => (p.mode === 'listen' && p.draft ? p : { mode: 'idle' }));
+    killRec();
+    if (panel.mode === 'listen' && !panel.draft.trim()) dismiss();
+    else setPanel(p => (p.mode === 'listen' ? { mode: 'idle' } : p));
   };
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-30 flex flex-col items-end px-3">
+    <div
+      ref={rootRef}
+      className="pointer-events-none absolute inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-30 flex flex-col items-end px-3"
+    >
       {open && (
         <div className="pointer-events-auto mb-2 w-full max-w-[360px] rounded-[18px] border border-surface-line bg-white p-3 shadow-toast">
           {panel.mode === 'listen' && (
@@ -333,12 +435,20 @@ export default function VoiceFab() {
                       {c.label}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={dismiss}
+                    className="rounded-[12px] border border-surface-line py-2 text-[12.5px] font-bold text-ink-2"
+                  >
+                    Cancelar
+                  </button>
                 </div>
               )}
               {!panel.choices && (
                 <div className="mt-2 flex gap-2">
                   <button
-                    onClick={() => { setPanel({ mode: 'idle' }); setOpen(false); }}
+                    type="button"
+                    onClick={dismiss}
                     className="flex-1 rounded-[12px] border border-surface-line py-2 text-[12.5px] font-bold text-ink-2"
                   >
                     Cancelar
@@ -394,7 +504,7 @@ export default function VoiceFab() {
         aria-pressed={panel.mode === 'listen'}
         onClick={() => {
           if (panel.mode === 'listen') stopListen();
-          else if (!open) { setOpen(true); setPanel({ mode: 'idle' }); }
+          else if (!open) { genRef.current += 1; setOpen(true); setPanel({ mode: 'idle' }); }
           else startListen();
         }}
         className={`pointer-events-auto grid h-14 w-14 place-items-center rounded-[18px] text-white shadow-btn ${
