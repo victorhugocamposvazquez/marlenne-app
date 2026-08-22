@@ -7,7 +7,7 @@ import {
 } from '@/lib/queries';
 import { CATEGORIES } from '@/lib/categories';
 import { dateFromOffset, dayKey, dayTitle, fmt, minutesOfDay } from '@/lib/time';
-import { bestNameMatches, matchCategory } from '@/lib/voice';
+import { bestNameMatches, bestServiceMatches, matchCategory } from '@/lib/voice';
 
 export type PendingBook = {
   who: string;
@@ -140,20 +140,28 @@ export async function voicePreviewBook(
   const withPro = providerQ ? ` con ${providers[0].full_name.split(' ')[0]}` : '';
   const hora = startMin !== null ? ` a las ${fmt(startMin)}` : '';
   const cats = Object.values(CATEGORIES).map(c => c.label);
-  const spoken = (items: string[]) => {
-    const short = items.slice(0, 4);
+  const spoken = (items: string[], max = 5) => {
+    const short = items.slice(0, max);
     const list = short.length <= 1
       ? (short[0] ?? '')
       : short.length === 2
         ? `${short[0]} o ${short[1]}`
         : `${short.slice(0, -1).join(', ')} o ${short[short.length - 1]}`;
-    return items.length > 4 ? `${list}, y más en pantalla` : list;
+    return items.length > max ? `${list}, y más en pantalla` : list;
   };
-  const askService = (say: string, options: string[], q: string | null = serviceQ) => ({
+  const askService = (
+    say: string,
+    options: string[],
+    q: string | null = serviceQ,
+    lockChoices = false,
+  ) => ({
     ok: true as const,
     ready: false as const,
     need: 'service' as const,
-    pending: { who, startMin, dayOffset, providerQ, serviceQ: q, need: 'service' as const, choices: options },
+    pending: {
+      who, startMin, dayOffset, providerQ, serviceQ: q, need: 'service' as const,
+      choices: lockChoices ? options : undefined,
+    },
     options,
     href,
     say,
@@ -167,7 +175,12 @@ export async function voicePreviewBook(
   const services = fromList.length ? fromList : allServices;
 
   if (!serviceQ) {
-    return askService(`¿Qué le hacemos a ${who}${hora}${whenBit}${withPro}?`, cats);
+    return askService(
+      `¿Qué le hacemos a ${who}${hora}${whenBit}${withPro}? Dime el servicio, o categoría: ${spoken(cats, 6)}.`,
+      cats,
+      null,
+      false,
+    );
   }
 
   const exact = services.filter(s => s.name.localeCompare(serviceQ, 'es', { sensitivity: 'accent' }) === 0
@@ -175,39 +188,50 @@ export async function voicePreviewBook(
   let picked = exact.length === 1 ? exact[0] : null;
 
   if (!picked) {
-    const named = bestNameMatches(services, serviceQ, s => s.name);
+    const named = bestServiceMatches(services, serviceQ, s => s.name);
     if (named.length === 1) picked = named[0];
     else if (named.length > 1) {
       const names = named.map(s => s.name);
-      return askService(`Hay varias. ${spoken(names)}. ¿Cuál le hacemos a ${who}?`, names);
+      return askService(`Hay varias. ${spoken(names)}. ¿Cuál le hacemos a ${who}?`, names, serviceQ, true);
     }
   }
 
   if (!picked) {
     const cat = matchCategory(serviceQ);
     if (cat) {
-      const inCat = services.filter(s => s.category === cat);
+      const inCat = (fromList.length ? allServices : services).filter(s => s.category === cat);
       if (inCat.length === 1) picked = inCat[0];
       else if (inCat.length > 1) {
         const names = inCat.map(s => s.name);
-        return askService(`En ${CATEGORIES[cat].label.toLowerCase()} tengo ${spoken(names)}. ¿Cuál le hacemos a ${who}?`, names);
+        return askService(
+          `En ${CATEGORIES[cat].label.toLowerCase()} tengo ${spoken(names)}. ¿Cuál le hacemos a ${who}?`,
+          names,
+          null,
+          true,
+        );
       } else {
-        return askService(`No hay servicios de ${CATEGORIES[cat].label}. ¿Otra categoría?`, cats, null);
+        return askService(`No hay servicios de ${CATEGORIES[cat].label}. ¿Otra categoría?`, cats, null, false);
       }
     }
   }
 
   if (!picked && fromList.length) {
-    const named = bestNameMatches(allServices, serviceQ, s => s.name);
+    const named = bestServiceMatches(allServices, serviceQ, s => s.name);
     if (named.length === 1) picked = named[0];
     else if (named.length > 1) {
       const names = named.map(s => s.name);
-      return askService(`Hay varias. ${spoken(names)}. ¿Cuál le hacemos a ${who}?`, names);
+      return askService(`Hay varias. ${spoken(names)}. ¿Cuál le hacemos a ${who}?`, names, serviceQ, true);
     }
   }
 
   if (!picked) {
-    return askService(`No encuentro «${serviceQ}». ¿Qué categoría?`, cats, null);
+    const corporal = allServices.filter(s => s.category === 'corporal').map(s => s.name);
+    return askService(
+      `No he pillado el servicio. Prueba otra vez, o elige: ${spoken(corporal)}.`,
+      corporal.length ? corporal : cats,
+      null,
+      false,
+    );
   }
 
   if (startMin === null) {

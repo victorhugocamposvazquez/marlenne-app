@@ -66,6 +66,14 @@ export function matchCategory(q: string): CategoryId | null {
   for (const id of Object.keys(CATEGORIES) as CategoryId[]) {
     if (t === id || t === fold(CATEGORIES[id].label)) return id;
   }
+  if (/depilaci|laser|l[aá]ser/.test(t)) return 'laser';
+  if (/microblad|micropig/.test(t)) return 'micro';
+  if (/masaje|bienestar/.test(t)) return 'bienestar';
+  if (/valoraci|asesor/.test(t)) return 'valoracion';
+  if (/^facial$|lifting|peeling|hifu|bloom|purifying|resurfacing/.test(t)) return 'facial';
+  if (/corporal|terapia|cavit|vacum|vacuum|preso|radiofrec|criolip|lipolaser|onnafit|core ?fit/.test(t)) {
+    return 'corporal';
+  }
   for (const id of Object.keys(CATEGORIES) as CategoryId[]) {
     const label = fold(CATEGORIES[id].label);
     if (t.length >= 5 && (label.includes(t) || t.includes(label) || t.includes(id))) return id;
@@ -122,9 +130,11 @@ function clockFromMatch(m: RegExpMatchArray): number | null {
   return parseClock(`${m[1]}:${minutes}`);
 }
 
+const SERVICE_WORD = /terapia|cavit|vacum|vacuum|preso|radiofrec|laser|masaje|hifu|facial|criolip|microblad|onnafit|lipolaser|purifying|bloom|radiance/;
+
 function takeProvider(s: string): { text: string; providerQ: string | null } {
   const con = s.match(/ con (?!las |la |el |hoy )([a-zñ]+)/);
-  if (con) {
+  if (con && !SERVICE_WORD.test(con[1])) {
     return {
       text: `${s.slice(0, con.index)} ${s.slice((con.index ?? 0) + con[0].length)}`.replace(/\s+/g, ' ').trim(),
       providerQ: con[1],
@@ -167,6 +177,27 @@ function parseSlots(t: string): VoiceCmd | null {
   return { kind: 'slots', dayOffset: d.dayOffset, startMin: time.startMin, providerQ: p.providerQ };
 }
 
+function looksLikeService(s: string) {
+  const c = serviceNeedle(s).compact;
+  if (!c || c.length < 4) return false;
+  if (SERVICE_ALIASES[c]) return true;
+  if (SERVICE_WORD.test(c)) return true;
+  return false;
+}
+
+function takeServiceTail(rest: string): { who: string; serviceQ: string | null } {
+  const de = rest.match(/ (?:de |a )(.+)$/);
+  if (de) return { who: tidyWho(rest.slice(0, de.index)), serviceQ: tidyWho(de[1]) };
+  const words = rest.split(/\s+/).filter(Boolean);
+  for (let i = 1; i < words.length; i++) {
+    const tail = words.slice(i).join(' ');
+    if (looksLikeService(tail)) {
+      return { who: tidyWho(words.slice(0, i).join(' ')), serviceQ: tail };
+    }
+  }
+  return { who: tidyWho(rest), serviceQ: null };
+}
+
 function parseBook(t: string): VoiceCmd | null {
   const saidBook = /(cita|reserv|apunt|anot|agend|ponle|hazme )/.test(t);
   if (!saidBook && takeTime(t).startMin === null) return null;
@@ -186,12 +217,17 @@ function parseBook(t: string): VoiceCmd | null {
     .replace(/\s+para$/i, '')
     .trim();
 
-  const svc = rest.match(/ (?:de |a )(.+)$/);
-  const serviceQ = svc ? tidyWho(svc[1]) : null;
-  const who = tidyWho(svc ? rest.slice(0, svc.index) : rest);
-  if (who.length < 2) return null;
+  const split = takeServiceTail(rest);
+  if (split.who.length < 2) return null;
   if (!saidBook && time.startMin === null) return null;
-  return { kind: 'book', who, startMin: time.startMin, serviceQ, dayOffset: d.dayOffset, providerQ: p.providerQ };
+  return {
+    kind: 'book',
+    who: split.who,
+    startMin: time.startMin,
+    serviceQ: split.serviceQ,
+    dayOffset: d.dayOffset,
+    providerQ: p.providerQ,
+  };
 }
 
 function parseCancel(t: string): VoiceCmd | null {
@@ -314,21 +350,50 @@ const SERVICE_ALIASES: Record<string, string> = {
   vacuumterapia: 'vacumterapia',
   vacunoterapia: 'vacumterapia',
   bakumterapia: 'vacumterapia',
+  bacumterapia: 'vacumterapia',
+  facumterapia: 'vacumterapia',
   vacumterapia: 'vacumterapia',
+  vaconterapia: 'vacumterapia',
+  conterapia: 'vacumterapia',
+  conterapi: 'vacumterapia',
   vacumterapiacavitacion: 'vacumterapiacavitacion',
   vacumterapiaycavitacion: 'vacumterapiacavitacion',
   vacumterapiamascavitacion: 'vacumterapiacavitacion',
   presioterapia: 'presoterapia',
+  presoterapia: 'presoterapia',
   crioliposis: 'criolipolisis',
   criolipolisis: 'criolipolisis',
+  cabitacion: 'cavitacion',
+  gravitacion: 'cavitacion',
+  cavitacion: 'cavitacion',
 };
 
-function serviceNeedle(raw: string) {
-  const stripped = fold(raw)
-    .replace(/^(pues |mira |vale |una |un |de |el |la |le hacemos |hacemos |quiero |ponle |para ella |para lucia )/, '')
+function normalizeServiceHeard(raw: string) {
+  return fold(raw)
+    .replace(/[«»"'¿?¡!]/g, ' ')
+    .replace(/^(pues |mira |vale |una |un |de |el |la |le hacemos |hacemos |quiero |ponle |para ella )/, '')
+    .replace(/\bva con\b/g, 'vacum')
+    .replace(/\b(una |el |la )?con terapia\b/g, 'vacumterapia')
+    .replace(/\bconterapia\b/g, 'vacumterapia')
+    .replace(/\s+/g, ' ')
     .trim();
+}
+
+function terapiaAlias(c: string) {
+  if (c === 'terapia') return null;
+  if (!c.includes('terapia')) return null;
+  const stem = c.replace(/terapia.*$/, '');
+  if (/^(va)?con$/.test(stem) || /vacu|baku|facu|vacun|bakum|vacum|bacum/.test(stem)) {
+    return c.includes('cavit') ? 'vacumterapiacavitacion' : 'vacumterapia';
+  }
+  if (/preso|presio/.test(stem)) return 'presoterapia';
+  return null;
+}
+
+function serviceNeedle(raw: string) {
+  const stripped = normalizeServiceHeard(raw);
   const c = glue(compact(stripped));
-  return { folded: stripped, compact: SERVICE_ALIASES[c] ?? c };
+  return { folded: stripped, compact: SERVICE_ALIASES[c] ?? terapiaAlias(c) ?? c };
 }
 
 export function scoreName(haystack: string, needle: string) {
@@ -346,6 +411,40 @@ export function scoreName(haystack: string, needle: string) {
   return 0;
 }
 
+function editDist(a: string, b: string) {
+  if (a === b) return 0;
+  const m = a.length;
+  const n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+  const dp = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const tmp = dp[j];
+      dp[j] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dp[j], dp[j - 1]);
+      prev = tmp;
+    }
+  }
+  return dp[n];
+}
+
+/** Servicios: aliases + «conterapia» / oídos típicos. No usar para nombres de personas. */
+export function scoreService(haystack: string, needle: string) {
+  const exact = scoreName(haystack, needle);
+  if (exact >= 55) return exact;
+  const hc = glue(compact(haystack));
+  const nc = serviceNeedle(needle).compact;
+  if (nc.length >= 6 && hc.length >= 6) {
+    const d = editDist(hc, nc);
+    if (d <= 2 || d / Math.max(hc.length, nc.length) <= 0.22) {
+      return 48 + Math.max(0, 12 - d * 3);
+    }
+  }
+  return exact;
+}
+
 export function bestNameMatches<T>(rows: T[], needle: string, label: (row: T) => string): T[] {
   const ranked = rows
     .map(row => ({ row, score: scoreName(label(row), needle) }))
@@ -354,6 +453,18 @@ export function bestNameMatches<T>(rows: T[], needle: string, label: (row: T) =>
   if (ranked.length === 0) return [];
   const top = ranked[0].score;
   return ranked.filter(x => x.score === top).map(x => x.row);
+}
+
+export function bestServiceMatches<T>(rows: T[], needle: string, label: (row: T) => string): T[] {
+  const ranked = rows
+    .map(row => ({ row, score: scoreService(label(row), needle) }))
+    .filter(x => x.score >= 40)
+    .sort((a, b) => b.score - a.score);
+  if (ranked.length === 0) return [];
+  const top = ranked[0].score;
+  const close = ranked.filter(x => x.score >= top - 8);
+  if (close.length === 1) return [close[0].row];
+  return close.filter(x => x.score === top).map(x => x.row);
 }
 
 export const VOICE_YES = /^(si|sip|vale|ok|okay|confirmo|hazlo|adelante|guardo|guardala|guardar|dale|perfecto|correcto)(\b.*)?$/;

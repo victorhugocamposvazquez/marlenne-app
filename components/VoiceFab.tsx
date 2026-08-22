@@ -271,8 +271,9 @@ function speak(text: string, onDone?: () => void) {
   };
 
   void (async () => {
-    if (ttsCloud !== false) {
-      const ok = await playCloud(ear, ask ? 'ask' : 'say');
+    // Preguntas: voz local, si no el micro no abre y parece que se ha parado.
+    if (!ask && ttsCloud !== false) {
+      const ok = await playCloud(ear, 'say');
       if (gen !== speakGen) return;
       if (ok) {
         finish();
@@ -617,24 +618,23 @@ export default function VoiceFab() {
       }
 
       const held = pendingRef.current;
-      if (held) {
-        const isFresh = cmd.kind !== 'unknown' && cmd.kind !== 'help' && cmd.kind !== 'book';
-        if (!isFresh) {
-          if (held.need === 'time') {
-            const clock = takeTime(text).startMin ?? (cmd.kind === 'book' ? cmd.startMin : null);
-            if (clock !== null) {
-              await continueBook({ startMin: clock });
-              return;
-            }
+      const abortHeld = cmd.kind === 'today' || cmd.kind === 'cancel' || cmd.kind === 'go'
+        || cmd.kind === 'slots' || cmd.kind === 'status' || cmd.kind === 'wait' || cmd.kind === 'move';
+      if (held && !abortHeld) {
+        if (held.need === 'time') {
+          const clock = takeTime(text).startMin ?? (cmd.kind === 'book' ? cmd.startMin : null);
+          if (clock !== null) {
+            await continueBook({ startMin: clock });
+            return;
           }
-          const serviceQ = cmd.kind === 'book' && cmd.serviceQ
-            ? cmd.serviceQ
-            : text.trim().replace(/^(pues |mira |vale |una |un |de |el |la |le hacemos |hacemos )/i, '').trim();
-          await continueBook({ serviceQ });
-          return;
         }
-        pendingRef.current = null;
+        const serviceQ = cmd.kind === 'book' && cmd.serviceQ
+          ? cmd.serviceQ
+          : text.trim().replace(/^(pues |mira |vale |una |un |de |el |la |le hacemos |hacemos |quiero |ponle )/i, '').trim();
+        await continueBook({ serviceQ });
+        return;
       }
+      if (held) pendingRef.current = null;
 
       if (cmd.kind === 'help' || cmd.kind === 'unknown') {
         const say = cmd.kind === 'unknown'
