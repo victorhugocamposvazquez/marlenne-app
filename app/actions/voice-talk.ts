@@ -7,6 +7,7 @@ import { parseClock, weekdayOffset } from '@/lib/voice';
 import {
   voiceAddWait, voicePreviewBook, voicePreviewCancel, voicePreviewMove,
   voicePreviewStatus, voiceSlots, voiceToday,
+  type PendingBook,
 } from '@/app/actions/voice';
 import { requireSession } from '@/lib/queries';
 
@@ -24,15 +25,7 @@ export type VoiceTalkResult = {
   cancel?: boolean;
   move?: boolean;
   need?: 'service' | 'time';
-  pending?: {
-    who: string;
-    startMin: number | null;
-    dayOffset: number;
-    providerQ: string | null;
-    serviceQ: string | null;
-    need: 'service' | 'time';
-    choices?: string[];
-  };
+  pending?: PendingBook;
   options?: string[];
 };
 
