@@ -137,6 +137,15 @@ export async function voicePreviewBook(
   const withPro = providerQ ? ` con ${providers[0].full_name.split(' ')[0]}` : '';
   const hora = startMin !== null ? ` a las ${fmt(startMin)}` : '';
   const cats = Object.values(CATEGORIES).map(c => c.label);
+  const spoken = (items: string[]) => {
+    const short = items.slice(0, 4);
+    const list = short.length <= 1
+      ? (short[0] ?? '')
+      : short.length === 2
+        ? `${short[0]} o ${short[1]}`
+        : `${short.slice(0, -1).join(', ')} o ${short[short.length - 1]}`;
+    return items.length > 4 ? `${list}, y más en pantalla` : list;
+  };
   const askService = (say: string, options: string[], q: string | null = serviceQ) => ({
     ok: true as const,
     ready: false as const,
@@ -162,7 +171,8 @@ export async function voicePreviewBook(
     const named = bestNameMatches(services, serviceQ, s => s.name);
     if (named.length === 1) picked = named[0];
     else if (named.length > 1) {
-      return askService(`Hay varios. ¿Cuál para ${who}?`, named.map(s => s.name));
+      const names = named.map(s => s.name);
+      return askService(`Hay varias: ${spoken(names)}. ¿Cuál para ${who}?`, names);
     }
   }
 
@@ -172,7 +182,8 @@ export async function voicePreviewBook(
       const inCat = services.filter(s => s.category === cat);
       if (inCat.length === 1) picked = inCat[0];
       else if (inCat.length > 1) {
-        return askService(`¿Cuál de ${CATEGORIES[cat].label} para ${who}?`, inCat.map(s => s.name));
+        const names = inCat.map(s => s.name);
+        return askService(`De ${CATEGORIES[cat].label}: ${spoken(names)}. ¿Cuál para ${who}?`, names);
       } else {
         return askService(`No hay servicios de ${CATEGORIES[cat].label}. ¿Otra categoría?`, cats, null);
       }
