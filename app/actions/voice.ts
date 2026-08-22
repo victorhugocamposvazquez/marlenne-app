@@ -5,8 +5,18 @@ import { cancelAppointment, createAppointment, rescheduleAppointment, updateStat
 import {
   freeSlots, getDayAgenda, listClientOptions, listProviders, listServices, requireSession,
 } from '@/lib/queries';
+import { CATEGORIES } from '@/lib/categories';
 import { dateFromOffset, dayKey, dayTitle, fmt, minutesOfDay } from '@/lib/time';
 import { bestNameMatches } from '@/lib/voice';
+
+export type PendingBook = {
+  who: string;
+  startMin: number | null;
+  dayOffset: number;
+  providerQ: string | null;
+  serviceQ: string | null;
+  need: 'service' | 'time';
+};
 
 async function scope() {
   const me = await requireSession();
@@ -125,14 +135,18 @@ export async function voicePreviewBook(
   const href = `/agenda?${qs.toString()}`;
   const whenLbl = dayTitle(dayOffset);
   const withPro = providerQ ? ` con ${providers[0].full_name.split(' ')[0]}` : '';
+  const pending = { who, startMin, dayOffset, providerQ, serviceQ };
 
-  if (startMin === null || !serviceQ) {
+  if (!serviceQ) {
     const hora = startMin !== null ? ` a las ${fmt(startMin)}` : '';
     return {
       ok: true as const,
       ready: false as const,
+      need: 'service' as const,
+      pending: { ...pending, need: 'service' as const },
+      options: Object.values(CATEGORIES).map(c => c.label),
       href,
-      say: `Abro el alta de ${who} · ${whenLbl}${hora}${withPro}. Elige el servicio y guarda.`,
+      say: `¿Qué servicio para ${who}${hora} ${whenLbl}${withPro}?`,
     };
   }
 
@@ -140,7 +154,27 @@ export async function voicePreviewBook(
   const clientHits = bestNameMatches(clients, who, c => c.full_name);
   const serviceHits = bestNameMatches(services, serviceQ, s => s.name);
   if (serviceHits.length !== 1) {
-    return { ok: true as const, ready: false as const, href, say: `Abro el alta de ${who} · ${whenLbl}${withPro}. Elige el servicio.` };
+    return {
+      ok: true as const,
+      ready: false as const,
+      need: 'service' as const,
+      pending: { ...pending, need: 'service' as const },
+      options: serviceHits.length ? serviceHits.map(s => s.name) : Object.values(CATEGORIES).map(c => c.label),
+      href,
+      say: serviceHits.length
+        ? `Hay varios. ¿Cuál para ${who}?`
+        : `No encuentro «${serviceQ}». ¿Qué servicio es?`,
+    };
+  }
+  if (startMin === null) {
+    return {
+      ok: true as const,
+      ready: false as const,
+      need: 'time' as const,
+      pending: { ...pending, serviceQ, need: 'time' as const },
+      href,
+      say: `¿A qué hora ${who} · ${serviceHits[0].name} ${whenLbl}${withPro}?`,
+    };
   }
   const service = serviceHits[0];
   let providerId: string | null = null;

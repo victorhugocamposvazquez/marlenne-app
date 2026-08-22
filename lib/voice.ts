@@ -73,14 +73,14 @@ function takeDay(s: string): { text: string; dayOffset: number } {
   };
 }
 
-function takeTime(s: string): { startMin: number | null; minutes: string; hour: string } | { startMin: null } {
+export function takeTime(s: string): { startMin: number | null } {
   const m = s.match(TIME_RE);
   if (!m) return { startMin: null };
   let minutes = '00';
   if (m[0].includes('y media')) minutes = '30';
   else if (m[2]) minutes = m[2];
   else if (m[3]) minutes = m[3];
-  return { startMin: parseClock(`${m[1]}:${minutes}`), minutes, hour: m[1] };
+  return { startMin: parseClock(`${m[1]}:${minutes}`) };
 }
 
 function parseSlots(t: string): VoiceCmd | null {

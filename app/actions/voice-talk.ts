@@ -23,6 +23,16 @@ export type VoiceTalkResult = {
   status?: 'curso' | 'noshow';
   cancel?: boolean;
   move?: boolean;
+  need?: 'service' | 'time';
+  pending?: {
+    who: string;
+    startMin: number | null;
+    dayOffset: number;
+    providerQ: string | null;
+    serviceQ: string | null;
+    need: 'service' | 'time';
+  };
+  options?: string[];
 };
 
 function dayOf(label?: string | null) {
@@ -49,7 +59,9 @@ export async function voiceTalk(text: string, history: VoiceTurn[] = []): Promis
     maxSteps: 5,
     system: `Eres Marlenne, la agenda del centro de estética. Hablas en español, breve, de tú.
 Solo agenda: citas, huecos, cabina, no-show, espera. Nunca fotos, medidas, notas ni salud.
-Usa las herramientas. No inventes huecos ni nombres. Si falta el servicio para guardar una cita, igual llama a preview_cita: abrirá el alta.
+Usa las herramientas. No inventes huecos ni nombres.
+Si falta el servicio, llama a preview_cita igual (sin servicio) y pregunta cuál es. No mandes a abrir el alta.
+Si el equipo responde solo con el nombre del servicio, vuelve a llamar a preview_cita con ese servicio.
 Las herramientas de escribir solo PREVISUALIZAN: tú preguntas si lo hacemos. El equipo confirma en pantalla.`,
     messages: [
       ...history.slice(-6).map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),

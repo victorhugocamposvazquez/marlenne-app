@@ -6,15 +6,17 @@ import { Mic, Square } from 'lucide-react';
 import {
   voiceAddWait, voiceApplyCancel, voiceApplyMove, voiceApplyStatus, voiceConfirmBook,
   voicePreviewBook, voicePreviewStatus, voiceSlots, voiceToday,
+  type PendingBook,
 } from '@/app/actions/voice';
 import { voiceTalk, type VoiceTalkResult, type VoiceTurn } from '@/app/actions/voice-talk';
-import { VOICE_HELP, parseVoice } from '@/lib/voice';
+import { VOICE_HELP, parseVoice, takeTime } from '@/lib/voice';
 
 type Choice = { id: string; label: string };
 type Panel =
   | { mode: 'idle' }
   | { mode: 'listen'; draft: string }
   | { mode: 'msg'; say: string }
+  | { mode: 'ask'; say: string; options?: string[]; href?: string }
   | { mode: 'confirm'; say: string; status?: 'curso' | 'noshow'; pick?: 'status' | 'cancel'; run: () => Promise<{ ok: boolean; say: string; href?: string }>; choices?: Choice[] };
 
 function speak(text: string) {
@@ -60,6 +62,7 @@ export default function VoiceFab() {
   const [pending, startTransition] = useTransition();
   const recRef = useRef<ReturnType<typeof makeRec>>(null);
   const historyRef = useRef<VoiceTurn[]>([]);
+  const pendingRef = useRef<PendingBook | null>(null);
   const [hasMic, setHasMic] = useState(false);
 
   useEffect(() => {
@@ -114,11 +117,43 @@ export default function VoiceFab() {
       speak(r.say);
       return;
     }
+    if ((r.need === 'service' || r.need === 'time') && r.pending) {
+      pendingRef.current = r.pending;
+      setPanel({ mode: 'ask', say: r.say, options: r.options, href: r.href });
+      speak(r.say);
+      return;
+    }
+    pendingRef.current = null;
     finish(r.say, r.href);
+  };
+
+  const continueBook = async (patch: Partial<PendingBook>) => {
+    const p = { ...pendingRef.current!, ...patch };
+    const preview = await voicePreviewBook(p.who, p.startMin, p.serviceQ, p.dayOffset, p.providerQ);
+    applyTalk(preview);
   };
 
   const runText = (text: string) => {
     startTransition(async () => {
+      const held = pendingRef.current;
+      if (held) {
+        const cmd = parseVoice(text);
+        const isFresh = cmd.kind !== 'unknown' && cmd.kind !== 'help' && cmd.kind !== 'book';
+        if (!isFresh) {
+          if (held.need === 'time') {
+            const clock = takeTime(text).startMin ?? (cmd.kind === 'book' ? cmd.startMin : null);
+            if (clock !== null) {
+              await continueBook({ startMin: clock });
+              return;
+            }
+          }
+          const serviceQ = cmd.kind === 'book' && cmd.serviceQ ? cmd.serviceQ : text.trim();
+          await continueBook({ serviceQ });
+          return;
+        }
+        pendingRef.current = null;
+      }
+
       const talked = await voiceTalk(text, historyRef.current);
       if (!talked.fallback) {
         historyRef.current = [
@@ -199,18 +234,7 @@ export default function VoiceFab() {
         return;
       }
       if (cmd.kind === 'book') {
-        const preview = await voicePreviewBook(cmd.who, cmd.startMin, cmd.serviceQ, cmd.dayOffset, cmd.providerQ);
-        if (!preview.ready) {
-          finish(preview.say, preview.href);
-          return;
-        }
-        const draft = preview.draft!;
-        setPanel({
-          mode: 'confirm',
-          say: preview.say,
-          run: () => voiceConfirmBook(draft),
-        });
-        speak(preview.say);
+        applyTalk(await voicePreviewBook(cmd.who, cmd.startMin, cmd.serviceQ, cmd.dayOffset, cmd.providerQ));
       }
     });
   };
@@ -258,6 +282,36 @@ export default function VoiceFab() {
           )}
           {panel.mode === 'msg' && (
             <p className="text-[13px] font-semibold text-ink-2">{panel.say}</p>
+          )}
+          {panel.mode === 'ask' && (
+            <div>
+              <p className="text-[13px] font-semibold text-ink-2">{panel.say}</p>
+              {panel.options && panel.options.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {panel.options.map(opt => (
+                    <button
+                      key={opt}
+                      disabled={pending}
+                      onClick={() => startTransition(async () => {
+                        await continueBook({ serviceQ: opt });
+                      })}
+                      className="rounded-[10px] bg-v-soft px-2.5 py-1.5 text-[11.5px] font-bold text-v-d"
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {panel.href && (
+                <button
+                  type="button"
+                  onClick={() => { pendingRef.current = null; finish('Abro el alta.', panel.href); }}
+                  className="mt-2 text-[11.5px] font-bold text-ink-3"
+                >
+                  Abrir el alta a mano
+                </button>
+              )}
+            </div>
           )}
           {panel.mode === 'confirm' && (
             <div>
