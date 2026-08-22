@@ -9,7 +9,7 @@ import {
   type PendingBook,
 } from '@/app/actions/voice';
 import type { VoiceTalkResult } from '@/app/actions/voice-talk';
-import { VOICE_HELP, fold, isVoiceYes, parseVoice, takeTime } from '@/lib/voice';
+import { VOICE_HELP, fold, isVoiceYes, parseVoice, splitWake, takeTime } from '@/lib/voice';
 
 type Choice = { id: string; label: string };
 type Panel =
@@ -126,9 +126,20 @@ export default function VoiceFab() {
   const commitRef = useRef<() => void>(() => {});
   const [hearDraft, setHearDraft] = useState('');
   const [hearing, setHearing] = useState(false);
+  const [armed, setArmed] = useState(false);
+  const [wakeOn, setWakeOn] = useState(false);
+  const armedRef = useRef(false);
+  const wakeRef = useRef(false);
+  const startWakeRef = useRef<() => void>(() => {});
   const ignoreOutsideRef = useRef(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const [hasMic, setHasMic] = useState(false);
+
+  const arm = () => {
+    armedRef.current = true;
+    setArmed(true);
+    try { sessionStorage.setItem('marlenne-wake', '1'); } catch { /* */ }
+  };
 
   confirmRef.current = panel.mode === 'confirm' ? panel : null;
 
@@ -156,6 +167,7 @@ export default function VoiceFab() {
     setTyped('');
     setPanel({ mode: 'idle' });
     setOpen(false);
+    window.setTimeout(() => startWakeRef.current(), 400);
   };
 
   const restIdle = (say?: string) => {
@@ -175,7 +187,29 @@ export default function VoiceFab() {
     pickWomanVoice();
     const onVoices = () => pickWomanVoice();
     window.speechSynthesis?.addEventListener('voiceschanged', onVoices);
-    return () => window.speechSynthesis?.removeEventListener('voiceschanged', onVoices);
+    try {
+      if (sessionStorage.getItem('marlenne-wake') === '1') {
+        armedRef.current = true;
+        setArmed(true);
+      }
+    } catch { /* */ }
+    const onVis = () => {
+      if (document.hidden) {
+        if (wakeRef.current) {
+          genRef.current += 1;
+          wakeRef.current = false;
+          setWakeOn(false);
+          killRec();
+        }
+        return;
+      }
+      startWakeRef.current();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.speechSynthesis?.removeEventListener('voiceschanged', onVoices);
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, []);
 
   useEffect(() => {
@@ -214,6 +248,7 @@ export default function VoiceFab() {
       if (gen !== genRef.current) return;
       setPanel({ mode: 'idle' });
       setOpen(false);
+      startWakeRef.current();
     }, 2800);
   };
 
@@ -439,7 +474,12 @@ export default function VoiceFab() {
     if (text) {
       setTyped('');
       draftRef.current = '';
-      runText(text);
+      const wake = splitWake(text);
+      if (wake.woke && !wake.rest) {
+        speak('Dime.', () => startListen(overlay ? { overlay: true } : undefined));
+        return;
+      }
+      runText(wake.woke ? wake.rest : text);
       return;
     }
     if (overlay) {
@@ -451,7 +491,71 @@ export default function VoiceFab() {
   };
   commitRef.current = commitListen;
 
+  const startWake = () => {
+    if (!armedRef.current || document.hidden) return;
+    if (listenRef.current || overlayRef.current) return;
+    if (!makeRec()) return;
+    const gen = ++genRef.current;
+    killRec();
+    const rec = makeRec();
+    if (!rec) return;
+    recRef.current = rec;
+    wakeRef.current = true;
+    setWakeOn(true);
+    rec.onresult = ev => {
+      if (gen !== genRef.current) return;
+      let text = '';
+      for (let i = 0; i < ev.results.length; i++) {
+        text += ev.results[i]?.[0]?.transcript ?? '';
+      }
+      const wake = splitWake(text);
+      if (!wake.woke) return;
+      wakeRef.current = false;
+      setWakeOn(false);
+      genRef.current += 1;
+      killRec();
+      unlockSpeak();
+      if (wake.rest.length >= 4) {
+        setOpen(true);
+        setPanel({ mode: 'listen', draft: wake.rest });
+        runText(wake.rest);
+        return;
+      }
+      setOpen(true);
+      setPanel({ mode: 'listen', draft: '' });
+      speak('Dime.', () => startListen());
+    };
+    rec.onerror = ev => {
+      if (gen !== genRef.current) return;
+      wakeRef.current = false;
+      setWakeOn(false);
+      if (ev.error === 'not-allowed') {
+        armedRef.current = false;
+        setArmed(false);
+        return;
+      }
+      window.setTimeout(() => startWakeRef.current(), 400);
+    };
+    rec.onend = () => {
+      if (gen !== genRef.current) return;
+      wakeRef.current = false;
+      setWakeOn(false);
+      if (!armedRef.current || listenRef.current || document.hidden) return;
+      window.setTimeout(() => startWakeRef.current(), 280);
+    };
+    try {
+      rec.start();
+    } catch {
+      wakeRef.current = false;
+      setWakeOn(false);
+    }
+  };
+  startWakeRef.current = startWake;
+
   const startListen = (opts?: { overlay?: boolean }) => {
+    arm();
+    wakeRef.current = false;
+    setWakeOn(false);
     const gen = ++genRef.current;
     draftRef.current = '';
     listenRef.current = true;
@@ -632,7 +736,7 @@ export default function VoiceFab() {
           {panel.mode === 'idle' && (
             <div className="text-[12.5px] font-medium leading-snug text-ink-2">
               <p className="font-bold text-ink">Así se usa</p>
-              <p className="mt-1">1. Toca el micro para hablar, o escribe abajo.</p>
+              <p className="mt-1">1. Di «Hola Marlenne» o toca el micro. Responde «Dime».</p>
               <p>2. Si va a guardar, te pide confirmación.</p>
               <p className="mt-2 text-[12px] text-ink-3">
                 Ej.: quién tiene hueco el miércoles a las 11:30 · cita para Lucía con Valeria a las 11:30
@@ -676,6 +780,26 @@ export default function VoiceFab() {
       >
         {hearing ? <Square size={20} strokeWidth={2.4} /> : <Mic size={22} strokeWidth={2.2} />}
       </button>
+      {!open && armed && (
+        <button
+          type="button"
+          onClick={() => {
+            if (wakeOn || armedRef.current) {
+              armedRef.current = false;
+              setArmed(false);
+              setWakeOn(false);
+              wakeRef.current = false;
+              genRef.current += 1;
+              killRec();
+              try { sessionStorage.removeItem('marlenne-wake'); } catch { /* */ }
+              return;
+            }
+          }}
+          className="pointer-events-auto mt-1.5 max-w-[220px] rounded-[10px] bg-white/90 px-2.5 py-1 text-right text-[10.5px] font-bold text-v-d shadow-card"
+        >
+          {wakeOn ? 'Oyendo «Hola Marlenne» · toca para callar' : 'Toca el micro y di «Hola Marlenne»'}
+        </button>
+      )}
       {!hasMic && open && (
         <p className="pointer-events-none mt-1 text-right text-[10.5px] font-semibold text-ink-3">
           Sin dictado en este navegador

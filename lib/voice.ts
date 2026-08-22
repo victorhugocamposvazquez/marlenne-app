@@ -340,6 +340,16 @@ export function isVoiceYes(text: string) {
   return /^(si|vale|ok)\b/.test(t) && /guard|confirma|hazlo|adelante|dale/.test(t);
 }
 
+const WAKE_RE = /(?:^|\s)(?:hola|ola|oye|hey|eh|buenas|a ver)\s+(?:marlenne|marlene|marlen|malene|malen|marleni)\b/;
+
+/** «Hola Marlenne» / «oye Marlene»… y el resto del comando, si vino en el mismo aliento. */
+export function splitWake(text: string): { woke: boolean; rest: string } {
+  const t = fold(text.replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' '));
+  const m = t.match(WAKE_RE);
+  if (!m) return { woke: false, rest: text.trim() };
+  return { woke: true, rest: t.slice((m.index ?? 0) + m[0].length).trim() };
+}
+
 export const VOICE_HELP = [
   'cita para Lucía el miércoles a las once y media con Valeria',
   'quién tiene hueco mañana a las 11:30',
