@@ -19,11 +19,38 @@ type Panel =
   | { mode: 'ask'; say: string; options?: string[]; href?: string }
   | { mode: 'confirm'; say: string; status?: 'curso' | 'noshow'; pick?: 'status' | 'cancel'; run: () => Promise<{ ok: boolean; say: string; href?: string }>; choices?: Choice[] };
 
+const WOMAN_VOICE = /monica|mónica|paulina|helena|elvira|lucia|lucía|marisol|maria|maría|carmen|paloma|laura|silvia|sabina|dalia|soledad|isabela|isabella/i;
+const MAN_VOICE = /jorge|juan|diego|pablo|enrique|raul|carlos|thomas|jorge/i;
+
+let womanVoiceCache: SpeechSynthesisVoice | null = null;
+
+function pickWomanVoice(): SpeechSynthesisVoice | null {
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return womanVoiceCache;
+  const es = voices.filter(v => v.lang.toLowerCase().startsWith('es'));
+  const pool = es.length ? es : voices;
+  const women = pool.filter(v => WOMAN_VOICE.test(v.name) && !MAN_VOICE.test(v.name));
+  womanVoiceCache = women.find(v => v.lang.toLowerCase().startsWith('es-es'))
+    ?? women[0]
+    ?? pool.find(v => v.lang.toLowerCase().startsWith('es-es'))
+    ?? pool[0]
+    ?? null;
+  return womanVoiceCache;
+}
+
 function speak(text: string) {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'es-ES';
+  const voice = pickWomanVoice();
+  if (voice) {
+    u.voice = voice;
+    u.lang = voice.lang;
+  } else {
+    u.lang = 'es-ES';
+  }
+  u.pitch = 1.08;
+  u.rate = 1;
   window.speechSynthesis.speak(u);
 }
 
@@ -104,6 +131,10 @@ export default function VoiceFab() {
 
   useEffect(() => {
     setHasMic(!!makeRec());
+    pickWomanVoice();
+    const onVoices = () => pickWomanVoice();
+    window.speechSynthesis?.addEventListener('voiceschanged', onVoices);
+    return () => window.speechSynthesis?.removeEventListener('voiceschanged', onVoices);
   }, []);
 
   useEffect(() => {
