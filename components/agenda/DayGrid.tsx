@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState, useTransition } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { CATEGORIES, STATUS, avatarColor } from '@/lib/categories';
-import { fmt, minutesOfDay, nowMinutes, dayKey, DAY_START, DAY_END } from '@/lib/time';
+import { citaCambiada, fmt, minutesOfDay, nowMinutes, dayKey, DAY_START, DAY_END } from '@/lib/time';
 import { moveAppointment } from '@/app/actions/appointments';
 import type { AgendaAppt, AgendaBlock, Provider } from '@/lib/types';
 import { useDragAppointment, COL_W } from '@/hooks/useDragAppointment';
@@ -25,6 +25,7 @@ export default function DayGrid({
   const [, startTransition] = useTransition();
   const [optimistic, setOptimistic] = useState<Record<string, { start: number; provider: string }>>({});
   const [now, setNow] = useState(nowMinutes);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const toast = useToast();
   useRealtimeRefresh(['appointments', 'time_blocks']);
@@ -32,6 +33,21 @@ export default function DayGrid({
     const t = setInterval(() => setNow(nowMinutes()), 60_000);
     return () => clearInterval(t);
   }, []);
+  useEffect(() => {
+    setOptimistic(prev => {
+      let changed = false;
+      const next = { ...prev };
+      for (const a of appointments) {
+        const o = next[a.id];
+        if (!o) continue;
+        if (o.start === minutesOfDay(a.starts_at) && o.provider === a.provider_id) {
+          delete next[a.id];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [appointments]);
   const pathname = usePathname();
   const params = useSearchParams();
 
@@ -45,11 +61,18 @@ export default function DayGrid({
     pxPerMin,
     snap: 15,
     providerIds: canMoveProvider ? providers.map(p => p.id) : [providers[0]?.id],
+    scrollRef,
     onDrop: (id, start, providerId) => {
+      const who = providers.find(p => p.id === providerId)?.full_name.split(' ')[0] ?? null;
+      const from = appointments.find(a => a.id === id);
+      const providerChanged = !!from && from.provider_id !== providerId;
       setOptimistic(o => ({ ...o, [id]: { start, provider: providerId } }));
       startTransition(async () => {
         const r = await moveAppointment({ id, date, startMin: start, providerId });
-        if (r.ok) return;
+        if (r.ok) {
+          toast(citaCambiada(start, providerChanged ? who : null));
+          return;
+        }
         setOptimistic(o => {
           const next = { ...o };
           delete next[id];
@@ -78,7 +101,7 @@ export default function DayGrid({
 
   return (
     <>
-      <div className="min-h-0 flex-1 overflow-auto pb-2">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto pb-2">
         <div className="min-w-max pr-3.5">
           {/* Cabeceras de profesional */}
           <div className="sticky top-0 z-[6] flex bg-[linear-gradient(180deg,#EEECFA_74%,rgba(238,236,250,0))] pb-2.5 pt-0.5">
@@ -127,6 +150,18 @@ export default function DayGrid({
                 <div key={i} className="absolute top-0 w-px bg-grid-v" style={{ left: (i + 1) * COL_W - 4, height: gridH }} />
               ))}
 
+              {drag && (
+                <div
+                  className="pointer-events-none absolute z-[9] flex items-center"
+                  style={{ top: (drag.start - DAY_START) * pxPerMin, width: providers.length * COL_W }}
+                >
+                  <span className="-ml-1 rounded-[8px] bg-v px-1.5 py-0.5 text-[11px] font-extrabold tabular-nums text-white shadow-pill">
+                    {fmt(drag.start)}
+                  </span>
+                  <span className="h-0.5 flex-1 bg-v" />
+                </div>
+              )}
+
               {dayKey(date) === dayKey(new Date()) && now >= DAY_START && now <= DAY_END && (
                 <div
                   className="pointer-events-none absolute z-[8] flex items-center"
@@ -172,8 +207,11 @@ export default function DayGrid({
                           tabIndex={0}
                           aria-label={`${a.client_label}, ${a.service_name}, ${fmt(pos.start)}`}
                           onPointerDown={e => onPointerDown(e, a.id, pos.start, p.id, a.duration_min, a.status)}
+                          onContextMenu={e => e.preventDefault()}
                           onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAppt(a.id); } }}
-                          className="absolute left-0 right-2 overflow-hidden rounded-pill px-2.5 py-1.5 transition-shadow"
+                          className={`absolute left-0 right-2 select-none overflow-hidden rounded-pill px-2.5 py-1.5 transition-shadow ${
+                            pos.dragging ? 'touch-none' : 'touch-pan-y'
+                          }`}
                           style={{
                             top: (pos.start - DAY_START) * pxPerMin + 2,
                             height: a.duration_min * pxPerMin - 6,
@@ -181,12 +219,11 @@ export default function DayGrid({
                             border: `1px solid ${st.border}`,
                             borderLeft: `4px solid ${st.edge}`,
                             boxShadow: pos.dragging ? '0 18px 44px rgba(60,40,120,.28)' : '0 4px 20px rgba(60,40,120,.07)',
-                            transform: pos.dragging ? 'scale(1.04) rotate(-.6deg)' : 'none',
+                            transform: pos.dragging ? 'scale(1.03)' : 'none',
                             opacity: a.status === 'done' ? 0.62 : 1,
                             zIndex: pos.dragging ? 12 : 2,
-                            cursor: 'grab',
-                            touchAction: 'none',
-                            userSelect: 'none',
+                            cursor: pos.dragging ? 'grabbing' : 'pointer',
+                            WebkitTouchCallout: 'none',
                           }}
                         >
                           <div className="flex items-center gap-[5px]">
@@ -218,6 +255,7 @@ export default function DayGrid({
             {c.label}
           </span>
         ))}
+        <span className="ml-auto shrink-0 font-medium">Mantén pulsado para mover</span>
       </div>
     </>
   );

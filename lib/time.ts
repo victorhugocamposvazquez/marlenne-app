@@ -5,6 +5,13 @@ export const TZ = 'Europe/Madrid';
 export const fmt = (min: number) =>
   `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
 
+/** Aviso al mover una cita (arrastre o ficha). */
+export function citaCambiada(startMin: number, providerFirst?: string | null) {
+  return providerFirst
+    ? `Cita cambiada a las ${fmt(startMin)} · ${providerFirst}`
+    : `Cita cambiada a las ${fmt(startMin)}`;
+}
+
 /** Fecha corta en la zona del centro: "17 ago 2026". */
 export const dateLbl = (iso: string) =>
   new Date(iso).toLocaleDateString('es-ES', {

@@ -8,9 +8,10 @@ import { CATEGORIES, STATUS, type StatusId } from '@/lib/categories';
 import {
   cancelAppointment, rescheduleAppointment, slotsFor, updateAppointmentNote, updateStatus,
 } from '@/app/actions/appointments';
-import { dayKey, durLbl, fmt, minutesOfDay } from '@/lib/time';
+import { dayKey, durLbl, fmt, minutesOfDay, citaCambiada } from '@/lib/time';
 import type { AgendaAppt, Provider } from '@/lib/types';
 import SessionCloseForm from './SessionCloseForm';
+import { useToast } from '@/components/Toast';
 
 function needsClinicalClose(appt: AgendaAppt) {
   return !!appt.client_id && appt.category !== 'valoracion' && appt.status !== 'done';
@@ -32,6 +33,7 @@ export default function AppointmentSheet({
   sms?: { status: string; sent_at: string | null } | null;
 }) {
   const close = useCloseSheet();
+  const toast = useToast();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [closing, setClosing] = useState(startClosing && needsClinicalClose(appt));
@@ -57,12 +59,15 @@ export default function AppointmentSheet({
     return () => { alive = false; };
   }, [moving, providerId, date, appt.duration_min, appt.id]);
 
-  const run = (fn: () => Promise<{ ok: boolean; error: string | null }>, thenClose = false) => {
+  const run = (fn: () => Promise<{ ok: boolean; error: string | null }>, thenClose = false, okMsg?: string) => {
     setError(null);
     startTransition(async () => {
       const r = await fn();
       if (!r.ok) setError(r.error ?? 'No se ha podido guardar');
-      else if (thenClose) close();
+      else {
+        if (okMsg) toast(okMsg);
+        if (thenClose) close();
+      }
     });
   };
 
@@ -215,10 +220,15 @@ export default function AppointmentSheet({
             </button>
             <button
               disabled={startMin === null || pending}
-              onClick={() => run(
-                () => rescheduleAppointment({ id: appt.id, date, startMin: startMin!, providerId }),
-                true,
-              )}
+              onClick={() => {
+                const who = providers.find(p => p.id === providerId)?.full_name.split(' ')[0] ?? null;
+                const providerChanged = providerId !== appt.provider_id;
+                run(
+                  () => rescheduleAppointment({ id: appt.id, date, startMin: startMin!, providerId }),
+                  true,
+                  citaCambiada(startMin!, providerChanged ? who : null),
+                );
+              }}
               className="flex-1 rounded-field bg-grad py-3 text-[13.5px] font-extrabold text-white shadow-btn disabled:opacity-40 disabled:shadow-none"
             >
               Mover cita
