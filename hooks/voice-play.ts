@@ -162,8 +162,8 @@ export function speakLocal(text: string, ask: boolean) {
     } else {
       u.lang = 'es-ES';
     }
-    u.rate = ask ? 0.88 : 0.92;
-    u.pitch = ask ? 1.1 : 1.04;
+    u.rate = ask ? 0.9 : 0.94;
+    u.pitch = ask ? 1.22 : 1.16;
     const t = window.setTimeout(resolve, Math.min(9000, 900 + text.length * 80));
     const end = () => {
       window.clearTimeout(t);

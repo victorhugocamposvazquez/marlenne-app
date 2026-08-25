@@ -1,10 +1,8 @@
-const CACHE = 'marlenne-shell-v2';
+const CACHE = 'marlenne-shell-v3';
 const PRECACHE = [
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
-  '/voice/dime.wav',
-  '/voice/que-hacemos.wav',
 ];
 
 self.addEventListener('install', event => {

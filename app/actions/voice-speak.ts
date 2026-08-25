@@ -5,9 +5,9 @@ import { getSession } from '@/lib/queries';
 export type SpeakKind = 'ask' | 'say';
 
 const ASK =
-  'Habla en español de España, voz de mujer, cálida y cercana, como en el mostrador de un centro de estética. Estás haciendo una pregunta breve: entonación interrogativa al final, conversacional, sin prisa y sin teatralidad.';
+  'Habla en español de España. Eres una mujer joven, voz dulce, suave y cercana, como una recepcionista joven de un centro de estética. Tono un poco más agudo, nunca grave ni de locutora. Pregunta breve, entonación interrogativa al final, sin prisa y sin teatralidad.';
 const SAY =
-  'Habla en español de España, voz de mujer, cálida y cercana, como en el mostrador de un centro de estética. Frases cortas, claras, naturales. Sin teatralidad.';
+  'Habla en español de España. Eres una mujer joven, voz dulce, suave y cercana, como una recepcionista joven de un centro de estética. Tono un poco más agudo, nunca grave ni de locutora. Frases cortas, claras, naturales. Sin teatralidad.';
 
 async function openaiSpeech(text: string, model: string, extra: Record<string, string> = {}) {
   const res = await fetch('https://api.openai.com/v1/audio/speech', {
@@ -18,7 +18,7 @@ async function openaiSpeech(text: string, model: string, extra: Record<string, s
     },
     body: JSON.stringify({
       model,
-      voice: model.startsWith('gpt-4o') ? 'coral' : 'nova',
+      voice: 'nova',
       input: text,
       response_format: 'mp3',
       ...extra,

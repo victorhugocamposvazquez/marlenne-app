@@ -14,8 +14,9 @@ import { voiceSpeakMp3 } from '@/app/actions/voice-speak';
 import { VOICE_HELP, fold, forEar, isVoiceYes, parseVoice, pickSpokenIndex, splitWake, takeTime, wakeRestIsCommand } from '@/lib/voice';
 import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/hooks/voice-prefs';
 import {
-  decodeUrl, pickWomanVoice, playB64, playUrl, speakLocal, stopVoicePlay, unlockSpeak, warmVoiceAudio,
+  decodeB64, pickWomanVoice, playB64, speakLocal, stopVoicePlay, unlockSpeak, warmVoiceAudio,
 } from '@/hooks/voice-play';
+import { micBlockedSay, queryMicPerm, requestMic, watchMicPerm, type MicPerm } from '@/hooks/voice-mic';
 
 type Choice = { id: string; label: string };
 type Panel =
@@ -25,9 +26,6 @@ type Panel =
   | { mode: 'ask'; say: string; options?: string[]; href?: string }
   | { mode: 'confirm'; say: string; status?: 'curso' | 'noshow'; pick?: 'status' | 'cancel'; run: () => Promise<{ ok: boolean; say: string; href?: string }>; choices?: Choice[] };
 
-const CLIP = { rate: 0.96, gain: 0.82 };
-const CLIP_DIME = '/voice/dime.wav';
-const CLIP_QUE = '/voice/que-hacemos.wav';
 const ttsB64 = new Map<string, string>();
 let speakGen = 0;
 let speaking = false;
@@ -42,10 +40,19 @@ function withTime<T>(p: Promise<T>, ms: number) {
   });
 }
 
+function prefetchSpeak(text: string, kind: 'ask' | 'say') {
+  const key = `${kind}:${text}`;
+  if (ttsB64.has(key)) return;
+  void withTime(voiceSpeakMp3(text, kind), 6000).then(b64 => {
+    if (!b64) return;
+    ttsB64.set(key, b64);
+    void decodeB64(key, b64);
+  });
+}
+
 function warmAudio() {
   warmVoiceAudio();
-  void decodeUrl('dime', CLIP_DIME);
-  void decodeUrl('que', CLIP_QUE);
+  prefetchSpeak('¿Dime?', 'ask');
 }
 
 function stopSpeak() {
@@ -112,6 +119,7 @@ function speak(text: string, onDone?: () => void) {
   });
 }
 
+/** El «¿Dime?» del saludo usa el mismo TTS que el resto, aunque la voz de respuestas esté apagada. */
 function sayDime(onDone: () => void) {
   stopSpeak();
   const gen = ++speakGen;
@@ -125,42 +133,11 @@ function sayDime(onDone: () => void) {
       onDone();
     });
   };
-  void playUrl('dime', CLIP_DIME, CLIP).then(async ok => {
-    if (gen !== speakGen) return;
-    if (!ok) await speakLocal('¿Dime?', true);
-    finish();
-  });
-}
-
-/** Clip «¿Qué le hacemos a» + nombre. Todo por Web Audio, y no abre el micro hasta terminar. */
-function speakQueLeHacemos(who: string, onDone: () => void) {
-  stopSpeak();
-  const gen = ++speakGen;
-  speaking = true;
-  let done = false;
-  const finish = () => {
-    if (done || gen !== speakGen) return;
-    done = true;
-    afterSpeak(gen, () => {
-      speaking = false;
-      onDone();
-    });
-  };
   const safety = window.setTimeout(finish, 14000);
-  void (async () => {
-    const clip = await playUrl('que', CLIP_QUE, CLIP);
-    if (gen !== speakGen) return;
-    if (clip) {
-      const named = await playCloud(who, 'ask');
-      if (gen !== speakGen) return;
-      if (!named) await speakLocal(who, true);
-    } else {
-      await utter(`¿Qué le hacemos a ${who}?`, true);
-    }
-    if (gen !== speakGen) return;
+  void utter('¿Dime?', true).then(() => {
     window.clearTimeout(safety);
     finish();
-  })();
+  });
 }
 
 type RecApi = {
@@ -220,6 +197,8 @@ export default function VoiceFab() {
   const startListenRef = useRef<(opts?: { overlay?: boolean }) => void>(() => {});
   const rootRef = useRef<HTMLDivElement>(null);
   const [hasMic, setHasMic] = useState(false);
+  const [micPerm, setMicPerm] = useState<MicPerm>('unknown');
+  const micRef = useRef<MicPerm>('unknown');
 
   const syncPrefs = (p = getVoicePrefs()) => {
     prefsRef.current = p;
@@ -291,24 +270,48 @@ export default function VoiceFab() {
     setPanel(say ? { mode: 'msg', say } : { mode: 'idle' });
   };
 
+  const applyMic = (perm: MicPerm) => {
+    micRef.current = perm;
+    setMicPerm(perm);
+    if (perm !== 'granted') {
+      armedRef.current = false;
+      setArmed(false);
+      if (wakeRef.current) {
+        genRef.current += 1;
+        wakeRef.current = false;
+        setWakeOn(false);
+        killRec();
+      }
+    }
+  };
+
   useEffect(() => {
     setHasMic(!!makeRec());
     pickWomanVoice();
     const onVoices = () => pickWomanVoice();
     window.speechSynthesis?.addEventListener('voiceschanged', onVoices);
     syncPrefs();
-    void decodeUrl('dime', CLIP_DIME);
-    void decodeUrl('que', CLIP_QUE);
     const onFirst = () => warmAudio();
     window.addEventListener('pointerdown', onFirst, { once: true });
     window.addEventListener('touchstart', onFirst, { once: true });
-    if (wakeWanted(prefsRef.current)) {
-      arm();
-      window.setTimeout(() => startWakeRef.current(), 400);
-    }
+    const stopWatch = watchMicPerm(perm => {
+      applyMic(perm);
+      if (perm === 'granted' && wakeWanted(prefsRef.current) && !hushRef.current) {
+        arm();
+        startWakeRef.current();
+      }
+    });
+    void queryMicPerm().then(perm => {
+      applyMic(perm);
+      if (perm === 'granted' && wakeWanted(prefsRef.current)) {
+        prefetchSpeak('¿Dime?', 'ask');
+        arm();
+        window.setTimeout(() => startWakeRef.current(), 400);
+      }
+    });
     const onPrefs = () => {
       syncPrefs();
-      if (wakeWanted(prefsRef.current)) {
+      if (wakeWanted(prefsRef.current) && micRef.current === 'granted') {
         arm();
         startWakeRef.current();
       } else {
@@ -329,10 +332,16 @@ export default function VoiceFab() {
         }
         return;
       }
-      if (!hushRef.current) window.setTimeout(() => startWakeRef.current(), 600);
+      void queryMicPerm().then(perm => {
+        if (perm !== 'unknown') applyMic(perm);
+        if (perm === 'granted' && !hushRef.current) {
+          window.setTimeout(() => startWakeRef.current(), 600);
+        }
+      });
     };
     document.addEventListener('visibilitychange', onVis);
     return () => {
+      stopWatch();
       window.speechSynthesis?.removeEventListener('voiceschanged', onVoices);
       document.removeEventListener('visibilitychange', onVis);
       window.removeEventListener(VOICE_PREFS_EVENT, onPrefs);
@@ -474,14 +483,6 @@ export default function VoiceFab() {
         return `${h}:${String(m % 60).padStart(2, '0')}`;
       }) ?? [];
       setPanel({ mode: 'ask', say: r.say, options: r.options, href: r.href });
-      const whoAsk = r.say.match(/qué le hacemos a (.+?)\s*\??\s*$/i);
-      if (whoAsk) {
-        speakQueLeHacemos(whoAsk[1], () => {
-          missesRef.current = 0;
-          startListenRef.current({ overlay: true });
-        });
-        return;
-      }
       speakThenListen(r.say);
       return;
     }
@@ -698,15 +699,18 @@ export default function VoiceFab() {
         return;
       }
       missesRef.current = 0;
+      window.setTimeout(() => startWakeRef.current(), 400);
       return;
     }
     setOpen(true);
     setPanel({ mode: 'idle' });
+    window.setTimeout(() => startWakeRef.current(), 400);
   };
   commitRef.current = commitListen;
 
   const startWake = () => {
     if (!wakeWanted(prefsRef.current) || hushRef.current || busyRef.current || document.hidden) return;
+    if (micRef.current !== 'granted') return;
     if (listenRef.current || overlayRef.current || speaking) return;
     if (pendingRef.current || confirmRef.current) return;
     if (wakeRef.current && recRef.current) return;
@@ -758,8 +762,7 @@ export default function VoiceFab() {
       wakeRef.current = false;
       setWakeOn(false);
       if (ev.error === 'not-allowed') {
-        armedRef.current = false;
-        setArmed(false);
+        applyMic('denied');
         return;
       }
       if (ev.error === 'no-speech') {
@@ -785,6 +788,10 @@ export default function VoiceFab() {
   startWakeRef.current = startWake;
 
   const startListen = (opts?: { overlay?: boolean }) => {
+    if (micRef.current !== 'granted') {
+      restIdle(micBlockedSay());
+      return;
+    }
     if (speaking) stopSpeak();
     if (!prefsRef.current.micOnly) hushRef.current = false;
     arm();
@@ -823,13 +830,11 @@ export default function VoiceFab() {
     rec.onerror = ev => {
       if (gen !== genRef.current) return;
       if (ev.error === 'not-allowed') {
-        if (overlayRef.current) {
-          listenRef.current = false;
-          overlayRef.current = false;
-          killRec();
-          return;
-        }
-        restIdle('Sin permiso de micro. Puedes escribir el comando.');
+        applyMic('denied');
+        listenRef.current = false;
+        overlayRef.current = false;
+        killRec();
+        restIdle(micBlockedSay());
         return;
       }
       commitListen();
@@ -852,9 +857,35 @@ export default function VoiceFab() {
   startListenRef.current = startListen;
 
   const promptDimeThenListen = (opts?: { overlay?: boolean }) => {
+    listenRef.current = false;
+    overlayRef.current = false;
+    setHearing(false);
+    killRec();
     setOpen(true);
     if (!opts?.overlay) setPanel({ mode: 'listen', draft: '' });
     sayDime(() => startListenRef.current(opts));
+  };
+
+  const tapMic = (opts?: { overlay?: boolean }) => {
+    warmAudio();
+    if (hearing) {
+      commitListen();
+      return;
+    }
+    const listen = () => startListen(opts);
+    if (micRef.current === 'granted') {
+      listen();
+      return;
+    }
+    void requestMic().then(perm => {
+      applyMic(perm);
+      if (perm !== 'granted') {
+        restIdle(micBlockedSay());
+        return;
+      }
+      arm();
+      window.setTimeout(listen, 120);
+    });
   };
 
   return (
@@ -1021,11 +1052,8 @@ export default function VoiceFab() {
           aria-label={hearing ? 'Dejar de escuchar' : 'Hablar con Marlenne'}
           aria-pressed={hearing}
           onClick={() => {
-            warmAudio();
-            if (hearing) commitListen();
-            else if (!open) startListen();
-            else if (panel.mode === 'ask' || panel.mode === 'confirm') startListen({ overlay: true });
-            else startListen();
+            const overlay = open && (panel.mode === 'ask' || panel.mode === 'confirm');
+            tapMic(overlay ? { overlay: true } : undefined);
           }}
           className={`pointer-events-auto grid h-14 w-14 place-items-center rounded-[18px] text-white shadow-btn ${
             hearing ? 'bg-pink-600' : 'bg-grad'
@@ -1046,6 +1074,11 @@ export default function VoiceFab() {
       {!open && wakeHeard && (
         <p className="pointer-events-none mt-1 max-w-[200px] text-right text-[10px] font-semibold text-ink-3">
           Oí «{wakeHeard}»
+        </p>
+      )}
+      {!open && !hearing && micPerm !== 'granted' && micPerm !== 'unknown' && (
+        <p className="pointer-events-none mt-1 max-w-[220px] text-right text-[10.5px] font-semibold text-ink-3">
+          Toca el micro para permitir el oído
         </p>
       )}
       {!hasMic && open && (
