@@ -60,7 +60,7 @@ export default function ClientaFicha({
   const goTab = (id: TabId) => shallowSet({ tab: id === 'tratamientos' ? null : id });
 
   return (
-    <div className="px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-5">
+    <div className="px-5 pb-fab pt-5">
       <Link
         href={canEdit ? '/clientas' : '/hoy'}
         className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] font-bold text-ink-2 hover:text-v-d"

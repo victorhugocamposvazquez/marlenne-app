@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import { shallowSet } from '@/hooks/useShallowQuery';
@@ -39,9 +40,11 @@ export default function Sheet({
 }) {
   const close = useCloseSheet();
   const [dy, setDy] = useState(0);
+  const [mounted, setMounted] = useState(false);
   const from = useRef<number | null>(null);
 
   useEffect(() => {
+    setMounted(true);
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
     document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
@@ -52,8 +55,10 @@ export default function Sheet({
     };
   }, [close]);
 
-  return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-end justify-center">
       <button aria-label="Cerrar" tabIndex={-1} onClick={close} className="absolute inset-0 bg-ink/40" />
 
       <div
@@ -86,15 +91,18 @@ export default function Sheet({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2">{children}</div>
+        <div className={`min-h-0 flex-1 overflow-y-auto px-5 ${footer ? 'pb-2' : 'pb-[max(16px,env(safe-area-inset-bottom))]'}`}>
+          {children}
+        </div>
 
         {footer && (
-          <div className="shrink-0 border-t border-surface-line px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3">
+          <div className="shrink-0 border-t border-surface-line px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-3">
             {footer}
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

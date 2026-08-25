@@ -47,7 +47,7 @@ export default async function HoyPage() {
         : 'Libre · no quedan citas';
 
   return (
-    <div className="px-5 pb-8 pt-5">
+    <div className="px-5 pb-fab pt-5">
       <LiveRefresh tables={cabin ? ['appointments'] : ['appointments', 'waitlist']} />
       <div className="mb-[18px] flex items-center gap-3">
         <div className="flex-1">

@@ -19,3 +19,8 @@
   * { scrollbar-width: none; }
   :focus-visible { outline: 2px solid #8B5CF6; outline-offset: 2px; }
 }
+
+@layer utilities {
+  /* Hueco para el micrófono; la barra inferior ya está fuera del scroll. */
+  .pb-fab { padding-bottom: 5.5rem; }
+}

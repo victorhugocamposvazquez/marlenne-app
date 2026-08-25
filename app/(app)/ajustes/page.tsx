@@ -37,7 +37,7 @@ export default async function AjustesPage() {
   ]);
 
   return (
-    <div className="px-5 pb-8 pt-5">
+    <div className="px-5 pb-fab pt-5">
       <h1 className="text-[23px] font-extrabold tracking-[-.025em]">Más</h1>
       <p className="mt-px text-[13px] font-medium text-ink-2">{me.full_name} · {me.job_title ?? me.role}</p>
 
