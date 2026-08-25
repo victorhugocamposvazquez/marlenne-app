@@ -12,13 +12,7 @@ const BODY = [
   { metric: 'PESO', unit: 'kg' },
 ] as const;
 
-export default function SessionCloseForm({
-  appt, onCancel, onDone,
-}: {
-  appt: AgendaAppt;
-  onCancel: () => void;
-  onDone: () => void;
-}) {
+export function useSessionClose(appt: AgendaAppt, onDone: () => void) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [params, setParams] = useState<Record<string, string>>(
@@ -26,7 +20,6 @@ export default function SessionCloseForm({
   );
   const [measures, setMeasures] = useState<Record<string, string>>({});
   const [note, setNote] = useState('');
-
   const showBody = appt.category === 'corporal';
 
   const save = (skipExtras = false) => {
@@ -49,8 +42,23 @@ export default function SessionCloseForm({
     });
   };
 
+  return { pending, error, params, setParams, measures, setMeasures, note, setNote, showBody, save };
+}
+
+export function SessionCloseFields({
+  appt, params, setParams, measures, setMeasures, note, setNote, showBody,
+}: {
+  appt: AgendaAppt;
+  params: Record<string, string>;
+  setParams: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  measures: Record<string, string>;
+  setMeasures: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  note: string;
+  setNote: React.Dispatch<React.SetStateAction<string>>;
+  showBody: boolean;
+}) {
   return (
-    <div className="mb-3 rounded-field border border-emerald-200 bg-emerald-50/60 p-3.5">
+    <div className="mb-1 rounded-field border border-emerald-200 bg-emerald-50/60 p-3.5">
       <p className="mb-3 text-[13px] font-bold text-emerald-800">
         Cerrar sesión · {appt.service_name}
       </p>
@@ -103,37 +111,50 @@ export default function SessionCloseForm({
           onChange={e => setNote(e.target.value)}
         />
       </Field>
+    </div>
+  );
+}
 
+export function SessionCloseActions({
+  pending, error, save, onCancel,
+}: {
+  pending: boolean;
+  error: string | null;
+  save: (skipExtras?: boolean) => void;
+  onCancel: () => void;
+}) {
+  return (
+    <>
       {error && (
         <p className="mb-2.5 rounded-[12px] bg-pink-50 px-3 py-2 text-[12px] font-semibold text-pink-700">
           {error}
         </p>
       )}
-
-      <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => save(false)}
+        className="w-full rounded-field bg-emerald-500 py-3 text-[14px] font-extrabold text-white disabled:opacity-40"
+      >
+        {pending ? 'Guardando…' : 'Guardar y marcar hecha'}
+      </button>
+      <div className="mt-2 flex gap-2">
         <button
-          disabled={pending}
-          onClick={() => save(false)}
-          className="w-full rounded-field bg-emerald-500 py-3 text-[14px] font-extrabold text-white disabled:opacity-40"
+          type="button"
+          onClick={onCancel}
+          className="flex-1 rounded-field border border-surface-line bg-white py-2.5 text-[13px] font-bold text-ink-2"
         >
-          {pending ? 'Guardando…' : 'Guardar y marcar hecha'}
+          Seguir en cabina
         </button>
-        <div className="flex gap-2">
-          <button
-            onClick={onCancel}
-            className="flex-1 rounded-field border border-surface-line bg-white py-2.5 text-[13px] font-bold text-ink-2"
-          >
-            Seguir en cabina
-          </button>
-          <button
-            disabled={pending}
-            onClick={() => save(true)}
-            className="flex-1 rounded-field border border-surface-line bg-white py-2.5 text-[13px] font-bold text-ink-2"
-          >
-            Hecha sin datos
-          </button>
-        </div>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => save(true)}
+          className="flex-1 rounded-field border border-surface-line bg-white py-2.5 text-[13px] font-bold text-ink-2"
+        >
+          Hecha sin datos
+        </button>
       </div>
-    </div>
+    </>
   );
 }

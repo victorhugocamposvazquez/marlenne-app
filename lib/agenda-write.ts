@@ -244,3 +244,13 @@ export async function addTreatmentPhoto(
   });
   return { ok: !error, error: error?.message ?? null };
 }
+
+export async function deleteTreatmentPhoto(
+  sb: SupabaseClient,
+  input: { id: string; storagePath: string },
+): Promise<WriteResult> {
+  const { error } = await sb.from('treatment_photos').delete().eq('id', input.id);
+  if (error) return { ok: false, error: error.message };
+  await sb.storage.from('treatment-photos').remove([input.storagePath]);
+  return { ok: true, error: null };
+}

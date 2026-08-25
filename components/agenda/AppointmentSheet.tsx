@@ -16,7 +16,7 @@ import { confirmPageUrl, waConfirmMsg, waHref, waWaiterMsg } from '@/lib/phone';
 import { issueAppointmentLink } from '@/lib/confirm-link';
 import { shallowSet } from '@/hooks/useShallowQuery';
 import type { AgendaAppt, Provider, Waiter } from '@/lib/types';
-import SessionCloseForm from './SessionCloseForm';
+import { SessionCloseActions, SessionCloseFields, useSessionClose } from './SessionCloseForm';
 import { useToast } from '@/components/Toast';
 
 function needsClinicalClose(appt: AgendaAppt) {
@@ -52,6 +52,7 @@ export default function AppointmentSheet({
   const [startMin, setStartMin] = useState<number | null>(null);
   const [slots, setSlots] = useState<number[] | null>(null);
   const [note, setNote] = useState(appt.note ?? '');
+  const session = useSessionClose(appt, close);
 
   const start = minutesOfDay(appt.starts_at);
   const cat = CATEGORIES[appt.category];
@@ -112,7 +113,19 @@ export default function AppointmentSheet({
 
   if (waiters) {
     return (
-      <Sheet title="Hueco libre" subtitle="Hay gente en espera para este servicio">
+      <Sheet
+        title="Hueco libre"
+        subtitle="Hay gente en espera para este servicio"
+        footer={
+          <button
+            type="button"
+            onClick={close}
+            className="w-full rounded-field border border-surface-line bg-white py-3 text-[14px] font-bold text-ink-2"
+          >
+            Cerrar
+          </button>
+        }
+      >
         <div className="mb-3 flex flex-col gap-2">
           {waiters.map(w => {
             const wa = w.phone
@@ -161,13 +174,6 @@ export default function AppointmentSheet({
             );
           })}
         </div>
-        <button
-          type="button"
-          onClick={close}
-          className="mb-2 w-full rounded-field border border-surface-line bg-white py-3 text-[14px] font-bold text-ink-2"
-        >
-          Cerrar
-        </button>
       </Sheet>
     );
   }
