@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, type Dispatch, type SetStateAction } from 'react';
 import { Field, inputCls } from '@/components/Sheet';
 import { closeSession } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
@@ -50,11 +50,11 @@ export function SessionCloseFields({
 }: {
   appt: AgendaAppt;
   params: Record<string, string>;
-  setParams: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  setParams: Dispatch<SetStateAction<Record<string, string>>>;
   measures: Record<string, string>;
-  setMeasures: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  setMeasures: Dispatch<SetStateAction<Record<string, string>>>;
   note: string;
-  setNote: React.Dispatch<React.SetStateAction<string>>;
+  setNote: Dispatch<SetStateAction<string>>;
   showBody: boolean;
 }) {
   return (

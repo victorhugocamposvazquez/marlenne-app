@@ -59,7 +59,38 @@ export default function WaitlistSheet({
   };
 
   return (
-    <Sheet title="Lista de espera" subtitle={items.length ? `${items.length} pendientes` : 'Nadie esperando ahora'}>
+    <Sheet
+      title="Lista de espera"
+      subtitle={items.length ? `${items.length} pendientes` : 'Nadie esperando ahora'}
+      footer={
+        adding ? (
+          <>
+            {error && <p className="mb-2 text-[12px] font-semibold text-pink-700">{error}</p>}
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setAdding(false)} className="flex-1 rounded-field border border-surface-line bg-white py-3 text-[13px] font-bold text-ink-2">
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={who.length < 2 || pending}
+                onClick={save}
+                className="flex-1 rounded-field bg-grad py-3 text-[13px] font-extrabold text-white shadow-btn disabled:opacity-40"
+              >
+                Guardar
+              </button>
+            </div>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="w-full rounded-field border border-dashed border-handle py-3 text-[13.5px] font-bold text-ink-2"
+          >
+            Añadir a la espera
+          </button>
+        )
+      }
+    >
       <div className="mb-3 flex flex-col gap-2">
         {items.map(w => {
           const name = w.client?.full_name ?? w.client_name ?? 'Sin nombre';
@@ -123,25 +154,18 @@ export default function WaitlistSheet({
         })}
       </div>
 
-      {!adding ? (
-        <button
-          onClick={() => setAdding(true)}
-          className="mb-2 w-full rounded-field border border-dashed border-handle py-3 text-[13.5px] font-bold text-ink-2"
-        >
-          Añadir a la espera
-        </button>
-      ) : (
+      {adding && (
         <div className="mb-2 rounded-field border border-surface-line bg-surface-bg/40 p-3.5">
           <Field label="Quién">
             {client ? (
-              <button onClick={() => setClient(null)} className={`${inputCls} text-left`}>
+              <button type="button" onClick={() => setClient(null)} className={`${inputCls} text-left`}>
                 {client.full_name}
               </button>
             ) : (
               <>
                 <input className={inputCls} placeholder="Nombre o buscar" value={query} onChange={e => setQuery(e.target.value)} />
                 {matches.map(c => (
-                  <button key={c.id} onClick={() => setClient(c)} className="mt-1 block w-full rounded-[12px] px-3 py-2 text-left text-[13px] font-bold hover:bg-v-tint">
+                  <button key={c.id} type="button" onClick={() => setClient(c)} className="mt-1 block w-full rounded-[12px] px-3 py-2 text-left text-[13px] font-bold hover:bg-v-tint">
                     {c.full_name}
                   </button>
                 ))}
@@ -157,19 +181,6 @@ export default function WaitlistSheet({
           <Field label="Preferencia">
             <input className={inputCls} placeholder="Tardes, esta semana…" value={preference} onChange={e => setPreference(e.target.value)} />
           </Field>
-          {error && <p className="mb-2 text-[12px] font-semibold text-pink-700">{error}</p>}
-          <div className="flex gap-2">
-            <button onClick={() => setAdding(false)} className="flex-1 rounded-field border border-surface-line bg-white py-3 text-[13px] font-bold text-ink-2">
-              Cancelar
-            </button>
-            <button
-              disabled={who.length < 2 || pending}
-              onClick={save}
-              className="flex-1 rounded-field bg-grad py-3 text-[13px] font-extrabold text-white shadow-btn disabled:opacity-40"
-            >
-              Guardar
-            </button>
-          </div>
         </div>
       )}
     </Sheet>

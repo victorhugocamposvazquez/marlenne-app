@@ -357,7 +357,7 @@ export default function VoiceFab() {
   }, [wakeHeard]);
 
   useEffect(() => {
-    const sheet = ['new', 'appt', 'alta', 'editar', 'close', 'block', 'bloqueo']
+    const sheet = ['new', 'appt', 'alta', 'editar', 'close', 'block', 'bloqueo', 'wait']
       .some(k => searchParams.get(k));
     const check = () => {
       const el = document.activeElement as HTMLElement | null;
@@ -887,6 +887,10 @@ export default function VoiceFab() {
       window.setTimeout(listen, 120);
     });
   };
+
+  const sheetOpen = ['new', 'appt', 'alta', 'editar', 'close', 'block', 'bloqueo', 'wait']
+    .some(k => searchParams.get(k));
+  if (sheetOpen && !open) return null;
 
   return (
     <div

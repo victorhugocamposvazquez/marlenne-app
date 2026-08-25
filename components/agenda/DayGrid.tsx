@@ -129,7 +129,7 @@ export default function DayGrid({
     <>
       <div
         ref={scrollRef}
-        className={`min-h-0 flex-1 overflow-auto pb-2 select-none [-webkit-touch-callout:none] ${drag ? 'touch-none overscroll-none' : ''}`}
+        className={`min-h-0 flex-1 overflow-auto pb-16 select-none [-webkit-touch-callout:none] ${drag ? 'touch-none overscroll-none' : ''}`}
         onContextMenu={e => e.preventDefault()}
       >
         <div className="min-w-max pr-3.5">

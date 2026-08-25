@@ -30,24 +30,35 @@ export default function BlockSheet({
 
   if (existing) {
     return (
-      <Sheet title={existing.label ?? BLOCK_REASONS[existing.reason as BlockReason] ?? 'Bloqueo'} subtitle="Quitar este hueco de la agenda">
-        {error && <p className="mb-3 text-[12px] font-semibold text-pink-700">{error}</p>}
-        <div className="flex gap-2 pb-2">
-          <button onClick={close} className="flex-1 rounded-field border border-surface-line bg-white py-3 text-[13.5px] font-bold text-ink-2">
-            Dejarlo
-          </button>
-          <button
-            disabled={pending}
-            onClick={() => startTransition(async () => {
-              const r = await deleteBlock(createClient(), existing.id);
-              if (!r.ok) setError(r.error ?? 'No se ha podido borrar');
-              else close();
-            })}
-            className="flex-1 rounded-field bg-pink-600 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-40"
-          >
-            Quitar bloqueo
-          </button>
-        </div>
+      <Sheet
+        title={existing.label ?? BLOCK_REASONS[existing.reason as BlockReason] ?? 'Bloqueo'}
+        subtitle="Quitar este hueco de la agenda"
+        footer={
+          <>
+            {error && <p className="mb-2 text-[12px] font-semibold text-pink-700">{error}</p>}
+            <div className="flex gap-2">
+              <button type="button" onClick={close} className="flex-1 rounded-field border border-surface-line bg-white py-3 text-[13.5px] font-bold text-ink-2">
+                Dejarlo
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => startTransition(async () => {
+                  const r = await deleteBlock(createClient(), existing.id);
+                  if (!r.ok) setError(r.error ?? 'No se ha podido borrar');
+                  else close();
+                })}
+                className="flex-1 rounded-field bg-pink-600 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-40"
+              >
+                Quitar bloqueo
+              </button>
+            </div>
+          </>
+        }
+      >
+        <p className="mb-1 text-[13px] font-medium leading-snug text-ink-2">
+          Este hueco deja de estar bloqueado y vuelve a poder citarse.
+        </p>
       </Sheet>
     );
   }

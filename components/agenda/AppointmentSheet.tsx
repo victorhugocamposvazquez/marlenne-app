@@ -178,10 +178,114 @@ export default function AppointmentSheet({
     );
   }
 
+  const moveCita = () => {
+    const who = providers.find(p => p.id === providerId)?.full_name.split(' ')[0] ?? null;
+    const providerChanged = providerId !== appt.provider_id;
+    const prevDate = dayKey(appt.starts_at);
+    const prevStart = minutesOfDay(appt.starts_at);
+    const prevProvider = appt.provider_id;
+    run(
+      () => moveAppointment(createClient(), { id: appt.id, date, startMin: startMin!, providerId }),
+      true,
+      citaCambiada(startMin!, providerChanged ? who : null),
+      () => {
+        void moveAppointment(createClient(), {
+          id: appt.id, date: prevDate, startMin: prevStart, providerId: prevProvider,
+        }).then(back => {
+          if (!back.ok) toast(back.error ?? 'No se ha podido deshacer', 'err');
+        });
+      },
+    );
+  };
+
+  const footer = closing ? (
+    <SessionCloseActions
+      pending={session.pending}
+      error={session.error}
+      save={session.save}
+      onCancel={() => setClosing(false)}
+    />
+  ) : moving ? (
+    <>
+      {error && (
+        <p className="mb-2.5 rounded-[12px] bg-pink-50 px-3 py-2 text-[12px] font-semibold text-pink-700">
+          {error}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setMoving(false)}
+          className="flex-1 rounded-field border border-surface-line bg-white py-3 text-[13.5px] font-bold text-ink-2"
+        >
+          Dejarlo
+        </button>
+        <button
+          type="button"
+          disabled={startMin === null || pending}
+          onClick={moveCita}
+          className="flex-1 rounded-field bg-grad py-3 text-[13.5px] font-extrabold text-white shadow-btn disabled:opacity-40 disabled:shadow-none"
+        >
+          Mover cita
+        </button>
+      </div>
+    </>
+  ) : confirmDelete ? (
+    <>
+      {error && (
+        <p className="mb-2.5 rounded-[12px] bg-pink-50 px-3 py-2 text-[12px] font-semibold text-pink-700">
+          {error}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setConfirmDelete(false)}
+          className="flex-1 rounded-field border border-surface-line bg-white py-3 text-[13.5px] font-bold text-ink-2"
+        >
+          No, dejarla
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            setError(null);
+            startTransition(async () => {
+              const r = await cancelAppointment(createClient(), appt.id);
+              if (!r.ok) setError(r.error ?? 'No se ha podido cancelar');
+              else if (r.waiters?.length) setWaiters(r.waiters);
+              else close();
+            });
+          }}
+          className="flex-1 rounded-field bg-pink-600 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-40"
+        >
+          Sí, cancelar
+        </button>
+      </div>
+    </>
+  ) : (
+    <>
+      {error && (
+        <p className="mb-2.5 rounded-[12px] bg-pink-50 px-3 py-2 text-[12px] font-semibold text-pink-700">
+          {error}
+        </p>
+      )}
+      <button
+        type="button"
+        onClick={() => setConfirmDelete(true)}
+        className="flex w-full items-center justify-center gap-2 py-2.5 text-[13.5px] font-bold text-pink-700"
+      >
+        <Trash2 size={16} strokeWidth={2.2} />
+        Cancelar cita
+      </button>
+    </>
+  );
+
   return (
     <Sheet
       title={appt.client_label}
       subtitle={`${appt.service_name} · ${appt.provider_name}`}
+      footer={footer}
     >
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <span className="rounded-[9px] px-2.5 py-1.5 text-[11px] font-bold" style={{ background: cat.bg, color: cat.fg }}>
@@ -218,213 +322,147 @@ export default function AppointmentSheet({
       </div>
 
       {closing ? (
-        <SessionCloseForm
+        <SessionCloseFields
           appt={appt}
-          onCancel={() => setClosing(false)}
-          onDone={close}
+          params={session.params}
+          setParams={session.setParams}
+          measures={session.measures}
+          setMeasures={session.setMeasures}
+          note={session.note}
+          setNote={session.setNote}
+          showBody={session.showBody}
         />
       ) : (
-      <Field label="Estado">
-        <div className="flex flex-wrap gap-2">
-          {(Object.keys(STATUS) as StatusId[]).map(id => (
-            <Chip
-              key={id}
-              active={appt.status === id}
-              disabled={pending}
-              onClick={() => {
-                if (id === 'done' && needsClinicalClose(appt)) setClosing(true);
-                else run(() => updateStatus(createClient(), appt.id, id));
+        <>
+          <Field label="Estado">
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(STATUS) as StatusId[]).map(id => (
+                <Chip
+                  key={id}
+                  active={appt.status === id}
+                  disabled={pending}
+                  onClick={() => {
+                    if (id === 'done' && needsClinicalClose(appt)) setClosing(true);
+                    else run(() => updateStatus(createClient(), appt.id, id));
+                  }}
+                >
+                  {STATUS[id].label}
+                </Chip>
+              ))}
+            </div>
+          </Field>
+
+          <Field label="Nota">
+            <textarea
+              className={`${inputCls} min-h-[72px] resize-none`}
+              placeholder="Viene con su hija, confirmar por la mañana…"
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              onBlur={() => {
+                if (note.trim() === (appt.note ?? '').trim()) return;
+                run(() => updateAppointmentNote(createClient(), appt.id, note));
               }}
-            >
-              {STATUS[id].label}
-            </Chip>
-          ))}
-        </div>
-      </Field>
-      )}
-
-      <Field label="Nota">
-        <textarea
-          className={`${inputCls} min-h-[72px] resize-none`}
-          placeholder="Viene con su hija, confirmar por la mañana…"
-          value={note}
-          onChange={e => setNote(e.target.value)}
-          onBlur={() => {
-            if (note.trim() === (appt.note ?? '').trim()) return;
-            run(() => updateAppointmentNote(createClient(), appt.id, note));
-          }}
-        />
-      </Field>
-
-      {appt.client_id && (
-        <Link
-          href={`/clientas/${appt.client_id}`}
-          className="mb-3 flex w-full items-center justify-center gap-2 rounded-field border border-surface-line bg-white py-3 text-[14px] font-bold text-v-d shadow-card"
-        >
-          <UserRound size={17} strokeWidth={2.2} />
-          Ver ficha
-        </Link>
-      )}
-      {appt.client_phone && (
-        <a
-          href={`tel:${appt.client_phone}`}
-          className="mb-3 flex w-full items-center justify-center gap-2 rounded-field border border-surface-line bg-white py-3 text-[14px] font-bold text-v-d shadow-card"
-        >
-          <Phone size={17} strokeWidth={2.2} />
-          Llamar {appt.client_phone}
-        </a>
-      )}
-      {appt.status === 'prog' && (
-        <button
-          type="button"
-          disabled={pending}
-          onClick={askConfirm}
-          className={`mb-3 flex w-full items-center justify-center gap-2 rounded-field py-3 text-[14px] font-bold shadow-card disabled:opacity-40 ${
-            appt.client_phone
-              ? 'border border-emerald-200 bg-emerald-50 text-emerald-800'
-              : 'border border-surface-line bg-white text-v-d'
-          }`}
-        >
-          <MessageCircle size={17} strokeWidth={2.2} />
-          {appt.client_phone ? 'Pedir confirmación' : 'Copiar enlace de confirmación'}
-        </button>
-      )}
-
-      {!moving ? (
-        <button
-          onClick={() => { setMoving(true); setStartMin(null); }}
-          className="mb-3 flex w-full items-center justify-center gap-2 rounded-field border border-surface-line bg-white py-3 text-[14px] font-bold text-v-d shadow-card"
-        >
-          <CalendarClock size={17} strokeWidth={2.2} />
-          Reprogramar
-        </button>
-      ) : (
-        <div className="mb-3 rounded-field border border-surface-line bg-surface-bg/40 p-3.5">
-          <NextSlotControls
-            durationMin={appt.duration_min}
-            providerId={providerId}
-            anyProviders={canMoveProvider && providers.length > 1}
-            excludeId={appt.id}
-            onPick={slot => {
-              setDate(dayKey(slot.startsAt));
-              setProviderId(slot.providerId);
-              setStartMin(minutesOfDay(slot.startsAt));
-            }}
-          />
-          <Field label="Nuevo día">
-            <input
-              type="date"
-              className={inputCls}
-              aria-label="Nuevo día"
-              value={date}
-              onChange={e => setDate(e.target.value)}
             />
           </Field>
 
-          {canMoveProvider && providers.length > 1 && (
-            <Field label="Profesional">
-              <div className="flex flex-wrap gap-2">
-                {providers.map(p => (
-                  <Chip key={p.id} active={p.id === providerId} onClick={() => setProviderId(p.id)}>
-                    {p.full_name.split(' ')[0]}
-                  </Chip>
-                ))}
-              </div>
-            </Field>
+          {appt.client_id && (
+            <Link
+              href={`/clientas/${appt.client_id}`}
+              className="mb-3 flex w-full items-center justify-center gap-2 rounded-field border border-surface-line bg-white py-3 text-[14px] font-bold text-v-d shadow-card"
+            >
+              <UserRound size={17} strokeWidth={2.2} />
+              Ver ficha
+            </Link>
+          )}
+          {appt.client_phone && (
+            <a
+              href={`tel:${appt.client_phone}`}
+              className="mb-3 flex w-full items-center justify-center gap-2 rounded-field border border-surface-line bg-white py-3 text-[14px] font-bold text-v-d shadow-card"
+            >
+              <Phone size={17} strokeWidth={2.2} />
+              Llamar {appt.client_phone}
+            </a>
+          )}
+          {appt.status === 'prog' && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={askConfirm}
+              className={`mb-3 flex w-full items-center justify-center gap-2 rounded-field py-3 text-[14px] font-bold shadow-card disabled:opacity-40 ${
+                appt.client_phone
+                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-800'
+                  : 'border border-surface-line bg-white text-v-d'
+              }`}
+            >
+              <MessageCircle size={17} strokeWidth={2.2} />
+              {appt.client_phone ? 'Pedir confirmación' : 'Copiar enlace de confirmación'}
+            </button>
           )}
 
-          <Field label="Nueva hora">
-            {slots === null ? (
-              <p className="text-[12.5px] font-semibold text-ink-3">Buscando huecos…</p>
-            ) : slots.length === 0 ? (
-              <p className="text-[12.5px] font-semibold text-ink-2">
-                No queda hueco ese día. Prueba el próximo hueco arriba.
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {slots.map(m => (
-                  <Chip key={m} active={m === startMin} onClick={() => setStartMin(m)}>
-                    <span className="tabular-nums">{fmt(m)}</span>
-                  </Chip>
-                ))}
-              </div>
-            )}
-          </Field>
-
-          <div className="flex gap-2">
+          {!moving ? (
             <button
-              onClick={() => setMoving(false)}
-              className="flex-1 rounded-field border border-surface-line bg-white py-3 text-[13.5px] font-bold text-ink-2"
+              type="button"
+              onClick={() => { setMoving(true); setStartMin(null); }}
+              className="mb-3 flex w-full items-center justify-center gap-2 rounded-field border border-surface-line bg-white py-3 text-[14px] font-bold text-v-d shadow-card"
             >
-              Dejarlo
+              <CalendarClock size={17} strokeWidth={2.2} />
+              Reprogramar
             </button>
-            <button
-              disabled={startMin === null || pending}
-              onClick={() => {
-                const who = providers.find(p => p.id === providerId)?.full_name.split(' ')[0] ?? null;
-                const providerChanged = providerId !== appt.provider_id;
-                const prevDate = dayKey(appt.starts_at);
-                const prevStart = minutesOfDay(appt.starts_at);
-                const prevProvider = appt.provider_id;
-                run(
-                  () => moveAppointment(createClient(), { id: appt.id, date, startMin: startMin!, providerId }),
-                  true,
-                  citaCambiada(startMin!, providerChanged ? who : null),
-                  () => {
-                    void moveAppointment(createClient(), {
-                      id: appt.id, date: prevDate, startMin: prevStart, providerId: prevProvider,
-                    }).then(back => {
-                      if (!back.ok) toast(back.error ?? 'No se ha podido deshacer', 'err');
-                    });
-                  },
-                );
-              }}
-              className="flex-1 rounded-field bg-grad py-3 text-[13.5px] font-extrabold text-white shadow-btn disabled:opacity-40 disabled:shadow-none"
-            >
-              Mover cita
-            </button>
-          </div>
-        </div>
-      )}
+          ) : (
+            <div className="mb-3 rounded-field border border-surface-line bg-surface-bg/40 p-3.5">
+              <NextSlotControls
+                durationMin={appt.duration_min}
+                providerId={providerId}
+                anyProviders={canMoveProvider && providers.length > 1}
+                excludeId={appt.id}
+                onPick={slot => {
+                  setDate(dayKey(slot.startsAt));
+                  setProviderId(slot.providerId);
+                  setStartMin(minutesOfDay(slot.startsAt));
+                }}
+              />
+              <Field label="Nuevo día">
+                <input
+                  type="date"
+                  className={inputCls}
+                  aria-label="Nuevo día"
+                  value={date}
+                  onChange={e => setDate(e.target.value)}
+                />
+              </Field>
 
-      {error && (
-        <p className="mb-3 rounded-[12px] bg-pink-50 px-3 py-2 text-[12px] font-semibold text-pink-700">
-          {error}
-        </p>
-      )}
+              {canMoveProvider && providers.length > 1 && (
+                <Field label="Profesional">
+                  <div className="flex flex-wrap gap-2">
+                    {providers.map(p => (
+                      <Chip key={p.id} active={p.id === providerId} onClick={() => setProviderId(p.id)}>
+                        {p.full_name.split(' ')[0]}
+                      </Chip>
+                    ))}
+                  </div>
+                </Field>
+              )}
 
-      {confirmDelete ? (
-        <div className="mb-2 flex gap-2">
-          <button
-            onClick={() => setConfirmDelete(false)}
-            className="flex-1 rounded-field border border-surface-line bg-white py-3 text-[13.5px] font-bold text-ink-2"
-          >
-            No, dejarla
-          </button>
-          <button
-            disabled={pending}
-            onClick={() => {
-              setError(null);
-              startTransition(async () => {
-                const r = await cancelAppointment(createClient(), appt.id);
-                if (!r.ok) setError(r.error ?? 'No se ha podido cancelar');
-                else if (r.waiters?.length) setWaiters(r.waiters);
-                else close();
-              });
-            }}
-            className="flex-1 rounded-field bg-pink-600 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-40"
-          >
-            Sí, cancelar
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={() => setConfirmDelete(true)}
-          className="mb-2 flex w-full items-center justify-center gap-2 py-2.5 text-[13.5px] font-bold text-pink-700"
-        >
-          <Trash2 size={16} strokeWidth={2.2} />
-          Cancelar cita
-        </button>
+              <Field label="Nueva hora">
+                {slots === null ? (
+                  <p className="text-[12.5px] font-semibold text-ink-3">Buscando huecos…</p>
+                ) : slots.length === 0 ? (
+                  <p className="text-[12.5px] font-semibold text-ink-2">
+                    No queda hueco ese día. Prueba el próximo hueco arriba.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {slots.map(m => (
+                      <Chip key={m} active={m === startMin} onClick={() => setStartMin(m)}>
+                        <span className="tabular-nums">{fmt(m)}</span>
+                      </Chip>
+                    ))}
+                  </div>
+                )}
+              </Field>
+            </div>
+          )}
+        </>
       )}
     </Sheet>
   );
