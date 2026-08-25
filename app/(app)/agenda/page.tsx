@@ -73,7 +73,7 @@ export default async function AgendaPage({
           canMoveProvider={canMoveProvider}
         />
       ) : (
-        <WeekGrid days={await getWeekCounts(providers.map(p => p.id))} />
+          <WeekGrid days={await getWeekCounts(providers.map(p => p.id), day)} selectedPro={selectedPro} />
       )}
 
       {opensNew && (

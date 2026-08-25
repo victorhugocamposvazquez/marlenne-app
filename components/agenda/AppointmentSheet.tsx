@@ -2,11 +2,11 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { CalendarClock, Trash2, UserRound } from 'lucide-react';
+import { CalendarClock, Phone, Trash2, UserRound } from 'lucide-react';
 import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet';
 import { CATEGORIES, STATUS, type StatusId } from '@/lib/categories';
 import {
-  cancelAppointment, rescheduleAppointment, slotsFor, updateStatus,
+  cancelAppointment, rescheduleAppointment, slotsFor, updateAppointmentNote, updateStatus,
 } from '@/app/actions/appointments';
 import { dayKey, durLbl, fmt, minutesOfDay } from '@/lib/time';
 import type { AgendaAppt, Provider } from '@/lib/types';
@@ -42,6 +42,7 @@ export default function AppointmentSheet({
   const [providerId, setProviderId] = useState(appt.provider_id);
   const [startMin, setStartMin] = useState<number | null>(null);
   const [slots, setSlots] = useState<number[] | null>(null);
+  const [note, setNote] = useState(appt.note ?? '');
 
   const start = minutesOfDay(appt.starts_at);
   const cat = CATEGORIES[appt.category];
@@ -125,6 +126,19 @@ export default function AppointmentSheet({
       </Field>
       )}
 
+      <Field label="Nota">
+        <textarea
+          className={`${inputCls} min-h-[72px] resize-none`}
+          placeholder="Viene con su hija, confirmar por la mañana…"
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          onBlur={() => {
+            if (note.trim() === (appt.note ?? '').trim()) return;
+            run(() => updateAppointmentNote(appt.id, note));
+          }}
+        />
+      </Field>
+
       {appt.client_id && (
         <Link
           href={`/clientas/${appt.client_id}`}
@@ -133,6 +147,15 @@ export default function AppointmentSheet({
           <UserRound size={17} strokeWidth={2.2} />
           Ver ficha
         </Link>
+      )}
+      {appt.client_phone && (
+        <a
+          href={`tel:${appt.client_phone}`}
+          className="mb-3 flex w-full items-center justify-center gap-2 rounded-field border border-surface-line bg-white py-3 text-[14px] font-bold text-v-d shadow-card"
+        >
+          <Phone size={17} strokeWidth={2.2} />
+          Llamar {appt.client_phone}
+        </a>
       )}
 
       {!moving ? (

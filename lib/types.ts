@@ -29,6 +29,8 @@ export type AgendaAppt = {
   price_cents: number | null;
   treatment_id: string | null;
   session_no: number | null;
+  note: string | null;
+  client_phone: string | null;
 };
 
 export type AgendaBlock = {
@@ -43,9 +45,10 @@ export type AgendaBlock = {
 export type WeekDay = {
   offset: number;
   dow: string;
+  name: string;
   num: number;
   isToday: boolean;
-  appointments: Pick<AgendaAppt, 'id' | 'starts_at' | 'duration_min' | 'category'>[];
+  appointments: Pick<AgendaAppt, 'id' | 'starts_at' | 'duration_min' | 'category' | 'client_label' | 'service_name' | 'provider_name' | 'status'>[];
 };
 
 export type ServiceOption = {

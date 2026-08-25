@@ -22,6 +22,24 @@ export async function createClientRecord(input: {
   const { sb, salonId } = await mySalon();
   if (!salonId) return { ok: false, error: 'Sin sesión', id: null };
 
+  const tel = (input.phone ?? '').replace(/\D/g, '');
+  if (tel.length >= 9) {
+    const tail = tel.slice(-9);
+    const { data: same } = await sb
+      .from('clients')
+      .select('id, full_name, phone')
+      .eq('salon_id', salonId)
+      .ilike('phone', `%${tail}%`);
+    const hit = (same ?? []).find(c => (c.phone ?? '').replace(/\D/g, '').endsWith(tail));
+    if (hit) {
+      return {
+        ok: false,
+        error: `Ese teléfono ya es de ${hit.full_name}. Ábrela en vez de duplicar.`,
+        id: hit.id,
+      };
+    }
+  }
+
   const { data, error } = await sb.from('clients').insert({
     salon_id: salonId,
     full_name: name,

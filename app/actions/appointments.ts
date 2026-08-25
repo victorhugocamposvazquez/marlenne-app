@@ -65,6 +65,7 @@ export async function updateStatus(id: string, status: string) {
 export async function createAppointment(input: {
   clientId?: string; clientName?: string; serviceId: string; providerId: string;
   date: string; startMin: number; durationMin: number; priceCents: number;
+  note?: string;
 }) {
   const sb = createClient();
   const me = await sb.auth.getUser();
@@ -79,6 +80,7 @@ export async function createAppointment(input: {
     starts_at: toTimestamp(input.date, input.startMin),
     duration_min: input.durationMin,
     price_cents: input.priceCents,
+    note: input.note?.trim() || null,
     created_by: me.data.user!.id,
   });
 
@@ -91,6 +93,17 @@ export async function createAppointment(input: {
 export async function cancelAppointment(id: string) {
   const sb = createClient();
   const { error } = await sb.from('appointments').delete().eq('id', id);
+  revalidatePath('/agenda');
+  revalidatePath('/hoy');
+  return { ok: !error, error: error?.message ?? null };
+}
+
+export async function updateAppointmentNote(id: string, note: string) {
+  const sb = createClient();
+  const { error } = await sb
+    .from('appointments')
+    .update({ note: note.trim() || null })
+    .eq('id', id);
   revalidatePath('/agenda');
   revalidatePath('/hoy');
   return { ok: !error, error: error?.message ?? null };

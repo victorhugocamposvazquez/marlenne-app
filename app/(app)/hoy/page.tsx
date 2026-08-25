@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { requireSession, listProviders, getDayAgenda, countWaitlist } from '@/lib/queries';
-import { fmt, durLbl, minutesOfDay, madridNow } from '@/lib/time';
+import { fmt, minutesOfDay, madridNow, DAY_START, DAY_END } from '@/lib/time';
 import { Bell } from 'lucide-react';
 import LiveRefresh from '@/components/LiveRefresh';
 import HoyApptRow from '@/components/hoy/HoyApptRow';
@@ -15,7 +15,9 @@ export default async function HoyPage() {
   const revenue = appointments.reduce((s, a) => s + (a.price_cents ?? 0), 0) / 100;
   const cash = appointments.filter(a => a.status === 'done').reduce((s, a) => s + (a.price_cents ?? 0), 0) / 100;
   const booked = appointments.reduce((s, a) => s + a.duration_min, 0);
-  const occ = providers.length ? Math.round((100 * booked) / (providers.length * 660)) : 0;
+  const dayMins = DAY_END - DAY_START;
+  const occ = providers.length ? Math.round((100 * booked) / (providers.length * dayMins)) : 0;
+  const doneCount = appointments.filter(a => a.status === 'done').length;
   const live = appointments.filter(a => a.status === 'curso');
   const nowMin = madridNow().h * 60 + madridNow().min;
   const pending = appointments.filter(a => a.status === 'prog')
@@ -70,6 +72,18 @@ export default async function HoyPage() {
           <div className="mt-1 text-[22px] font-extrabold tracking-[-.02em]">{cash} €</div>
           <div className="mt-2 h-1.5 overflow-hidden rounded bg-surface-line">
             <div className="h-1.5 rounded bg-grad" style={{ width: `${revenue ? Math.round((100 * cash) / revenue) : 0}%` }} />
+          </div>
+        </div>
+        <div className="flex-1 rounded-row border border-surface-line bg-white p-3.5 shadow-card">
+          <div className="text-[11px] font-bold text-ink-3">HECHAS</div>
+          <div className="mt-1 text-[22px] font-extrabold tracking-[-.02em] tabular-nums">
+            {doneCount}<span className="text-[14px] font-bold text-ink-3"> / {appointments.length}</span>
+          </div>
+          <div className="mt-2 h-1.5 overflow-hidden rounded bg-surface-line">
+            <div
+              className="h-1.5 rounded bg-grad"
+              style={{ width: `${appointments.length ? Math.round((100 * doneCount) / appointments.length) : 0}%` }}
+            />
           </div>
         </div>
       </div>

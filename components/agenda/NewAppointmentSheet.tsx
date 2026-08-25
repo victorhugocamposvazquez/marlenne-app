@@ -6,7 +6,7 @@ import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet'
 import { CATEGORIES, avatarColor } from '@/lib/categories';
 import { createAppointment, slotsFor } from '@/app/actions/appointments';
 import { durLbl, fmt } from '@/lib/time';
-import { bestNameMatches, parseClock } from '@/lib/voice';
+import { bestNameMatches, fold, parseClock } from '@/lib/voice';
 import type { ClientOption, Provider, ServiceOption } from '@/lib/types';
 
 export default function NewAppointmentSheet({
@@ -37,14 +37,16 @@ export default function NewAppointmentSheet({
   const [slots, setSlots] = useState<number[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [serviceQ, setServiceQ] = useState(initialServiceQ);
+  const [note, setNote] = useState('');
 
   const service = services.find(s => s.id === serviceId) ?? null;
 
   const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q || client) return [];
+    const q = fold(query);
+    const digits = query.replace(/\D/g, '');
+    if ((!q && !digits) || client) return [];
     return clients
-      .filter(c => c.full_name.toLowerCase().includes(q) || (c.phone ?? '').includes(q))
+      .filter(c => (q && fold(c.full_name).includes(q)) || (digits.length >= 3 && (c.phone ?? '').includes(digits)))
       .slice(0, 5);
   }, [query, clients, client]);
 
@@ -77,6 +79,7 @@ export default function NewAppointmentSheet({
         startMin,
         durationMin: service.duration_min,
         priceCents: service.price_cents,
+        note: note.trim() || undefined,
       });
       if (r.ok) close();
       else setError(r.error ?? 'No se ha podido guardar la cita');
@@ -179,8 +182,8 @@ export default function NewAppointmentSheet({
         >
           <option value="">Elegir servicio…</option>
           {Object.entries(CATEGORIES).map(([id, cat]) => {
-            const q = serviceQ.trim().toLowerCase();
-            const list = services.filter(s => s.category === id && (!q || s.name.toLowerCase().includes(q)));
+            const q = fold(serviceQ);
+            const list = services.filter(s => s.category === id && (!q || fold(s.name).includes(q)));
             if (!list.length) return null;
             return (
               <optgroup key={id} label={cat.label}>
@@ -233,6 +236,16 @@ export default function NewAppointmentSheet({
             ))}
           </div>
         )}
+      </Field>
+
+      <Field label="Nota">
+        <input
+          className={inputCls}
+          placeholder="Opcional: confirmar, viene con…"
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          aria-label="Nota de la cita"
+        />
       </Field>
     </Sheet>
   );

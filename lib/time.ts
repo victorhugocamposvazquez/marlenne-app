@@ -100,3 +100,29 @@ export function offsetFromDay(iso: string) {
   const { y, m, d } = madridNow();
   return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(y, m - 1, d)) / 86_400_000);
 }
+
+/** Lunes de la semana que contiene ese offset (0 = hoy). */
+export function weekMondayOffset(dayOffset: number) {
+  const dow = (dateFromOffset(dayOffset).getUTCDay() + 6) % 7;
+  return dayOffset - dow;
+}
+
+/** «Esta semana» o «17 ago – 23 ago». */
+export function weekTitle(dayOffset: number) {
+  const mon = weekMondayOffset(dayOffset);
+  if (mon === weekMondayOffset(0)) return 'Esta semana';
+  const fmtDay = (off: number) => dateFromOffset(off).toLocaleDateString('es-ES', {
+    timeZone: TZ, day: 'numeric', month: 'short',
+  });
+  return `${fmtDay(mon)} – ${fmtDay(mon + 6)}`;
+}
+/** «Hoy 11:30», «Mañana 9:00», «17 ago 16:00». */
+export function shortWhen(iso: string) {
+  const off = offsetFromDay(iso);
+  const clock = fmt(minutesOfDay(iso));
+  if (off === 0) return `Hoy ${clock}`;
+  if (off === 1) return `Mañana ${clock}`;
+  if (off === -1) return `Ayer ${clock}`;
+  const day = dateLbl(iso).replace(/ \d{4}$/, '');
+  return `${day} ${clock}`;
+}

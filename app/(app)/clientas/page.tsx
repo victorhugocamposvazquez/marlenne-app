@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { listClients } from '@/lib/queries';
 import { avatarColor, initials } from '@/lib/categories';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Phone } from 'lucide-react';
 import NewClientSheet from '@/components/clienta/NewClientSheet';
+import { shortWhen } from '@/lib/time';
 
 export default async function ClientasPage({ searchParams }: { searchParams: { q?: string; alta?: string } }) {
   const clients = await listClients(searchParams.q ?? '');
@@ -42,31 +43,50 @@ export default async function ClientasPage({ searchParams }: { searchParams: { q
           </p>
         )}
         {clients.map(c => (
-          <Link
-            key={c.id} href={`/clientas/${c.id}`}
-            className="flex items-center gap-3 rounded-row border border-surface-line bg-white p-3.5 shadow-card transition hover:-translate-y-0.5"
+          <div
+            key={c.id}
+            className="flex items-center gap-2 rounded-row border border-surface-line bg-white p-3.5 shadow-card"
           >
-            <span
-              className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px] text-[13px] font-bold text-white"
-              style={{ background: avatarColor(c.full_name) }}
-            >
-              {initials(c.full_name)}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-1.5">
-                <span className="truncate text-[14.5px] font-bold tracking-[-.01em]">{c.full_name}</span>
-                {c.tags?.includes('VIP') && (
-                  <span className="shrink-0 rounded-[7px] bg-v-soft px-[7px] py-0.5 text-[9.5px] font-extrabold text-v-d">VIP</span>
-                )}
+            <Link href={`/clientas/${c.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+              <span
+                className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px] text-[13px] font-bold text-white"
+                style={{ background: avatarColor(c.full_name) }}
+              >
+                {initials(c.full_name)}
               </span>
-              <span className="block truncate text-[11.5px] font-medium text-ink-3">
-                {c.open_treatments?.length ? c.open_treatments.join(' · ') : `${c.phone ?? ''} · sin tratamiento abierto`}
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1.5">
+                  <span className="truncate text-[14.5px] font-bold tracking-[-.01em]">{c.full_name}</span>
+                  {c.tags?.includes('VIP') && (
+                    <span className="shrink-0 rounded-[7px] bg-v-soft px-[7px] py-0.5 text-[9.5px] font-extrabold text-v-d">VIP</span>
+                  )}
+                </span>
+                <span className="block truncate text-[11.5px] font-medium text-ink-3">
+                  {c.next_at
+                    ? `Próxima ${shortWhen(c.next_at)}`
+                    : c.last_at
+                      ? `Última ${shortWhen(c.last_at)}`
+                      : c.open_treatments?.length
+                        ? c.open_treatments.join(' · ')
+                        : (c.phone || 'Sin citas todavía')}
+                </span>
               </span>
-            </span>
-          </Link>
+            </Link>
+            {c.phone && (
+              <a
+                href={`tel:${c.phone}`}
+                aria-label={`Llamar a ${c.full_name}`}
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-v-tint text-v-d"
+              >
+                <Phone size={16} strokeWidth={2.2} />
+              </a>
+            )}
+          </div>
         ))}
       </div>
-      {searchParams.alta === '1' && <NewClientSheet />}
+      {searchParams.alta === '1' && (
+        <NewClientSheet existing={clients.map(c => ({ id: c.id, full_name: c.full_name, phone: c.phone }))} />
+      )}
     </div>
   );
 }

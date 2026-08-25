@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Sheet, { Field, inputCls, useCloseSheet } from '@/components/Sheet';
 import { addToWaitlist, resolveWaitlist } from '@/app/actions/clients';
 import { dateLbl } from '@/lib/time';
+import { fold } from '@/lib/voice';
 import type { ClientOption, ServiceOption, WaitItem } from '@/lib/types';
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 
@@ -28,9 +29,12 @@ export default function WaitlistSheet({
   const [error, setError] = useState<string | null>(null);
 
   const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q || client) return [];
-    return clients.filter(c => c.full_name.toLowerCase().includes(q)).slice(0, 5);
+    const q = fold(query);
+    const digits = query.replace(/\D/g, '');
+    if ((!q && !digits) || client) return [];
+    return clients
+      .filter(c => (q && fold(c.full_name).includes(q)) || (digits.length >= 3 && (c.phone ?? '').includes(digits)))
+      .slice(0, 5);
   }, [query, clients, client]);
 
   const who = client?.full_name ?? query.trim();
@@ -69,6 +73,11 @@ export default function WaitlistSheet({
                   <div className="text-[11.5px] font-medium text-ink-3">
                     {[w.service?.name, w.preference, dateLbl(w.created_at)].filter(Boolean).join(' · ')}
                   </div>
+                  {w.client?.phone && (
+                    <a href={`tel:${w.client.phone}`} className="mt-0.5 block text-[12px] font-bold text-v-d">
+                      {w.client.phone}
+                    </a>
+                  )}
                 </div>
                 <button
                   disabled={pending}
@@ -83,6 +92,8 @@ export default function WaitlistSheet({
                 onClick={() => {
                   const qs = new URLSearchParams({ new: '1' });
                   if (w.client_id) qs.set('client', w.client_id);
+                  else if (w.client_name) qs.set('nombre', w.client_name);
+                  if (w.service?.name) qs.set('servicio', w.service.name);
                   close();
                   router.push(`/agenda?${qs.toString()}`);
                 }}

@@ -1,57 +1,100 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { DAY_START, DAY_END, minutesOfDay } from '@/lib/time';
-import { CATEGORIES } from '@/lib/categories';
+import { Plus } from 'lucide-react';
+import { fmt, minutesOfDay } from '@/lib/time';
+import { CATEGORIES, STATUS } from '@/lib/categories';
 import type { WeekDay } from '@/lib/types';
 
-export default function WeekGrid({ days }: { days: WeekDay[] }) {
+export default function WeekGrid({
+  days, selectedPro,
+}: {
+  days: WeekDay[];
+  selectedPro?: string | null;
+}) {
   const router = useRouter();
-  const H = 280;
-  const span = DAY_END - DAY_START;
+
+  const href = (offset: number, extra?: Record<string, string>) => {
+    const q = new URLSearchParams({ day: String(offset), mode: 'dia' });
+    if (selectedPro) q.set('pro', selectedPro);
+    if (extra) {
+      for (const [k, v] of Object.entries(extra)) q.set(k, v);
+    }
+    return `/agenda?${q.toString()}`;
+  };
 
   return (
     <div className="min-h-0 flex-1 overflow-auto px-4 pb-4">
-      <div className="grid grid-cols-7 gap-1.5">
-        {days.map(d => (
-          <button
-            key={d.offset}
-            onClick={() => router.push(`/agenda?day=${d.offset}&mode=dia`)}
-            className="rounded-field px-[5px] py-2 transition hover:-translate-y-0.5"
-            style={{
-              background: d.isToday ? 'linear-gradient(160deg,#8B5CF6,#A855F7)' : '#fff',
-              border: `1px solid ${d.isToday ? 'transparent' : '#EFEDF8'}`,
-              boxShadow: d.isToday ? '0 12px 28px rgba(139,92,246,.34)' : '0 4px 20px rgba(60,40,120,.07)',
-            }}
-          >
-            <div className="text-center">
-              <div className="text-[9.5px] font-bold tracking-[.06em]" style={{ color: d.isToday ? 'rgba(255,255,255,.8)' : '#9B96B8' }}>
-                {d.dow}
+      <div className="flex flex-col gap-2">
+        {days.map(d => {
+          const n = d.appointments.length;
+          return (
+            <section
+              key={d.offset}
+              className={`overflow-hidden rounded-row border shadow-card ${
+                d.isToday ? 'border-v/40 bg-v-tint' : 'border-surface-line bg-white'
+              }`}
+            >
+              <div className="flex items-center gap-2 px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => router.push(href(d.offset))}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  <span className="flex items-baseline gap-1.5">
+                    <span className="text-[14px] font-extrabold tracking-[-.02em]">{d.name}</span>
+                    <span className="text-[13px] font-bold tabular-nums text-ink-2">{d.num}</span>
+                    {d.isToday && (
+                      <span className="rounded-[6px] bg-grad px-1.5 py-px text-[9.5px] font-extrabold text-white">Hoy</span>
+                    )}
+                  </span>
+                  <span className="block text-[11px] font-semibold text-ink-3">
+                    {n === 0 ? 'Sin citas' : n === 1 ? '1 cita' : `${n} citas`}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push(href(d.offset, { new: '1' }))}
+                  aria-label={`Nueva cita el ${d.name}`}
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-white text-v-d shadow-card"
+                >
+                  <Plus size={16} strokeWidth={2.4} />
+                </button>
               </div>
-              <div className="mt-px text-base font-extrabold" style={{ color: d.isToday ? '#fff' : '#1B1830' }}>
-                {d.num}
-              </div>
-            </div>
-            <div className="relative my-2" style={{ height: H }}>
-              {d.appointments.map(a => (
-                <div
-                  key={a.id}
-                  className="absolute left-0.5 right-0.5 rounded-[5px]"
-                  style={{
-                    top: ((minutesOfDay(a.starts_at) - DAY_START) / span) * H,
-                    height: Math.max(5, (a.duration_min / span) * H - 2),
-                    background: d.isToday ? 'rgba(255,255,255,.55)' : CATEGORIES[a.category].color,
-                  }}
-                />
-              ))}
-            </div>
-            <div className="text-center text-[10px] font-bold" style={{ color: d.isToday ? 'rgba(255,255,255,.85)' : '#9B96B8' }}>
-              {d.appointments.length}
-            </div>
-          </button>
-        ))}
+              {n > 0 && (
+                <div className="border-t border-surface-line/80">
+                  {d.appointments.map(a => {
+                    const cat = CATEGORIES[a.category];
+                    const st = STATUS[a.status];
+                    return (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => router.push(href(d.offset, { appt: a.id }))}
+                        className="flex w-full items-center gap-2 border-b border-surface-line/70 px-3 py-2 text-left last:border-0 hover:bg-white/70"
+                      >
+                        <span className="w-[42px] shrink-0 text-[12.5px] font-extrabold tabular-nums text-v-d">
+                          {fmt(minutesOfDay(a.starts_at))}
+                        </span>
+                        <span
+                          className="h-2 w-2 shrink-0 rounded-sm"
+                          style={{ background: a.status === 'done' ? st.edge : cat.color }}
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13px] font-bold">{a.client_label}</span>
+                          <span className="block truncate text-[11px] font-medium text-ink-3">
+                            {a.service_name}{a.provider_name ? ` · ${a.provider_name.split(' ')[0]}` : ''}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          );
+        })}
       </div>
-      <p className="mt-3.5 text-center text-xs font-medium text-ink-3">Toca un día para abrirlo</p>
     </div>
   );
 }

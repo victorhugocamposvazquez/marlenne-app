@@ -194,6 +194,9 @@ export default function DayGrid({
                             <span className="truncate text-[12.5px] font-bold leading-tight tracking-[-.01em]">{a.client_label}</span>
                           </div>
                           <div className="truncate text-[11px] font-medium text-ink-2">{a.service_name}</div>
+                          {a.note && (
+                            <div className="truncate text-[10.5px] font-medium text-ink-3">{a.note}</div>
+                          )}
                           <div className="mt-0.5 text-[10.5px] font-semibold tabular-nums" style={{ color: st.edge }}>
                             {fmt(pos.start)} – {fmt(pos.start + a.duration_min)}
                           </div>

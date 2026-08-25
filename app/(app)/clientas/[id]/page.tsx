@@ -12,7 +12,7 @@ import {
   requireSession, getClient, listClientAppointments, listConsents, signedPhotoUrls,
 } from '@/lib/queries';
 import { avatarColor, initials } from '@/lib/categories';
-import { dateLbl } from '@/lib/time';
+import { dateLbl, offsetFromDay, shortWhen } from '@/lib/time';
 
 export default async function ClientaPage({
   params, searchParams,
@@ -38,6 +38,11 @@ export default async function ClientaPage({
   const age = client.birth_date
     ? Math.floor((Date.now() - +new Date(client.birth_date)) / 31557600000)
     : null;
+  const upcoming = appointments
+    .filter(a => (a.status === 'prog' || a.status === 'curso') && +new Date(a.starts_at) >= Date.now())
+    .sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at));
+  const nextAppt = upcoming[0] ?? appointments.find(a => a.status === 'curso');
+  const lastAppt = appointments.find(a => a.status === 'done');
 
   return (
     <div className="flex h-full flex-col">
@@ -97,6 +102,26 @@ export default async function ClientaPage({
               </span>
             ))}
           </div>
+        )}
+
+        {nextAppt && (
+          <Link
+            href={`/agenda?day=${offsetFromDay(nextAppt.starts_at)}&appt=${nextAppt.id}`}
+            className="mt-2.5 flex items-center justify-between gap-2 rounded-[12px] border border-v/25 bg-v-tint px-3 py-2"
+          >
+            <span className="min-w-0">
+              <span className="block text-[10.5px] font-bold uppercase tracking-[.03em] text-v-d">Próxima cita</span>
+              <span className="block truncate text-[12.5px] font-bold text-ink">
+                {shortWhen(nextAppt.starts_at)} · {nextAppt.service_name}
+              </span>
+            </span>
+            <span className="shrink-0 text-[11.5px] font-bold text-v-d">Ver</span>
+          </Link>
+        )}
+        {!nextAppt && lastAppt && (
+          <p className="mt-2.5 text-[12px] font-medium text-ink-3">
+            Última visita {shortWhen(lastAppt.starts_at)} · {lastAppt.service_name}
+          </p>
         )}
 
         <div className="mt-2.5 flex flex-wrap gap-2">

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { toTimestamp, dateFromOffset, dayKey } from '@/lib/time';
+import { toTimestamp, dateFromOffset, dayKey, weekMondayOffset } from '@/lib/time';
 import type {
   AgendaAppt, AgendaBlock, ClientOption, ClientRow, Consent, Provider, ServiceOption,
   TreatmentRow, WaitItem, WeekDay,
@@ -8,10 +8,10 @@ import type {
 
 const APPT_SELECT = `
   id, provider_id, client_id, client_name, starts_at, ends_at, duration_min,
-  status, price_cents, treatment_id, session_no, service_id,
+  status, price_cents, treatment_id, session_no, service_id, note,
   service:services(name, category, param_keys),
   provider:staff!appointments_provider_id_fkey(full_name),
-  client:clients(full_name)
+  client:clients(full_name, phone)
 `;
 
 function mapAppt(row: any): AgendaAppt {
@@ -32,6 +32,8 @@ function mapAppt(row: any): AgendaAppt {
     price_cents: row.price_cents,
     treatment_id: row.treatment_id,
     session_no: row.session_no,
+    note: row.note ?? null,
+    client_phone: row.client?.phone ?? null,
   };
 }
 
@@ -152,54 +154,93 @@ export async function getDayAgenda(date: Date, providerIds: string[]) {
   };
 }
 
-export async function getWeekCounts(providerIds: string[]): Promise<WeekDay[]> {
-  const today = new Date();
-  const dow0 = (today.getDay() + 6) % 7; // lunes = 0
-  if (providerIds.length === 0) {
-    return ['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((dow, i) => ({
-      offset: i - dow0, dow, num: dateFromOffset(i - dow0).getDate(), isToday: i - dow0 === 0, appointments: [],
-    }));
-  }
-  const sb = createClient();
-  const monday = dateFromOffset(-dow0);
-  const sunday = dateFromOffset(6 - dow0);
-
-  const { data } = await sb.from('appointments')
-    .select('id, starts_at, duration_min, service:services(category)')
-    .gte('starts_at', toTimestamp(monday, 0))
-    .lte('starts_at', toTimestamp(sunday, 24 * 60 - 1))
-    .in('provider_id', providerIds);
-
-  return ['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((dow, i) => {
-    const offset = i - dow0;
-    const d = dateFromOffset(offset);
+export async function getWeekCounts(providerIds: string[], dayOffset = 0): Promise<WeekDay[]> {
+  const mondayOff = weekMondayOffset(dayOffset);
+  const names = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  const dows = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+  const empty = dows.map((dow, i) => {
+    const offset = mondayOff + i;
     return {
-      offset, dow, num: d.getDate(), isToday: offset === 0,
-      appointments: (data ?? [])
-        .filter(a => dayKey(a.starts_at) === dayKey(d))
-        .map((a: any) => ({
-          id: a.id, starts_at: a.starts_at, duration_min: a.duration_min,
-          category: a.service?.category ?? 'corporal',
-        })),
+      offset, dow, name: names[i], num: dateFromOffset(offset).getUTCDate(), isToday: offset === 0, appointments: [],
     };
   });
+  if (providerIds.length === 0) return empty;
+
+  const sb = createClient();
+  const monday = dateFromOffset(mondayOff);
+  const sunday = dateFromOffset(mondayOff + 6);
+
+  const { data } = await sb.from('appointments')
+    .select('id, starts_at, duration_min, status, client_name, service:services(name, category), provider:staff!appointments_provider_id_fkey(full_name), client:clients(full_name)')
+    .gte('starts_at', toTimestamp(monday, 0))
+    .lte('starts_at', toTimestamp(sunday, 24 * 60 - 1))
+    .in('provider_id', providerIds)
+    .order('starts_at');
+
+  return empty.map(day => ({
+    ...day,
+    appointments: (data ?? [])
+      .filter(a => dayKey(a.starts_at) === dayKey(dateFromOffset(day.offset)))
+      .map((a: any) => ({
+        id: a.id,
+        starts_at: a.starts_at,
+        duration_min: a.duration_min,
+        category: a.service?.category ?? 'corporal',
+        client_label: a.client?.full_name ?? a.client_name ?? 'Sin nombre',
+        service_name: a.service?.name ?? '',
+        provider_name: a.provider?.full_name ?? '',
+        status: a.status,
+      })),
+  }));
 }
 
 export async function listClients(q: string) {
   const sb = createClient();
+  const needle = q.replace(/[%_,.()\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
   let query = sb
     .from('clients')
     .select('id, full_name, phone, tags, treatments(service:services(name), closed_at)')
     .order('full_name');
-  if (q) query = query.or(`full_name.ilike.%${q}%,phone.ilike.%${q}%`);
+  if (needle) query = query.or(`full_name.ilike.%${needle}%,phone.ilike.%${needle}%`);
   const { data } = await query;
+  const rows = data ?? [];
+  const ids = rows.map((c: { id: string }) => c.id);
 
-  return (data ?? []).map((c: any) => ({
+  const nextBy = new Map<string, string>();
+  const lastBy = new Map<string, string>();
+  if (ids.length) {
+    const now = new Date().toISOString();
+    const [{ data: upcoming }, { data: past }] = await Promise.all([
+      sb.from('appointments')
+        .select('client_id, starts_at')
+        .in('client_id', ids)
+        .in('status', ['prog', 'curso'])
+        .gte('starts_at', now)
+        .order('starts_at'),
+      sb.from('appointments')
+        .select('client_id, starts_at')
+        .in('client_id', ids)
+        .eq('status', 'done')
+        .gte('starts_at', toTimestamp(dateFromOffset(-400), 0))
+        .lt('starts_at', now)
+        .order('starts_at', { ascending: false }),
+    ]);
+    for (const a of upcoming ?? []) {
+      if (a.client_id && !nextBy.has(a.client_id)) nextBy.set(a.client_id, a.starts_at);
+    }
+    for (const a of past ?? []) {
+      if (a.client_id && !lastBy.has(a.client_id)) lastBy.set(a.client_id, a.starts_at);
+    }
+  }
+
+  return rows.map((c: any) => ({
     ...c,
     open_treatments: (c.treatments ?? [])
       .filter((t: any) => !t.closed_at)
       .map((t: any) => t.service?.name)
       .filter(Boolean),
+    next_at: nextBy.get(c.id) ?? null,
+    last_at: lastBy.get(c.id) ?? null,
   }));
 }
 

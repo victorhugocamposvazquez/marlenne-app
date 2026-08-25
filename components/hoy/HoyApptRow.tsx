@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Phone } from 'lucide-react';
 import { CATEGORIES } from '@/lib/categories';
 import { durLbl, fmt, minutesOfDay } from '@/lib/time';
 import { setStatus } from '@/app/actions/appointments';
@@ -46,6 +47,15 @@ export default function HoyApptRow({
           No vino
         </button>
       </form>
+      {late && appt.client_phone && (
+        <a
+          href={`tel:${appt.client_phone}`}
+          aria-label={`Llamar a ${appt.client_label}`}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] border border-surface-line bg-white text-v-d"
+        >
+          <Phone size={16} strokeWidth={2.2} />
+        </a>
+      )}
     </div>
   );
 }

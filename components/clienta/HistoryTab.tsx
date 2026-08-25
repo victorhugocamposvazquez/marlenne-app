@@ -44,7 +44,9 @@ export default function HistoryTab({ appointments }: { appointments: AgendaAppt[
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[13.5px] font-bold tracking-[-.01em]">{a.service_name}</span>
-                <span className="block truncate text-[11px] font-medium text-ink-3">{a.provider_name}</span>
+                <span className="block truncate text-[11px] font-medium text-ink-3">
+                  {a.provider_name}{a.note ? ` · ${a.note}` : ''}
+                </span>
               </span>
               <span
                 className="shrink-0 rounded-[9px] px-2 py-1 text-[10px] font-bold"

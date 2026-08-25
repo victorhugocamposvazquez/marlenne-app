@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Ban, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
-import { dayTitle } from '@/lib/time';
+import { dayTitle, weekMondayOffset, weekTitle } from '@/lib/time';
 import type { Provider } from '@/lib/types';
 
 export default function AgendaHeader({
@@ -42,16 +42,31 @@ export default function AgendaHeader({
         <div className="min-w-0 flex-1">
           <div className="text-xs font-semibold text-v">{label}</div>
           <h1 className="mt-0.5 text-[23px] font-extrabold leading-[1.15] tracking-[-.025em]">
-            {mode === 'semana' ? 'Esta semana' : dayTitle(day)}
+            {mode === 'semana' ? weekTitle(day) : dayTitle(day)}
           </h1>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => go(day - 1, mode)} aria-label="Anterior"
-            className="grid h-[38px] w-[38px] place-items-center rounded-[13px] border border-surface-line bg-white shadow-card hover:bg-v-tint">
+          {((mode === 'dia' && day !== 0) || (mode === 'semana' && weekMondayOffset(day) !== weekMondayOffset(0))) && (
+            <button
+              type="button"
+              onClick={() => go(0, mode)}
+              className="rounded-[13px] border border-surface-line bg-white px-2.5 text-[12px] font-bold text-v-d shadow-card"
+            >
+              Hoy
+            </button>
+          )}
+          <button
+            onClick={() => go(mode === 'semana' ? weekMondayOffset(day) - 7 : day - 1, mode)}
+            aria-label="Anterior"
+            className="grid h-[38px] w-[38px] place-items-center rounded-[13px] border border-surface-line bg-white shadow-card hover:bg-v-tint"
+          >
             <ChevronLeft size={17} strokeWidth={2.2} />
           </button>
-          <button onClick={() => go(day + 1, mode)} aria-label="Siguiente"
-            className="grid h-[38px] w-[38px] place-items-center rounded-[13px] border border-surface-line bg-white shadow-card hover:bg-v-tint">
+          <button
+            onClick={() => go(mode === 'semana' ? weekMondayOffset(day) + 7 : day + 1, mode)}
+            aria-label="Siguiente"
+            className="grid h-[38px] w-[38px] place-items-center rounded-[13px] border border-surface-line bg-white shadow-card hover:bg-v-tint"
+          >
             <ChevronRight size={17} strokeWidth={2.2} />
           </button>
         </div>
