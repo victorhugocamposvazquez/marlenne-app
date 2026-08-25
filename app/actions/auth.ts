@@ -4,10 +4,6 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 
-function homeFor(role: string | null) {
-  return role === 'admin' || role === 'reception' ? '/hoy' : '/agenda';
-}
-
 export async function signIn(formData: FormData) {
   const email = String(formData.get('email') ?? '').trim();
   const password = String(formData.get('password') ?? '');
@@ -17,12 +13,7 @@ export async function signIn(formData: FormData) {
   const { error } = await sb.auth.signInWithPassword({ email, password });
   if (error) return { ok: false, error: 'Email o contraseña incorrectos' };
 
-  const { data: { user } } = await sb.auth.getUser();
-  const { data: staff } = user
-    ? await sb.from('staff').select('role').eq('id', user.id).maybeSingle()
-    : { data: null };
-
-  redirect(homeFor(staff?.role ?? null));
+  redirect('/hoy');
 }
 
 export async function requestPasswordReset(formData: FormData) {

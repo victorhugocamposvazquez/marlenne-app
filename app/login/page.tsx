@@ -8,7 +8,7 @@ import LoginForm from '@/components/LoginForm';
 
 export default async function LoginPage() {
   const [me, team] = await Promise.all([getSession(), listLoginTeam()]);
-  if (me) redirect(me.role === 'provider' ? '/agenda' : '/hoy');
+  if (me) redirect('/hoy');
   const h = madridNow().h;
   const hello = h < 13 ? 'Buenos días.' : h < 20 ? 'Buenas tardes.' : 'Buenas noches.';
 

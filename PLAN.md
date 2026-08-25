@@ -166,12 +166,12 @@ tiene Server Actions).
 - Sheets de nueva cita, espera y bloqueo sin recargar la agenda.
 - Toque en hueco vacío (hora + profesional), Hoy (Pasa / No vino) y + de la barra.
 - Cierre clínico, fotos y alta/editar clienta desde el cliente.
+- Lista y ficha de clientas sin recargar; notas y tratamiento editables al blur.
+- Hoy de cabina: Pasa / Terminar / siguiente, sin caja ni lista de espera.
 
 ### Después (sigue prohibido adelantar)
 
 - Offline del día, Labs Mobile, Stripe, consola, web corporativa, cáscara nativa.
-- Cierre clínico, fotos y fichas de clienta también en cliente (voz y alta
-  de equipo siguen en Server Actions: Auth Admin).
 
 ---
 

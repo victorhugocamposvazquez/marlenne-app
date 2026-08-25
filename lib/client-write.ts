@@ -78,6 +78,35 @@ export async function updateClientRecord(
   return { ok: !error, error: error?.message ?? null };
 }
 
+export async function patchClientNotes(
+  sb: SupabaseClient,
+  id: string,
+  notes: string,
+): Promise<ClientWriteResult> {
+  const { salonId } = await salonOf(sb);
+  if (!salonId) return { ok: false, error: 'Sin sesión' };
+  const { error } = await sb.from('clients').update({ notes: notes.trim() || null }).eq('id', id);
+  return { ok: !error, error: error?.message ?? null };
+}
+
+export async function updateTreatment(
+  sb: SupabaseClient,
+  input: { id: string; note?: string | null; zone?: string | null; sessions_total?: number },
+): Promise<ClientWriteResult> {
+  const { salonId } = await salonOf(sb);
+  if (!salonId) return { ok: false, error: 'Sin sesión' };
+  const patch: Record<string, unknown> = {};
+  if (input.note !== undefined) patch.note = input.note?.trim() || null;
+  if (input.zone !== undefined) patch.zone = input.zone?.trim() || null;
+  if (input.sessions_total !== undefined) {
+    if (input.sessions_total < 1) return { ok: false, error: 'Pon al menos una sesión' };
+    patch.sessions_total = input.sessions_total;
+  }
+  if (!Object.keys(patch).length) return { ok: true, error: null };
+  const { error } = await sb.from('treatments').update(patch).eq('id', input.id);
+  return { ok: !error, error: error?.message ?? null };
+}
+
 export async function addConsent(
   sb: SupabaseClient,
   input: { clientId: string; kind: string },

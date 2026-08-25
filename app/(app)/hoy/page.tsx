@@ -2,17 +2,19 @@ import Link from 'next/link';
 import { requireSession } from '@/lib/require-session';
 import { listProviders, getDayAgenda, countWaitlist } from '@/lib/queries';
 import { fmt, minutesOfDay, madridNow, DAY_START, DAY_END } from '@/lib/time';
-import { Bell } from 'lucide-react';
+import { Bell, UserRound } from 'lucide-react';
 import LiveRefresh from '@/components/LiveRefresh';
 import HoyApptRow from '@/components/hoy/HoyApptRow';
+import type { AgendaAppt } from '@/lib/types';
 
 export default async function HoyPage() {
-  const [me, all, waiting] = await Promise.all([
-    requireSession(),
+  const me = await requireSession();
+  const cabin = me.role === 'provider';
+  const [all, waiting] = await Promise.all([
     listProviders(),
-    countWaitlist(),
+    cabin ? Promise.resolve(0) : countWaitlist(),
   ]);
-  const providers = me.role === 'provider' ? all.filter(p => p.id === me.id) : all;
+  const providers = cabin ? all.filter(p => p.id === me.id) : all;
   const { appointments } = await getDayAgenda(new Date(), providers.map(p => p.id));
 
   const revenue = appointments.reduce((s, a) => s + (a.price_cents ?? 0), 0) / 100;
@@ -30,66 +32,97 @@ export default async function HoyPage() {
   const noshow = appointments.filter(a => a.status === 'noshow').length;
   const h = madridNow().h;
   const greeting = h < 13 ? 'Buenos días ☀️' : h < 20 ? 'Buenas tardes' : 'Buenas noches';
+  const todayLbl = new Date().toLocaleDateString('es-ES', {
+    timeZone: 'Europe/Madrid', weekday: 'long', day: 'numeric', month: 'long',
+  });
+  const nextAppt = next[0];
+  const cabinStatus = live[0]
+    ? `En cabina · ${live[0].client_label} hasta ${fmt(minutesOfDay(live[0].ends_at))}`
+    : overdue[0]
+      ? `Retraso · ${overdue[0].client_label} a las ${fmt(minutesOfDay(overdue[0].starts_at))}`
+      : nextAppt
+        ? `Siguiente a las ${fmt(minutesOfDay(nextAppt.starts_at))} · ${nextAppt.client_label}`
+        : 'Libre · no quedan citas';
 
   return (
     <div className="px-5 pb-2 pt-5">
-      <LiveRefresh tables={['appointments', 'waitlist']} />
+      <LiveRefresh tables={cabin ? ['appointments'] : ['appointments', 'waitlist']} />
       <div className="mb-[18px] flex items-center gap-3">
         <div className="flex-1">
-          <div className="text-[13px] font-medium text-ink-2">Hola {me.full_name}</div>
-          <div className="text-2xl font-extrabold leading-[1.15] tracking-[-.025em]">{greeting}</div>
+          <div className="text-[13px] font-medium text-ink-2">
+            {cabin ? todayLbl : `Hola ${me.full_name}`}
+          </div>
+          <div className="text-2xl font-extrabold leading-[1.15] tracking-[-.025em]">
+            {cabin ? 'Tu día' : greeting}
+          </div>
         </div>
-        <Link
-          href="/agenda?wait=1"
-          className="relative grid h-[42px] w-[42px] place-items-center rounded-[14px] border border-surface-line bg-white shadow-card"
-          aria-label="Lista de espera"
-        >
-          <Bell size={19} strokeWidth={2} />
-          {waiting > 0 && <span className="absolute right-2.5 top-2 h-2 w-2 rounded-full border-2 border-white bg-v" />}
-        </Link>
+        {!cabin && (
+          <Link
+            href="/agenda?wait=1"
+            className="relative grid h-[42px] w-[42px] place-items-center rounded-[14px] border border-surface-line bg-white shadow-card"
+            aria-label="Lista de espera"
+          >
+            <Bell size={19} strokeWidth={2} />
+            {waiting > 0 && <span className="absolute right-2.5 top-2 h-2 w-2 rounded-full border-2 border-white bg-v" />}
+          </Link>
+        )}
       </div>
 
-      <div className="relative mb-3 overflow-hidden rounded-[22px] bg-grad px-5 py-[18px] text-white shadow-hero">
-        <div className="absolute -right-10 -top-10 h-[150px] w-[150px] rounded-full bg-white/[.13]" />
-        <div className="relative">
-          <div className="text-xs font-semibold opacity-85">
-            {new Date().toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid', weekday: 'long', day: 'numeric', month: 'long' })}
-          </div>
-          <div className="mt-1.5 flex items-end gap-2">
-            <div className="text-[40px] font-extrabold leading-none tracking-[-.03em]">{appointments.length}</div>
-            <div className="pb-[5px] text-sm font-semibold">{appointments.length === 1 ? 'cita hoy' : 'citas hoy'}</div>
-          </div>
-          <div className="mt-3.5 flex flex-wrap gap-2">
-            <span className="rounded-xl bg-white/20 px-3 py-1.5 text-xs font-semibold">{revenue} € previstos</span>
-            <span className="rounded-xl bg-white/20 px-3 py-1.5 text-xs font-semibold">{occ} % ocupación</span>
-            {noshow > 0 && (
-              <span className="rounded-xl bg-white/20 px-3 py-1.5 text-xs font-semibold">{noshow} no vino</span>
-            )}
+      {cabin ? (
+        <div className="relative mb-5 overflow-hidden rounded-[22px] bg-grad px-5 py-[18px] text-white shadow-hero">
+          <div className="absolute -right-10 -top-10 h-[150px] w-[150px] rounded-full bg-white/[.13]" />
+          <div className="relative">
+            <div className="text-[15px] font-bold leading-snug">{cabinStatus}</div>
+            <div className="mt-2 text-xs font-semibold opacity-85">
+              {appointments.length === 1 ? '1 cita hoy' : `${appointments.length} citas hoy`}
+              {doneCount > 0 ? ` · ${doneCount} hechas` : ''}
+              {noshow > 0 ? ` · ${noshow} no vino` : ''}
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="relative mb-3 overflow-hidden rounded-[22px] bg-grad px-5 py-[18px] text-white shadow-hero">
+            <div className="absolute -right-10 -top-10 h-[150px] w-[150px] rounded-full bg-white/[.13]" />
+            <div className="relative">
+              <div className="text-xs font-semibold opacity-85">{todayLbl}</div>
+              <div className="mt-1.5 flex items-end gap-2">
+                <div className="text-[40px] font-extrabold leading-none tracking-[-.03em]">{appointments.length}</div>
+                <div className="pb-[5px] text-sm font-semibold">{appointments.length === 1 ? 'cita hoy' : 'citas hoy'}</div>
+              </div>
+              <div className="mt-3.5 flex flex-wrap gap-2">
+                <span className="rounded-xl bg-white/20 px-3 py-1.5 text-xs font-semibold">{revenue} € previstos</span>
+                <span className="rounded-xl bg-white/20 px-3 py-1.5 text-xs font-semibold">{occ} % ocupación</span>
+                {noshow > 0 && (
+                  <span className="rounded-xl bg-white/20 px-3 py-1.5 text-xs font-semibold">{noshow} no vino</span>
+                )}
+              </div>
+            </div>
+          </div>
 
-      <div className="mb-5 flex gap-2.5">
-        <div className="flex-1 rounded-row border border-surface-line bg-white p-3.5 shadow-card">
-          <div className="text-[11px] font-bold text-ink-3">CAJA HASTA AHORA</div>
-          <div className="mt-1 text-[22px] font-extrabold tracking-[-.02em]">{cash} €</div>
-          <div className="mt-2 h-1.5 overflow-hidden rounded bg-surface-line">
-            <div className="h-1.5 rounded bg-grad" style={{ width: `${revenue ? Math.round((100 * cash) / revenue) : 0}%` }} />
+          <div className="mb-5 flex gap-2.5">
+            <div className="flex-1 rounded-row border border-surface-line bg-white p-3.5 shadow-card">
+              <div className="text-[11px] font-bold text-ink-3">CAJA HASTA AHORA</div>
+              <div className="mt-1 text-[22px] font-extrabold tracking-[-.02em]">{cash} €</div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded bg-surface-line">
+                <div className="h-1.5 rounded bg-grad" style={{ width: `${revenue ? Math.round((100 * cash) / revenue) : 0}%` }} />
+              </div>
+            </div>
+            <div className="flex-1 rounded-row border border-surface-line bg-white p-3.5 shadow-card">
+              <div className="text-[11px] font-bold text-ink-3">HECHAS</div>
+              <div className="mt-1 text-[22px] font-extrabold tracking-[-.02em] tabular-nums">
+                {doneCount}<span className="text-[14px] font-bold text-ink-3"> / {appointments.length}</span>
+              </div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded bg-surface-line">
+                <div
+                  className="h-1.5 rounded bg-grad"
+                  style={{ width: `${appointments.length ? Math.round((100 * doneCount) / appointments.length) : 0}%` }}
+                />
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="flex-1 rounded-row border border-surface-line bg-white p-3.5 shadow-card">
-          <div className="text-[11px] font-bold text-ink-3">HECHAS</div>
-          <div className="mt-1 text-[22px] font-extrabold tracking-[-.02em] tabular-nums">
-            {doneCount}<span className="text-[14px] font-bold text-ink-3"> / {appointments.length}</span>
-          </div>
-          <div className="mt-2 h-1.5 overflow-hidden rounded bg-surface-line">
-            <div
-              className="h-1.5 rounded bg-grad"
-              style={{ width: `${appointments.length ? Math.round((100 * doneCount) / appointments.length) : 0}%` }}
-            />
-          </div>
-        </div>
-      </div>
+        </>
+      )}
 
       {live.length > 0 && (
         <>
@@ -98,22 +131,7 @@ export default async function HoyPage() {
             <h2 className="text-base font-extrabold tracking-[-.02em]">En cabina ahora</h2>
           </div>
           <div className="mb-[22px] flex flex-col gap-2.5">
-            {live.map(a => (
-              <div key={a.id} className="flex items-center gap-[11px] rounded-row border border-emerald-200 bg-emerald-50 p-3">
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-bold tracking-[-.01em]">{a.client_label}</div>
-                  <div className="text-[11.5px] font-semibold text-emerald-700">
-                    {a.service_name} · termina {fmt(minutesOfDay(a.ends_at))}
-                  </div>
-                </div>
-                <Link
-                  href={a.client_id ? `/agenda?appt=${a.id}&close=1` : `/agenda?appt=${a.id}`}
-                  className="shrink-0 rounded-[13px] bg-emerald-500 px-3.5 py-2.5 text-[12.5px] font-bold text-white"
-                >
-                  Terminar
-                </Link>
-              </div>
-            ))}
+            {live.map(a => <LiveRow key={a.id} appt={a} cabin={cabin} />)}
           </div>
         </>
       )}
@@ -122,7 +140,7 @@ export default async function HoyPage() {
         <>
           <h2 className="mb-2.5 text-base font-extrabold tracking-[-.02em]">Sin llegar</h2>
           <div className="mb-[22px] flex flex-col gap-2.5">
-            {overdue.map(a => <HoyApptRow key={a.id} appt={a} late />)}
+            {overdue.map(a => <HoyApptRow key={a.id} appt={a} late cabin={cabin} />)}
           </div>
         </>
       )}
@@ -139,8 +157,36 @@ export default async function HoyPage() {
             Las que faltan están arriba, con retraso.
           </p>
         )}
-        {next.map(a => <HoyApptRow key={a.id} appt={a} />)}
+        {next.map(a => <HoyApptRow key={a.id} appt={a} cabin={cabin} />)}
       </div>
+    </div>
+  );
+}
+
+function LiveRow({ appt, cabin }: { appt: AgendaAppt; cabin: boolean }) {
+  return (
+    <div className="flex items-center gap-[11px] rounded-row border border-emerald-200 bg-emerald-50 p-3">
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-bold tracking-[-.01em]">{appt.client_label}</div>
+        <div className="text-[11.5px] font-semibold text-emerald-700">
+          {appt.service_name} · termina {fmt(minutesOfDay(appt.ends_at))}
+        </div>
+      </div>
+      {cabin && appt.client_id && (
+        <Link
+          href={`/clientas/${appt.client_id}`}
+          aria-label={`Ficha de ${appt.client_label}`}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] border border-emerald-200 bg-white text-v-d"
+        >
+          <UserRound size={16} strokeWidth={2.2} />
+        </Link>
+      )}
+      <Link
+        href={appt.client_id ? `/agenda?appt=${appt.id}&close=1` : `/agenda?appt=${appt.id}`}
+        className="shrink-0 rounded-[13px] bg-emerald-500 px-3.5 py-2.5 text-[12.5px] font-bold text-white"
+      >
+        Terminar
+      </Link>
     </div>
   );
 }

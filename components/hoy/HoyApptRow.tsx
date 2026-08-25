@@ -3,22 +3,25 @@
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Phone } from 'lucide-react';
+import { Phone, UserRound } from 'lucide-react';
 import { CATEGORIES } from '@/lib/categories';
 import { durLbl, fmt, minutesOfDay } from '@/lib/time';
 import { updateStatus } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
+import { waHref } from '@/lib/phone';
 import type { AgendaAppt } from '@/lib/types';
 
 export default function HoyApptRow({
-  appt, late = false,
+  appt, late = false, cabin = false,
 }: {
   appt: AgendaAppt;
   late?: boolean;
+  cabin?: boolean;
 }) {
   const cat = CATEGORIES[appt.category];
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const wa = cabin && late ? waHref(appt.client_phone) : null;
 
   const set = (status: string) => {
     startTransition(async () => {
@@ -27,29 +30,8 @@ export default function HoyApptRow({
     });
   };
 
-  return (
-    <div className={`flex items-center gap-2.5 rounded-row border p-3 shadow-card ${
-      late ? 'border-pink-200 bg-pink-50' : 'border-surface-line bg-white'
-    }`}
-    >
-      <Link href={`/agenda?appt=${appt.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-        <div className="w-[52px] shrink-0 rounded-[13px] bg-v-tint py-[7px] text-center">
-          <div className="text-[13.5px] font-extrabold leading-none text-v-d tabular-nums">
-            {fmt(minutesOfDay(appt.starts_at))}
-          </div>
-          <div className="mt-0.5 text-[9.5px] font-semibold text-ink-3">{durLbl(appt.duration_min)}</div>
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-bold tracking-[-.01em]">{appt.client_label}</div>
-          <div className="truncate text-[11.5px] font-medium text-ink-3">
-            {appt.service_name} · {appt.provider_name}
-            {late ? ' · retraso' : ''}
-          </div>
-        </div>
-        <span className="shrink-0 rounded-[9px] px-2 py-1 text-[10px] font-bold" style={{ background: cat.bg, color: cat.fg }}>
-          {cat.label}
-        </span>
-      </Link>
+  const actions = (
+    <>
       <button
         type="button"
         disabled={pending}
@@ -75,6 +57,59 @@ export default function HoyApptRow({
           <Phone size={16} strokeWidth={2.2} />
         </a>
       )}
+      {wa && (
+        <a
+          href={wa}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`WhatsApp a ${appt.client_label}`}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-emerald-50 text-[10px] font-extrabold text-emerald-700"
+        >
+          WA
+        </a>
+      )}
+    </>
+  );
+
+  return (
+    <div className={`rounded-row border p-3 shadow-card ${
+      late ? 'border-pink-200 bg-pink-50' : 'border-surface-line bg-white'
+    }`}
+    >
+      <div className="flex items-center gap-2">
+        <Link href={`/agenda?appt=${appt.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="w-[52px] shrink-0 rounded-[13px] bg-v-tint py-[7px] text-center">
+            <div className="text-[13.5px] font-extrabold leading-none text-v-d tabular-nums">
+              {fmt(minutesOfDay(appt.starts_at))}
+            </div>
+            <div className="mt-0.5 text-[9.5px] font-semibold text-ink-3">{durLbl(appt.duration_min)}</div>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-bold tracking-[-.01em]">{appt.client_label}</div>
+            <div className="truncate text-[11.5px] font-medium text-ink-3">
+              {appt.service_name}
+              {cabin ? '' : ` · ${appt.provider_name}`}
+              {late ? ' · retraso' : ''}
+            </div>
+          </div>
+          {!cabin && (
+            <span className="shrink-0 rounded-[9px] px-2 py-1 text-[10px] font-bold" style={{ background: cat.bg, color: cat.fg }}>
+              {cat.label}
+            </span>
+          )}
+        </Link>
+        {cabin && appt.client_id && (
+          <Link
+            href={`/clientas/${appt.client_id}`}
+            aria-label={`Ficha de ${appt.client_label}`}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] border border-surface-line bg-white text-v-d"
+          >
+            <UserRound size={16} strokeWidth={2.2} />
+          </Link>
+        )}
+        {!cabin && actions}
+      </div>
+      {cabin && <div className="mt-2.5 flex gap-2">{actions}</div>}
     </div>
   );
 }

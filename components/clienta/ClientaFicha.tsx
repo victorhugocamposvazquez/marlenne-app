@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, CalendarPlus, Mail, MessageCircle, Pencil, Phone } from 'lucide-react';
 import EditClientSheet from '@/components/clienta/EditClientSheet';
 import ConsentsCard from '@/components/clienta/ConsentsCard';
+import QuickNotes from '@/components/clienta/QuickNotes';
 import Tabs, { parseTab, type TabId } from '@/components/clienta/Tabs';
 import TreatmentsTab from '@/components/clienta/TreatmentsTab';
 import MeasurementsTab from '@/components/clienta/MeasurementsTab';
@@ -62,11 +63,11 @@ export default function ClientaFicha({
     <div className="flex h-full flex-col">
       <header className="shrink-0 px-5 pb-3 pt-5">
         <Link
-          href="/clientas"
+          href={canEdit ? '/clientas' : '/hoy'}
           className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] font-bold text-ink-2 hover:text-v-d"
         >
           <ArrowLeft size={15} strokeWidth={2.4} />
-          Clientas
+          {canEdit ? 'Clientas' : 'Hoy'}
         </Link>
 
         <div className="flex items-start gap-3">
@@ -171,11 +172,7 @@ export default function ClientaFicha({
           )}
         </div>
 
-        {client.notes && (
-          <p className="mt-2.5 rounded-[12px] border border-surface-line bg-v-tint px-3 py-2 text-[12px] font-medium leading-snug text-ink-2">
-            {client.notes}
-          </p>
-        )}
+        <QuickNotes clientId={client.id} notes={client.notes} canEdit={canEdit} />
 
         <ConsentsCard clientId={client.id} consents={consents} canEdit={canEdit} />
 
