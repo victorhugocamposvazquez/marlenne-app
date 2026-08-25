@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import AutoGrowTextarea from '@/components/AutoGrowTextarea';
 import { patchClientNotes } from '@/lib/client-write';
 import { createClient } from '@/lib/supabase/client';
 import { inputCls } from '@/components/Sheet';
@@ -30,8 +31,8 @@ export default function QuickNotes({
   return (
     <div className="mt-2.5">
       <div className="mb-1 text-[10.5px] font-bold uppercase tracking-[.03em] text-ink-3">Notas internas</div>
-      <textarea
-        className={`${inputCls} min-h-[72px] resize-none`}
+      <AutoGrowTextarea
+        className={`${inputCls} resize-none`}
         placeholder="Alergias, prefiere tardes, viene con…"
         value={value}
         onChange={e => setValue(e.target.value)}

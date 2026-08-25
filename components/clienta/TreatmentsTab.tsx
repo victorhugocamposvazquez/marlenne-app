@@ -7,6 +7,7 @@ import { CATEGORIES } from '@/lib/categories';
 import { dateLbl } from '@/lib/time';
 import { updateTreatment } from '@/lib/client-write';
 import { createClient } from '@/lib/supabase/client';
+import AutoGrowTextarea from '@/components/AutoGrowTextarea';
 import { inputCls } from '@/components/Sheet';
 import type { TreatmentRow } from '@/lib/types';
 import { Empty } from './Tabs';
@@ -145,8 +146,8 @@ function TreatmentCard({ t, clientId }: { t: TreatmentRow; clientId: string }) {
       {open ? (
         <label className="mt-3 block">
           <span className="mb-1 block text-[10.5px] font-bold uppercase tracking-[.03em] text-ink-3">Nota clínica</span>
-          <textarea
-            className={`${inputCls} min-h-[64px] resize-none`}
+          <AutoGrowTextarea
+            className={`${inputCls} resize-none`}
             placeholder="Reacción, siguiente cita, parámetros que no se olviden…"
             value={note}
             onChange={e => setNote(e.target.value)}

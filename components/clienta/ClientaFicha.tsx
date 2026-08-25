@@ -60,7 +60,7 @@ export default function ClientaFicha({
   const goTab = (id: TabId) => shallowSet({ tab: id === 'tratamientos' ? null : id });
 
   return (
-    <div className="px-5 pb-8 pt-5">
+    <div className="px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-5">
       <Link
         href={canEdit ? '/clientas' : '/hoy'}
         className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] font-bold text-ink-2 hover:text-v-d"
@@ -175,7 +175,7 @@ export default function ClientaFicha({
 
       <ConsentsCard clientId={client.id} consents={consents} canEdit={canEdit} />
 
-      <div className="sticky top-0 z-[5] -mx-5 mt-3.5 bg-surface-bg px-5 pb-2 pt-1">
+      <div className="mt-3.5">
         <Tabs
           active={tab}
           onSelect={goTab}
@@ -188,21 +188,23 @@ export default function ClientaFicha({
         />
       </div>
 
-      {tab === 'tratamientos' && (
-        <TreatmentsTab treatments={treatments} clientId={client.id} />
-      )}
-      {tab === 'medidas' && <MeasurementsTab treatments={treatments} />}
-      {tab === 'fotos' && (
-        <PhotosTab
-          treatments={treatments}
-          urls={urls}
-          photoConsent={consents.some(c => c.kind === 'fotografia')}
-          onUploaded={() => router.refresh()}
-        />
-      )}
-      {tab === 'historial' && (
-        <HistoryTab appointments={appointments} clientId={client.id} />
-      )}
+      <div className="mt-3">
+        {tab === 'tratamientos' && (
+          <TreatmentsTab treatments={treatments} clientId={client.id} />
+        )}
+        {tab === 'medidas' && <MeasurementsTab treatments={treatments} />}
+        {tab === 'fotos' && (
+          <PhotosTab
+            treatments={treatments}
+            urls={urls}
+            photoConsent={consents.some(c => c.kind === 'fotografia')}
+            onUploaded={() => router.refresh()}
+          />
+        )}
+        {tab === 'historial' && (
+          <HistoryTab appointments={appointments} clientId={client.id} />
+        )}
+      </div>
       {canEdit && editar === '1' && <EditClientSheet client={client} />}
     </div>
   );

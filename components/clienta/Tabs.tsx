@@ -21,7 +21,7 @@ export default function Tabs({
   onSelect: (id: TabId) => void;
 }) {
   return (
-    <div className="flex gap-1 overflow-x-auto rounded-[14px] bg-track p-1">
+    <div className="flex gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-[14px] bg-track p-1">
       {TABS.map(t => {
         const on = t.id === active;
         const n = counts[t.id];

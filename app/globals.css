@@ -11,6 +11,7 @@
     -webkit-tap-highlight-color: transparent;
   }
   body { overscroll-behavior: none; }
+  .app-shell-scroll { -webkit-overflow-scrolling: touch; }
   a { color: #8B5CF6; }
   a:hover { color: #6D28D9; }
   button, a, input, textarea, select { touch-action: manipulation; }
