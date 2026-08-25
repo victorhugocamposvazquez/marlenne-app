@@ -37,7 +37,7 @@ export default async function AgendaPage({
   const opensNew = searchParams.new === '1';
   const opensWait = searchParams.wait === '1';
   const needsCatalog = opensNew || opensWait;
-  const providerIds = providers.map(p => p.id);
+  const teamIds = team.map(p => p.id);
   const [waiting, services, clients, appt, sms, waitItems, dayAgenda, weekDays] = await Promise.all([
     countWaitlist(),
     needsCatalog ? listServices() : Promise.resolve([]),
@@ -46,9 +46,9 @@ export default async function AgendaPage({
     searchParams.appt ? getAppointmentSms(searchParams.appt) : Promise.resolve(null),
     opensWait ? listWaitlist() : Promise.resolve([]),
     mode === 'dia'
-      ? getDayAgenda(dateFromOffset(day), providerIds)
+      ? getDayAgenda(dateFromOffset(day), teamIds)
       : Promise.resolve({ appointments: [], blocks: [] }),
-    mode === 'semana' ? getWeekCounts(providerIds, day) : Promise.resolve([]),
+    mode === 'semana' ? getWeekCounts(providers.map(p => p.id), day) : Promise.resolve([]),
   ]);
   const existingBlock = searchParams.bloqueo
     ? dayAgenda.blocks.find(b => b.id === searchParams.bloqueo) ?? null
@@ -68,10 +68,11 @@ export default async function AgendaPage({
       {mode === 'dia' ? (
         <DayGrid
           date={dateFromOffset(day).toISOString()}
-          providers={providers}
+          providers={team}
           appointments={dayAgenda.appointments}
           blocks={dayAgenda.blocks}
           canMoveProvider={canMoveProvider}
+          selectedPro={selectedPro}
         />
       ) : (
           <WeekGrid days={weekDays} selectedPro={selectedPro} />

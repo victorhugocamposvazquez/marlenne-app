@@ -14,26 +14,24 @@ type Session = {
   x0: number;
   y0: number;
   start0: number;
-  col0: number;
   providerId0: string;
   duration: number;
   last: Drag | null;
   scrollTop0: number;
-  scrollLeft0: number;
 };
 
 /**
- * Solo el asidero inicia el arrastre. El cuerpo de la cita abre la ficha.
- * Mientras se mueve, se bloquea el scroll del dedo (si no, el día viaja
- * con el gesto y la cita apenas cambia de minuto).
+ * El asidero mueve hora y profesional. Las citas viven en una capa sobre
+ * las columnas: si se desmontan al cambiar de columna, iOS cancela el gesto.
  */
 export function useDragAppointment({
-  pxPerMin, snap, providerIds, scrollRef, onDrop,
+  pxPerMin, snap, providerIds, scrollRef, gridRef, onDrop,
 }: {
   pxPerMin: number;
   snap: number;
   providerIds: string[];
   scrollRef: RefObject<HTMLElement | null>;
+  gridRef: RefObject<HTMLElement | null>;
   onDrop: (id: string, startMin: number, providerId: string) => void;
 }) {
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -48,19 +46,16 @@ export function useDragAppointment({
       e.stopPropagation();
 
       const box = scrollRef.current;
-      const col0 = Math.max(0, providerIds.indexOf(providerId));
       session.current = {
         id,
         pointerId: e.pointerId,
         x0: e.clientX,
         y0: e.clientY,
         start0: startMin,
-        col0,
         providerId0: providerId,
         duration,
         last: { id, start: startMin, providerId },
         scrollTop0: box?.scrollTop ?? 0,
-        scrollLeft0: box?.scrollLeft ?? 0,
       };
       lastEv.current = e.nativeEvent;
       setDrag(session.current.last);
@@ -68,14 +63,20 @@ export function useDragAppointment({
       try { navigator.vibrate?.(10); } catch { /* */ }
       if (box) box.style.touchAction = 'none';
 
+      const colAt = (clientX: number) => {
+        if (providerIds.length <= 1) return 0;
+        const grid = gridRef.current;
+        if (!grid) return 0;
+        const col = Math.floor((clientX - grid.getBoundingClientRect().left) / COL_W);
+        return Math.max(0, Math.min(providerIds.length - 1, col));
+      };
+
       const place = (ev: PointerEvent, d: Session): Drag => {
         const sc = scrollRef.current;
         const dy = (ev.clientY - d.y0) + ((sc?.scrollTop ?? 0) - d.scrollTop0);
-        const dx = (ev.clientX - d.x0) + ((sc?.scrollLeft ?? 0) - d.scrollLeft0);
         let start = d.start0 + Math.round(dy / pxPerMin / snap) * snap;
         start = Math.max(DAY_START, Math.min(DAY_END - d.duration, start));
-        let col = d.col0 + Math.round(dx / COL_W);
-        col = Math.max(0, Math.min(providerIds.length - 1, col));
+        const col = colAt(ev.clientX);
         return { id: d.id, start, providerId: providerIds[col] ?? d.providerId0 };
       };
 
@@ -91,11 +92,15 @@ export function useDragAppointment({
         const sc = scrollRef.current;
         if (!d || !ev || !sc) return;
         const r = sc.getBoundingClientRect();
-        let step = 0;
-        if (ev.clientY < r.top + EDGE) step = -18;
-        else if (ev.clientY > r.bottom - EDGE) step = 18;
-        if (!step) return;
-        sc.scrollTop += step;
+        let y = 0;
+        let x = 0;
+        if (ev.clientY < r.top + EDGE) y = -18;
+        else if (ev.clientY > r.bottom - EDGE) y = 18;
+        if (ev.clientX < r.left + EDGE) x = -18;
+        else if (ev.clientX > r.right - EDGE) x = 18;
+        if (!x && !y) return;
+        if (y) sc.scrollTop += y;
+        if (x) sc.scrollLeft += x;
         const next = place(ev, d);
         d.last = next;
         setDrag(next);
@@ -146,7 +151,7 @@ export function useDragAppointment({
       window.addEventListener('pointercancel', onCancel);
       window.addEventListener('touchmove', blockScroll, { passive: false });
     },
-    [pxPerMin, snap, providerIds, scrollRef, onDrop],
+    [pxPerMin, snap, providerIds, scrollRef, gridRef, onDrop],
   );
 
   return { drag, onHandleDown };

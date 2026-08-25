@@ -12,13 +12,14 @@ import { useToast } from '@/components/Toast';
 import { GripVertical } from 'lucide-react';
 
 export default function DayGrid({
-  date, providers, appointments, blocks, canMoveProvider,
+  date, providers, appointments, blocks, canMoveProvider, selectedPro,
 }: {
   date: string;
   providers: Provider[];
   appointments: AgendaAppt[];
   blocks: AgendaBlock[];
   canMoveProvider: boolean;
+  selectedPro?: string | null;
 }) {
   const HOUR_H = 70;
   const pxPerMin = HOUR_H / 60;
@@ -27,6 +28,7 @@ export default function DayGrid({
   const [optimistic, setOptimistic] = useState<Record<string, { start: number; provider: string }>>({});
   const [now, setNow] = useState(nowMinutes);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const toast = useToast();
   useRealtimeRefresh(['appointments', 'time_blocks']);
@@ -49,6 +51,12 @@ export default function DayGrid({
       return changed ? next : prev;
     });
   }, [appointments]);
+  useEffect(() => {
+    if (!selectedPro || !scrollRef.current) return;
+    const i = providers.findIndex(p => p.id === selectedPro);
+    if (i <= 0) return;
+    scrollRef.current.scrollLeft = i * COL_W;
+  }, [selectedPro, providers]);
   const pathname = usePathname();
   const params = useSearchParams();
 
@@ -63,6 +71,7 @@ export default function DayGrid({
     snap: 15,
     providerIds: canMoveProvider ? providers.map(p => p.id) : [providers[0]?.id],
     scrollRef,
+    gridRef,
     onDrop: (id, start, providerId) => {
       const who = providers.find(p => p.id === providerId)?.full_name.split(' ')[0] ?? null;
       const from = appointments.find(a => a.id === id);
@@ -99,11 +108,12 @@ export default function DayGrid({
     };
   };
 
+  const dropCol = drag ? Math.max(0, providers.findIndex(p => p.id === drag.providerId)) : -1;
+
   return (
     <>
       <div ref={scrollRef} className={`min-h-0 flex-1 overflow-auto pb-2 ${drag ? 'touch-none overscroll-none' : ''}`}>
         <div className="min-w-max pr-3.5">
-          {/* Cabeceras de profesional */}
           <div className="sticky top-0 z-[6] flex bg-[linear-gradient(180deg,#EEECFA_74%,rgba(238,236,250,0))] pb-2.5 pt-0.5">
             <div className="sticky left-0 z-[7] w-[46px] shrink-0 bg-surface-bg" />
             {providers.map(p => {
@@ -133,7 +143,6 @@ export default function DayGrid({
           </div>
 
           <div className="flex">
-            {/* Gutter de horas */}
             <div className="sticky left-0 z-[5] w-[46px] shrink-0 bg-surface-bg" style={{ height: gridH }}>
               {hours.map(h => (
                 <div key={h.label} className="absolute right-2 -translate-y-1.5 text-[10.5px] font-semibold tabular-nums text-ink-3" style={{ top: h.top }}>
@@ -142,13 +151,20 @@ export default function DayGrid({
               ))}
             </div>
 
-            <div className="relative" style={{ height: gridH }}>
+            <div ref={gridRef} className="relative" style={{ height: gridH, width: providers.length * COL_W }}>
               {hours.map(h => (
                 <div key={h.label} className="absolute left-0 h-px bg-grid-h" style={{ top: h.top, width: providers.length * COL_W }} />
               ))}
               {providers.slice(1).map((_, i) => (
                 <div key={i} className="absolute top-0 w-px bg-grid-v" style={{ left: (i + 1) * COL_W - 4, height: gridH }} />
               ))}
+
+              {dropCol >= 0 && (
+                <div
+                  className="pointer-events-none absolute top-0 z-[3] bg-v-soft/90"
+                  style={{ left: dropCol * COL_W, width: COL_W, height: gridH }}
+                />
+              )}
 
               {drag && (
                 <div
@@ -193,69 +209,70 @@ export default function DayGrid({
                         </button>
                       );
                     })}
-
-                    {appointments.map(a => {
-                      const pos = place(a);
-                      if (pos.provider !== p.id) return null;
-                      const st = STATUS[a.status];
-                      const cat = CATEGORIES[a.category];
-                      const canDrag = a.status !== 'done';
-                      return (
-                        <div
-                          key={a.id}
-                          data-id={a.id}
-                          className={`absolute left-0 right-2 flex overflow-hidden rounded-pill transition-shadow ${
-                            pos.dragging ? 'touch-none' : ''
-                          }`}
-                          style={{
-                            top: (pos.start - DAY_START) * pxPerMin + 2,
-                            height: a.duration_min * pxPerMin - 6,
-                            background: st.bg,
-                            border: `1px solid ${st.border}`,
-                            borderLeft: `4px solid ${st.edge}`,
-                            boxShadow: pos.dragging ? '0 18px 44px rgba(60,40,120,.28)' : '0 4px 20px rgba(60,40,120,.07)',
-                            transform: pos.dragging ? 'scale(1.03)' : 'none',
-                            opacity: a.status === 'done' ? 0.62 : 1,
-                            zIndex: pos.dragging ? 12 : 2,
-                          }}
-                        >
-                          {canDrag && (
-                            <button
-                              type="button"
-                              aria-label={`Mover cita de ${a.client_label}`}
-                              className="flex w-7 shrink-0 touch-none cursor-grab items-center justify-center text-ink-3 active:cursor-grabbing"
-                              onPointerDown={e => onHandleDown(e, a.id, pos.start, p.id, a.duration_min)}
-                              onClick={e => e.stopPropagation()}
-                              onContextMenu={e => e.preventDefault()}
-                            >
-                              <GripVertical size={15} strokeWidth={2.2} />
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            tabIndex={0}
-                            aria-label={`${a.client_label}, ${a.service_name}, ${fmt(pos.start)}`}
-                            onClick={() => openAppt(a.id)}
-                            className="min-w-0 flex-1 overflow-hidden px-1.5 py-1.5 text-left"
-                          >
-                            <div className="flex items-center gap-[5px]">
-                              <span className="h-1.5 w-1.5 shrink-0 rounded-sm" style={{ background: cat.color }} />
-                              <span className="truncate text-[12.5px] font-bold leading-tight tracking-[-.01em]">{a.client_label}</span>
-                            </div>
-                            <div className="truncate text-[11px] font-medium text-ink-2">{a.service_name}</div>
-                            {a.note && (
-                              <div className="truncate text-[10.5px] font-medium text-ink-3">{a.note}</div>
-                            )}
-                            <div className="mt-0.5 text-[10.5px] font-semibold tabular-nums" style={{ color: st.edge }}>
-                              {fmt(pos.start)} – {fmt(pos.start + a.duration_min)}
-                            </div>
-                          </button>
-                        </div>
-                      );
-                    })}
                   </div>
                 ))}
               </div>
+
+              {appointments.map(a => {
+                const pos = place(a);
+                const col = providers.findIndex(p => p.id === pos.provider);
+                if (col < 0) return null;
+                const st = STATUS[a.status];
+                const cat = CATEGORIES[a.category];
+                const canDrag = a.status !== 'done';
+                return (
+                  <div
+                    key={a.id}
+                    data-id={a.id}
+                    className={`absolute flex overflow-hidden rounded-pill ${pos.dragging ? 'touch-none' : ''}`}
+                    style={{
+                      left: col * COL_W,
+                      width: COL_W - 8,
+                      top: (pos.start - DAY_START) * pxPerMin + 2,
+                      height: a.duration_min * pxPerMin - 6,
+                      background: st.bg,
+                      border: `1px solid ${st.border}`,
+                      borderLeft: `4px solid ${st.edge}`,
+                      boxShadow: pos.dragging ? '0 18px 44px rgba(60,40,120,.28)' : '0 4px 20px rgba(60,40,120,.07)',
+                      transform: pos.dragging ? 'scale(1.03)' : 'none',
+                      opacity: a.status === 'done' ? 0.62 : 1,
+                      zIndex: pos.dragging ? 12 : 2,
+                    }}
+                  >
+                    {canDrag && (
+                      <button
+                        type="button"
+                        aria-label={`Mover cita de ${a.client_label}`}
+                        className="flex w-7 shrink-0 touch-none cursor-grab items-center justify-center text-ink-3 active:cursor-grabbing"
+                        onPointerDown={e => onHandleDown(e, a.id, pos.start, pos.provider, a.duration_min)}
+                        onClick={e => e.stopPropagation()}
+                        onContextMenu={e => e.preventDefault()}
+                      >
+                        <GripVertical size={15} strokeWidth={2.2} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      tabIndex={0}
+                      aria-label={`${a.client_label}, ${a.service_name}, ${fmt(pos.start)}`}
+                      onClick={() => openAppt(a.id)}
+                      className="min-w-0 flex-1 overflow-hidden px-1.5 py-1.5 text-left"
+                    >
+                      <div className="flex items-center gap-[5px]">
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-sm" style={{ background: cat.color }} />
+                        <span className="truncate text-[12.5px] font-bold leading-tight tracking-[-.01em]">{a.client_label}</span>
+                      </div>
+                      <div className="truncate text-[11px] font-medium text-ink-2">{a.service_name}</div>
+                      {a.note && (
+                        <div className="truncate text-[10.5px] font-medium text-ink-3">{a.note}</div>
+                      )}
+                      <div className="mt-0.5 text-[10.5px] font-semibold tabular-nums" style={{ color: st.edge }}>
+                        {fmt(pos.start)} – {fmt(pos.start + a.duration_min)}
+                      </div>
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -268,7 +285,7 @@ export default function DayGrid({
             {c.label}
           </span>
         ))}
-        <span className="ml-auto shrink-0 font-medium">El asidero mueve · el resto abre</span>
+        <span className="ml-auto shrink-0 font-medium">El asidero mueve hora y profesional · el resto abre</span>
       </div>
     </>
   );
