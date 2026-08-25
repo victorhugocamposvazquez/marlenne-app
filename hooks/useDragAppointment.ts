@@ -79,6 +79,7 @@ export function useDragAppointment({
       setDrag(session.current.last);
       try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* */ }
       haptic('start');
+      window.getSelection()?.removeAllRanges();
       if (box) box.style.touchAction = 'none';
 
       /** Rect fresco en cada move: si se cachea, el auto-scroll X apunta a la columna equivocada. */
@@ -140,6 +141,7 @@ export function useDragAppointment({
       };
 
       const blockScroll = (ev: TouchEvent) => { ev.preventDefault(); };
+      const blockSelect = (ev: Event) => { ev.preventDefault(); };
 
       const move = (ev: PointerEvent) => {
         if (ev.pointerId !== session.current?.pointerId) return;
@@ -183,6 +185,9 @@ export function useDragAppointment({
         window.removeEventListener('pointerup', onUp);
         window.removeEventListener('pointercancel', onCancel);
         window.removeEventListener('touchmove', blockScroll);
+        window.removeEventListener('selectstart', blockSelect);
+        window.removeEventListener('contextmenu', blockSelect);
+        window.getSelection()?.removeAllRanges();
         if (box) box.style.touchAction = '';
       };
 
@@ -190,6 +195,8 @@ export function useDragAppointment({
       window.addEventListener('pointerup', onUp);
       window.addEventListener('pointercancel', onCancel);
       window.addEventListener('touchmove', blockScroll, { passive: false });
+      window.addEventListener('selectstart', blockSelect, { capture: true });
+      window.addEventListener('contextmenu', blockSelect, { capture: true });
     },
     [pxPerMin, snap, providerIds, scrollRef, gridRef, onDrop],
   );

@@ -109,7 +109,11 @@ export default function DayGrid({
 
   return (
     <>
-      <div ref={scrollRef} className={`min-h-0 flex-1 overflow-auto pb-2 ${drag ? 'touch-none overscroll-none' : ''}`}>
+      <div
+        ref={scrollRef}
+        className={`min-h-0 flex-1 overflow-auto pb-2 select-none [-webkit-touch-callout:none] ${drag ? 'touch-none overscroll-none' : ''}`}
+        onContextMenu={e => e.preventDefault()}
+      >
         <div className="min-w-max pr-3.5">
           <div className="sticky top-0 z-[6] flex bg-[linear-gradient(180deg,#EEECFA_74%,rgba(238,236,250,0))] pb-2.5 pt-0.5">
             <div className="sticky left-0 z-[7] w-[46px] shrink-0 bg-surface-bg" />
@@ -221,7 +225,7 @@ export default function DayGrid({
                   <div
                     key={a.id}
                     data-id={a.id}
-                    className={`absolute flex overflow-hidden rounded-pill ${pos.dragging ? 'touch-none' : ''}`}
+                    className={`absolute flex overflow-hidden rounded-pill select-none [-webkit-touch-callout:none] ${pos.dragging ? 'touch-none' : ''}`}
                     style={{
                       left: col * COL_W,
                       width: COL_W - 8,
@@ -240,7 +244,8 @@ export default function DayGrid({
                       <button
                         type="button"
                         aria-label={`Mover cita de ${a.client_label}`}
-                        className="relative flex w-7 shrink-0 touch-none cursor-grab items-center justify-center text-ink-3 before:absolute before:-inset-y-2 before:-left-2.5 before:-right-1.5 before:content-[''] active:cursor-grabbing"
+                        className="relative flex w-7 shrink-0 touch-none select-none cursor-grab items-center justify-center text-ink-3 before:absolute before:-inset-y-2 before:-left-2.5 before:-right-1.5 before:content-[''] [-webkit-touch-callout:none] active:cursor-grabbing"
+                        draggable={false}
                         onPointerDown={e => onHandleDown(e, a.id, pos.start, pos.provider, a.duration_min)}
                         onClick={e => e.stopPropagation()}
                         onContextMenu={e => e.preventDefault()}
