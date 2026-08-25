@@ -4,22 +4,17 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { freeSlots } from '@/lib/queries';
 import { minutesOfDay, toTimestamp } from '@/lib/time';
+import { moveAppointment as moveAppointmentRpc } from '@/lib/move-appointment';
 
-/** Mover una cita (drag & drop): nueva hora y/o nueva profesional. */
+/** Mover una cita: nueva hora y/o nueva profesional. La persistencia es el RPC. */
 export async function moveAppointment({
   id, date, startMin, providerId,
 }: { id: string; date: string; startMin: number; providerId: string }) {
   const sb = createClient();
-  const { error } = await sb
-    .from('appointments')
-    .update({ starts_at: toTimestamp(date, startMin), provider_id: providerId })
-    .eq('id', id);
-
+  const r = await moveAppointmentRpc(sb, { id, date, startMin, providerId });
   revalidatePath('/agenda');
   revalidatePath('/hoy');
-  // El índice de exclusión y el trigger de bloqueos rechazan solapes:
-  // devolvemos el error para que el cliente revierta el movimiento optimista.
-  return { ok: !error, error: error?.message ?? null };
+  return r;
 }
 
 /**

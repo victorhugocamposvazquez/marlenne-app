@@ -1,14 +1,14 @@
 import DayGrid from '@/components/agenda/DayGrid';
 import WeekGrid from '@/components/agenda/WeekGrid';
 import AgendaHeader from '@/components/agenda/AgendaHeader';
-import AppointmentSheet from '@/components/agenda/AppointmentSheet';
+import AppointmentSheetHost from '@/components/agenda/AppointmentSheetHost';
 import NewAppointmentSheet from '@/components/agenda/NewAppointmentSheet';
 import WaitlistSheet from '@/components/agenda/WaitlistSheet';
 import BlockSheet from '@/components/agenda/BlockSheet';
 import { requireSession } from '@/lib/require-session';
 import {
   listProviders, getDayAgenda, getWeekCounts, countWaitlist,
-  listServices, listClientOptions, getAppointment, getAppointmentSms, listWaitlist,
+  listServices, listClientOptions, listWaitlist,
 } from '@/lib/queries';
 import { dateFromOffset, dayKey } from '@/lib/time';
 import { bestNameMatches } from '@/lib/voice';
@@ -38,12 +38,10 @@ export default async function AgendaPage({
   const opensWait = searchParams.wait === '1';
   const needsCatalog = opensNew || opensWait;
   const teamIds = team.map(p => p.id);
-  const [waiting, services, clients, appt, sms, waitItems, dayAgenda, weekDays] = await Promise.all([
+  const [waiting, services, clients, waitItems, dayAgenda, weekDays] = await Promise.all([
     countWaitlist(),
     needsCatalog ? listServices() : Promise.resolve([]),
     needsCatalog ? listClientOptions() : Promise.resolve([]),
-    searchParams.appt ? getAppointment(searchParams.appt) : Promise.resolve(null),
-    searchParams.appt ? getAppointmentSms(searchParams.appt) : Promise.resolve(null),
     opensWait ? listWaitlist() : Promise.resolve([]),
     mode === 'dia'
       ? getDayAgenda(dateFromOffset(day), teamIds)
@@ -94,15 +92,13 @@ export default async function AgendaPage({
         />
       )}
 
-      {appt && (
-        <AppointmentSheet
-          appt={appt}
-          providers={sheetProviders}
-          canMoveProvider={canMoveProvider}
-          startClosing={searchParams.close === '1'}
-          sms={sms}
-        />
-      )}
+      <AppointmentSheetHost
+        appointments={dayAgenda.appointments}
+        providers={sheetProviders}
+        canMoveProvider={canMoveProvider}
+        initialId={searchParams.appt}
+        startClosing={searchParams.close === '1'}
+      />
 
       {opensWait && (
         <WaitlistSheet items={waitItems} clients={clients} services={services} />

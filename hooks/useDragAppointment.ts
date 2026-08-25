@@ -1,10 +1,12 @@
 'use client';
 
-import { useCallback, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { DAY_START, DAY_END } from '@/lib/time';
+import { haptic } from '@/hooks/haptics';
 
 export const COL_W = 152;
 const EDGE = 64;
+const FRAME = 16.67;
 
 type Drag = { id: string; start: number; providerId: string };
 
@@ -18,6 +20,9 @@ type Session = {
   duration: number;
   last: Drag | null;
   scrollTop0: number;
+  lastTs: number;
+  lastHapticStart: number;
+  lastHapticCol: string;
 };
 
 /**
@@ -38,6 +43,15 @@ export function useDragAppointment({
   const session = useRef<Session | null>(null);
   const raf = useRef(0);
   const lastEv = useRef<PointerEvent | null>(null);
+  const cleanup = useRef<(() => void) | null>(null);
+
+  const runCleanup = () => {
+    const fn = cleanup.current;
+    cleanup.current = null;
+    fn?.();
+  };
+
+  useEffect(() => () => runCleanup(), []);
 
   const onHandleDown = useCallback(
     (e: React.PointerEvent, id: string, startMin: number, providerId: string, duration: number) => {
@@ -46,6 +60,7 @@ export function useDragAppointment({
       e.stopPropagation();
 
       const box = scrollRef.current;
+      const ids = providerIds.filter(Boolean);
       session.current = {
         id,
         pointerId: e.pointerId,
@@ -56,19 +71,23 @@ export function useDragAppointment({
         duration,
         last: { id, start: startMin, providerId },
         scrollTop0: box?.scrollTop ?? 0,
+        lastTs: performance.now(),
+        lastHapticStart: startMin,
+        lastHapticCol: providerId,
       };
       lastEv.current = e.nativeEvent;
       setDrag(session.current.last);
       try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* */ }
-      try { navigator.vibrate?.(10); } catch { /* */ }
+      haptic('start');
       if (box) box.style.touchAction = 'none';
 
+      /** Rect fresco en cada move: si se cachea, el auto-scroll X apunta a la columna equivocada. */
       const colAt = (clientX: number) => {
-        if (providerIds.length <= 1) return 0;
+        if (ids.length <= 1) return 0;
         const grid = gridRef.current;
         if (!grid) return 0;
         const col = Math.floor((clientX - grid.getBoundingClientRect().left) / COL_W);
-        return Math.max(0, Math.min(providerIds.length - 1, col));
+        return Math.min(Math.max(col, 0), ids.length - 1);
       };
 
       const place = (ev: PointerEvent, d: Session): Drag => {
@@ -77,7 +96,13 @@ export function useDragAppointment({
         let start = d.start0 + Math.round(dy / pxPerMin / snap) * snap;
         start = Math.max(DAY_START, Math.min(DAY_END - d.duration, start));
         const col = colAt(ev.clientX);
-        return { id: d.id, start, providerId: providerIds[col] ?? d.providerId0 };
+        const nextId = ids[col] ?? d.providerId0;
+        if (start !== d.lastHapticStart || nextId !== d.lastHapticCol) {
+          d.lastHapticStart = start;
+          d.lastHapticCol = nextId;
+          haptic('tick');
+        }
+        return { id: d.id, start, providerId: nextId };
       };
 
       const stopRaf = () => {
@@ -85,19 +110,26 @@ export function useDragAppointment({
         raf.current = 0;
       };
 
-      const tick = () => {
+      const edgePull = (overflow: number, dt: number) => {
+        const t = Math.min(1, Math.max(0, overflow / EDGE));
+        return t * t * 22 * (dt / FRAME);
+      };
+
+      const tick = (now: number) => {
         raf.current = 0;
         const d = session.current;
         const ev = lastEv.current;
         const sc = scrollRef.current;
         if (!d || !ev || !sc) return;
+        const dt = Math.min(32, now - d.lastTs);
+        d.lastTs = now;
         const r = sc.getBoundingClientRect();
         let y = 0;
         let x = 0;
-        if (ev.clientY < r.top + EDGE) y = -18;
-        else if (ev.clientY > r.bottom - EDGE) y = 18;
-        if (ev.clientX < r.left + EDGE) x = -18;
-        else if (ev.clientX > r.right - EDGE) x = 18;
+        if (ev.clientY < r.top + EDGE) y = -edgePull(r.top + EDGE - ev.clientY, dt);
+        else if (ev.clientY > r.bottom - EDGE) y = edgePull(ev.clientY - (r.bottom - EDGE), dt);
+        if (ev.clientX < r.left + EDGE) x = -edgePull(r.left + EDGE - ev.clientX, dt);
+        else if (ev.clientX > r.right - EDGE) x = edgePull(ev.clientX - (r.right - EDGE), dt);
         if (!x && !y) return;
         if (y) sc.scrollTop += y;
         if (x) sc.scrollLeft += x;
@@ -122,19 +154,18 @@ export function useDragAppointment({
       };
 
       const end = (commit: boolean) => {
-        stopRaf();
-        window.removeEventListener('pointermove', move);
-        window.removeEventListener('pointerup', onUp);
-        window.removeEventListener('pointercancel', onCancel);
-        window.removeEventListener('touchmove', blockScroll);
-        if (box) box.style.touchAction = '';
         const d = session.current;
-        session.current = null;
-        lastEv.current = null;
-        setDrag(null);
-        if (!commit || !d?.last) return;
-        if (d.last.start === d.start0 && d.last.providerId === d.providerId0) return;
-        onDrop(d.last.id, d.last.start, d.last.providerId);
+        try {
+          if (!commit || !d?.last) return;
+          if (!d.last.providerId) return;
+          if (d.last.start === d.start0 && d.last.providerId === d.providerId0) return;
+          onDrop(d.last.id, d.last.start, d.last.providerId);
+        } finally {
+          runCleanup();
+          session.current = null;
+          lastEv.current = null;
+          setDrag(null);
+        }
       };
 
       const onUp = (ev: PointerEvent) => {
@@ -144,6 +175,15 @@ export function useDragAppointment({
       const onCancel = (ev: PointerEvent) => {
         if (ev.pointerId !== session.current?.pointerId) return;
         end(false);
+      };
+
+      cleanup.current = () => {
+        stopRaf();
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onCancel);
+        window.removeEventListener('touchmove', blockScroll);
+        if (box) box.style.touchAction = '';
       };
 
       window.addEventListener('pointermove', move, { passive: false });

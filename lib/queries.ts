@@ -1,40 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
 import { toTimestamp, dateFromOffset, dayKey, weekMondayOffset } from '@/lib/time';
+import { APPT_SELECT, mapAppt } from '@/lib/agenda-appt';
 import type {
   AgendaAppt, AgendaBlock, ClientOption, ClientRow, Consent, Provider, ServiceOption,
   TreatmentRow, WaitItem, WeekDay,
 } from '@/lib/types';
-
-const APPT_SELECT = `
-  id, provider_id, client_id, client_name, starts_at, ends_at, duration_min,
-  status, price_cents, treatment_id, session_no, service_id, note,
-  service:services(name, category, param_keys),
-  provider:staff!appointments_provider_id_fkey(full_name),
-  client:clients(full_name, phone)
-`;
-
-function mapAppt(row: any): AgendaAppt {
-  return {
-    id: row.id,
-    provider_id: row.provider_id,
-    provider_name: row.provider?.full_name ?? '',
-    client_id: row.client_id,
-    client_label: row.client?.full_name ?? row.client_name ?? 'Sin nombre',
-    service_id: row.service_id,
-    service_name: row.service?.name ?? '',
-    category: row.service?.category ?? 'corporal',
-    param_keys: row.service?.param_keys ?? [],
-    starts_at: row.starts_at,
-    ends_at: row.ends_at,
-    duration_min: row.duration_min,
-    status: row.status,
-    price_cents: row.price_cents,
-    treatment_id: row.treatment_id,
-    session_no: row.session_no,
-    note: row.note ?? null,
-    client_phone: row.client?.phone ?? null,
-  };
-}
 
 export async function getSession() {
   try {

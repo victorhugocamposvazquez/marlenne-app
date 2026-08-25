@@ -1,13 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { CATEGORIES, STATUS, avatarColor } from '@/lib/categories';
 import { citaCambiada, fmt, minutesOfDay, nowMinutes, dayKey, DAY_START, DAY_END } from '@/lib/time';
-import { moveAppointment } from '@/app/actions/appointments';
+import { moveAppointment } from '@/lib/move-appointment';
+import { createClient } from '@/lib/supabase/client';
 import type { AgendaAppt, AgendaBlock, Provider } from '@/lib/types';
 import { useDragAppointment, COL_W } from '@/hooks/useDragAppointment';
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
+import { shallowSet } from '@/hooks/useShallowQuery';
 import { useToast } from '@/components/Toast';
 import { GripVertical } from 'lucide-react';
 
@@ -24,7 +26,6 @@ export default function DayGrid({
   const HOUR_H = 70;
   const pxPerMin = HOUR_H / 60;
   const gridH = (DAY_END - DAY_START) * pxPerMin;
-  const [, startTransition] = useTransition();
   const [optimistic, setOptimistic] = useState<Record<string, { start: number; provider: string }>>({});
   const [now, setNow] = useState(nowMinutes);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -61,10 +62,8 @@ export default function DayGrid({
   const params = useSearchParams();
 
   const openAppt = useCallback((id: string) => {
-    const next = new URLSearchParams(params.toString());
-    next.set('appt', id);
-    router.push(`${pathname}?${next.toString()}`, { scroll: false });
-  }, [params, pathname, router]);
+    shallowSet({ appt: id });
+  }, []);
 
   const { drag, onHandleDown } = useDragAppointment({
     pxPerMin,
@@ -77,8 +76,8 @@ export default function DayGrid({
       const from = appointments.find(a => a.id === id);
       const providerChanged = !!from && from.provider_id !== providerId;
       setOptimistic(o => ({ ...o, [id]: { start, provider: providerId } }));
-      startTransition(async () => {
-        const r = await moveAppointment({ id, date, startMin: start, providerId });
+      void (async () => {
+        const r = await moveAppointment(createClient(), { id, date, startMin: start, providerId });
         if (r.ok) {
           toast(citaCambiada(start, providerChanged ? who : null));
           return;
@@ -88,10 +87,8 @@ export default function DayGrid({
           delete next[id];
           return next;
         });
-        toast(r.error?.includes('overlap') || r.error?.includes('exclusion')
-          ? 'Ese hueco ya está ocupado'
-          : (r.error ?? 'No se ha podido mover la cita'), 'err');
-      });
+        toast(r.error ?? 'No se ha podido mover la cita', 'err');
+      })();
     },
   });
 
@@ -243,7 +240,7 @@ export default function DayGrid({
                       <button
                         type="button"
                         aria-label={`Mover cita de ${a.client_label}`}
-                        className="flex w-7 shrink-0 touch-none cursor-grab items-center justify-center text-ink-3 active:cursor-grabbing"
+                        className="relative flex w-7 shrink-0 touch-none cursor-grab items-center justify-center text-ink-3 before:absolute before:-inset-y-2 before:-left-2.5 before:-right-1.5 before:content-[''] active:cursor-grabbing"
                         onPointerDown={e => onHandleDown(e, a.id, pos.start, pos.provider, a.duration_min)}
                         onClick={e => e.stopPropagation()}
                         onContextMenu={e => e.preventDefault()}

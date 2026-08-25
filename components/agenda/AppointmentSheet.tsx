@@ -6,8 +6,10 @@ import { CalendarClock, Phone, Trash2, UserRound } from 'lucide-react';
 import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet';
 import { CATEGORIES, STATUS, type StatusId } from '@/lib/categories';
 import {
-  cancelAppointment, rescheduleAppointment, slotsFor, updateAppointmentNote, updateStatus,
+  cancelAppointment, slotsFor, updateAppointmentNote, updateStatus,
 } from '@/app/actions/appointments';
+import { moveAppointment } from '@/lib/move-appointment';
+import { createClient } from '@/lib/supabase/client';
 import { dayKey, durLbl, fmt, minutesOfDay, citaCambiada } from '@/lib/time';
 import type { AgendaAppt, Provider } from '@/lib/types';
 import SessionCloseForm from './SessionCloseForm';
@@ -224,7 +226,7 @@ export default function AppointmentSheet({
                 const who = providers.find(p => p.id === providerId)?.full_name.split(' ')[0] ?? null;
                 const providerChanged = providerId !== appt.provider_id;
                 run(
-                  () => rescheduleAppointment({ id: appt.id, date, startMin: startMin!, providerId }),
+                  () => moveAppointment(createClient(), { id: appt.id, date, startMin: startMin!, providerId }),
                   true,
                   citaCambiada(startMin!, providerChanged ? who : null),
                 );

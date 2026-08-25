@@ -1,25 +1,32 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
+import { shallowSet } from '@/hooks/useShallowQuery';
 
 /** Los sheets viven en la URL, así el botón atrás del móvil también los cierra. */
 const SHEET_PARAMS = ['new', 'appt', 'client', 'wait', 'alta', 'close', 'editar', 'block', 'bloqueo', 'nombre', 'hora', 'servicio'];
+const SHALLOW_SHEET = new Set(['appt', 'close']);
 const DISMISS_PX = 90;
 
 /** Cierra el sheet quitando sus parámetros y conservando el día y la vista. */
 export function useCloseSheet() {
   const router = useRouter();
   const pathname = usePathname();
-  const params = useSearchParams();
 
   return useCallback(() => {
-    const next = new URLSearchParams(params.toString());
-    for (const p of SHEET_PARAMS) next.delete(p);
-    const qs = next.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [params, pathname, router]);
+    const live = new URLSearchParams(window.location.search);
+    const open = SHEET_PARAMS.filter(p => live.has(p));
+    for (const p of SHEET_PARAMS) live.delete(p);
+    const qs = live.toString();
+    const href = qs ? `${pathname}?${qs}` : pathname;
+    if (open.length > 0 && open.every(p => SHALLOW_SHEET.has(p))) {
+      shallowSet(Object.fromEntries(SHEET_PARAMS.map(p => [p, null])));
+      return;
+    }
+    router.replace(href, { scroll: false });
+  }, [pathname, router]);
 }
 
 export default function Sheet({
