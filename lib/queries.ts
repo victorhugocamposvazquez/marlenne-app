@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { toTimestamp, dateFromOffset, dayKey, weekMondayOffset } from '@/lib/time';
 import { APPT_SELECT, mapAppt } from '@/lib/agenda-appt';
 import type {
-  AgendaAppt, AgendaBlock, ClientOption, ClientRow, Consent, Provider, ServiceOption,
+  AgendaAppt, AgendaBlock, ClientListRow, ClientOption, ClientRow, Consent, Provider, ServiceOption,
   TreatmentRow, WaitItem, WeekDay,
 } from '@/lib/types';
 
@@ -156,15 +156,12 @@ export async function getWeekCounts(providerIds: string[], dayOffset = 0): Promi
   }));
 }
 
-export async function listClients(q: string) {
+export async function listClients(): Promise<ClientListRow[]> {
   const sb = createClient();
-  const needle = q.replace(/[%_,.()\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
-  let query = sb
+  const { data } = await sb
     .from('clients')
     .select('id, full_name, phone, tags, treatments(service:services(name), closed_at)')
     .order('full_name');
-  if (needle) query = query.or(`full_name.ilike.%${needle}%,phone.ilike.%${needle}%`);
-  const { data } = await query;
   const rows = data ?? [];
   const ids = rows.map((c: { id: string }) => c.id);
 
@@ -195,12 +192,18 @@ export async function listClients(q: string) {
     }
   }
 
-  return rows.map((c: any) => ({
-    ...c,
+  return (rows as unknown as {
+    id: string; full_name: string; phone: string | null; tags: string[] | null;
+    treatments?: { service?: { name: string } | null; closed_at: string | null }[];
+  }[]).map(c => ({
+    id: c.id,
+    full_name: c.full_name,
+    phone: c.phone,
+    tags: c.tags ?? [],
     open_treatments: (c.treatments ?? [])
-      .filter((t: any) => !t.closed_at)
-      .map((t: any) => t.service?.name)
-      .filter(Boolean),
+      .filter(t => !t.closed_at)
+      .map(t => t.service?.name)
+      .filter((n): n is string => !!n),
     next_at: nextBy.get(c.id) ?? null,
     last_at: lastBy.get(c.id) ?? null,
   }));

@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import type { MouseEvent } from 'react';
 import { Home, Calendar, Users, Menu, Plus } from 'lucide-react';
+import { shallowSet } from '@/hooks/useShallowQuery';
 
 const ACTIVE = '#7C3AED';
 const IDLE = '#9B96B8';
@@ -22,12 +24,23 @@ export default function BottomNav({ role }: { role: string }) {
     </Link>
   );
 
+  const openNew = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (!path.startsWith('/agenda')) return;
+    e.preventDefault();
+    shallowSet({
+      new: '1',
+      con: null, hora: null, nombre: null, servicio: null, client: null,
+      wait: null, block: null, bloqueo: null, appt: null, close: null,
+    });
+  };
+
   return (
     <nav className="relative z-10 flex shrink-0 items-center border-t border-surface-line bg-white px-2.5 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 shadow-nav">
       <Item href="/hoy" icon={Home} label="Hoy" />
       <Item href="/agenda" icon={Calendar} label="Agenda" />
       <Link
         href="/agenda?new=1"
+        onClick={openNew}
         aria-label="Nueva cita"
         className="mx-1.5 grid h-14 w-14 shrink-0 place-items-center rounded-[19px] bg-grad text-white shadow-btn transition hover:-translate-y-[3px]"
       >

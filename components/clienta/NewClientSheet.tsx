@@ -3,7 +3,8 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Sheet, { Field, inputCls, useCloseSheet } from '@/components/Sheet';
-import { addConsent, createClientRecord } from '@/app/actions/clients';
+import { addConsent, createClientRecord } from '@/lib/client-write';
+import { createClient } from '@/lib/supabase/client';
 import { CONSENT_COPY } from '@/lib/consents';
 import { fold } from '@/lib/voice';
 import type { ClientOption } from '@/lib/types';
@@ -42,7 +43,8 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
     setError(null);
     setDupId(null);
     startTransition(async () => {
-      const r = await createClientRecord({
+      const sb = createClient();
+      const r = await createClientRecord(sb, {
         full_name: name,
         phone: phone || undefined,
         email: email || undefined,
@@ -50,11 +52,11 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
       });
       if (!r.ok || !r.id) {
         setError(r.error ?? 'No se ha podido guardar');
-        setDupId(r.id);
+        setDupId(r.id ?? null);
         return;
       }
-      if (foto) await addConsent({ clientId: r.id, kind: 'fotografia' });
-      if (salud) await addConsent({ clientId: r.id, kind: 'datos_salud' });
+      if (foto) await addConsent(sb, { clientId: r.id, kind: 'fotografia' });
+      if (salud) await addConsent(sb, { clientId: r.id, kind: 'datos_salud' });
       close();
       router.push(book ? `/agenda?new=1&client=${r.id}` : `/clientas/${r.id}`);
     });

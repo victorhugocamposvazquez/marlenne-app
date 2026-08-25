@@ -2,21 +2,21 @@ import DayGrid from '@/components/agenda/DayGrid';
 import WeekGrid from '@/components/agenda/WeekGrid';
 import AgendaHeader from '@/components/agenda/AgendaHeader';
 import AppointmentSheetHost from '@/components/agenda/AppointmentSheetHost';
-import NewAppointmentSheet from '@/components/agenda/NewAppointmentSheet';
-import WaitlistSheet from '@/components/agenda/WaitlistSheet';
-import BlockSheet from '@/components/agenda/BlockSheet';
+import NewAppointmentSheetHost from '@/components/agenda/NewAppointmentSheetHost';
+import WaitlistSheetHost from '@/components/agenda/WaitlistSheetHost';
+import BlockSheetHost from '@/components/agenda/BlockSheetHost';
 import { requireSession } from '@/lib/require-session';
-import {
-  listProviders, getDayAgenda, getWeekCounts, countWaitlist,
-  listServices, listClientOptions, listWaitlist,
-} from '@/lib/queries';
+import { listProviders, getDayAgenda, getWeekCounts, countWaitlist } from '@/lib/queries';
 import { dateFromOffset, dayKey } from '@/lib/time';
-import { bestNameMatches } from '@/lib/voice';
 
 export default async function AgendaPage({
   searchParams,
 }: {
-  searchParams: { day?: string; mode?: string; new?: string; appt?: string; client?: string; wait?: string; close?: string; block?: string; bloqueo?: string; pro?: string; nombre?: string; hora?: string; servicio?: string };
+  searchParams: {
+    day?: string; mode?: string; new?: string; appt?: string; client?: string;
+    wait?: string; close?: string; block?: string; bloqueo?: string; pro?: string;
+    nombre?: string; hora?: string; servicio?: string; con?: string;
+  };
 }) {
   const parsed = Number(searchParams.day ?? 0);
   const day = Number.isFinite(parsed) ? parsed : 0;
@@ -34,23 +34,15 @@ export default async function AgendaPage({
     ? [team.find(p => p.id === selectedPro)!, ...team.filter(p => p.id !== selectedPro)]
     : team;
 
-  const opensNew = searchParams.new === '1';
-  const opensWait = searchParams.wait === '1';
-  const needsCatalog = opensNew || opensWait;
   const teamIds = team.map(p => p.id);
-  const [waiting, services, clients, waitItems, dayAgenda, weekDays] = await Promise.all([
+  const [waiting, dayAgenda, weekDays] = await Promise.all([
     countWaitlist(),
-    needsCatalog ? listServices() : Promise.resolve([]),
-    needsCatalog ? listClientOptions() : Promise.resolve([]),
-    opensWait ? listWaitlist() : Promise.resolve([]),
     mode === 'dia'
       ? getDayAgenda(dateFromOffset(day), teamIds)
       : Promise.resolve({ appointments: [], blocks: [] }),
     mode === 'semana' ? getWeekCounts(providers.map(p => p.id), day) : Promise.resolve([]),
   ]);
-  const existingBlock = searchParams.bloqueo
-    ? dayAgenda.blocks.find(b => b.id === searchParams.bloqueo) ?? null
-    : null;
+  const dayStr = dayKey(dateFromOffset(day));
 
   return (
     <div className="flex h-full flex-col">
@@ -73,24 +65,19 @@ export default async function AgendaPage({
           selectedPro={selectedPro}
         />
       ) : (
-          <WeekGrid days={weekDays} selectedPro={selectedPro} />
+        <WeekGrid days={weekDays} selectedPro={selectedPro} />
       )}
 
-      {opensNew && (
-        <NewAppointmentSheet
-          day={dayKey(dateFromOffset(day))}
-          providers={sheetProviders}
-          services={services}
-          clients={clients}
-          preselected={
-            clients.find(c => c.id === searchParams.client)
-            ?? (searchParams.nombre ? bestNameMatches(clients, searchParams.nombre, c => c.full_name)[0] ?? null : null)
-          }
-          initialName={searchParams.nombre ?? ''}
-          initialHora={searchParams.hora ?? ''}
-          initialServiceQ={searchParams.servicio ?? ''}
-        />
-      )}
+      <NewAppointmentSheetHost
+        day={dayStr}
+        providers={sheetProviders}
+        initialOpen={searchParams.new === '1'}
+        initialClient={searchParams.client}
+        initialNombre={searchParams.nombre}
+        initialHora={searchParams.hora}
+        initialServicio={searchParams.servicio}
+        initialCon={searchParams.con}
+      />
 
       <AppointmentSheetHost
         appointments={dayAgenda.appointments}
@@ -100,17 +87,15 @@ export default async function AgendaPage({
         startClosing={searchParams.close === '1'}
       />
 
-      {opensWait && (
-        <WaitlistSheet items={waitItems} clients={clients} services={services} />
-      )}
+      <WaitlistSheetHost initialOpen={searchParams.wait === '1'} />
 
-      {(searchParams.block === '1' || existingBlock) && (
-        <BlockSheet
-          day={dayKey(dateFromOffset(day))}
-          providers={sheetProviders}
-          existing={existingBlock}
-        />
-      )}
+      <BlockSheetHost
+        day={dayStr}
+        providers={sheetProviders}
+        blocks={dayAgenda.blocks}
+        initialBlock={searchParams.block === '1'}
+        initialBloqueo={searchParams.bloqueo}
+      />
     </div>
   );
 }

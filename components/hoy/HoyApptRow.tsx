@@ -1,8 +1,13 @@
+'use client';
+
+import { useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Phone } from 'lucide-react';
 import { CATEGORIES } from '@/lib/categories';
 import { durLbl, fmt, minutesOfDay } from '@/lib/time';
-import { setStatus } from '@/app/actions/appointments';
+import { updateStatus } from '@/lib/agenda-write';
+import { createClient } from '@/lib/supabase/client';
 import type { AgendaAppt } from '@/lib/types';
 
 export default function HoyApptRow({
@@ -12,6 +17,16 @@ export default function HoyApptRow({
   late?: boolean;
 }) {
   const cat = CATEGORIES[appt.category];
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+
+  const set = (status: string) => {
+    startTransition(async () => {
+      const r = await updateStatus(createClient(), appt.id, status);
+      if (r.ok) router.refresh();
+    });
+  };
+
   return (
     <div className={`flex items-center gap-2.5 rounded-row border p-3 shadow-card ${
       late ? 'border-pink-200 bg-pink-50' : 'border-surface-line bg-white'
@@ -35,18 +50,22 @@ export default function HoyApptRow({
           {cat.label}
         </span>
       </Link>
-      <form action={setStatus}>
-        <input type="hidden" name="id" value={appt.id} />
-        <input type="hidden" name="status" value="curso" />
-        <button className="shrink-0 rounded-[13px] bg-v px-3 py-2.5 text-[12px] font-bold text-white">Pasa</button>
-      </form>
-      <form action={setStatus}>
-        <input type="hidden" name="id" value={appt.id} />
-        <input type="hidden" name="status" value="noshow" />
-        <button className="shrink-0 rounded-[13px] border border-pink-200 bg-white px-2.5 py-2.5 text-[12px] font-bold text-pink-700">
-          No vino
-        </button>
-      </form>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => set('curso')}
+        className="shrink-0 rounded-[13px] bg-v px-3 py-2.5 text-[12px] font-bold text-white disabled:opacity-40"
+      >
+        Pasa
+      </button>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => set('noshow')}
+        className="shrink-0 rounded-[13px] border border-pink-200 bg-white px-2.5 py-2.5 text-[12px] font-bold text-pink-700 disabled:opacity-40"
+      >
+        No vino
+      </button>
       {late && appt.client_phone && (
         <a
           href={`tel:${appt.client_phone}`}

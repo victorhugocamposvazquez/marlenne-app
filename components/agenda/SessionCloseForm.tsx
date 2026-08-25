@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { Field, inputCls } from '@/components/Sheet';
-import { closeSession } from '@/app/actions/appointments';
+import { closeSession } from '@/lib/agenda-write';
+import { createClient } from '@/lib/supabase/client';
 import type { AgendaAppt } from '@/lib/types';
 
 const BODY = [
@@ -31,7 +32,7 @@ export default function SessionCloseForm({
   const save = (skipExtras = false) => {
     setError(null);
     startTransition(async () => {
-      const r = await closeSession({
+      const r = await closeSession(createClient(), {
         appointmentId: appt.id,
         params: skipExtras ? {} : params,
         note: skipExtras ? undefined : note,

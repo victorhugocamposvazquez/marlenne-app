@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Ban, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { shallowSet } from '@/hooks/useShallowQuery';
 import { dayTitle, weekMondayOffset, weekTitle } from '@/lib/time';
 import type { Provider } from '@/lib/types';
 
@@ -98,14 +99,18 @@ export default function AgendaHeader({
           <button className={seg(mode === 'semana')} onClick={() => go(day, 'semana')}>Semana</button>
         </div>
         <button
-          onClick={() => go(day, mode, { block: '1' })}
+          onClick={() => shallowSet({
+            block: '1', wait: null, new: null, appt: null, close: null, bloqueo: null,
+          })}
           aria-label="Bloquear hueco"
           className="ml-auto grid h-[38px] w-[38px] place-items-center rounded-[13px] border border-surface-line bg-white shadow-card"
         >
           <Ban size={15} className="text-ink-2" strokeWidth={2.2} />
         </button>
         <button
-          onClick={() => go(day, mode, { wait: '1' })}
+          onClick={() => shallowSet({
+            wait: '1', new: null, block: null, bloqueo: null, appt: null, close: null,
+          })}
           className="flex items-center gap-[7px] rounded-[13px] border border-surface-line bg-white px-3 py-2 text-[12.5px] font-bold shadow-card"
         >
           <Clock size={15} className="text-v" strokeWidth={2.2} />

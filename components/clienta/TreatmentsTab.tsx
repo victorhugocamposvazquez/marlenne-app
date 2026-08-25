@@ -2,9 +2,29 @@ import { CATEGORIES } from '@/lib/categories';
 import { dateLbl } from '@/lib/time';
 import type { TreatmentRow } from '@/lib/types';
 import { Empty } from './Tabs';
+import Link from 'next/link';
+import { CalendarPlus } from 'lucide-react';
 
-export default function TreatmentsTab({ treatments }: { treatments: TreatmentRow[] }) {
-  if (!treatments.length) return <Empty>Esta clienta todavía no tiene tratamientos.</Empty>;
+export default function TreatmentsTab({
+  treatments, clientId,
+}: {
+  treatments: TreatmentRow[];
+  clientId: string;
+}) {
+  if (!treatments.length) {
+    return (
+      <div className="flex flex-col items-center gap-3">
+        <Empty>Esta clienta todavía no tiene tratamientos. Se abren al marcar una cita como hecha.</Empty>
+        <Link
+          href={`/agenda?new=1&client=${clientId}`}
+          className="inline-flex items-center gap-1.5 rounded-field bg-grad px-4 py-2.5 text-[13px] font-extrabold text-white shadow-btn"
+        >
+          <CalendarPlus size={16} strokeWidth={2.2} />
+          Dar cita
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -66,7 +86,18 @@ export default function TreatmentsTab({ treatments }: { treatments: TreatmentRow
               </p>
             )}
 
-            <p className="mt-2.5 text-[10.5px] font-semibold text-ink-3">Abierto el {dateLbl(t.opened_at)}</p>
+            <div className="mt-2.5 flex items-center justify-between gap-2">
+              <p className="text-[10.5px] font-semibold text-ink-3">Abierto el {dateLbl(t.opened_at)}</p>
+              {open && t.service?.name && (
+                <Link
+                  href={`/agenda?new=1&client=${clientId}&servicio=${encodeURIComponent(t.service.name)}`}
+                  className="inline-flex items-center gap-1 text-[12px] font-bold text-v-d"
+                >
+                  <CalendarPlus size={14} strokeWidth={2.2} />
+                  Nueva sesión
+                </Link>
+              )}
+            </div>
           </article>
         );
       })}

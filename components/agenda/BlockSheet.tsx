@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet';
-import { createBlock, deleteBlock } from '@/app/actions/blocks';
+import { createBlock, deleteBlock } from '@/lib/agenda-write';
+import { createClient } from '@/lib/supabase/client';
 import { BLOCK_REASONS, type BlockReason } from '@/lib/consents';
 import { DAY_START, durLbl, fmt } from '@/lib/time';
 import type { AgendaBlock, Provider } from '@/lib/types';
@@ -37,7 +38,7 @@ export default function BlockSheet({
           <button
             disabled={pending}
             onClick={() => startTransition(async () => {
-              const r = await deleteBlock(existing.id);
+              const r = await deleteBlock(createClient(), existing.id);
               if (!r.ok) setError(r.error ?? 'No se ha podido borrar');
               else close();
             })}
@@ -53,7 +54,7 @@ export default function BlockSheet({
   const save = () => {
     setError(null);
     startTransition(async () => {
-      const r = await createBlock({
+      const r = await createBlock(createClient(), {
         providerId, date, startMin, durationMin: duration, reason, label,
       });
       if (!r.ok) setError(r.error ?? 'No se ha podido bloquear');

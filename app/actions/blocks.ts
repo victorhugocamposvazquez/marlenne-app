@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { toTimestamp } from '@/lib/time';
+import { createBlock as createWrite, deleteBlock as deleteWrite } from '@/lib/agenda-write';
 import type { BlockReason } from '@/lib/consents';
 
 export async function createBlock(input: {
@@ -13,30 +13,15 @@ export async function createBlock(input: {
   reason: BlockReason;
   label?: string;
 }) {
-  const sb = createClient();
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return { ok: false, error: 'Sin sesión' };
-  const { data: staff } = await sb.from('staff').select('salon_id').eq('id', user.id).maybeSingle();
-  if (!staff) return { ok: false, error: 'Sin sesión' };
-
-  const { error } = await sb.from('time_blocks').insert({
-    salon_id: staff.salon_id,
-    provider_id: input.providerId,
-    reason: input.reason,
-    label: input.label?.trim() || null,
-    starts_at: toTimestamp(input.date, input.startMin),
-    duration_min: input.durationMin,
-  });
-
+  const r = await createWrite(createClient(), input);
   revalidatePath('/agenda');
   revalidatePath('/hoy');
-  return { ok: !error, error: error?.message ?? null };
+  return r;
 }
 
 export async function deleteBlock(id: string) {
-  const sb = createClient();
-  const { error } = await sb.from('time_blocks').delete().eq('id', id);
+  const r = await deleteWrite(createClient(), id);
   revalidatePath('/agenda');
   revalidatePath('/hoy');
-  return { ok: !error, error: error?.message ?? null };
+  return r;
 }

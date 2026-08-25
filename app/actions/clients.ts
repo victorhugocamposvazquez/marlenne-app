@@ -2,14 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-
-async function mySalon() {
-  const sb = createClient();
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return { sb, salonId: null as string | null };
-  const { data } = await sb.from('staff').select('salon_id').eq('id', user.id).maybeSingle();
-  return { sb, salonId: data?.salon_id ?? null };
-}
+import { addToWaitlist as addWaitWrite, resolveWaitlist as resolveWaitWrite } from '@/lib/agenda-write';
+import {
+  addConsent as addConsentWrite,
+  createClientRecord as createWrite,
+  updateClientRecord as updateWrite,
+} from '@/lib/client-write';
 
 export async function createClientRecord(input: {
   full_name: string;
@@ -17,39 +15,9 @@ export async function createClientRecord(input: {
   email?: string;
   tags?: string[];
 }) {
-  const name = input.full_name.trim();
-  if (name.length < 2) return { ok: false, error: 'Pon al menos el nombre', id: null };
-  const { sb, salonId } = await mySalon();
-  if (!salonId) return { ok: false, error: 'Sin sesión', id: null };
-
-  const tel = (input.phone ?? '').replace(/\D/g, '');
-  if (tel.length >= 9) {
-    const tail = tel.slice(-9);
-    const { data: same } = await sb
-      .from('clients')
-      .select('id, full_name, phone')
-      .eq('salon_id', salonId)
-      .ilike('phone', `%${tail}%`);
-    const hit = (same ?? []).find(c => (c.phone ?? '').replace(/\D/g, '').endsWith(tail));
-    if (hit) {
-      return {
-        ok: false,
-        error: `Ese teléfono ya es de ${hit.full_name}. Ábrela en vez de duplicar.`,
-        id: hit.id,
-      };
-    }
-  }
-
-  const { data, error } = await sb.from('clients').insert({
-    salon_id: salonId,
-    full_name: name,
-    phone: input.phone?.trim() || null,
-    email: input.email?.trim() || null,
-    tags: input.tags ?? [],
-  }).select('id').single();
-
+  const r = await createWrite(createClient(), input);
   revalidatePath('/clientas');
-  return { ok: !error, error: error?.message ?? null, id: data?.id ?? null };
+  return r;
 }
 
 export async function addToWaitlist(input: {
@@ -58,23 +26,10 @@ export async function addToWaitlist(input: {
   serviceId?: string;
   preference?: string;
 }) {
-  const { sb, salonId } = await mySalon();
-  if (!salonId) return { ok: false, error: 'Sin sesión' };
-  if (!input.clientId && !input.clientName?.trim()) {
-    return { ok: false, error: 'Indica quién espera' };
-  }
-
-  const { error } = await sb.from('waitlist').insert({
-    salon_id: salonId,
-    client_id: input.clientId ?? null,
-    client_name: input.clientId ? null : input.clientName!.trim(),
-    service_id: input.serviceId || null,
-    preference: input.preference?.trim() || null,
-  });
-
+  const r = await addWaitWrite(createClient(), input);
   revalidatePath('/agenda');
   revalidatePath('/hoy');
-  return { ok: !error, error: error?.message ?? null };
+  return r;
 }
 
 export async function updateClientRecord(input: {
@@ -83,49 +38,25 @@ export async function updateClientRecord(input: {
   phone?: string;
   email?: string;
   notes?: string;
-  tags?: string[];
-  sms_opt_in?: boolean;
+    tags?: string[];
+    sms_opt_in?: boolean;
+    birth_date?: string | null;
 }) {
-  const name = input.full_name.trim();
-  if (name.length < 2) return { ok: false, error: 'Pon al menos el nombre' };
-  const { sb, salonId } = await mySalon();
-  if (!salonId) return { ok: false, error: 'Sin sesión' };
-
-  const { error } = await sb.from('clients').update({
-    full_name: name,
-    phone: input.phone?.trim() || null,
-    email: input.email?.trim() || null,
-    notes: input.notes?.trim() || null,
-    tags: input.tags ?? [],
-    sms_opt_in: input.sms_opt_in ?? true,
-  }).eq('id', input.id);
-
+  const r = await updateWrite(createClient(), input);
   revalidatePath('/clientas');
   revalidatePath(`/clientas/${input.id}`);
-  return { ok: !error, error: error?.message ?? null };
+  return r;
 }
 
 export async function addConsent(input: { clientId: string; kind: string }) {
-  const { sb, salonId } = await mySalon();
-  if (!salonId) return { ok: false, error: 'Sin sesión' };
-  const { data: { user } } = await sb.auth.getUser();
-  const expires = input.kind === 'fotografia'
-    ? new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10)
-    : null;
-  const { error } = await sb.from('consents').insert({
-    client_id: input.clientId,
-    kind: input.kind,
-    taken_by: user?.id ?? null,
-    expires_at: expires,
-  });
+  const r = await addConsentWrite(createClient(), input);
   revalidatePath(`/clientas/${input.clientId}`);
-  return { ok: !error, error: error?.message ?? null };
+  return r;
 }
 
 export async function resolveWaitlist(id: string) {
-  const sb = createClient();
-  const { error } = await sb.from('waitlist').update({ resolved_at: new Date().toISOString() }).eq('id', id);
+  const r = await resolveWaitWrite(createClient(), id);
   revalidatePath('/agenda');
   revalidatePath('/hoy');
-  return { ok: !error, error: error?.message ?? null };
+  return r;
 }

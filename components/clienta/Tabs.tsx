@@ -1,4 +1,4 @@
-import Link from 'next/link';
+'use client';
 
 const TABS = [
   { id: 'tratamientos', label: 'Tratamientos' },
@@ -9,16 +9,16 @@ const TABS = [
 
 export type TabId = (typeof TABS)[number]['id'];
 
-export function parseTab(value?: string): TabId {
+export function parseTab(value?: string | null): TabId {
   return TABS.some(t => t.id === value) ? (value as TabId) : 'tratamientos';
 }
 
 export default function Tabs({
-  base, active, counts,
+  active, counts, onSelect,
 }: {
-  base: string;
   active: TabId;
   counts: Partial<Record<TabId, number>>;
+  onSelect: (id: TabId) => void;
 }) {
   return (
     <div className="flex gap-1 overflow-x-auto rounded-[14px] bg-track p-1">
@@ -26,10 +26,10 @@ export default function Tabs({
         const on = t.id === active;
         const n = counts[t.id];
         return (
-          <Link
+          <button
             key={t.id}
-            href={`${base}?tab=${t.id}`}
-            scroll={false}
+            type="button"
+            onClick={() => onSelect(t.id)}
             aria-current={on ? 'page' : undefined}
             className={`flex shrink-0 items-center gap-1.5 rounded-[11px] px-3.5 py-[7px] text-[12.5px] font-semibold transition ${
               on ? 'bg-white text-v-d shadow-seg' : 'text-ink-2'
@@ -41,7 +41,7 @@ export default function Tabs({
                 {n}
               </span>
             ) : null}
-          </Link>
+          </button>
         );
       })}
     </div>

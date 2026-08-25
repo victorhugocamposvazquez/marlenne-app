@@ -78,6 +78,13 @@ export type ClientRow = {
   created_at: string;
 };
 
+export type ClientListRow = ClientOption & {
+  tags: string[];
+  open_treatments: string[];
+  next_at: string | null;
+  last_at: string | null;
+};
+
 export type Measurement = {
   id: string;
   metric: string;

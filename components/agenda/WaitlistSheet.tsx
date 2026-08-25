@@ -2,13 +2,13 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { CalendarPlus, Check } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import Sheet, { Field, inputCls, useCloseSheet } from '@/components/Sheet';
-import { addToWaitlist, resolveWaitlist } from '@/app/actions/clients';
+import Sheet, { Field, inputCls } from '@/components/Sheet';
+import { addToWaitlist, resolveWaitlist } from '@/lib/agenda-write';
+import { createClient } from '@/lib/supabase/client';
+import { shallowSet } from '@/hooks/useShallowQuery';
 import { dateLbl } from '@/lib/time';
 import { fold } from '@/lib/voice';
 import type { ClientOption, ServiceOption, WaitItem } from '@/lib/types';
-import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 
 export default function WaitlistSheet({
   items, clients, services,
@@ -17,9 +17,6 @@ export default function WaitlistSheet({
   clients: ClientOption[];
   services: ServiceOption[];
 }) {
-  const close = useCloseSheet();
-  const router = useRouter();
-  useRealtimeRefresh(['waitlist']);
   const [pending, startTransition] = useTransition();
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState('');
@@ -43,7 +40,7 @@ export default function WaitlistSheet({
     if (who.length < 2) return;
     setError(null);
     startTransition(async () => {
-      const r = await addToWaitlist({
+      const r = await addToWaitlist(createClient(), {
         clientId: client?.id,
         clientName: client ? undefined : who,
         serviceId: serviceId || undefined,
@@ -81,7 +78,7 @@ export default function WaitlistSheet({
                 </div>
                 <button
                   disabled={pending}
-                  onClick={() => startTransition(() => { void resolveWaitlist(w.id); })}
+                  onClick={() => startTransition(() => { void resolveWaitlist(createClient(), w.id); })}
                   aria-label={`Quitar a ${name} de la espera`}
                   className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-emerald-50 text-emerald-700"
                 >
@@ -90,12 +87,13 @@ export default function WaitlistSheet({
               </div>
               <button
                 onClick={() => {
-                  const qs = new URLSearchParams({ new: '1' });
-                  if (w.client_id) qs.set('client', w.client_id);
-                  else if (w.client_name) qs.set('nombre', w.client_name);
-                  if (w.service?.name) qs.set('servicio', w.service.name);
-                  close();
-                  router.push(`/agenda?${qs.toString()}`);
+                  shallowSet({
+                    wait: null,
+                    new: '1',
+                    client: w.client_id ?? null,
+                    nombre: w.client_id ? null : (w.client_name ?? null),
+                    servicio: w.service?.name ?? null,
+                  });
                 }}
                 className="mt-2 flex items-center gap-1.5 text-[12px] font-bold text-v-d"
               >

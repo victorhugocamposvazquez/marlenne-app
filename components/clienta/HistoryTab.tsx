@@ -1,11 +1,30 @@
 import Link from 'next/link';
+import { CalendarPlus } from 'lucide-react';
 import { CATEGORIES, STATUS } from '@/lib/categories';
 import { dateLbl, fmt, minutesOfDay, offsetFromDay } from '@/lib/time';
 import type { AgendaAppt } from '@/lib/types';
 import { Empty } from './Tabs';
 
-export default function HistoryTab({ appointments }: { appointments: AgendaAppt[] }) {
-  if (!appointments.length) return <Empty>No hay citas registradas todavía.</Empty>;
+export default function HistoryTab({
+  appointments, clientId,
+}: {
+  appointments: AgendaAppt[];
+  clientId: string;
+}) {
+  if (!appointments.length) {
+    return (
+      <div className="flex flex-col items-center gap-3">
+        <Empty>No hay citas registradas todavía.</Empty>
+        <Link
+          href={`/agenda?new=1&client=${clientId}`}
+          className="inline-flex items-center gap-1.5 rounded-field bg-grad px-4 py-2.5 text-[13px] font-extrabold text-white shadow-btn"
+        >
+          <CalendarPlus size={16} strokeWidth={2.2} />
+          Dar cita
+        </Link>
+      </div>
+    );
+  }
 
   const spent = appointments
     .filter(a => a.status === 'done')

@@ -4,14 +4,15 @@ import { useEffect, useMemo, useState, useTransition } from 'react';
 import { Search, UserPlus, X } from 'lucide-react';
 import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet';
 import { CATEGORIES, avatarColor } from '@/lib/categories';
-import { createAppointment, slotsFor } from '@/app/actions/appointments';
+import { createAppointment, slotsFor } from '@/lib/agenda-write';
+import { createClient } from '@/lib/supabase/client';
 import { durLbl, fmt } from '@/lib/time';
 import { bestNameMatches, fold, parseClock } from '@/lib/voice';
 import type { ClientOption, Provider, ServiceOption } from '@/lib/types';
 
 export default function NewAppointmentSheet({
   day, providers, services, clients, preselected = null,
-  initialName = '', initialHora = '', initialServiceQ = '',
+  initialName = '', initialHora = '', initialServiceQ = '', initialProviderId,
 }: {
   day: string;
   providers: Provider[];
@@ -21,6 +22,7 @@ export default function NewAppointmentSheet({
   initialName?: string;
   initialHora?: string;
   initialServiceQ?: string;
+  initialProviderId?: string;
 }) {
   const close = useCloseSheet();
   const [pending, startTransition] = useTransition();
@@ -31,7 +33,11 @@ export default function NewAppointmentSheet({
   const [query, setQuery] = useState(preselected ? '' : initialName);
   const [client, setClient] = useState<ClientOption | null>(preselected);
   const [serviceId, setServiceId] = useState(guessedService.length === 1 ? guessedService[0].id : '');
-  const [providerId, setProviderId] = useState(providers[0]?.id ?? '');
+  const [providerId, setProviderId] = useState(
+    initialProviderId && providers.some(p => p.id === initialProviderId)
+      ? initialProviderId
+      : (providers[0]?.id ?? ''),
+  );
   const [date, setDate] = useState(day);
   const [startMin, setStartMin] = useState<number | null>(parseClock(initialHora));
   const [slots, setSlots] = useState<number[] | null>(null);
@@ -55,7 +61,7 @@ export default function NewAppointmentSheet({
     if (!service || !providerId) { setSlots(null); return; }
     let alive = true;
     setSlots(null);
-    void slotsFor(providerId, date, service.duration_min).then(s => { if (alive) setSlots(s); });
+    void slotsFor(createClient(), providerId, date, service.duration_min).then(s => { if (alive) setSlots(s); });
     return () => { alive = false; };
   }, [service, providerId, date]);
 
@@ -70,15 +76,13 @@ export default function NewAppointmentSheet({
     if (!ready || !service || startMin === null) return;
     setError(null);
     startTransition(async () => {
-      const r = await createAppointment({
+      const r = await createAppointment(createClient(), {
         clientId: client?.id,
         clientName: client ? undefined : who,
         serviceId: service.id,
         providerId,
         date,
         startMin,
-        durationMin: service.duration_min,
-        priceCents: service.price_cents,
         note: note.trim() || undefined,
       });
       if (r.ok) close();

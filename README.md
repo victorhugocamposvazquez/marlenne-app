@@ -86,7 +86,7 @@ SUPABASE_PROJECT_ID=xxxx npm run types:gen
 | ✅ | Agenda vista semana |
 | ✅ | Dashboard Hoy: KPIs, en cabina, siguientes |
 | ✅ | Lista de clientas con búsqueda |
-| ✅ | Server actions: crear, mover, reprogramar, estado, cancelar, cierre de sesión |
+| ✅ | Escrituras de agenda, cierre clínico, fotos y fichas en cliente (RPC / RLS); voz y equipo en Server Actions |
 | ⬜ | Recordatorios SMS (más adelante: Labs Mobile; hay cron y `sms_log`) |
 | ✅ | Manifest PWA |
 | ✅ | Sheets: nueva cita, detalle/reprogramar, lista de espera, alta de clienta |

@@ -1,16 +1,20 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import Sheet, { Field, inputCls, useCloseSheet } from '@/components/Sheet';
-import { updateClientRecord } from '@/app/actions/clients';
+import { updateClientRecord } from '@/lib/client-write';
+import { createClient } from '@/lib/supabase/client';
 import type { ClientRow } from '@/lib/types';
 
 export default function EditClientSheet({ client }: { client: ClientRow }) {
   const close = useCloseSheet();
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState(client.full_name);
   const [phone, setPhone] = useState(client.phone ?? '');
   const [email, setEmail] = useState(client.email ?? '');
+  const [birth, setBirth] = useState(client.birth_date ?? '');
   const [notes, setNotes] = useState(client.notes ?? '');
   const [vip, setVip] = useState(client.tags?.includes('VIP') ?? false);
   const [sms, setSms] = useState(client.sms_opt_in);
@@ -21,7 +25,7 @@ export default function EditClientSheet({ client }: { client: ClientRow }) {
     startTransition(async () => {
       const tags = (client.tags ?? []).filter(t => t !== 'VIP');
       if (vip) tags.push('VIP');
-      const r = await updateClientRecord({
+      const r = await updateClientRecord(createClient(), {
         id: client.id,
         full_name: name,
         phone,
@@ -29,9 +33,13 @@ export default function EditClientSheet({ client }: { client: ClientRow }) {
         notes,
         tags,
         sms_opt_in: sms,
+        birth_date: birth || null,
       });
       if (!r.ok) setError(r.error ?? 'No se ha podido guardar');
-      else close();
+      else {
+        close();
+        router.refresh();
+      }
     });
   };
 
@@ -60,6 +68,9 @@ export default function EditClientSheet({ client }: { client: ClientRow }) {
       </Field>
       <Field label="Email">
         <input className={inputCls} type="email" value={email} onChange={e => setEmail(e.target.value)} />
+      </Field>
+      <Field label="Fecha de nacimiento">
+        <input className={inputCls} type="date" value={birth} onChange={e => setBirth(e.target.value)} />
       </Field>
       <Field label="Notas">
         <textarea

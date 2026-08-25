@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { CATEGORIES, STATUS, avatarColor } from '@/lib/categories';
 import { citaCambiada, fmt, minutesOfDay, nowMinutes, dayKey, DAY_START, DAY_END } from '@/lib/time';
 import { moveAppointment } from '@/lib/move-appointment';
@@ -30,7 +29,6 @@ export default function DayGrid({
   const [now, setNow] = useState(nowMinutes);
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
   const toast = useToast();
   useRealtimeRefresh(['appointments', 'time_blocks']);
   useEffect(() => {
@@ -58,8 +56,6 @@ export default function DayGrid({
     if (i <= 0) return;
     scrollRef.current.scrollLeft = i * COL_W;
   }, [selectedPro, providers]);
-  const pathname = usePathname();
-  const params = useSearchParams();
 
   const openAppt = useCallback((id: string) => {
     shallowSet({ appt: id });
@@ -119,6 +115,15 @@ export default function DayGrid({
   };
 
   const dropCol = drag ? Math.max(0, providers.findIndex(p => p.id === drag.providerId)) : -1;
+
+  const openEmpty = (providerId: string, clientY: number, el: HTMLElement) => {
+    if (drag) return;
+    const y = clientY - el.getBoundingClientRect().top;
+    const snapped = Math.round((DAY_START + y / pxPerMin) / 15) * 15;
+    const start = Math.max(DAY_START, Math.min(DAY_END - 15, snapped));
+    const hora = `${String(Math.floor(start / 60)).padStart(2, '0')}:${String(start % 60).padStart(2, '0')}`;
+    shallowSet({ new: '1', con: providerId, hora, appt: null, wait: null, block: null, bloqueo: null });
+  };
 
   return (
     <>
@@ -202,19 +207,26 @@ export default function DayGrid({
                 </div>
               )}
 
-              <div className="relative flex">
+              <div className="relative z-[1] flex">
                 {providers.map(p => (
-                  <div key={p.id} className="relative shrink-0" style={{ width: COL_W, height: gridH }}>
+                  <div
+                    key={p.id}
+                    className="relative shrink-0"
+                    style={{ width: COL_W, height: gridH }}
+                    onClick={e => {
+                      if (e.target !== e.currentTarget) return;
+                      openEmpty(p.id, e.clientY, e.currentTarget);
+                    }}
+                  >
                     {blocks.filter(b => b.provider_id === p.id).map(b => {
                       const start = minutesOfDay(b.starts_at);
                       return (
                         <button
                           key={b.id}
                           type="button"
-                          onClick={() => {
-                            const next = new URLSearchParams(params.toString());
-                            next.set('bloqueo', b.id);
-                            router.push(`${pathname}?${next.toString()}`, { scroll: false });
+                          onClick={e => {
+                            e.stopPropagation();
+                            shallowSet({ bloqueo: b.id });
                           }}
                           className="absolute left-0.5 right-[9px] flex items-center justify-center rounded-[13px] border border-dashed border-[#CFC8E6] bg-block text-[11px] font-bold text-ink-3"
                           style={{ top: (start - DAY_START) * pxPerMin + 2, height: b.duration_min * pxPerMin - 6 }}

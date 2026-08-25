@@ -1,18 +1,25 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Camera } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { addTreatmentPhoto } from '@/app/actions/treatments';
+import { addTreatmentPhoto } from '@/lib/agenda-write';
 import { compressImage } from '@/hooks/compressImage';
 import { Chip, inputCls } from '@/components/Sheet';
 import { useToast } from '@/components/Toast';
 import type { TreatmentRow } from '@/lib/types';
 
-export default function PhotoUpload({ treatments }: { treatments: TreatmentRow[] }) {
+export default function PhotoUpload({
+  treatments, onUploaded,
+}: {
+  treatments: TreatmentRow[];
+  onUploaded?: () => void;
+}) {
   const open = treatments.filter(t => !t.closed_at);
   const options = open.length ? open : treatments.slice(0, 3);
   const toast = useToast();
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [treatmentId, setTreatmentId] = useState(options[0]?.id ?? '');
   const [kind, setKind] = useState<'before' | 'after'>('before');
@@ -35,7 +42,7 @@ export default function PhotoUpload({ treatments }: { treatments: TreatmentRow[]
           upsert: false,
         });
         if (upErr) { setError(upErr.message); return; }
-        const r = await addTreatmentPhoto({
+        const r = await addTreatmentPhoto(sb, {
           treatmentId: chosen.id,
           kind,
           zone: chosen.zone ?? undefined,
@@ -43,7 +50,11 @@ export default function PhotoUpload({ treatments }: { treatments: TreatmentRow[]
           storagePath: path,
         });
         if (!r.ok) setError(r.error ?? 'No se ha podido guardar');
-        else toast('Foto guardada');
+        else {
+          toast('Foto guardada');
+          router.refresh();
+          onUploaded?.();
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'No se ha podido subir');
       }

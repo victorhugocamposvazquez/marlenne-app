@@ -7,7 +7,7 @@ import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet'
 import { CATEGORIES, STATUS, type StatusId } from '@/lib/categories';
 import {
   cancelAppointment, slotsFor, updateAppointmentNote, updateStatus,
-} from '@/app/actions/appointments';
+} from '@/lib/agenda-write';
 import { moveAppointment } from '@/lib/move-appointment';
 import { createClient } from '@/lib/supabase/client';
 import { dayKey, durLbl, fmt, minutesOfDay, citaCambiada } from '@/lib/time';
@@ -56,7 +56,7 @@ export default function AppointmentSheet({
     if (!moving) return;
     let alive = true;
     setSlots(null);
-    void slotsFor(providerId, date, appt.duration_min, appt.id)
+    void slotsFor(createClient(), providerId, date, appt.duration_min, appt.id)
       .then(s => { if (alive) setSlots(s); });
     return () => { alive = false; };
   }, [moving, providerId, date, appt.duration_min, appt.id]);
@@ -128,7 +128,7 @@ export default function AppointmentSheet({
               disabled={pending}
               onClick={() => {
                 if (id === 'done' && needsClinicalClose(appt)) setClosing(true);
-                else run(() => updateStatus(appt.id, id));
+                else run(() => updateStatus(createClient(), appt.id, id));
               }}
             >
               {STATUS[id].label}
@@ -146,7 +146,7 @@ export default function AppointmentSheet({
           onChange={e => setNote(e.target.value)}
           onBlur={() => {
             if (note.trim() === (appt.note ?? '').trim()) return;
-            run(() => updateAppointmentNote(appt.id, note));
+            run(() => updateAppointmentNote(createClient(), appt.id, note));
           }}
         />
       </Field>
@@ -270,7 +270,7 @@ export default function AppointmentSheet({
           </button>
           <button
             disabled={pending}
-            onClick={() => run(() => cancelAppointment(appt.id), true)}
+            onClick={() => run(() => cancelAppointment(createClient(), appt.id), true)}
             className="flex-1 rounded-field bg-pink-600 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-40"
           >
             Sí, cancelar

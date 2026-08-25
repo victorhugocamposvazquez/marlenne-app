@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { ShieldCheck } from 'lucide-react';
-import { addConsent } from '@/app/actions/clients';
+import { addConsent } from '@/lib/client-write';
+import { createClient } from '@/lib/supabase/client';
 import { CONSENT_COPY, CONSENT_KINDS, type ConsentKind } from '@/lib/consents';
 import { dateLbl, dayKey } from '@/lib/time';
 import type { Consent } from '@/lib/types';
@@ -16,6 +18,7 @@ export default function ConsentsCard({
 }) {
   const [pending, startTransition] = useTransition();
   const [ask, setAsk] = useState<ConsentKind | null>(null);
+  const router = useRouter();
   const latest = new Map<string, Consent>();
   for (const c of consents) {
     const prev = latest.get(c.kind);
@@ -75,8 +78,11 @@ export default function ConsentsCard({
             <button
               disabled={pending}
               onClick={() => startTransition(async () => {
-                await addConsent({ clientId, kind: ask });
-                setAsk(null);
+                const r = await addConsent(createClient(), { clientId, kind: ask });
+                if (r.ok) {
+                  setAsk(null);
+                  router.refresh();
+                }
               })}
               className="flex-1 rounded-field bg-grad py-2 text-[12.5px] font-extrabold text-white disabled:opacity-40"
             >

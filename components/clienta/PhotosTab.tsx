@@ -36,11 +36,12 @@ function Frame({ photo, url, label }: { photo?: TreatmentPhoto; url?: string; la
 }
 
 export default function PhotosTab({
-  treatments, urls, photoConsent,
+  treatments, urls, photoConsent, onUploaded,
 }: {
   treatments: TreatmentRow[];
   urls: Record<string, string>;
   photoConsent: boolean;
+  onUploaded?: () => void;
 }) {
   const groups = new Map<string, Group>();
 
@@ -65,7 +66,7 @@ export default function PhotosTab({
 
   return (
     <div className="flex flex-col gap-2.5">
-      <PhotoUpload treatments={treatments} />
+      <PhotoUpload treatments={treatments} onUploaded={onUploaded} />
       {!list.length && <Empty>Todavía no hay fotos de esta clienta.</Empty>}
       {list.length > 0 && !photoConsent && (
         <p className="flex items-start gap-2 rounded-row border border-amber-200 bg-amber-50 p-3 text-[12px] font-semibold leading-snug text-amber-800">

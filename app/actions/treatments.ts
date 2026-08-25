@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { addTreatmentPhoto as addPhotoWrite } from '@/lib/agenda-write';
 
 export async function addTreatmentPhoto(input: {
   treatmentId: string;
@@ -10,14 +11,7 @@ export async function addTreatmentPhoto(input: {
   sessionNo?: number;
   storagePath: string;
 }) {
-  const sb = createClient();
-  const { error } = await sb.from('treatment_photos').insert({
-    treatment_id: input.treatmentId,
-    kind: input.kind,
-    zone: input.zone?.trim() || null,
-    session_no: input.sessionNo ?? null,
-    storage_path: input.storagePath,
-  });
+  const r = await addPhotoWrite(createClient(), input);
   revalidatePath('/clientas');
-  return { ok: !error, error: error?.message ?? null };
+  return r;
 }

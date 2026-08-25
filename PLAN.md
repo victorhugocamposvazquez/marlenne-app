@@ -149,6 +149,32 @@ borrar una cita.
 
 ---
 
+## Sprint actual (app del centro, iPad todos los días)
+
+No es Stripe, ni stores, ni offline, ni SMS de proveedor, ni Siri. Es dejar la
+agenda usable **sin roundtrip al Server Component** en cada gesto, y cerrar
+huecos de mostrador. Encaja con la cáscara Capacitor (`output: 'export'` no
+tiene Server Actions).
+
+### Hecho en este hilo
+
+- Arrastre: asidero inmediato, pulsación larga en la pastilla, toque corto abre.
+- Cambio de columna (profesional) en capa absoluta (iOS no cancela el gesto).
+- `move_appointment` RPC; ficha `?appt=` en cliente; Deshacer en el toast.
+- Voz: permiso de micro con `getUserMedia`, «¿Dime?» unificado, voz nova.
+- `create_appointment` RPC; citas, estados, notas y bloqueos desde el cliente.
+- Sheets de nueva cita, espera y bloqueo sin recargar la agenda.
+- Toque en hueco vacío (hora + profesional), Hoy (Pasa / No vino) y + de la barra.
+- Cierre clínico, fotos y alta/editar clienta desde el cliente.
+
+### Después (sigue prohibido adelantar)
+
+- Offline del día, Labs Mobile, Stripe, consola, web corporativa, cáscara nativa.
+- Cierre clínico, fotos y fichas de clienta también en cliente (voz y alta
+  de equipo siguen en Server Actions: Auth Admin).
+
+---
+
 ## Orden de trabajo
 
 1. **Hecho** — pulir la app del centro (primer tenant): no-show, SMS visible
@@ -184,3 +210,123 @@ esquema actual aguanta muchos centros sin reescribir la agenda.
 - Contratar Twilio ni cablear Labs Mobile todavía.
 - Skill de Alexa, App Intents o “Ok Google” conversacional. Los atajos del
   manifesto sí; el resto espera a la API de equipo.
+
+---
+
+## Horizonte (cuando duela)
+
+No sustituye el orden de trabajo de arriba. Son huecos que el primer centro
+no pide aún, pero que un SaaS de estética acaba tocando si sobrevive. Cada
+bloque tiene un disparador, no una fecha. **No construir contra aire.**
+
+### Dinero de verdad, no el KPI de Hoy
+
+Hoy suma `price_cents` de citas hechas. Eso no es caja: no hay efectivo vs
+tarjeta, no hay IVA, no hay ticket, no hay señal, no hay abono.
+
+Cuando un centro deje de usar el cuaderno o el TPV aparte:
+
+- Cobro al marcar Hecha (efectivo / tarjeta / mixto) y descuadre del día.
+- Señal al reservar y cargo (o marca) si no-show.
+- **Bonos / packs** (6 láser, 4 cavitación): eso es el negocio, distinto de
+  `treatments.sessions_total` (serie clínica).
+- Liquidación simple por profesional (% sobre hechas), sin nómina.
+
+Hasta entonces, no montar un TPV. El número de Hoy vale para el iPad.
+El Stripe del orden de trabajo es el cobro de **Marlenne** (tu SaaS). El
+TPV del centro es otro cobro, más tarde.
+
+### Canal con la clienta (sin volverla usuaria)
+
+El plan habla de SMS. En España el canal que usan es **WhatsApp**. SMS queda
+para recordatorio ciego; WhatsApp para “¿vienes a las 11?”, lista de espera
+y hueco que se libera.
+
+Disparador: el primer centro pide “avísala por el móvil”, no “contrata
+Twilio”. Orden razonable: enlace de confirmación (sí/no, sin cuenta) →
+WhatsApp Business / proveedor ES → SMS solo si WhatsApp no llega.
+
+La clienta **no** entra a Marlenne. Un enlace mágico no es un marketplace.
+
+### Hueco que se libera → espera
+
+Lista de espera hoy es un papel digital. El salto útil: se cancela una cita
+→ avisar a la primera de la cola (mismo servicio / “esta semana”). Encaja
+después del canal (WhatsApp/SMS), no antes.
+
+### Recurso, no solo persona
+
+Ya hay bloqueo `cabina`. Falta el caso real: una máquina (láser, HIFU) y dos
+profesionales. Cita que ocupa **persona + cabina**. Sin eso, el solape de
+aparato se resuelve a gritos.
+
+Disparador: el centro tiene más profesionales que aparatos.
+
+### Jornada de verdad
+
+`opens_at` / `works_from` ya existen; la UI asume 9–20 Europe/Madrid. A
+medio plazo:
+
+- Festivos y cierre (un sábado al mes).
+- Comida recurrente (el bloqueo de cada día a mano no escala).
+- Canarias u otro `timezone` de `salons` (hoy `lib/time.ts` está clavado a
+  Madrid).
+
+Disparador: segundo centro o el primero cierra en agosto.
+
+### Dirección: números de la semana, no solo del día
+
+Ocupación, no-show, € por servicio / por profesional, clientas que no
+vuelven. Una pantalla fea de “esta semana / este mes” evita el Excel. No es
+BI.
+
+Recalls: “láser hace 6 semanas, no tiene cita”. Eso rellena huecos mejor
+que el marketing.
+
+### RGPD de operar, no solo el checkbox
+
+Hay `consents` y copy. Falta el día a día: caducidad de fotos, exportar
+ficha, borrar clienta de verdad (Storage incluido), registro de quién movió
+o canceló una cita. Dato de salud (art. 9): retención y encargado (Supabase)
+hay que tenerlos escritos **antes** de muchos centros, aunque la pantalla
+salga después.
+
+### Casa de la app (cuando haya ficha)
+
+Además de TWA/Capacitor en las reglas de store:
+
+- iPad de mostrador: Guided Access / kiosco, Face ID, push de “te han puesto
+  una cita”.
+- Cabina: Hoy más corto (Pasa / Terminar / siguiente), no la rejilla de
+  todo el equipo.
+- Cámara nativa para fotos (el input file en iOS web es pobre).
+
+No es un segundo producto; es la misma PWA con plugins.
+
+### Lo que Marlenne no debe ser (aunque venda)
+
+- App para que la clienta reserve como en Fresha/Booksy (reviews, Instagram,
+  marketplace).
+- Inventario de cremas, CRM de campañas, pasarela de “bono regalable
+  online”.
+- Contabilidad / Verifactu / Gestoría. Caja del día sí; AEAT no.
+- Tres conversaciones de voz. Una API de equipo, como ya está escrito.
+
+Si alguien paga un “booking para clientas”, es un producto aparte con otro
+riesgo RGPD, no un tinte de esta agenda.
+
+### Cómo encaja con el orden de trabajo
+
+1. **Ahora** — primer centro todos los días; aplicar las RPC remotas; no
+   adelantar lo de este horizonte.
+2. **Al segundo centro** — marca en `salons` + timezone real + jornada/festivos
+   si duele.
+3. **Al cobrar** — Stripe de **Marlenne** (tu SaaS). El TPV del centro es otro
+   cobro, más tarde.
+4. **Cuando pidan “avísala”** — enlace o WhatsApp; packs/bonos si ya venden
+   series de papel.
+5. **Stores** — cáscara; kiosco iPad; cámara/push.
+6. **Red / varios iPads** — offline del día (ya en el orden de trabajo).
+7. **Máquinas y espera automática** — recursos + cola al cancelar.
+8. **Dirección** — informe semanal + recalls. Liquidación si hay % a las
+   técnicas.
