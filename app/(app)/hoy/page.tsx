@@ -1,18 +1,20 @@
 import Link from 'next/link';
 import { requireSession } from '@/lib/require-session';
-import { listProviders, getDayAgenda, countWaitlist } from '@/lib/queries';
+import { listProviders, getDayAgenda, countWaitlist, listRecalls } from '@/lib/queries';
 import { fmt, minutesOfDay, madridNow, DAY_START, DAY_END } from '@/lib/time';
 import { Bell, UserRound } from 'lucide-react';
 import LiveRefresh from '@/components/LiveRefresh';
 import HoyApptRow from '@/components/hoy/HoyApptRow';
+import RecallCard from '@/components/hoy/RecallCard';
 import type { AgendaAppt } from '@/lib/types';
 
 export default async function HoyPage() {
   const me = await requireSession();
   const cabin = me.role === 'provider';
-  const [all, waiting] = await Promise.all([
+  const [all, waiting, recalls] = await Promise.all([
     listProviders(),
     cabin ? Promise.resolve(0) : countWaitlist(),
+    cabin ? Promise.resolve([]) : listRecalls(6),
   ]);
   const providers = cabin ? all.filter(p => p.id === me.id) : all;
   const { appointments } = await getDayAgenda(new Date(), providers.map(p => p.id));
@@ -159,6 +161,18 @@ export default async function HoyPage() {
         )}
         {next.map(a => <HoyApptRow key={a.id} appt={a} cabin={cabin} />)}
       </div>
+
+      {!cabin && recalls.length > 0 && (
+        <>
+          <h2 className="mb-1 mt-5 text-base font-extrabold tracking-[-.02em]">Por volver</h2>
+          <p className="mb-2.5 text-[12px] font-medium text-ink-3">
+            Última visita hace 3–17 semanas y sin cita. WhatsApp o dar hueco.
+          </p>
+          <div className="flex flex-col gap-2.5 pb-2.5">
+            {recalls.map(r => <RecallCard key={r.client_id} row={r} />)}
+          </div>
+        </>
+      )}
     </div>
   );
 }

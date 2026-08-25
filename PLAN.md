@@ -168,6 +168,10 @@ tiene Server Actions).
 - Cierre clínico, fotos y alta/editar clienta desde el cliente.
 - Lista y ficha de clientas sin recargar; notas y tratamiento editables al blur.
 - Hoy de cabina: Pasa / Terminar / siguiente, sin caja ni lista de espera.
+- Bucle del teléfono: próximo hueco (7 días), WhatsApp de confirmación,
+  enlace sí/no sin cuenta (`/c/...`), aviso de espera al cancelar.
+- Por volver (3–17 semanas sin cita) en Hoy y filtro en Clientas.
+- Bloqueo de laborables 4 semanas (comida sin repetir a mano cada día).
 
 ### Después (sigue prohibido adelantar)
 

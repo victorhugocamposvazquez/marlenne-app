@@ -32,8 +32,9 @@ supabase db push
 Las migraciones de `supabase/migrations/` crean tablas, enums, RLS, los índices
 que impiden solapes, el trigger que abre el tratamiento al marcar una cita como
 hecha, la función `free_slots()`, el bucket privado `treatment-photos` con sus
-políticas, el centro Marlenne y el catálogo de 33 servicios. Se aplican solas:
-no hay UUIDs que sustituir a mano.
+políticas, el centro Marlenne y el catálogo de 33 servicios. La de
+`telefono_hueco_y_confirm` añade el próximo hueco y el enlace sí/no. Se aplican
+solas: no hay UUIDs que sustituir a mano.
 
 ### 2. Equipo y datos de demo
 
@@ -103,6 +104,7 @@ SUPABASE_PROJECT_ID=xxxx npm run types:gen
 | ✅ | Alta/baja de equipo y filtro de agenda por profesional |
 | ⬜ | App offline usable (más adelante: agenda del día en local) |
 | ✅ | Voz en la app: huecos, profesional, cita; modelo si hay OPENAI_API_KEY |
+| ✅ | Próximo hueco (7 días), WhatsApp de confirmación, enlace sí/no (`/c/…`) |
 | ⬜ | Siri nativo / Alexa+ (hace falta app o MCP) |
 
 Las piezas pendientes están todas especificadas en el README del handoff:

@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { Search, UserPlus, X } from 'lucide-react';
 import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet';
+import NextSlotControls from '@/components/agenda/NextSlotControls';
 import { CATEGORIES, avatarColor } from '@/lib/categories';
 import { createAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
-import { durLbl, fmt } from '@/lib/time';
+import { dayKey, durLbl, fmt, minutesOfDay } from '@/lib/time';
 import { bestNameMatches, fold, parseClock } from '@/lib/voice';
 import type { ClientOption, Provider, ServiceOption } from '@/lib/types';
 
@@ -222,6 +223,19 @@ export default function NewAppointmentSheet({
         />
       </Field>
 
+      {service && (
+        <NextSlotControls
+          durationMin={service.duration_min}
+          providerId={providerId}
+          anyProviders={providers.length > 1}
+          onPick={slot => {
+            setDate(dayKey(slot.startsAt));
+            setProviderId(slot.providerId);
+            setStartMin(minutesOfDay(slot.startsAt));
+          }}
+        />
+      )}
+
       <Field label="Hora">
         {!service ? (
           <p className="text-[12.5px] font-semibold text-ink-3">Elige antes el servicio.</p>
@@ -229,7 +243,7 @@ export default function NewAppointmentSheet({
           <p className="text-[12.5px] font-semibold text-ink-3">Buscando huecos…</p>
         ) : slots.length === 0 ? (
           <p className="text-[12.5px] font-semibold text-ink-2">
-            No queda ningún hueco de {durLbl(service.duration_min)} ese día.
+            No queda ningún hueco de {durLbl(service.duration_min)} ese día. Prueba el próximo hueco.
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">

@@ -1,12 +1,13 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import { CalendarPlus, Check } from 'lucide-react';
+import { CalendarPlus, Check, MessageCircle } from 'lucide-react';
 import Sheet, { Field, inputCls } from '@/components/Sheet';
 import { addToWaitlist, resolveWaitlist } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import { shallowSet } from '@/hooks/useShallowQuery';
 import { dateLbl } from '@/lib/time';
+import { firstName, waHref } from '@/lib/phone';
 import { fold } from '@/lib/voice';
 import type { ClientOption, ServiceOption, WaitItem } from '@/lib/types';
 
@@ -62,6 +63,10 @@ export default function WaitlistSheet({
       <div className="mb-3 flex flex-col gap-2">
         {items.map(w => {
           const name = w.client?.full_name ?? w.client_name ?? 'Sin nombre';
+          const wa = waHref(
+            w.client?.phone,
+            `Hola ${firstName(name)}, ¿sigues esperando ${w.service?.name ?? 'cita'}? Tenemos un hueco.`,
+          );
           return (
             <div key={w.id} className="rounded-row border border-surface-line bg-white p-3 shadow-card">
               <div className="flex items-start gap-2">
@@ -71,9 +76,22 @@ export default function WaitlistSheet({
                     {[w.service?.name, w.preference, dateLbl(w.created_at)].filter(Boolean).join(' · ')}
                   </div>
                   {w.client?.phone && (
-                    <a href={`tel:${w.client.phone}`} className="mt-0.5 block text-[12px] font-bold text-v-d">
-                      {w.client.phone}
-                    </a>
+                    <div className="mt-0.5 flex flex-wrap gap-2">
+                      <a href={`tel:${w.client.phone}`} className="text-[12px] font-bold text-v-d">
+                        {w.client.phone}
+                      </a>
+                      {wa && (
+                        <a
+                          href={wa}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[12px] font-bold text-emerald-700"
+                        >
+                          <MessageCircle size={13} strokeWidth={2.2} />
+                          WhatsApp
+                        </a>
+                      )}
+                    </div>
                   )}
                 </div>
                 <button

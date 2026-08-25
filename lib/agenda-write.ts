@@ -1,13 +1,45 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { dayKey, minutesOfDay, toTimestamp } from '@/lib/time';
+import { addDays, dayKey, minutesOfDay, toTimestamp, weekdayUtc } from '@/lib/time';
+import type { Waiter } from '@/lib/types';
 
-export type WriteResult = { ok: boolean; error: string | null; id?: string };
+export type WriteResult = { ok: boolean; error: string | null; id?: string; waiters?: Waiter[] };
 
 const BUSY = 'Ese hueco ya está ocupado';
 const FORBIDDEN = 'No se ha podido guardar';
 
 function overlapMsg(msg: string) {
   return /overlap|exclusion|bloqueada/i.test(msg);
+}
+
+async function matchingWaiters(
+  sb: SupabaseClient, salonId: string, serviceId: string,
+): Promise<Waiter[]> {
+  const { data } = await sb
+    .from('waitlist')
+    .select('id, client_id, client_name, preference, service_id, service:services(name), client:clients(full_name, phone)')
+    .eq('salon_id', salonId)
+    .is('resolved_at', null)
+    .or(`service_id.eq.${serviceId},service_id.is.null`)
+    .order('created_at')
+    .limit(8);
+  return (data ?? []).map(w => {
+    const row = w as {
+      id: string;
+      client_id: string | null;
+      client_name: string | null;
+      preference: string | null;
+      service?: { name?: string } | null;
+      client?: { full_name?: string; phone?: string | null } | null;
+    };
+    return {
+      id: row.id,
+      client_id: row.client_id,
+      name: row.client?.full_name ?? row.client_name ?? 'Sin nombre',
+      phone: row.client?.phone ?? null,
+      service: row.service?.name ?? null,
+      preference: row.preference,
+    };
+  });
 }
 
 /** Huecos que caben en la jornada, ya sin solapes ni bloqueos. */
@@ -55,8 +87,17 @@ export async function updateStatus(sb: SupabaseClient, id: string, status: strin
 }
 
 export async function cancelAppointment(sb: SupabaseClient, id: string): Promise<WriteResult> {
+  const { data: appt } = await sb
+    .from('appointments')
+    .select('id, salon_id, service_id')
+    .eq('id', id)
+    .maybeSingle();
+  const waiters = appt
+    ? await matchingWaiters(sb, appt.salon_id, appt.service_id)
+    : [];
   const { error } = await sb.from('appointments').delete().eq('id', id);
-  return { ok: !error, error: error?.message ?? null };
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, error: null, waiters };
 }
 
 export async function updateAppointmentNote(sb: SupabaseClient, id: string, note: string): Promise<WriteResult> {
@@ -66,21 +107,37 @@ export async function updateAppointmentNote(sb: SupabaseClient, id: string, note
 
 export async function createBlock(
   sb: SupabaseClient,
-  input: { providerId: string; date: string; startMin: number; durationMin: number; reason: string; label?: string },
+  input: {
+    providerId: string; date: string; startMin: number; durationMin: number;
+    reason: string; label?: string; weekdays?: boolean;
+  },
 ): Promise<WriteResult> {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return { ok: false, error: 'Sin sesión' };
   const { data: staff } = await sb.from('staff').select('salon_id').eq('id', user.id).maybeSingle();
   if (!staff) return { ok: false, error: 'Sin sesión' };
-  const { error } = await sb.from('time_blocks').insert({
-    salon_id: staff.salon_id,
-    provider_id: input.providerId,
-    reason: input.reason,
-    label: input.label?.trim() || null,
-    starts_at: toTimestamp(input.date, input.startMin),
-    duration_min: input.durationMin,
-  });
-  return { ok: !error, error: overlapMsg(error?.message ?? '') ? BUSY : (error?.message ?? null) };
+
+  const dates = input.weekdays
+    ? Array.from({ length: 28 }, (_, i) => addDays(input.date, i))
+      .filter(d => { const w = weekdayUtc(d); return w !== 0 && w !== 6; })
+    : [input.date];
+
+  let ok = 0;
+  let lastErr: string | null = null;
+  for (const date of dates) {
+    const { error } = await sb.from('time_blocks').insert({
+      salon_id: staff.salon_id,
+      provider_id: input.providerId,
+      reason: input.reason,
+      label: input.label?.trim() || null,
+      starts_at: toTimestamp(date, input.startMin),
+      duration_min: input.durationMin,
+    });
+    if (!error) ok += 1;
+    else lastErr = overlapMsg(error.message) ? BUSY : error.message;
+  }
+  if (ok === 0) return { ok: false, error: lastErr ?? FORBIDDEN };
+  return { ok: true, error: null };
 }
 
 export async function deleteBlock(sb: SupabaseClient, id: string): Promise<WriteResult> {

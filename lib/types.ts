@@ -31,6 +31,16 @@ export type AgendaAppt = {
   session_no: number | null;
   note: string | null;
   client_phone: string | null;
+  confirmed_at: string | null;
+};
+
+export type Waiter = {
+  id: string;
+  client_id: string | null;
+  name: string;
+  phone: string | null;
+  service: string | null;
+  preference: string | null;
 };
 
 export type AgendaBlock = {
@@ -83,6 +93,14 @@ export type ClientListRow = ClientOption & {
   open_treatments: string[];
   next_at: string | null;
   last_at: string | null;
+};
+
+export type RecallRow = {
+  client_id: string;
+  full_name: string;
+  phone: string | null;
+  last_at: string;
+  service_name: string | null;
 };
 
 export type Measurement = {

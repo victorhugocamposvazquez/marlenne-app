@@ -25,6 +25,7 @@ export default function BlockSheet({
   const [duration, setDuration] = useState(60);
   const [reason, setReason] = useState<BlockReason>('comida');
   const [label, setLabel] = useState(existing?.label ?? '');
+  const [repeatWeekdays, setRepeatWeekdays] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (existing) {
@@ -56,6 +57,7 @@ export default function BlockSheet({
     startTransition(async () => {
       const r = await createBlock(createClient(), {
         providerId, date, startMin, durationMin: duration, reason, label,
+        weekdays: repeatWeekdays,
       });
       if (!r.ok) setError(r.error ?? 'No se ha podido bloquear');
       else close();
@@ -74,7 +76,7 @@ export default function BlockSheet({
             disabled={pending || !providerId}
             className="w-full rounded-field bg-grad py-3.5 text-[15px] font-extrabold text-white shadow-btn disabled:opacity-40"
           >
-            {pending ? 'Guardando…' : 'Bloquear'}
+            {pending ? 'Guardando…' : repeatWeekdays ? 'Bloquear laborables' : 'Bloquear'}
           </button>
         </>
       }
@@ -126,6 +128,20 @@ export default function BlockSheet({
       <Field label="Etiqueta">
         <input className={inputCls} placeholder="Comida, formación…" value={label} onChange={e => setLabel(e.target.value)} />
       </Field>
+      <label className="mb-3 flex items-start gap-2.5 rounded-field border border-surface-line bg-white px-3.5 py-3">
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={repeatWeekdays}
+          onChange={e => setRepeatWeekdays(e.target.checked)}
+        />
+        <span>
+          <span className="block text-[13.5px] font-bold">Laborables, 4 semanas</span>
+          <span className="block text-[11.5px] font-medium text-ink-3">
+            Lunes a viernes a esta hora. Los días que ya estén ocupados se saltan.
+          </span>
+        </span>
+      </label>
     </Sheet>
   );
 }

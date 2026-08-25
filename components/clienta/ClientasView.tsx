@@ -6,17 +6,18 @@ import { CalendarPlus, MessageCircle, Phone, Plus, Search } from 'lucide-react';
 import NewClientSheet from '@/components/clienta/NewClientSheet';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 import { avatarColor, initials } from '@/lib/categories';
-import { phoneDigits, waHref } from '@/lib/phone';
-import { shortWhen } from '@/lib/time';
+import { phoneDigits, waHref, waRecallMsg } from '@/lib/phone';
+import { isRecallDue, shortWhen } from '@/lib/time';
 import { fold } from '@/lib/voice';
 import type { ClientListRow } from '@/lib/types';
 
-type Filter = 'todas' | 'vip' | 'proxima' | 'sin' | 'tratamiento';
+type Filter = 'todas' | 'vip' | 'proxima' | 'sin' | 'tratamiento' | 'volver';
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'todas', label: 'Todas' },
   { id: 'proxima', label: 'Con cita' },
   { id: 'sin', label: 'Sin próxima' },
+  { id: 'volver', label: 'Por volver' },
   { id: 'tratamiento', label: 'En curso' },
   { id: 'vip', label: 'VIP' },
 ];
@@ -39,6 +40,7 @@ export default function ClientasView({
       if (filter === 'proxima' && !c.next_at) return false;
       if (filter === 'sin' && c.next_at) return false;
       if (filter === 'tratamiento' && !c.open_treatments.length) return false;
+      if (filter === 'volver' && !isRecallDue(c.last_at, c.next_at)) return false;
       if (!needle && tel.length < 3) return true;
       const nameHit = needle && fold(c.full_name).includes(needle);
       const phoneHit = tel.length >= 3 && phoneDigits(c.phone ?? '').includes(tel);
@@ -109,7 +111,12 @@ export default function ClientasView({
           </p>
         )}
         {shown.map(c => {
-          const wa = waHref(c.phone);
+          const wa = waHref(
+            c.phone,
+            filter === 'volver' && c.last_at
+              ? waRecallMsg({ name: c.full_name, lastAt: c.last_at })
+              : undefined,
+          );
           return (
             <div
               key={c.id}

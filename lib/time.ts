@@ -133,3 +133,34 @@ export function shortWhen(iso: string) {
   const day = dateLbl(iso).replace(/ \d{4}$/, '');
   return `${day} ${clock}`;
 }
+
+/** Días civiles desde un ISO hasta ahora (Madrid no hace falta: es diferencia de instantes). */
+export function daysSince(iso: string) {
+  return Math.max(0, Math.round((Date.now() - +new Date(iso)) / 86_400_000));
+}
+
+export function agoLbl(iso: string) {
+  const d = daysSince(iso);
+  if (d <= 1) return 'ayer';
+  if (d < 14) return `hace ${d} días`;
+  const w = Math.round(d / 7);
+  return w === 1 ? 'hace 1 semana' : `hace ${w} semanas`;
+}
+
+/** Última visita hace 3–17 semanas y sin cita futura: toca llamarla. */
+export function isRecallDue(lastAt: string | null, nextAt: string | null) {
+  if (nextAt || !lastAt) return false;
+  const d = daysSince(lastAt);
+  return d >= 21 && d <= 120;
+}
+
+export function addDays(date: string, n: number) {
+  const [y, m, d] = dayKey(date).split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+
+/** 0 = domingo … 6 = sábado, sobre el día civil YYYY-MM-DD. */
+export function weekdayUtc(date: string) {
+  const [y, m, d] = dayKey(date).split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}

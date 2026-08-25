@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
-import { toTimestamp, dateFromOffset, dayKey, weekMondayOffset } from '@/lib/time';
+import { toTimestamp, dateFromOffset, dayKey, weekMondayOffset, isRecallDue } from '@/lib/time';
 import { APPT_SELECT, mapAppt } from '@/lib/agenda-appt';
 import type {
-  AgendaAppt, AgendaBlock, ClientListRow, ClientOption, ClientRow, Consent, Provider, ServiceOption,
+  AgendaAppt, AgendaBlock, ClientListRow, ClientOption, ClientRow, Consent, Provider, RecallRow, ServiceOption,
   TreatmentRow, WaitItem, WeekDay,
 } from '@/lib/types';
 
@@ -264,6 +264,44 @@ export async function signedPhotoUrls(paths: string[]) {
     if (item.path && item.signedUrl) map[item.path] = item.signedUrl;
   }
   return map;
+}
+
+export async function listRecalls(limit = 6): Promise<RecallRow[]> {
+  const sb = createClient();
+  const now = new Date().toISOString();
+  const [{ data: past }, { data: upcoming }] = await Promise.all([
+    sb.from('appointments')
+      .select('client_id, starts_at, service:services(name), client:clients(full_name, phone)')
+      .eq('status', 'done')
+      .not('client_id', 'is', null)
+      .gte('starts_at', toTimestamp(dateFromOffset(-400), 0))
+      .lt('starts_at', now)
+      .order('starts_at', { ascending: false }),
+    sb.from('appointments')
+      .select('client_id')
+      .in('status', ['prog', 'curso'])
+      .gte('starts_at', now)
+      .not('client_id', 'is', null),
+  ]);
+  const busy = new Set((upcoming ?? []).map(a => a.client_id).filter(Boolean) as string[]);
+  const seen = new Set<string>();
+  const rows: RecallRow[] = [];
+  for (const a of past ?? []) {
+    if (!a.client_id || seen.has(a.client_id) || busy.has(a.client_id)) continue;
+    seen.add(a.client_id);
+    if (!isRecallDue(a.starts_at, null)) continue;
+    const client = a.client as { full_name?: string; phone?: string | null } | null;
+    const service = a.service as { name?: string } | null;
+    rows.push({
+      client_id: a.client_id,
+      full_name: client?.full_name ?? 'Sin nombre',
+      phone: client?.phone ?? null,
+      last_at: a.starts_at,
+      service_name: service?.name ?? null,
+    });
+    if (rows.length >= limit) break;
+  }
+  return rows;
 }
 
 export async function countWaitlist() {

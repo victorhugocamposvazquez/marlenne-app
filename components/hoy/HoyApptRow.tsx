@@ -8,7 +8,7 @@ import { CATEGORIES } from '@/lib/categories';
 import { durLbl, fmt, minutesOfDay } from '@/lib/time';
 import { updateStatus } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
-import { waHref } from '@/lib/phone';
+import { waConfirmMsg, waHref } from '@/lib/phone';
 import type { AgendaAppt } from '@/lib/types';
 
 export default function HoyApptRow({
@@ -21,7 +21,14 @@ export default function HoyApptRow({
   const cat = CATEGORIES[appt.category];
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const wa = cabin && late ? waHref(appt.client_phone) : null;
+  const wa = waHref(
+    appt.client_phone,
+    waConfirmMsg({
+      clientLabel: appt.client_label,
+      service: appt.service_name,
+      startsAt: appt.starts_at,
+    }),
+  );
 
   const set = (status: string) => {
     startTransition(async () => {

@@ -24,6 +24,7 @@ const ROADMAP = [
   { done: true, label: 'Alta y baja de equipo; filtro por profesional' },
   { done: true, label: 'No-show desde Hoy' },
   { done: true, label: 'Hablar o escribir comandos de agenda' },
+  { done: true, label: 'Próximo hueco, confirmación y por volver' },
   { done: false, label: 'App offline usable (agenda del día en local)' },
 ];
 

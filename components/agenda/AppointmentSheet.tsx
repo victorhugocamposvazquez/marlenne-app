@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { CalendarClock, Phone, Trash2, UserRound } from 'lucide-react';
+import { CalendarClock, CalendarPlus, MessageCircle, Phone, Trash2, UserRound } from 'lucide-react';
 import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet';
+import NextSlotControls from '@/components/agenda/NextSlotControls';
 import { CATEGORIES, STATUS, type StatusId } from '@/lib/categories';
 import {
   cancelAppointment, slotsFor, updateAppointmentNote, updateStatus,
@@ -11,7 +12,10 @@ import {
 import { moveAppointment } from '@/lib/move-appointment';
 import { createClient } from '@/lib/supabase/client';
 import { dayKey, durLbl, fmt, minutesOfDay, citaCambiada } from '@/lib/time';
-import type { AgendaAppt, Provider } from '@/lib/types';
+import { confirmPageUrl, waConfirmMsg, waHref, waWaiterMsg } from '@/lib/phone';
+import { issueAppointmentLink } from '@/lib/confirm-link';
+import { shallowSet } from '@/hooks/useShallowQuery';
+import type { AgendaAppt, Provider, Waiter } from '@/lib/types';
 import SessionCloseForm from './SessionCloseForm';
 import { useToast } from '@/components/Toast';
 
@@ -42,6 +46,7 @@ export default function AppointmentSheet({
 
   const [moving, setMoving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [waiters, setWaiters] = useState<Waiter[] | null>(null);
   const [date, setDate] = useState(dayKey(appt.starts_at));
   const [providerId, setProviderId] = useState(appt.provider_id);
   const [startMin, setStartMin] = useState<number | null>(null);
@@ -51,7 +56,6 @@ export default function AppointmentSheet({
   const start = minutesOfDay(appt.starts_at);
   const cat = CATEGORIES[appt.category];
 
-  // Al reprogramar hay que excluir la propia cita, o su hueco actual no saldría libre.
   useEffect(() => {
     if (!moving) return;
     let alive = true;
@@ -78,6 +82,96 @@ export default function AppointmentSheet({
     });
   };
 
+  const askConfirm = () => {
+    setError(null);
+    startTransition(async () => {
+      const token = await issueAppointmentLink(createClient(), appt.id);
+      const url = token ? confirmPageUrl(token) : null;
+      const href = waHref(appt.client_phone, waConfirmMsg({
+        clientLabel: appt.client_label,
+        service: appt.service_name,
+        startsAt: appt.starts_at,
+        confirmUrl: url,
+      }));
+      if (href) {
+        window.open(href, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      if (url) {
+        try {
+          await navigator.clipboard.writeText(url);
+          toast('Enlace copiado');
+        } catch {
+          setError(`Pásale este enlace: ${url}`);
+        }
+      } else {
+        setError('No se ha podido crear el enlace. ¿Aplicaste la migración?');
+      }
+    });
+  };
+
+  if (waiters) {
+    return (
+      <Sheet title="Hueco libre" subtitle="Hay gente en espera para este servicio">
+        <div className="mb-3 flex flex-col gap-2">
+          {waiters.map(w => {
+            const wa = w.phone
+              ? waHref(w.phone, waWaiterMsg({
+                name: w.name,
+                service: w.service ?? appt.service_name,
+                startsAt: appt.starts_at,
+              }))
+              : null;
+            return (
+              <div key={w.id} className="rounded-row border border-surface-line bg-white p-3 shadow-card">
+                <div className="truncate text-[14px] font-bold">{w.name}</div>
+                <p className="text-[11.5px] font-medium text-ink-3">
+                  {[w.service, w.preference].filter(Boolean).join(' · ') || 'Cualquier servicio'}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {wa && (
+                    <a
+                      href={wa}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-[12px] bg-emerald-50 px-3 py-2 text-[12px] font-bold text-emerald-800"
+                    >
+                      <MessageCircle size={14} strokeWidth={2.2} />
+                      WhatsApp
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      shallowSet({
+                        appt: null,
+                        new: '1',
+                        client: w.client_id,
+                        nombre: w.client_id ? null : w.name,
+                        servicio: w.service ?? appt.service_name,
+                      });
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-[12px] border border-surface-line bg-white px-3 py-2 text-[12px] font-bold text-v-d"
+                  >
+                    <CalendarPlus size={14} strokeWidth={2.2} />
+                    Dar cita
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={close}
+          className="mb-2 w-full rounded-field border border-surface-line bg-white py-3 text-[14px] font-bold text-ink-2"
+        >
+          Cerrar
+        </button>
+      </Sheet>
+    );
+  }
+
   return (
     <Sheet
       title={appt.client_label}
@@ -98,6 +192,11 @@ export default function AppointmentSheet({
         {appt.session_no !== null && (
           <span className="rounded-[9px] bg-v-soft px-2.5 py-1.5 text-[11px] font-bold text-v-d">
             Sesión {appt.session_no}
+          </span>
+        )}
+        {appt.confirmed_at && (
+          <span className="rounded-[9px] bg-emerald-50 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700">
+            Confirmada
           </span>
         )}
         {sms && (
@@ -169,6 +268,21 @@ export default function AppointmentSheet({
           Llamar {appt.client_phone}
         </a>
       )}
+      {appt.status === 'prog' && (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={askConfirm}
+          className={`mb-3 flex w-full items-center justify-center gap-2 rounded-field py-3 text-[14px] font-bold shadow-card disabled:opacity-40 ${
+            appt.client_phone
+              ? 'border border-emerald-200 bg-emerald-50 text-emerald-800'
+              : 'border border-surface-line bg-white text-v-d'
+          }`}
+        >
+          <MessageCircle size={17} strokeWidth={2.2} />
+          {appt.client_phone ? 'Pedir confirmación' : 'Copiar enlace de confirmación'}
+        </button>
+      )}
 
       {!moving ? (
         <button
@@ -180,6 +294,17 @@ export default function AppointmentSheet({
         </button>
       ) : (
         <div className="mb-3 rounded-field border border-surface-line bg-surface-bg/40 p-3.5">
+          <NextSlotControls
+            durationMin={appt.duration_min}
+            providerId={providerId}
+            anyProviders={canMoveProvider && providers.length > 1}
+            excludeId={appt.id}
+            onPick={slot => {
+              setDate(dayKey(slot.startsAt));
+              setProviderId(slot.providerId);
+              setStartMin(minutesOfDay(slot.startsAt));
+            }}
+          />
           <Field label="Nuevo día">
             <input
               type="date"
@@ -206,7 +331,9 @@ export default function AppointmentSheet({
             {slots === null ? (
               <p className="text-[12.5px] font-semibold text-ink-3">Buscando huecos…</p>
             ) : slots.length === 0 ? (
-              <p className="text-[12.5px] font-semibold text-ink-2">No queda hueco ese día.</p>
+              <p className="text-[12.5px] font-semibold text-ink-2">
+                No queda hueco ese día. Prueba el próximo hueco arriba.
+              </p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {slots.map(m => (
@@ -270,7 +397,15 @@ export default function AppointmentSheet({
           </button>
           <button
             disabled={pending}
-            onClick={() => run(() => cancelAppointment(createClient(), appt.id), true)}
+            onClick={() => {
+              setError(null);
+              startTransition(async () => {
+                const r = await cancelAppointment(createClient(), appt.id);
+                if (!r.ok) setError(r.error ?? 'No se ha podido cancelar');
+                else if (r.waiters?.length) setWaiters(r.waiters);
+                else close();
+              });
+            }}
             className="flex-1 rounded-field bg-pink-600 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-40"
           >
             Sí, cancelar

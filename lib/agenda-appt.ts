@@ -2,7 +2,7 @@ import type { AgendaAppt } from '@/lib/types';
 
 export const APPT_SELECT = `
   id, provider_id, client_id, client_name, starts_at, ends_at, duration_min,
-  status, price_cents, treatment_id, session_no, service_id, note,
+  status, price_cents, treatment_id, session_no, service_id, note, confirmed_at,
   service:services(name, category, param_keys),
   provider:staff!appointments_provider_id_fkey(full_name),
   client:clients(full_name, phone)
@@ -23,6 +23,7 @@ export function mapAppt(row: unknown): AgendaAppt {
     session_no: number | null;
     service_id: string;
     note?: string | null;
+    confirmed_at?: string | null;
     service?: { name?: string; category?: AgendaAppt['category']; param_keys?: string[] } | null;
     provider?: { full_name?: string } | null;
     client?: { full_name?: string; phone?: string | null } | null;
@@ -46,5 +47,6 @@ export function mapAppt(row: unknown): AgendaAppt {
     session_no: r.session_no,
     note: r.note ?? null,
     client_phone: r.client?.phone ?? null,
+    confirmed_at: r.confirmed_at ?? null,
   };
 }
