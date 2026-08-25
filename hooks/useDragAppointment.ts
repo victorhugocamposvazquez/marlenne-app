@@ -4,69 +4,69 @@ import { useCallback, useRef, useState, type RefObject } from 'react';
 import { DAY_START, DAY_END } from '@/lib/time';
 
 export const COL_W = 152;
-const HOLD_MS = 420;
-const SLOP = 12;
-const EDGE = 56;
+const EDGE = 64;
 
 type Drag = { id: string; start: number; providerId: string };
 
 type Session = {
   id: string;
+  pointerId: number;
   x0: number;
   y0: number;
   start0: number;
   col0: number;
   providerId0: string;
   duration: number;
-  armed: boolean;
-  scrolled: boolean;
   last: Drag | null;
   scrollTop0: number;
   scrollLeft0: number;
 };
 
 /**
- * Pulsación larga para coger la cita. El toque corto abre la ficha y el
- * gesto vertical sigue siendo scroll: si se arma al primer pixel, en iPad
- * no se puede bajar el día.
+ * Solo el asidero inicia el arrastre. El cuerpo de la cita abre la ficha.
+ * Mientras se mueve, se bloquea el scroll del dedo (si no, el día viaja
+ * con el gesto y la cita apenas cambia de minuto).
  */
 export function useDragAppointment({
-  pxPerMin, snap, providerIds, scrollRef, onDrop, onTap,
+  pxPerMin, snap, providerIds, scrollRef, onDrop,
 }: {
   pxPerMin: number;
   snap: number;
   providerIds: string[];
   scrollRef: RefObject<HTMLElement | null>;
   onDrop: (id: string, startMin: number, providerId: string) => void;
-  onTap?: (id: string) => void;
 }) {
   const [drag, setDrag] = useState<Drag | null>(null);
   const session = useRef<Session | null>(null);
-  const holdTimer = useRef(0);
   const raf = useRef(0);
   const lastEv = useRef<PointerEvent | null>(null);
 
-  const onPointerDown = useCallback(
-    (e: React.PointerEvent, id: string, startMin: number, providerId: string, duration: number, status: string) => {
-      if (status === 'done') { onTap?.(id); return; }
+  const onHandleDown = useCallback(
+    (e: React.PointerEvent, id: string, startMin: number, providerId: string, duration: number) => {
       if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
 
       const box = scrollRef.current;
       const col0 = Math.max(0, providerIds.indexOf(providerId));
       session.current = {
         id,
+        pointerId: e.pointerId,
         x0: e.clientX,
         y0: e.clientY,
         start0: startMin,
         col0,
         providerId0: providerId,
         duration,
-        armed: false,
-        scrolled: false,
-        last: null,
+        last: { id, start: startMin, providerId },
         scrollTop0: box?.scrollTop ?? 0,
         scrollLeft0: box?.scrollLeft ?? 0,
       };
+      lastEv.current = e.nativeEvent;
+      setDrag(session.current.last);
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* */ }
+      try { navigator.vibrate?.(10); } catch { /* */ }
+      if (box) box.style.touchAction = 'none';
 
       const place = (ev: PointerEvent, d: Session): Drag => {
         const sc = scrollRef.current;
@@ -89,11 +89,11 @@ export function useDragAppointment({
         const d = session.current;
         const ev = lastEv.current;
         const sc = scrollRef.current;
-        if (!d?.armed || !ev || !sc) return;
+        if (!d || !ev || !sc) return;
         const r = sc.getBoundingClientRect();
         let step = 0;
-        if (ev.clientY < r.top + EDGE) step = -14;
-        else if (ev.clientY > r.bottom - EDGE) step = 14;
+        if (ev.clientY < r.top + EDGE) step = -18;
+        else if (ev.clientY > r.bottom - EDGE) step = 18;
         if (!step) return;
         sc.scrollTop += step;
         const next = place(ev, d);
@@ -102,27 +102,13 @@ export function useDragAppointment({
         raf.current = requestAnimationFrame(tick);
       };
 
-      holdTimer.current = window.setTimeout(() => {
-        const d = session.current;
-        if (!d || d.scrolled) return;
-        d.armed = true;
-        try { navigator.vibrate?.(12); } catch { /* */ }
-        const next = { id: d.id, start: d.start0, providerId: d.providerId0 };
-        d.last = next;
-        setDrag(next);
-      }, HOLD_MS);
+      const blockScroll = (ev: TouchEvent) => { ev.preventDefault(); };
 
       const move = (ev: PointerEvent) => {
+        if (ev.pointerId !== session.current?.pointerId) return;
         lastEv.current = ev;
         const d = session.current;
         if (!d) return;
-        if (!d.armed) {
-          if (Math.hypot(ev.clientX - d.x0, ev.clientY - d.y0) > SLOP) {
-            d.scrolled = true;
-            window.clearTimeout(holdTimer.current);
-          }
-          return;
-        }
         ev.preventDefault();
         const next = place(ev, d);
         d.last = next;
@@ -130,33 +116,38 @@ export function useDragAppointment({
         if (!raf.current) raf.current = requestAnimationFrame(tick);
       };
 
-      const up = () => {
-        window.clearTimeout(holdTimer.current);
+      const end = (commit: boolean) => {
         stopRaf();
         window.removeEventListener('pointermove', move);
-        window.removeEventListener('pointerup', up);
-        window.removeEventListener('pointercancel', up);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onCancel);
+        window.removeEventListener('touchmove', blockScroll);
+        if (box) box.style.touchAction = '';
         const d = session.current;
         session.current = null;
         lastEv.current = null;
         setDrag(null);
-        if (!d) return;
-        if (!d.armed) {
-          if (!d.scrolled) onTap?.(d.id);
-          return;
-        }
-        const dest = d.last;
-        if (!dest) return;
-        if (dest.start === d.start0 && dest.providerId === d.providerId0) return;
-        onDrop(dest.id, dest.start, dest.providerId);
+        if (!commit || !d?.last) return;
+        if (d.last.start === d.start0 && d.last.providerId === d.providerId0) return;
+        onDrop(d.last.id, d.last.start, d.last.providerId);
+      };
+
+      const onUp = (ev: PointerEvent) => {
+        if (ev.pointerId !== session.current?.pointerId) return;
+        end(true);
+      };
+      const onCancel = (ev: PointerEvent) => {
+        if (ev.pointerId !== session.current?.pointerId) return;
+        end(false);
       };
 
       window.addEventListener('pointermove', move, { passive: false });
-      window.addEventListener('pointerup', up);
-      window.addEventListener('pointercancel', up);
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onCancel);
+      window.addEventListener('touchmove', blockScroll, { passive: false });
     },
-    [pxPerMin, snap, providerIds, scrollRef, onDrop, onTap],
+    [pxPerMin, snap, providerIds, scrollRef, onDrop],
   );
 
-  return { drag, onPointerDown };
+  return { drag, onHandleDown };
 }

@@ -9,6 +9,7 @@ import type { AgendaAppt, AgendaBlock, Provider } from '@/lib/types';
 import { useDragAppointment, COL_W } from '@/hooks/useDragAppointment';
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 import { useToast } from '@/components/Toast';
+import { GripVertical } from 'lucide-react';
 
 export default function DayGrid({
   date, providers, appointments, blocks, canMoveProvider,
@@ -57,7 +58,7 @@ export default function DayGrid({
     router.push(`${pathname}?${next.toString()}`, { scroll: false });
   }, [params, pathname, router]);
 
-  const { drag, onPointerDown } = useDragAppointment({
+  const { drag, onHandleDown } = useDragAppointment({
     pxPerMin,
     snap: 15,
     providerIds: canMoveProvider ? providers.map(p => p.id) : [providers[0]?.id],
@@ -83,7 +84,6 @@ export default function DayGrid({
           : (r.error ?? 'No se ha podido mover la cita'), 'err');
       });
     },
-    onTap: openAppt,
   });
 
   const hours = [];
@@ -101,7 +101,7 @@ export default function DayGrid({
 
   return (
     <>
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto pb-2">
+      <div ref={scrollRef} className={`min-h-0 flex-1 overflow-auto pb-2 ${drag ? 'touch-none overscroll-none' : ''}`}>
         <div className="min-w-max pr-3.5">
           {/* Cabeceras de profesional */}
           <div className="sticky top-0 z-[6] flex bg-[linear-gradient(180deg,#EEECFA_74%,rgba(238,236,250,0))] pb-2.5 pt-0.5">
@@ -199,18 +199,13 @@ export default function DayGrid({
                       if (pos.provider !== p.id) return null;
                       const st = STATUS[a.status];
                       const cat = CATEGORIES[a.category];
+                      const canDrag = a.status !== 'done';
                       return (
                         <div
                           key={a.id}
                           data-id={a.id}
-                          role="button"
-                          tabIndex={0}
-                          aria-label={`${a.client_label}, ${a.service_name}, ${fmt(pos.start)}`}
-                          onPointerDown={e => onPointerDown(e, a.id, pos.start, p.id, a.duration_min, a.status)}
-                          onContextMenu={e => e.preventDefault()}
-                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAppt(a.id); } }}
-                          className={`absolute left-0 right-2 select-none overflow-hidden rounded-pill px-2.5 py-1.5 transition-shadow ${
-                            pos.dragging ? 'touch-none' : 'touch-pan-y'
+                          className={`absolute left-0 right-2 flex overflow-hidden rounded-pill transition-shadow ${
+                            pos.dragging ? 'touch-none' : ''
                           }`}
                           style={{
                             top: (pos.start - DAY_START) * pxPerMin + 2,
@@ -222,21 +217,39 @@ export default function DayGrid({
                             transform: pos.dragging ? 'scale(1.03)' : 'none',
                             opacity: a.status === 'done' ? 0.62 : 1,
                             zIndex: pos.dragging ? 12 : 2,
-                            cursor: pos.dragging ? 'grabbing' : 'pointer',
-                            WebkitTouchCallout: 'none',
                           }}
                         >
-                          <div className="flex items-center gap-[5px]">
-                            <span className="h-1.5 w-1.5 shrink-0 rounded-sm" style={{ background: cat.color }} />
-                            <span className="truncate text-[12.5px] font-bold leading-tight tracking-[-.01em]">{a.client_label}</span>
-                          </div>
-                          <div className="truncate text-[11px] font-medium text-ink-2">{a.service_name}</div>
-                          {a.note && (
-                            <div className="truncate text-[10.5px] font-medium text-ink-3">{a.note}</div>
+                          {canDrag && (
+                            <button
+                              type="button"
+                              aria-label={`Mover cita de ${a.client_label}`}
+                              className="flex w-7 shrink-0 touch-none cursor-grab items-center justify-center text-ink-3 active:cursor-grabbing"
+                              onPointerDown={e => onHandleDown(e, a.id, pos.start, p.id, a.duration_min)}
+                              onClick={e => e.stopPropagation()}
+                              onContextMenu={e => e.preventDefault()}
+                            >
+                              <GripVertical size={15} strokeWidth={2.2} />
+                            </button>
                           )}
-                          <div className="mt-0.5 text-[10.5px] font-semibold tabular-nums" style={{ color: st.edge }}>
-                            {fmt(pos.start)} – {fmt(pos.start + a.duration_min)}
-                          </div>
+                          <button
+                            type="button"
+                            tabIndex={0}
+                            aria-label={`${a.client_label}, ${a.service_name}, ${fmt(pos.start)}`}
+                            onClick={() => openAppt(a.id)}
+                            className="min-w-0 flex-1 overflow-hidden px-1.5 py-1.5 text-left"
+                          >
+                            <div className="flex items-center gap-[5px]">
+                              <span className="h-1.5 w-1.5 shrink-0 rounded-sm" style={{ background: cat.color }} />
+                              <span className="truncate text-[12.5px] font-bold leading-tight tracking-[-.01em]">{a.client_label}</span>
+                            </div>
+                            <div className="truncate text-[11px] font-medium text-ink-2">{a.service_name}</div>
+                            {a.note && (
+                              <div className="truncate text-[10.5px] font-medium text-ink-3">{a.note}</div>
+                            )}
+                            <div className="mt-0.5 text-[10.5px] font-semibold tabular-nums" style={{ color: st.edge }}>
+                              {fmt(pos.start)} – {fmt(pos.start + a.duration_min)}
+                            </div>
+                          </button>
                         </div>
                       );
                     })}
@@ -255,7 +268,7 @@ export default function DayGrid({
             {c.label}
           </span>
         ))}
-        <span className="ml-auto shrink-0 font-medium">Mantén pulsado para mover</span>
+        <span className="ml-auto shrink-0 font-medium">El asidero mueve · el resto abre</span>
       </div>
     </>
   );
