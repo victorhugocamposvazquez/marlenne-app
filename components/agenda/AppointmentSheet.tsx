@@ -61,13 +61,18 @@ export default function AppointmentSheet({
     return () => { alive = false; };
   }, [moving, providerId, date, appt.duration_min, appt.id]);
 
-  const run = (fn: () => Promise<{ ok: boolean; error: string | null }>, thenClose = false, okMsg?: string) => {
+  const run = (
+    fn: () => Promise<{ ok: boolean; error: string | null }>,
+    thenClose = false,
+    okMsg?: string,
+    undo?: () => void,
+  ) => {
     setError(null);
     startTransition(async () => {
       const r = await fn();
       if (!r.ok) setError(r.error ?? 'No se ha podido guardar');
       else {
-        if (okMsg) toast(okMsg);
+        if (okMsg) toast(okMsg, undo ? { undo } : undefined);
         if (thenClose) close();
       }
     });
@@ -225,10 +230,20 @@ export default function AppointmentSheet({
               onClick={() => {
                 const who = providers.find(p => p.id === providerId)?.full_name.split(' ')[0] ?? null;
                 const providerChanged = providerId !== appt.provider_id;
+                const prevDate = dayKey(appt.starts_at);
+                const prevStart = minutesOfDay(appt.starts_at);
+                const prevProvider = appt.provider_id;
                 run(
                   () => moveAppointment(createClient(), { id: appt.id, date, startMin: startMin!, providerId }),
                   true,
                   citaCambiada(startMin!, providerChanged ? who : null),
+                  () => {
+                    void moveAppointment(createClient(), {
+                      id: appt.id, date: prevDate, startMin: prevStart, providerId: prevProvider,
+                    }).then(back => {
+                      if (!back.ok) toast(back.error ?? 'No se ha podido deshacer', 'err');
+                    });
+                  },
                 );
               }}
               className="flex-1 rounded-field bg-grad py-3 text-[13.5px] font-extrabold text-white shadow-btn disabled:opacity-40 disabled:shadow-none"

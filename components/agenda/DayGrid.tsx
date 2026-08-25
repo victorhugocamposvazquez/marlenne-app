@@ -65,7 +65,7 @@ export default function DayGrid({
     shallowSet({ appt: id });
   }, []);
 
-  const { drag, onHandleDown } = useDragAppointment({
+  const { drag, onHandleDown, onCardDown, onCardClick } = useDragAppointment({
     pxPerMin,
     snap: 15,
     providerIds: canMoveProvider ? providers.map(p => p.id) : [providers[0]?.id],
@@ -74,12 +74,25 @@ export default function DayGrid({
     onDrop: (id, start, providerId) => {
       const who = providers.find(p => p.id === providerId)?.full_name.split(' ')[0] ?? null;
       const from = appointments.find(a => a.id === id);
-      const providerChanged = !!from && from.provider_id !== providerId;
+      const prevStart = optimistic[id]?.start ?? (from ? minutesOfDay(from.starts_at) : start);
+      const prevProvider = optimistic[id]?.provider ?? from?.provider_id ?? providerId;
+      const providerChanged = prevProvider !== providerId;
       setOptimistic(o => ({ ...o, [id]: { start, provider: providerId } }));
       void (async () => {
         const r = await moveAppointment(createClient(), { id, date, startMin: start, providerId });
         if (r.ok) {
-          toast(citaCambiada(start, providerChanged ? who : null));
+          toast(citaCambiada(start, providerChanged ? who : null), {
+            undo: () => {
+              setOptimistic(o => ({ ...o, [id]: { start: prevStart, provider: prevProvider } }));
+              void moveAppointment(createClient(), {
+                id, date, startMin: prevStart, providerId: prevProvider,
+              }).then(back => {
+                if (back.ok) return;
+                setOptimistic(o => ({ ...o, [id]: { start, provider: providerId } }));
+                toast(back.error ?? 'No se ha podido deshacer', 'err');
+              });
+            },
+          });
           return;
         }
         setOptimistic(o => {
@@ -239,10 +252,13 @@ export default function DayGrid({
                       opacity: a.status === 'done' ? 0.62 : 1,
                       zIndex: pos.dragging ? 12 : 2,
                     }}
+                    onPointerDown={canDrag ? e => onCardDown(e, a.id, pos.start, pos.provider, a.duration_min) : undefined}
+                    onContextMenu={e => e.preventDefault()}
                   >
                     {canDrag && (
                       <button
                         type="button"
+                        data-drag-handle
                         aria-label={`Mover cita de ${a.client_label}`}
                         className="relative flex w-7 shrink-0 touch-none select-none cursor-grab items-center justify-center text-ink-3 before:absolute before:-inset-y-2 before:-left-2.5 before:-right-1.5 before:content-[''] [-webkit-touch-callout:none] active:cursor-grabbing"
                         draggable={false}
@@ -257,7 +273,7 @@ export default function DayGrid({
                       type="button"
                       tabIndex={0}
                       aria-label={`${a.client_label}, ${a.service_name}, ${fmt(pos.start)}`}
-                      onClick={() => openAppt(a.id)}
+                      onClick={e => { if (!onCardClick(e)) openAppt(a.id); }}
                       className="min-w-0 flex-1 overflow-hidden px-1.5 py-1.5 text-left"
                     >
                       <div className="flex items-center gap-[5px]">
@@ -287,7 +303,7 @@ export default function DayGrid({
             {c.label}
           </span>
         ))}
-        <span className="ml-auto shrink-0 font-medium">El asidero mueve hora y profesional · el resto abre</span>
+        <span className="ml-auto shrink-0 font-medium">Mantén para mover · toca para abrir</span>
       </div>
     </>
   );
