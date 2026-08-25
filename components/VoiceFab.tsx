@@ -15,6 +15,9 @@ import { DIME_WAV_B64 } from '@/lib/dime-wav';
 import { QUE_HACEMOS_WAV_B64 } from '@/lib/que-hacemos-wav';
 import { VOICE_HELP, fold, forEar, isVoiceYes, parseVoice, pickSpokenIndex, splitWake, takeTime, wakeRestIsCommand } from '@/lib/voice';
 import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/lib/voice-prefs';
+import {
+  decodeB64, pickWomanVoice, playB64, speakLocal, stopVoicePlay, unlockSpeak, warmVoiceAudio,
+} from '@/lib/voice-play';
 
 type Choice = { id: string; label: string };
 type Panel =
@@ -24,193 +27,10 @@ type Panel =
   | { mode: 'ask'; say: string; options?: string[]; href?: string }
   | { mode: 'confirm'; say: string; status?: 'curso' | 'noshow'; pick?: 'status' | 'cancel'; run: () => Promise<{ ok: boolean; say: string; href?: string }>; choices?: Choice[] };
 
-const WOMAN_VOICE = /monica|mónica|paulina|helena|elvira|lucia|lucía|marisol|maria|maría|carmen|paloma|laura|silvia|sabina|dalia|soledad|isabela|isabella/i;
-const MAN_VOICE = /jorge|juan|diego|pablo|enrique|raul|carlos|thomas|jorge/i;
-
-let womanVoiceCache: SpeechSynthesisVoice | null = null;
-
-function pickWomanVoice(): SpeechSynthesisVoice | null {
-  const voices = window.speechSynthesis.getVoices();
-  if (!voices.length) return womanVoiceCache;
-  const ranked = voices
-    .map(v => {
-      const n = `${v.name} ${v.voiceURI}`.toLowerCase();
-      let s = 0;
-      if (v.lang.toLowerCase().startsWith('es')) s += 12;
-      if (v.lang.toLowerCase().startsWith('es-es')) s += 6;
-      if (/enhanced|premium|neural|wavenet|studio|natural/.test(n)) s += 24;
-      if (/compact|eloquence|espeak|robot/.test(n)) s -= 22;
-      if (WOMAN_VOICE.test(v.name)) s += 10;
-      if (MAN_VOICE.test(v.name)) s -= 18;
-      if (v.localService) s += 2;
-      return { v, s };
-    })
-    .sort((a, b) => b.s - a.s);
-  womanVoiceCache = ranked[0]?.v ?? null;
-  return womanVoiceCache;
-}
-
-let speakTimer = 0;
-
-function unlockSpeak() {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return;
-  const warm = new SpeechSynthesisUtterance('.');
-  warm.volume = 0;
-  warm.rate = 2;
-  window.speechSynthesis.speak(warm);
-}
-
-let beepCtx: AudioContext | null = null;
-const wavBuf = new Map<string, AudioBuffer>();
-const wavLoad = new Map<string, Promise<AudioBuffer | null>>();
-
-function audioCtx() {
-  beepCtx ??= new AudioContext();
-  return beepCtx;
-}
-
-function loadWav(key: string, b64: string) {
-  const hit = wavBuf.get(key);
-  if (hit) return Promise.resolve(hit);
-  const pending = wavLoad.get(key);
-  if (pending) return pending;
-  const p = (async () => {
-    try {
-      const ctx = audioCtx();
-      const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-      const buf = await ctx.decodeAudioData(bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength));
-      wavBuf.set(key, buf);
-      return buf;
-    } catch {
-      return null;
-    }
-  })();
-  wavLoad.set(key, p);
-  return p;
-}
-
-function playBuffer(buf: AudioBuffer, onDone: () => void) {
-  try {
-    const ctx = audioCtx();
-    void ctx.resume();
-    const src = ctx.createBufferSource();
-    const gain = ctx.createGain();
-    src.buffer = buf;
-    src.playbackRate.value = 0.96;
-    gain.gain.value = 0.82;
-    src.connect(gain);
-    gain.connect(ctx.destination);
-    let done = false;
-    const finish = () => { if (done) return; done = true; onDone(); };
-    src.onended = finish;
-    src.start();
-    window.setTimeout(finish, Math.round((buf.duration / 0.96) * 1000) + 80);
-  } catch {
-    onDone();
-  }
-}
-
-function warmAudio() {
-  try {
-    void audioCtx().resume();
-    void loadWav('dime', DIME_WAV_B64);
-    void loadWav('que', QUE_HACEMOS_WAV_B64);
-  } catch { /* */ }
-  unlockSpeak();
-}
-
-function sayDime(onDone: () => void) {
-  let done = false;
-  const finish = () => {
-    if (done) return;
-    done = true;
-    onDone();
-  };
-  void loadWav('dime', DIME_WAV_B64).then(buf => {
-    if (buf) playBuffer(buf, finish);
-    else speakDimeNow(finish);
-  });
-}
-
-/** Misma vía que «Dime»: se oye siempre, y luego el nombre. */
-function speakQueLeHacemos(who: string, onDone: () => void) {
-  let done = false;
-  const finish = () => {
-    if (done) return;
-    done = true;
-    onDone();
-  };
-  window.setTimeout(finish, 4200);
-  void loadWav('que', QUE_HACEMOS_WAV_B64).then(buf => {
-    if (!buf) {
-      speak(`¿Qué le hacemos a ${who}?`, finish);
-      return;
-    }
-    playBuffer(buf, () => {
-      void (async () => {
-        const ok = await playCloud(who, 'ask');
-        if (!ok) speakLocal(who, true, finish);
-        else finish();
-      })();
-    });
-  });
-}
-
-function speakDimeNow(onDone: () => void) {
-  if (typeof window === 'undefined' || !window.speechSynthesis) {
-    onDone();
-    return;
-  }
-  try { window.speechSynthesis.cancel(); } catch { /* */ }
-  const u = new SpeechSynthesisUtterance('¿Dime?');
-  const voice = pickWomanVoice();
-  if (voice) {
-    u.voice = voice;
-    u.lang = voice.lang;
-  } else {
-    u.lang = 'es-ES';
-  }
-  u.rate = 0.88;
-  u.pitch = 1.08;
-  u.volume = 1;
-  u.onend = onDone;
-  u.onerror = onDone;
-  window.speechSynthesis.speak(u);
-}
-
-const ttsCache = new Map<string, string>();
-let ttsAudio: HTMLAudioElement | null = null;
+const CLIP = { rate: 0.96, gain: 0.82 };
+const ttsB64 = new Map<string, string>();
 let speakGen = 0;
-
-function stopSpeak() {
-  speakGen += 1;
-  window.clearTimeout(speakTimer);
-  if (ttsAudio) {
-    ttsAudio.onended = null;
-    ttsAudio.onerror = null;
-    ttsAudio.pause();
-  }
-}
-
-function speakLocal(text: string, ask: boolean, onDone: () => void) {
-  if (typeof window === 'undefined' || !window.speechSynthesis) {
-    onDone();
-    return;
-  }
-  const u = new SpeechSynthesisUtterance(text);
-  const voice = pickWomanVoice();
-  if (voice) {
-    u.voice = voice;
-    u.lang = voice.lang;
-  } else {
-    u.lang = 'es-ES';
-  }
-  u.rate = ask ? 0.88 : 0.92;
-  u.pitch = ask ? 1.1 : 1.04;
-  u.onend = onDone;
-  u.onerror = onDone;
-  window.speechSynthesis.speak(u);
-}
+let speaking = false;
 
 function withTime<T>(p: Promise<T>, ms: number) {
   return new Promise<T | null>(resolve => {
@@ -222,79 +42,124 @@ function withTime<T>(p: Promise<T>, ms: number) {
   });
 }
 
-async function cloudMp3Url(text: string, kind: 'ask' | 'say') {
-  const key = `${kind}:${text}`;
-  const hit = ttsCache.get(key);
-  if (hit) return hit;
-  const b64 = await withTime(voiceSpeakMp3(text, kind), 2200);
-  if (!b64) return null;
-  const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-  const url = URL.createObjectURL(new Blob([bin], { type: 'audio/mpeg' }));
-  ttsCache.set(key, url);
-  if (ttsCache.size > 40) {
-    const first = ttsCache.keys().next().value;
-    if (first) {
-      const old = ttsCache.get(first);
-      if (old) URL.revokeObjectURL(old);
-      ttsCache.delete(first);
-    }
-  }
-  return url;
+function warmAudio() {
+  warmVoiceAudio();
+  void decodeB64('dime', DIME_WAV_B64);
+  void decodeB64('que', QUE_HACEMOS_WAV_B64);
 }
 
-/** Misma vía que el pitido: Safari no corta este canal tras el dictado. */
+function stopSpeak() {
+  speakGen += 1;
+  speaking = false;
+  stopVoicePlay();
+}
+
 async function playCloud(text: string, kind: 'ask' | 'say') {
-  const url = await cloudMp3Url(text, kind);
-  if (!url) return false;
-  try {
-    const ctx = audioCtx();
-    await ctx.resume();
-    const raw = await (await fetch(url)).arrayBuffer();
-    const buf = await ctx.decodeAudioData(raw.slice(0));
-    const src = ctx.createBufferSource();
-    const gain = ctx.createGain();
-    src.buffer = buf;
-    gain.gain.value = 1;
-    src.connect(gain);
-    gain.connect(ctx.destination);
-    await new Promise<void>(resolve => {
-      let done = false;
-      const end = () => { if (done) return; done = true; resolve(); };
-      src.onended = end;
-      src.start();
-      window.setTimeout(end, Math.round(buf.duration * 1000) + 80);
-    });
-    return true;
-  } catch {
-    return false;
+  const key = `${kind}:${text}`;
+  let b64 = ttsB64.get(key) ?? null;
+  if (!b64) {
+    b64 = await withTime(voiceSpeakMp3(text, kind), 6000);
+    if (!b64) return false;
+    ttsB64.set(key, b64);
+    if (ttsB64.size > 40) {
+      const first = ttsB64.keys().next().value;
+      if (first) ttsB64.delete(first);
+    }
   }
+  return playB64(key, b64);
+}
+
+async function utter(text: string, ask: boolean) {
+  const ear = forEar(text);
+  const ok = await playCloud(ear, ask ? 'ask' : 'say');
+  if (!ok) await speakLocal(ear, ask);
+}
+
+function afterSpeak(gen: number, onDone?: () => void) {
+  window.setTimeout(() => {
+    if (gen !== speakGen) return;
+    onDone?.();
+  }, 320);
 }
 
 function speak(text: string, onDone?: () => void) {
   if (typeof window === 'undefined' || !getVoicePrefs().speak) {
-    onDone?.();
+    const gen = ++speakGen;
+    speaking = true;
+    afterSpeak(gen, () => {
+      speaking = false;
+      onDone?.();
+    });
     return;
   }
   stopSpeak();
-  const gen = speakGen;
-  const ear = forEar(text);
+  const gen = ++speakGen;
+  speaking = true;
   const ask = /\?/.test(text);
   let done = false;
   const finish = () => {
     if (done || gen !== speakGen) return;
     done = true;
-    onDone?.();
+    afterSpeak(gen, () => {
+      speaking = false;
+      onDone?.();
+    });
   };
-  window.setTimeout(finish, 4800);
+  const safety = window.setTimeout(finish, 14000);
+  void utter(text, ask).then(() => {
+    window.clearTimeout(safety);
+    finish();
+  });
+}
 
-  void (async () => {
-    const ok = await playCloud(ear, ask ? 'ask' : 'say');
+function sayDime(onDone: () => void) {
+  stopSpeak();
+  const gen = ++speakGen;
+  speaking = true;
+  let done = false;
+  const finish = () => {
+    if (done || gen !== speakGen) return;
+    done = true;
+    afterSpeak(gen, () => {
+      speaking = false;
+      onDone();
+    });
+  };
+  void playB64('dime', DIME_WAV_B64, CLIP).then(async ok => {
     if (gen !== speakGen) return;
-    if (ok) {
-      finish();
-      return;
+    if (!ok) await speakLocal('¿Dime?', true);
+    finish();
+  });
+}
+
+/** Clip «¿Qué le hacemos a» + nombre. Todo por Web Audio, y no abre el micro hasta terminar. */
+function speakQueLeHacemos(who: string, onDone: () => void) {
+  stopSpeak();
+  const gen = ++speakGen;
+  speaking = true;
+  let done = false;
+  const finish = () => {
+    if (done || gen !== speakGen) return;
+    done = true;
+    afterSpeak(gen, () => {
+      speaking = false;
+      onDone();
+    });
+  };
+  const safety = window.setTimeout(finish, 14000);
+  void (async () => {
+    const clip = await playB64('que', QUE_HACEMOS_WAV_B64, CLIP);
+    if (gen !== speakGen) return;
+    if (clip) {
+      const named = await playCloud(who, 'ask');
+      if (gen !== speakGen) return;
+      if (!named) await speakLocal(who, true);
+    } else {
+      await utter(`¿Qué le hacemos a ${who}?`, true);
     }
-    speakLocal(ear, ask, finish);
+    if (gen !== speakGen) return;
+    window.clearTimeout(safety);
+    finish();
   })();
 }
 
@@ -351,6 +216,8 @@ export default function VoiceFab() {
   const wakeRef = useRef(false);
   const startWakeRef = useRef<() => void>(() => {});
   const ignoreOutsideRef = useRef(0);
+  const missesRef = useRef(0);
+  const startListenRef = useRef<(opts?: { overlay?: boolean }) => void>(() => {});
   const rootRef = useRef<HTMLDivElement>(null);
   const [hasMic, setHasMic] = useState(false);
 
@@ -430,8 +297,8 @@ export default function VoiceFab() {
     const onVoices = () => pickWomanVoice();
     window.speechSynthesis?.addEventListener('voiceschanged', onVoices);
     syncPrefs();
-    void loadWav('dime', DIME_WAV_B64);
-    void loadWav('que', QUE_HACEMOS_WAV_B64);
+    void decodeB64('dime', DIME_WAV_B64);
+    void decodeB64('que', QUE_HACEMOS_WAV_B64);
     const onFirst = () => warmAudio();
     window.addEventListener('pointerdown', onFirst, { once: true });
     window.addEventListener('touchstart', onFirst, { once: true });
@@ -515,19 +382,21 @@ export default function VoiceFab() {
       const t = window.setTimeout(() => commitRef.current(), 12000);
       return () => window.clearTimeout(t);
     }
+    if (panel.mode === 'ask' || panel.mode === 'confirm') return;
     if (panel.mode === 'idle' && typed.trim()) return;
-    const ms = panel.mode === 'idle' || panel.mode === 'msg' ? 8000
-      : panel.mode === 'ask' ? 20000
-      : 0;
-    if (!ms) return;
-    const t = window.setTimeout(dismiss, ms);
+    if (panel.mode !== 'idle' && panel.mode !== 'msg') return;
+    const t = window.setTimeout(() => {
+      if (listenRef.current || speaking) return;
+      dismiss();
+    }, 8000);
     return () => window.clearTimeout(t);
   }, [open, panel.mode, typed]);
 
   useEffect(() => {
     if (!open) return;
     const onDown = (e: PointerEvent) => {
-      if (listenRef.current) return;
+      if (listenRef.current || speaking) return;
+      if (pendingRef.current || confirmRef.current) return;
       if (Date.now() < ignoreOutsideRef.current) return;
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) dismiss();
     };
@@ -536,24 +405,23 @@ export default function VoiceFab() {
   }, [open]);
 
   const speakThenListen = (say: string) => {
-    speak(say, () => startListen({ overlay: true }));
-    window.setTimeout(() => {
-      if (!listenRef.current) startListen({ overlay: true });
-    }, 5000);
+    missesRef.current = 0;
+    speak(say, () => startListenRef.current({ overlay: true }));
   };
 
   const finish = (say: string, href?: string) => {
     const gen = ++genRef.current;
     killRec();
-    speak(say);
     setPanel({ mode: 'msg', say });
     if (href) router.push(href);
-    window.setTimeout(() => {
-      if (gen !== genRef.current) return;
-      setPanel({ mode: 'idle' });
-      setOpen(false);
-      startWakeRef.current();
-    }, 4500);
+    speak(say, () => {
+      window.setTimeout(() => {
+        if (gen !== genRef.current) return;
+        setPanel({ mode: 'idle' });
+        setOpen(false);
+        startWakeRef.current();
+      }, 1400);
+    });
   };
 
   const applyTalk = (r: VoiceTalkResult) => {
@@ -606,12 +474,12 @@ export default function VoiceFab() {
         return `${h}:${String(m % 60).padStart(2, '0')}`;
       }) ?? [];
       setPanel({ mode: 'ask', say: r.say, options: r.options, href: r.href });
-      const whoAsk = r.say.match(/^¿Qué le hacemos a (.+)\?$/);
+      const whoAsk = r.say.match(/qué le hacemos a (.+?)\s*\??\s*$/i);
       if (whoAsk) {
-        speakQueLeHacemos(whoAsk[1], () => startListen({ overlay: true }));
-        window.setTimeout(() => {
-          if (!listenRef.current) startListen({ overlay: true });
-        }, 5000);
+        speakQueLeHacemos(whoAsk[1], () => {
+          missesRef.current = 0;
+          startListenRef.current({ overlay: true });
+        });
         return;
       }
       speakThenListen(r.say);
@@ -811,6 +679,7 @@ export default function VoiceFab() {
     setHearing(false);
     setHearDraft('');
     if (text) {
+      missesRef.current = 0;
       setTyped('');
       draftRef.current = '';
       const wake = splitWake(text);
@@ -823,6 +692,12 @@ export default function VoiceFab() {
     }
     if (overlay) {
       setOpen(true);
+      missesRef.current += 1;
+      if (missesRef.current < 3) {
+        startListenRef.current({ overlay: true });
+        return;
+      }
+      missesRef.current = 0;
       return;
     }
     setOpen(true);
@@ -832,7 +707,8 @@ export default function VoiceFab() {
 
   const startWake = () => {
     if (!wakeWanted(prefsRef.current) || hushRef.current || busyRef.current || document.hidden) return;
-    if (listenRef.current || overlayRef.current) return;
+    if (listenRef.current || overlayRef.current || speaking) return;
+    if (pendingRef.current || confirmRef.current) return;
     if (wakeRef.current && recRef.current) return;
     if (!makeRec()) return;
     arm();
@@ -887,17 +763,17 @@ export default function VoiceFab() {
         return;
       }
       if (ev.error === 'no-speech') {
-        window.setTimeout(() => startWakeRef.current(), 2500);
+        window.setTimeout(() => startWakeRef.current(), 700);
         return;
       }
-      window.setTimeout(() => startWakeRef.current(), 1800);
+      window.setTimeout(() => startWakeRef.current(), 1100);
     };
     rec.onend = () => {
       if (gen !== genRef.current) return;
       wakeRef.current = false;
       setWakeOn(false);
-      if (!wakeWanted(prefsRef.current) || busyRef.current || listenRef.current || document.hidden || hushRef.current) return;
-      window.setTimeout(() => startWakeRef.current(), 2200);
+      if (!wakeWanted(prefsRef.current) || busyRef.current || listenRef.current || speaking || document.hidden || hushRef.current) return;
+      window.setTimeout(() => startWakeRef.current(), 800);
     };
     try {
       rec.start();
@@ -909,6 +785,7 @@ export default function VoiceFab() {
   startWakeRef.current = startWake;
 
   const startListen = (opts?: { overlay?: boolean }) => {
+    if (speaking) stopSpeak();
     if (!prefsRef.current.micOnly) hushRef.current = false;
     arm();
     wakeRef.current = false;
@@ -959,7 +836,7 @@ export default function VoiceFab() {
     };
     rec.onend = () => {
       if (gen !== genRef.current) return;
-      window.setTimeout(commitListen, 0);
+      commitListen();
     };
     try {
       rec.start();
@@ -972,11 +849,12 @@ export default function VoiceFab() {
       restIdle('No he podido oír. Toca el micro otra vez.');
     }
   };
+  startListenRef.current = startListen;
 
   const promptDimeThenListen = (opts?: { overlay?: boolean }) => {
     setOpen(true);
     if (!opts?.overlay) setPanel({ mode: 'listen', draft: '' });
-    sayDime(() => startListen(opts));
+    sayDime(() => startListenRef.current(opts));
   };
 
   return (

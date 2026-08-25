@@ -27,7 +27,7 @@ const HOUR_WORDS: Record<string, number> = {
 const HOUR_TOKEN = `\\d{1,2}|${Object.keys(HOUR_WORDS).join('|')}`;
 const DAY_RE = /(?:el |este |proximo |al |para (?:el )?|para )?((?:pasado )?manana|hoy|lunes|martes|miercoles|jueves|viernes|sabado|domingo)/;
 const TIME_RE = new RegExp(
-  `(?:a las |a la |las )(${HOUR_TOKEN})(?:[:.h](\\d{2})| y media| y cuarto| y (\\d{2}))?`,
+  `(?:a las |a la |las )(${HOUR_TOKEN})(?:[:.h](\\d{2})| y media| media| y cuarto| y (\\d{2}))?`,
 );
 
 export function fold(s: string) {
@@ -129,7 +129,7 @@ function clockFromMatch(m: RegExpMatchArray): number | null {
     return parseClock(`${prev}:45`);
   }
   let minutes = '00';
-  if (m[0].includes('y media')) minutes = '30';
+  if (m[0].includes('y media') || /\bmedia\b/.test(m[0])) minutes = '30';
   else if (m[0].includes('y cuarto')) minutes = '15';
   else if (m[2]) minutes = m[2];
   else if (m[3]) minutes = m[3];
@@ -164,7 +164,7 @@ function takeDay(s: string): { text: string; dayOffset: number } {
 }
 
 const BARE_TIME = new RegExp(
-  `^(?:a )?(?:las |la )?(${HOUR_TOKEN})(?:[:.h](\\d{2})| y media| y cuarto| y (\\d{2})| menos cuarto)?$`,
+  `^(?:a )?(?:las |la )?(${HOUR_TOKEN})(?:[:.h](\\d{2})| y media| media| y cuarto| y (\\d{2})| menos cuarto)?$`,
 );
 
 /** «a las 11:30», «once y media», «las cinco». */
@@ -372,11 +372,18 @@ const SERVICE_ALIASES: Record<string, string> = {
   bacumterapia: 'vacumterapia',
   facumterapia: 'vacumterapia',
   vacumterapia: 'vacumterapia',
+  vacumoterapia: 'vacumterapia',
+  vaumterapia: 'vacumterapia',
+  vaku: 'vacumterapia',
+  vakum: 'vacumterapia',
+  vacun: 'vacumterapia',
+  bakum: 'vacumterapia',
   vaconterapia: 'vacumterapia',
   conterapia: 'vacumterapia',
   conterpia: 'vacumterapia',
   conterpi: 'vacumterapia',
   conterapi: 'vacumterapia',
+  conterapias: 'vacumterapia',
   vacumterapiacavitacion: 'vacumterapiacavitacion',
   vacumterapiaycavitacion: 'vacumterapiacavitacion',
   vacumterapiamascavitacion: 'vacumterapiacavitacion',
@@ -394,7 +401,9 @@ function normalizeServiceHeard(raw: string) {
     .replace(/[«»"'¿?¡!]/g, ' ')
     .replace(/^(pues |mira |vale |una |un |de |el |la |le hacemos |hacemos |quiero |ponle |para ella )/, '')
     .replace(/\bva con\b/g, 'vacum')
+    .replace(/\bba con\b/g, 'vacum')
     .replace(/\b(una |el |la )?con terapia\b/g, 'vacumterapia')
+    .replace(/\bcon terpia\b/g, 'vacumterapia')
     .replace(/\bconterapia\b/g, 'vacumterapia')
     .replace(/\bconterpia\b/g, 'vacumterapia')
     .replace(/\s+/g, ' ')
