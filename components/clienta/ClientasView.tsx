@@ -49,7 +49,7 @@ export default function ClientasView({
   }, [clients, q, filter]);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <header className="shrink-0 px-5 pb-3 pt-5">
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
@@ -100,7 +100,7 @@ export default function ClientasView({
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col gap-2.5 overflow-auto px-5 pb-3 pt-0.5">
+      <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-auto px-5 pb-8 pt-0.5">
         {shown.length === 0 && (
           <p className="rounded-row border border-dashed border-handle bg-white/60 px-4 py-8 text-center text-[13px] font-semibold text-ink-3">
             {clients.length === 0

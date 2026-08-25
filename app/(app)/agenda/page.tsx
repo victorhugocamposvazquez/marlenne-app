@@ -45,7 +45,7 @@ export default async function AgendaPage({
   const dayStr = dayKey(dateFromOffset(day));
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <AgendaHeader
         day={day}
         mode={mode}

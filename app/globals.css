@@ -3,7 +3,13 @@
 @tailwind utilities;
 
 @layer base {
-  html, body { margin: 0; background: #EEECFA; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #EEECFA;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
   body { overscroll-behavior: none; }
   a { color: #8B5CF6; }
   a:hover { color: #6D28D9; }

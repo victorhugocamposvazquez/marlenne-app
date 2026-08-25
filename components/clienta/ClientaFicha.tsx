@@ -60,153 +60,149 @@ export default function ClientaFicha({
   const goTab = (id: TabId) => shallowSet({ tab: id === 'tratamientos' ? null : id });
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="shrink-0 px-5 pb-3 pt-5">
-        <Link
-          href={canEdit ? '/clientas' : '/hoy'}
-          className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] font-bold text-ink-2 hover:text-v-d"
+    <div className="px-5 pb-8 pt-5">
+      <Link
+        href={canEdit ? '/clientas' : '/hoy'}
+        className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] font-bold text-ink-2 hover:text-v-d"
+      >
+        <ArrowLeft size={15} strokeWidth={2.4} />
+        {canEdit ? 'Clientas' : 'Hoy'}
+      </Link>
+
+      <div className="flex items-start gap-3">
+        <span
+          className="grid h-[50px] w-[50px] shrink-0 place-items-center rounded-[17px] text-[15px] font-bold text-white"
+          style={{ background: avatarColor(client.full_name) }}
         >
-          <ArrowLeft size={15} strokeWidth={2.4} />
-          {canEdit ? 'Clientas' : 'Hoy'}
-        </Link>
-
-        <div className="flex items-start gap-3">
-          <span
-            className="grid h-[50px] w-[50px] shrink-0 place-items-center rounded-[17px] text-[15px] font-bold text-white"
-            style={{ background: avatarColor(client.full_name) }}
-          >
-            {initials(client.full_name)}
-          </span>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[21px] font-extrabold leading-tight tracking-[-.025em]">
-              {client.full_name}
-            </h1>
-            <p className="mt-0.5 text-[12px] font-medium text-ink-3">
-              {[
-                age !== null ? `${age} años` : null,
-                `alta ${dateLbl(client.created_at)}`,
-                client.sms_opt_in ? null : 'sin SMS',
-              ].filter(Boolean).join(' · ')}
-            </p>
-          </div>
-          <div className="flex shrink-0 gap-2">
-            {canEdit && (
-              <button
-                type="button"
-                onClick={() => shallowSet({ editar: '1' })}
-                aria-label="Editar ficha"
-                className="grid h-[42px] w-[42px] place-items-center rounded-[14px] border border-surface-line bg-white text-ink-2 shadow-card"
-              >
-                <Pencil size={17} strokeWidth={2.2} />
-              </button>
-            )}
-            <Link
-              href={`/agenda?new=1&client=${client.id}`}
-              aria-label="Nueva cita para esta clienta"
-              className="grid h-[42px] w-[42px] place-items-center rounded-[14px] bg-grad text-white shadow-btn"
-            >
-              <CalendarPlus size={19} strokeWidth={2.2} />
-            </Link>
-          </div>
-        </div>
-
-        {client.tags?.length > 0 && (
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {client.tags.map(tag => (
-              <span key={tag} className="rounded-[8px] bg-v-soft px-2 py-1 text-[10.5px] font-extrabold text-v-d">
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {nextAppt && (
-          <Link
-            href={`/agenda?day=${offsetFromDay(nextAppt.starts_at)}&appt=${nextAppt.id}`}
-            className="mt-2.5 flex items-center justify-between gap-2 rounded-[12px] border border-v/25 bg-v-tint px-3 py-2"
-          >
-            <span className="min-w-0">
-              <span className="block text-[10.5px] font-bold uppercase tracking-[.03em] text-v-d">Próxima cita</span>
-              <span className="block truncate text-[12.5px] font-bold text-ink">
-                {shortWhen(nextAppt.starts_at)} · {nextAppt.service_name}
-              </span>
-            </span>
-            <span className="shrink-0 text-[11.5px] font-bold text-v-d">Ver</span>
-          </Link>
-        )}
-        {!nextAppt && lastAppt && (
-          <p className="mt-2.5 text-[12px] font-medium text-ink-3">
-            Última visita {shortWhen(lastAppt.starts_at)} · {lastAppt.service_name}
+          {initials(client.full_name)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-[21px] font-extrabold leading-tight tracking-[-.025em]">
+            {client.full_name}
+          </h1>
+          <p className="mt-0.5 text-[12px] font-medium text-ink-3">
+            {[
+              age !== null ? `${age} años` : null,
+              `alta ${dateLbl(client.created_at)}`,
+              client.sms_opt_in ? null : 'sin SMS',
+            ].filter(Boolean).join(' · ')}
           </p>
-        )}
-
-        <div className="mt-2.5 flex flex-wrap gap-2">
-          {client.phone && (
-            <a
-              href={`tel:${client.phone}`}
-              className="flex items-center gap-1.5 rounded-chip border border-surface-line bg-white px-2.5 py-1.5 text-[12px] font-bold shadow-card"
-            >
-              <Phone size={13} strokeWidth={2.4} className="text-v" />
-              {client.phone}
-            </a>
-          )}
-          {wa && (
-            <a
-              href={wa}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 rounded-chip border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[12px] font-bold text-emerald-800 shadow-card"
-            >
-              <MessageCircle size={13} strokeWidth={2.4} />
-              WhatsApp
-            </a>
-          )}
-          {client.email && (
-            <a
-              href={`mailto:${client.email}`}
-              className="flex min-w-0 items-center gap-1.5 rounded-chip border border-surface-line bg-white px-2.5 py-1.5 text-[12px] font-bold shadow-card"
-            >
-              <Mail size={13} strokeWidth={2.4} className="text-v" />
-              <span className="truncate">{client.email}</span>
-            </a>
-          )}
         </div>
-
-        <QuickNotes clientId={client.id} notes={client.notes} canEdit={canEdit} />
-
-        <ConsentsCard clientId={client.id} consents={consents} canEdit={canEdit} />
-
-        <div className="mt-3.5">
-          <Tabs
-            active={tab}
-            onSelect={goTab}
-            counts={{
-              tratamientos: treatments.length,
-              medidas: metrics.size,
-              fotos: photoPaths.length,
-              historial: appointments.length,
-            }}
-          />
+        <div className="flex shrink-0 gap-2">
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => shallowSet({ editar: '1' })}
+              aria-label="Editar ficha"
+              className="grid h-[42px] w-[42px] place-items-center rounded-[14px] border border-surface-line bg-white text-ink-2 shadow-card"
+            >
+              <Pencil size={17} strokeWidth={2.2} />
+            </button>
+          )}
+          <Link
+            href={`/agenda?new=1&client=${client.id}`}
+            aria-label="Nueva cita para esta clienta"
+            className="grid h-[42px] w-[42px] place-items-center rounded-[14px] bg-grad text-white shadow-btn"
+          >
+            <CalendarPlus size={19} strokeWidth={2.2} />
+          </Link>
         </div>
-      </header>
+      </div>
 
-      <div className="min-h-0 flex-1 overflow-auto px-5 pb-3 pt-0.5">
-        {tab === 'tratamientos' && (
-          <TreatmentsTab treatments={treatments} clientId={client.id} />
+      {client.tags?.length > 0 && (
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          {client.tags.map(tag => (
+            <span key={tag} className="rounded-[8px] bg-v-soft px-2 py-1 text-[10.5px] font-extrabold text-v-d">
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {nextAppt && (
+        <Link
+          href={`/agenda?day=${offsetFromDay(nextAppt.starts_at)}&appt=${nextAppt.id}`}
+          className="mt-2.5 flex items-center justify-between gap-2 rounded-[12px] border border-v/25 bg-v-tint px-3 py-2"
+        >
+          <span className="min-w-0">
+            <span className="block text-[10.5px] font-bold uppercase tracking-[.03em] text-v-d">Próxima cita</span>
+            <span className="block truncate text-[12.5px] font-bold text-ink">
+              {shortWhen(nextAppt.starts_at)} · {nextAppt.service_name}
+            </span>
+          </span>
+          <span className="shrink-0 text-[11.5px] font-bold text-v-d">Ver</span>
+        </Link>
+      )}
+      {!nextAppt && lastAppt && (
+        <p className="mt-2.5 text-[12px] font-medium text-ink-3">
+          Última visita {shortWhen(lastAppt.starts_at)} · {lastAppt.service_name}
+        </p>
+      )}
+
+      <div className="mt-2.5 flex flex-wrap gap-2">
+        {client.phone && (
+          <a
+            href={`tel:${client.phone}`}
+            className="flex items-center gap-1.5 rounded-chip border border-surface-line bg-white px-2.5 py-1.5 text-[12px] font-bold shadow-card"
+          >
+            <Phone size={13} strokeWidth={2.4} className="text-v" />
+            {client.phone}
+          </a>
         )}
-        {tab === 'medidas' && <MeasurementsTab treatments={treatments} />}
-        {tab === 'fotos' && (
-          <PhotosTab
-            treatments={treatments}
-            urls={urls}
-            photoConsent={consents.some(c => c.kind === 'fotografia')}
-            onUploaded={() => router.refresh()}
-          />
+        {wa && (
+          <a
+            href={wa}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 rounded-chip border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[12px] font-bold text-emerald-800 shadow-card"
+          >
+            <MessageCircle size={13} strokeWidth={2.4} />
+            WhatsApp
+          </a>
         )}
-        {tab === 'historial' && (
-          <HistoryTab appointments={appointments} clientId={client.id} />
+        {client.email && (
+          <a
+            href={`mailto:${client.email}`}
+            className="flex min-w-0 items-center gap-1.5 rounded-chip border border-surface-line bg-white px-2.5 py-1.5 text-[12px] font-bold shadow-card"
+          >
+            <Mail size={13} strokeWidth={2.4} className="text-v" />
+            <span className="truncate">{client.email}</span>
+          </a>
         )}
       </div>
+
+      <QuickNotes clientId={client.id} notes={client.notes} canEdit={canEdit} />
+
+      <ConsentsCard clientId={client.id} consents={consents} canEdit={canEdit} />
+
+      <div className="sticky top-0 z-[5] -mx-5 mt-3.5 bg-surface-bg px-5 pb-2 pt-1">
+        <Tabs
+          active={tab}
+          onSelect={goTab}
+          counts={{
+            tratamientos: treatments.length,
+            medidas: metrics.size,
+            fotos: photoPaths.length,
+            historial: appointments.length,
+          }}
+        />
+      </div>
+
+      {tab === 'tratamientos' && (
+        <TreatmentsTab treatments={treatments} clientId={client.id} />
+      )}
+      {tab === 'medidas' && <MeasurementsTab treatments={treatments} />}
+      {tab === 'fotos' && (
+        <PhotosTab
+          treatments={treatments}
+          urls={urls}
+          photoConsent={consents.some(c => c.kind === 'fotografia')}
+          onUploaded={() => router.refresh()}
+        />
+      )}
+      {tab === 'historial' && (
+        <HistoryTab appointments={appointments} clientId={client.id} />
+      )}
       {canEdit && editar === '1' && <EditClientSheet client={client} />}
     </div>
   );
