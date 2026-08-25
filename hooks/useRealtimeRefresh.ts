@@ -11,12 +11,19 @@ export function useRealtimeRefresh(tables: string[]) {
   useEffect(() => {
     const sb = createClient();
     const channel = sb.channel(`live:${tables.join(',')}`);
+    let t: number | undefined;
+    const bump = () => {
+      if (document.hidden) return;
+      window.clearTimeout(t);
+      t = window.setTimeout(() => router.refresh(), 160);
+    };
     for (const table of tables) {
-      channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => {
-        router.refresh();
-      });
+      channel.on('postgres_changes', { event: '*', schema: 'public', table }, bump);
     }
     channel.subscribe();
-    return () => { void sb.removeChannel(channel); };
+    return () => {
+      window.clearTimeout(t);
+      void sb.removeChannel(channel);
+    };
   }, [tables.join(','), router]);
 }

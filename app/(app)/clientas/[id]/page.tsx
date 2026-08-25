@@ -8,8 +8,9 @@ import TreatmentsTab from '@/components/clienta/TreatmentsTab';
 import MeasurementsTab from '@/components/clienta/MeasurementsTab';
 import PhotosTab from '@/components/clienta/PhotosTab';
 import HistoryTab from '@/components/clienta/HistoryTab';
+import { requireSession } from '@/lib/require-session';
 import {
-  requireSession, getClient, listClientAppointments, listConsents, signedPhotoUrls,
+  getClient, listClientAppointments, listConsents, signedPhotoUrls,
 } from '@/lib/queries';
 import { avatarColor, initials } from '@/lib/categories';
 import { dateLbl, offsetFromDay, shortWhen } from '@/lib/time';
@@ -20,10 +21,10 @@ export default async function ClientaPage({
   params: { id: string };
   searchParams: { tab?: string; editar?: string };
 }) {
-  const me = await requireSession();
+  const [me, data] = await Promise.all([requireSession(), getClient(params.id)]);
   const tab = parseTab(searchParams.tab);
   const canEdit = me.role === 'admin' || me.role === 'reception';
-  const { client, treatments } = await getClient(params.id);
+  const { client, treatments } = data;
   if (!client) notFound();
 
   const photoPaths = treatments.flatMap(t => (t.treatment_photos ?? []).map(p => p.storage_path));

@@ -2,8 +2,9 @@
 
 import { addToWaitlist } from '@/app/actions/clients';
 import { cancelAppointment, createAppointment, rescheduleAppointment, updateStatus } from '@/app/actions/appointments';
+import { requireSession } from '@/lib/require-session';
 import {
-  freeSlots, getDayAgenda, listClientOptions, listProviders, listServices, requireSession,
+  freeSlots, getDayAgenda, listClientOptions, listProviders, listServices,
 } from '@/lib/queries';
 import { CATEGORIES } from '@/lib/categories';
 import { dateFromOffset, dayKey, dayTitle, fmt, minutesOfDay } from '@/lib/time';

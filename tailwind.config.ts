@@ -2,7 +2,7 @@ import type { Config } from 'tailwindcss';
 
 // Tokens tomados del prototipo Marlenne.dc.html
 export default {
-  content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
+  content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}', './hooks/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {

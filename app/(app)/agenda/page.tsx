@@ -5,8 +5,9 @@ import AppointmentSheet from '@/components/agenda/AppointmentSheet';
 import NewAppointmentSheet from '@/components/agenda/NewAppointmentSheet';
 import WaitlistSheet from '@/components/agenda/WaitlistSheet';
 import BlockSheet from '@/components/agenda/BlockSheet';
+import { requireSession } from '@/lib/require-session';
 import {
-  requireSession, listProviders, getDayAgenda, getWeekCounts, countWaitlist,
+  listProviders, getDayAgenda, getWeekCounts, countWaitlist,
   listServices, listClientOptions, getAppointment, getAppointmentSms, listWaitlist,
 } from '@/lib/queries';
 import { dateFromOffset, dayKey } from '@/lib/time';
@@ -20,9 +21,7 @@ export default async function AgendaPage({
   const parsed = Number(searchParams.day ?? 0);
   const day = Number.isFinite(parsed) ? parsed : 0;
   const mode = searchParams.mode === 'semana' ? 'semana' : 'dia';
-  const me = await requireSession();
-
-  const all = await listProviders();
+  const [me, all] = await Promise.all([requireSession(), listProviders()]);
   // Una profesional solo ve su propia columna.
   const team = me.role === 'provider' ? all.filter(p => p.id === me.id) : all;
   const selectedPro = me.role === 'provider'
@@ -38,7 +37,8 @@ export default async function AgendaPage({
   const opensNew = searchParams.new === '1';
   const opensWait = searchParams.wait === '1';
   const needsCatalog = opensNew || opensWait;
-  const [waiting, services, clients, appt, sms, waitItems, dayAgenda] = await Promise.all([
+  const providerIds = providers.map(p => p.id);
+  const [waiting, services, clients, appt, sms, waitItems, dayAgenda, weekDays] = await Promise.all([
     countWaitlist(),
     needsCatalog ? listServices() : Promise.resolve([]),
     needsCatalog ? listClientOptions() : Promise.resolve([]),
@@ -46,8 +46,9 @@ export default async function AgendaPage({
     searchParams.appt ? getAppointmentSms(searchParams.appt) : Promise.resolve(null),
     opensWait ? listWaitlist() : Promise.resolve([]),
     mode === 'dia'
-      ? getDayAgenda(dateFromOffset(day), providers.map(p => p.id))
+      ? getDayAgenda(dateFromOffset(day), providerIds)
       : Promise.resolve({ appointments: [], blocks: [] }),
+    mode === 'semana' ? getWeekCounts(providerIds, day) : Promise.resolve([]),
   ]);
   const existingBlock = searchParams.bloqueo
     ? dayAgenda.blocks.find(b => b.id === searchParams.bloqueo) ?? null
@@ -73,7 +74,7 @@ export default async function AgendaPage({
           canMoveProvider={canMoveProvider}
         />
       ) : (
-          <WeekGrid days={await getWeekCounts(providers.map(p => p.id), day)} selectedPro={selectedPro} />
+          <WeekGrid days={weekDays} selectedPro={selectedPro} />
       )}
 
       {opensNew && (

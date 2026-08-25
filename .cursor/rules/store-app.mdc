@@ -1,0 +1,39 @@
+---
+description: App en tiendas = esta PWA con cáscara nativa, no reescribir en RN
+alwaysApply: true
+---
+
+# Stores (va a haber ficha sí o sí)
+
+Marlenne **saldrá** en App Store y Play Store. El producto es esta PWA (Next.js + Supabase). La tienda no es un segundo código.
+
+## Cómo se publica
+
+1. **Cáscara nativa (Capacitor)** sobre esta PWA. Android: **TWA** (Chrome + cache de PWA; suele ir mejor que el WebView de Capacitor). iOS: Capacitor + WKWebView. Misma agenda, login y voz.
+2. Para que Apple no la tire por “solo una web”: splash nativo, icono, push (APNs) o Face ID, y que se sienta instalada.
+3. El iPad de recepción puede seguir en Safari / PWA. La ficha de tienda es otra puerta.
+
+**Óptima, no un Safari con icono.** Al montar la cáscara:
+
+- **No** publicar un WebView vacío que carga `https://….vercel.app` en frío. Eso es lento, gasta datos y Apple lo huele.
+- **Android** = TWA + Digital Asset Links. Aprovechar el service worker; segundo arranque desde cache.
+- **iOS** = assets locales si Next lo permite; si el SSR/Server Actions lo impiden, splash hasta el primer paint + App-Bound Domains + SW que cachea shell/JS/CSS. El HTML de arranque no espera a Vercel.
+- Plugins nativos de verdad: cámara, push, biometría. No polyfills JS para eso.
+- Arranque: splash → agenda usable. Scroll a 60 fps. Teclado y safe-area nativos. Sin chrome de navegador. Binario pequeño (no meter el sitio entero en el IPA si se puede cachear).
+- Batería: realtime que ya hay; no polling extra en el WebView.
+
+Si con eso sigue pesando o Apple rechaza: plan B (RN), no “un WebView más maquillado”.
+
+**React Native / Expo no es el plan A.** Es plan B si la cáscara no pasa review o hace falta Siri nativo / micro que Safari no da. No montar Expo ahora.
+
+## Al seguir con Next
+
+- Dominio en `lib/` sin DOM ni `next/*` (tiempo, categorías, parser de voz). Barato y sirve si un día hay RN.
+- Mutaciones (`createAppointment`, estados) sin atarlas a `searchParams`.
+- STT, Web Audio, SW: solo en `components/` / `hooks/`.
+
+## Qué no hacer
+
+- Reescribir pantallas en RN “porque va a haber store”.
+- Swift/Kotlin desde cero.
+- Un monorepo nativo hasta que toque la cáscara.

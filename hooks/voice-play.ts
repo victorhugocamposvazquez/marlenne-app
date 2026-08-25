@@ -58,25 +58,23 @@ export function pickWomanVoice(): SpeechSynthesisVoice | null {
   return womanVoice;
 }
 
-function b64Bytes(b64: string) {
-  const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-  return bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength);
+function remember(key: string, buf: AudioBuffer) {
+  bufs.set(key, buf);
+  if (bufs.size > 36) {
+    const first = bufs.keys().next().value;
+    if (first) bufs.delete(first);
+  }
 }
 
-export function decodeB64(key: string, b64: string) {
+function loadBuf(key: string, decode: () => Promise<AudioBuffer>) {
   const hit = bufs.get(key);
   if (hit) return Promise.resolve(hit);
   const pending = loads.get(key);
   if (pending) return pending;
   const p = (async () => {
     try {
-      const c = audioCtx();
-      const buf = await c.decodeAudioData(b64Bytes(b64));
-      bufs.set(key, buf);
-      if (bufs.size > 36) {
-        const first = bufs.keys().next().value;
-        if (first) bufs.delete(first);
-      }
+      const buf = await decode();
+      remember(key, buf);
       return buf;
     } catch {
       return null;
@@ -84,6 +82,24 @@ export function decodeB64(key: string, b64: string) {
   })();
   loads.set(key, p);
   return p;
+}
+
+function b64Bytes(b64: string) {
+  const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  return bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength);
+}
+
+export function decodeB64(key: string, b64: string) {
+  return loadBuf(key, async () => audioCtx().decodeAudioData(b64Bytes(b64)));
+}
+
+export function decodeUrl(key: string, url: string) {
+  return loadBuf(key, async () => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('clip');
+    const ab = await res.arrayBuffer();
+    return audioCtx().decodeAudioData(ab.slice(0));
+  });
 }
 
 export function playBuffer(buf: AudioBuffer, opts?: { rate?: number; gain?: number }) {
@@ -122,6 +138,12 @@ export function playBuffer(buf: AudioBuffer, opts?: { rate?: number; gain?: numb
 
 export async function playB64(key: string, b64: string, opts?: { rate?: number; gain?: number }) {
   const buf = await decodeB64(key, b64);
+  if (!buf) return false;
+  return playBuffer(buf, opts);
+}
+
+export async function playUrl(key: string, url: string, opts?: { rate?: number; gain?: number }) {
+  const buf = await decodeUrl(key, url);
   if (!buf) return false;
   return playBuffer(buf, opts);
 }

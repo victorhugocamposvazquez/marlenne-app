@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { Camera } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { addTreatmentPhoto } from '@/app/actions/treatments';
-import { compressImage } from '@/lib/compressImage';
+import { compressImage } from '@/hooks/compressImage';
 import { Chip, inputCls } from '@/components/Sheet';
 import { useToast } from '@/components/Toast';
 import type { TreatmentRow } from '@/lib/types';

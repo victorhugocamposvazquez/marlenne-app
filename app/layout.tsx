@@ -4,8 +4,9 @@ import './globals.css';
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
+  weight: ['500', '600', '700', '800'],
   variable: '--font-jakarta',
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
@@ -29,7 +30,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" className={jakarta.variable}>
-      <body className="font-sans text-ink">{children}</body>
+      <body className="font-sans font-medium text-ink">{children}</body>
     </html>
   );
 }

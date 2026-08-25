@@ -38,7 +38,7 @@ export default function RecuperarPage() {
   };
 
   return (
-    <div className="mx-auto flex min-h-[100dvh] max-w-[440px] flex-col bg-surface-bg px-6 pt-16">
+    <div className="mx-auto flex min-h-[100dvh] max-w-[440px] flex-col bg-surface-bg px-6 pt-[max(4rem,calc(env(safe-area-inset-top)+1.5rem))]">
       <h1 className="text-[26px] font-extrabold tracking-[-.025em]">Nueva contraseña</h1>
       <p className="mt-2 text-[14px] font-medium text-ink-2">
         {ready

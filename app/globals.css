@@ -3,10 +3,11 @@
 @tailwind utilities;
 
 @layer base {
-  html, body { margin: 0; background: #EEECFA; -webkit-font-smoothing: antialiased; }
+  html, body { margin: 0; background: #EEECFA; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
   body { overscroll-behavior: none; }
   a { color: #8B5CF6; }
   a:hover { color: #6D28D9; }
+  button, a, input, textarea, select { touch-action: manipulation; }
   ::-webkit-scrollbar { display: none; }
   * { scrollbar-width: none; }
   :focus-visible { outline: 2px solid #8B5CF6; outline-offset: 2px; }

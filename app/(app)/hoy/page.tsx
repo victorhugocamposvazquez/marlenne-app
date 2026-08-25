@@ -1,16 +1,19 @@
 import Link from 'next/link';
-import { requireSession, listProviders, getDayAgenda, countWaitlist } from '@/lib/queries';
+import { requireSession } from '@/lib/require-session';
+import { listProviders, getDayAgenda, countWaitlist } from '@/lib/queries';
 import { fmt, minutesOfDay, madridNow, DAY_START, DAY_END } from '@/lib/time';
 import { Bell } from 'lucide-react';
 import LiveRefresh from '@/components/LiveRefresh';
 import HoyApptRow from '@/components/hoy/HoyApptRow';
 
 export default async function HoyPage() {
-  const me = await requireSession();
-  const all = await listProviders();
+  const [me, all, waiting] = await Promise.all([
+    requireSession(),
+    listProviders(),
+    countWaitlist(),
+  ]);
   const providers = me.role === 'provider' ? all.filter(p => p.id === me.id) : all;
   const { appointments } = await getDayAgenda(new Date(), providers.map(p => p.id));
-  const waiting = await countWaitlist();
 
   const revenue = appointments.reduce((s, a) => s + (a.price_cents ?? 0), 0) / 100;
   const cash = appointments.filter(a => a.status === 'done').reduce((s, a) => s + (a.price_cents ?? 0), 0) / 100;

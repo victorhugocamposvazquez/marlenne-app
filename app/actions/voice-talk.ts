@@ -9,7 +9,7 @@ import {
   voicePreviewStatus, voiceSlots, voiceToday,
   type PendingBook,
 } from '@/app/actions/voice';
-import { requireSession } from '@/lib/queries';
+import { requireSession } from '@/lib/require-session';
 
 export type VoiceTurn = { role: 'user' | 'assistant'; content: string };
 

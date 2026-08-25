@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, type VoicePrefs } from '@/lib/voice-prefs';
+import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, type VoicePrefs } from '@/hooks/voice-prefs';
 
 function Row({
   title, hint, on, disabled, onToggle,

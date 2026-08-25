@@ -11,13 +11,11 @@ import {
 } from '@/app/actions/voice';
 import type { VoiceTalkResult } from '@/app/actions/voice-talk';
 import { voiceSpeakMp3 } from '@/app/actions/voice-speak';
-import { DIME_WAV_B64 } from '@/lib/dime-wav';
-import { QUE_HACEMOS_WAV_B64 } from '@/lib/que-hacemos-wav';
 import { VOICE_HELP, fold, forEar, isVoiceYes, parseVoice, pickSpokenIndex, splitWake, takeTime, wakeRestIsCommand } from '@/lib/voice';
-import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/lib/voice-prefs';
+import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/hooks/voice-prefs';
 import {
-  decodeB64, pickWomanVoice, playB64, speakLocal, stopVoicePlay, unlockSpeak, warmVoiceAudio,
-} from '@/lib/voice-play';
+  decodeUrl, pickWomanVoice, playB64, playUrl, speakLocal, stopVoicePlay, unlockSpeak, warmVoiceAudio,
+} from '@/hooks/voice-play';
 
 type Choice = { id: string; label: string };
 type Panel =
@@ -28,6 +26,8 @@ type Panel =
   | { mode: 'confirm'; say: string; status?: 'curso' | 'noshow'; pick?: 'status' | 'cancel'; run: () => Promise<{ ok: boolean; say: string; href?: string }>; choices?: Choice[] };
 
 const CLIP = { rate: 0.96, gain: 0.82 };
+const CLIP_DIME = '/voice/dime.wav';
+const CLIP_QUE = '/voice/que-hacemos.wav';
 const ttsB64 = new Map<string, string>();
 let speakGen = 0;
 let speaking = false;
@@ -44,8 +44,8 @@ function withTime<T>(p: Promise<T>, ms: number) {
 
 function warmAudio() {
   warmVoiceAudio();
-  void decodeB64('dime', DIME_WAV_B64);
-  void decodeB64('que', QUE_HACEMOS_WAV_B64);
+  void decodeUrl('dime', CLIP_DIME);
+  void decodeUrl('que', CLIP_QUE);
 }
 
 function stopSpeak() {
@@ -125,7 +125,7 @@ function sayDime(onDone: () => void) {
       onDone();
     });
   };
-  void playB64('dime', DIME_WAV_B64, CLIP).then(async ok => {
+  void playUrl('dime', CLIP_DIME, CLIP).then(async ok => {
     if (gen !== speakGen) return;
     if (!ok) await speakLocal('¿Dime?', true);
     finish();
@@ -148,7 +148,7 @@ function speakQueLeHacemos(who: string, onDone: () => void) {
   };
   const safety = window.setTimeout(finish, 14000);
   void (async () => {
-    const clip = await playB64('que', QUE_HACEMOS_WAV_B64, CLIP);
+    const clip = await playUrl('que', CLIP_QUE, CLIP);
     if (gen !== speakGen) return;
     if (clip) {
       const named = await playCloud(who, 'ask');
@@ -297,8 +297,8 @@ export default function VoiceFab() {
     const onVoices = () => pickWomanVoice();
     window.speechSynthesis?.addEventListener('voiceschanged', onVoices);
     syncPrefs();
-    void decodeB64('dime', DIME_WAV_B64);
-    void decodeB64('que', QUE_HACEMOS_WAV_B64);
+    void decodeUrl('dime', CLIP_DIME);
+    void decodeUrl('que', CLIP_QUE);
     const onFirst = () => warmAudio();
     window.addEventListener('pointerdown', onFirst, { once: true });
     window.addEventListener('touchstart', onFirst, { once: true });

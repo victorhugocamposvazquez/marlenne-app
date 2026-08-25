@@ -55,15 +55,23 @@ Hasta el segundo cliente, un centro nuevo se puede provisionar a mano.
 
 ---
 
-## App nativa (más adelante)
+## App en tiendas (va a haber ficha)
 
-La PWA actual es el núcleo. Cuando un centro pida icono en la store:
+No es opcional: Marlenne tendrá icono en **App Store y Play Store**. Eso no
+obliga a reescribir. El producto sigue siendo esta PWA.
 
-1. Envolver con Capacitor (o similar) el **mismo** código.
-2. Publicar en App Store y Play Store.
-3. Seguir ofreciendo la web para recepción.
+Camino:
 
-No publicar en stores hasta que el primer centro la use todos los días.
+1. **Ahora** — pulir y usar la PWA (iPad de recepción incluido).
+2. **Al publicar** — cáscara **óptima**, no un Safari con icono. Play: **TWA**
+   (Chrome + cache de PWA). iOS: Capacitor con assets locales o, si el SSR
+   lo impide, splash + App-Bound Domains + service worker que cachea el
+   shell. Push APNs / Face ID nativos. No un WebView vacío que espera a
+   Vercel en cada arranque. Detalle en `.cursor/rules/store-app.mdc`.
+3. **Plan B** — React Native / Expo solo si la cáscara no pasa review, no
+   llega al listón de rendimiento, o hace falta Siri / micro nativo.
+
+La web de recepción no desaparece: es la misma app por otra puerta.
 
 ---
 
@@ -151,7 +159,8 @@ borrar una cita.
 3. **Al segundo centro** — nombre/logo/color por salón; provisionar otro
    `salons`.
 4. **Al cobrar** — web corporativa + consola + Stripe.
-5. **A petición del centro** — ficha en stores.
+5. **Ficha en stores** — TWA (Play) + Capacitor (iOS), óptima: cache, splash,
+   plugins nativos. React Native solo si eso no basta.
 6. **Cuando duela la red** — offline usable.
 7. **Recordatorios SMS** — más adelante, probablemente Labs Mobile. Hay cron
    y `sms_log`; no contratar Twilio.

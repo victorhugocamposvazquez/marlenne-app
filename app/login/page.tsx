@@ -7,15 +7,13 @@ import { Sparkles } from 'lucide-react';
 import LoginForm from '@/components/LoginForm';
 
 export default async function LoginPage() {
-  const me = await getSession();
+  const [me, team] = await Promise.all([getSession(), listLoginTeam()]);
   if (me) redirect(me.role === 'provider' ? '/agenda' : '/hoy');
-
-  const team = await listLoginTeam();
   const h = madridNow().h;
   const hello = h < 13 ? 'Buenos días.' : h < 20 ? 'Buenas tardes.' : 'Buenas noches.';
 
   return (
-    <div className="mx-auto flex min-h-[100dvh] max-w-[440px] flex-col bg-surface-bg">
+    <div className="mx-auto flex min-h-[100dvh] max-w-[440px] flex-col bg-surface-bg pt-[env(safe-area-inset-top)]">
       <div className="relative overflow-hidden px-6 pb-[30px] pt-11">
         <div className="absolute -right-[70px] -top-[90px] h-[240px] w-[240px] rounded-full bg-[radial-gradient(circle_at_30%_30%,#DDD3FF,#EEECFA_70%)]" />
         <div className="relative">

@@ -1,4 +1,5 @@
-import { requireSession, listStaff, listServices } from '@/lib/queries';
+import { requireSession } from '@/lib/require-session';
+import { listStaff, listServices } from '@/lib/queries';
 import { getReadyStatus } from '@/lib/ready';
 import { signOut } from '@/app/actions/auth';
 import { avatarColor } from '@/lib/categories';
