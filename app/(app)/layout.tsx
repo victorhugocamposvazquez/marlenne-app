@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <ToastProvider>
       <RegisterSW />
       <div className="relative mx-auto flex h-[100dvh] max-w-[440px] flex-col overflow-hidden bg-surface-bg pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
-        <div className="app-shell-scroll flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
+        <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
           {children}
         </div>
         <Suspense fallback={null}>

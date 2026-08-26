@@ -126,7 +126,7 @@ export default function DayGrid({
   };
 
   return (
-    <>
+    <div className="flex h-0 min-h-0 flex-1 flex-col">
       <div
         ref={scrollRef}
         className={`min-h-0 flex-1 overflow-auto pb-16 select-none [-webkit-touch-callout:none] ${drag ? 'touch-none overscroll-none' : ''}`}
@@ -177,6 +177,11 @@ export default function DayGrid({
               {providers.slice(1).map((_, i) => (
                 <div key={i} className="absolute top-0 w-px bg-grid-v" style={{ left: (i + 1) * COL_W - 4, height: gridH }} />
               ))}
+              {appointments.length === 0 && (
+                <p className="absolute left-2 right-2 z-[2] text-center text-[13px] font-semibold text-ink-3" style={{ top: 48 }}>
+                  No hay citas este día
+                </p>
+              )}
 
               {dropCol >= 0 && (
                 <div
@@ -317,6 +322,6 @@ export default function DayGrid({
         ))}
         <span className="ml-auto shrink-0 font-medium">Mantén para mover · toca para abrir</span>
       </div>
-    </>
+    </div>
   );
 }

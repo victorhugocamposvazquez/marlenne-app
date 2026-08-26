@@ -49,7 +49,7 @@ export default function ClientasView({
   }, [clients, q, filter]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
       <header className="shrink-0 px-5 pb-3 pt-5">
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">

@@ -1,12 +1,14 @@
 import type { AgendaAppt } from '@/lib/types';
 
-export const APPT_SELECT = `
+export const APPT_SELECT_CORE = `
   id, provider_id, client_id, client_name, starts_at, ends_at, duration_min,
-  status, price_cents, treatment_id, session_no, service_id, note, confirmed_at,
+  status, price_cents, treatment_id, session_no, service_id, note,
   service:services(name, category, param_keys),
   provider:staff!appointments_provider_id_fkey(full_name),
   client:clients(full_name, phone)
 `;
+
+export const APPT_SELECT = `${APPT_SELECT_CORE}, confirmed_at`;
 
 export function mapAppt(row: unknown): AgendaAppt {
   const r = row as {

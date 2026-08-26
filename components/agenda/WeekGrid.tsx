@@ -24,7 +24,7 @@ export default function WeekGrid({
   };
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto px-4 pb-16">
+    <div className="h-0 min-h-0 flex-1 overflow-auto px-4 pb-16">
       <div className="flex flex-col gap-2">
         {days.map(d => {
           const n = d.appointments.length;

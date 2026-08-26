@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { toTimestamp, dateFromOffset, dayKey, weekMondayOffset, isRecallDue } from '@/lib/time';
-import { APPT_SELECT, mapAppt } from '@/lib/agenda-appt';
+import { APPT_SELECT, APPT_SELECT_CORE, mapAppt } from '@/lib/agenda-appt';
 import type {
   AgendaAppt, AgendaBlock, ClientListRow, ClientOption, ClientRow, Consent, Provider, RecallRow, ServiceOption,
   TreatmentRow, WaitItem, WeekDay,
@@ -79,7 +79,10 @@ export async function listClientOptions(): Promise<ClientOption[]> {
 
 export async function getAppointment(id: string): Promise<AgendaAppt | null> {
   const sb = createClient();
-  const { data } = await sb.from('appointments').select(APPT_SELECT).eq('id', id).maybeSingle();
+  let { data, error } = await sb.from('appointments').select(APPT_SELECT).eq('id', id).maybeSingle();
+  if (error && /confirmed_at/i.test(error.message)) {
+    ({ data, error } = await sb.from('appointments').select(APPT_SELECT_CORE).eq('id', id).maybeSingle());
+  }
   return data ? mapAppt(data) : null;
 }
 
@@ -101,17 +104,26 @@ export async function getDayAgenda(date: Date, providerIds: string[]) {
   const from = toTimestamp(date, 0);
   const to = toTimestamp(date, 24 * 60 - 1);
 
+  const load = (cols: string) => sb.from('appointments').select(cols)
+    .gte('starts_at', from).lte('starts_at', to)
+    .in('provider_id', providerIds).order('starts_at');
+
   const [appts, blocks] = await Promise.all([
-    sb.from('appointments').select(APPT_SELECT)
-      .gte('starts_at', from).lte('starts_at', to)
-      .in('provider_id', providerIds).order('starts_at'),
+    load(APPT_SELECT),
     sb.from('time_blocks').select('id, provider_id, reason, label, starts_at, duration_min')
       .gte('starts_at', from).lte('starts_at', to)
       .in('provider_id', providerIds),
   ]);
 
+  let rows = appts.data;
+  if (appts.error) {
+    const retry = /confirmed_at/i.test(appts.error.message) ? await load(APPT_SELECT_CORE) : null;
+    rows = retry?.data ?? null;
+    if (!rows) console.error('getDayAgenda', appts.error.message);
+  }
+
   return {
-    appointments: (appts.data ?? []).map(mapAppt),
+    appointments: (rows ?? []).map(mapAppt),
     blocks: (blocks.data ?? []) as AgendaBlock[],
   };
 }
