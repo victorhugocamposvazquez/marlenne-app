@@ -25,18 +25,18 @@ export default function TeamEditor({ team, meId }: { team: Provider[]; meId: str
   return (
     <div>
       <div className="mb-2.5 flex items-center justify-between">
-        <h2 className="text-[13px] font-extrabold uppercase tracking-[.04em] text-ink-3">Equipo</h2>
+        <h2 className="text-body font-extrabold uppercase tracking-[.04em] text-ink-3">Equipo</h2>
         <button
           type="button"
           onClick={() => { setAdding(a => !a); setCreated(null); }}
-          className="rounded-[10px] bg-v-soft px-2.5 py-1 text-[11.5px] font-bold text-v-d"
+          className="rounded-chip bg-v-soft px-2.5 py-1 text-caption font-bold text-v-d"
         >
           {adding ? 'Cerrar' : 'Añadir'}
         </button>
       </div>
 
       {created && (
-        <p className="mb-2.5 rounded-row border border-emerald-200 bg-emerald-50 p-3 text-[12.5px] font-semibold leading-snug text-emerald-800">
+        <p className="mb-2.5 rounded-row border border-ok-line bg-ok-bg p-3 text-label font-semibold leading-snug text-ok-strong">
           {created.name} ya puede entrar con <span className="font-extrabold">{created.email}</span>.
           Contraseña temporal: <span className="font-extrabold tabular-nums">{created.password}</span>
         </p>
@@ -58,23 +58,23 @@ export default function TeamEditor({ team, meId }: { team: Provider[]; meId: str
 
       <div className="flex flex-col gap-2">
         {team.map(p => (
-          <div key={p.id} className="rounded-row border border-surface-line bg-white shadow-card">
+          <div key={p.id} className="rounded-row border border-surface-line bg-surface-card shadow-card">
             <button
               type="button"
               onClick={() => setOpen(o => o === p.id ? null : p.id)}
               className="flex w-full items-center gap-3 p-3 text-left"
             >
               <span
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] text-[11px] font-bold text-white"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-chip text-caption font-bold text-white"
                 style={{ background: p.color ?? avatarColor(p.full_name) }}
               >
                 {p.initials}
               </span>
               <span className="min-w-0 flex-1">
-                <span className={`block truncate text-[14px] font-bold ${p.is_active === false ? 'text-ink-3 line-through' : ''}`}>
+                <span className={`block truncate text-body font-bold ${p.is_active === false ? 'text-ink-3 line-through' : ''}`}>
                   {p.full_name}{p.id === meId ? ' · tú' : ''}
                 </span>
-                <span className="block truncate text-[11.5px] font-medium text-ink-3">
+                <span className="block truncate text-caption font-medium text-ink-3">
                   {roleLbl(p.role)}{p.job_title ? ` · ${p.job_title}` : ''}
                   {p.is_active === false ? ' · inactiva' : ''}
                 </span>
@@ -113,7 +113,7 @@ function AddForm({
   const [role, setRole] = useState<StaffRole>('provider');
 
   return (
-    <div className="mb-3 rounded-row border border-surface-line bg-white p-3.5 shadow-card">
+    <div className="mb-3 rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
       <Field label="Nombre">
         <input className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="Nombre y apellidos" />
       </Field>
@@ -133,7 +133,7 @@ function AddForm({
       <button
         disabled={pending || name.trim().length < 2 || !email.includes('@')}
         onClick={() => onSave({ email, full_name: name, role, job_title: title })}
-        className="w-full rounded-field bg-grad py-3 text-[13.5px] font-extrabold text-white disabled:opacity-40"
+        className="w-full rounded-field bg-grad py-3 text-body font-extrabold text-white disabled:opacity-40"
       >
         {pending ? 'Creando…' : 'Crear acceso'}
       </button>
@@ -168,14 +168,14 @@ function EditForm({
           ))}
         </div>
       </Field>
-      <label className="mb-3 flex items-center gap-2 text-[13px] font-bold">
-        <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} className="h-4 w-4 accent-[#8B5CF6]" />
+      <label className="mb-3 flex items-center gap-2 text-body font-bold">
+        <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} className="h-5 w-5 accent-v" />
         Activa en la agenda
       </label>
       <button
         disabled={pending || name.trim().length < 2}
         onClick={() => onSave({ full_name: name, role, job_title: title, is_active: active })}
-        className="w-full rounded-field bg-grad py-2.5 text-[13px] font-extrabold text-white disabled:opacity-40"
+        className="w-full rounded-field bg-grad py-2.5 text-body font-extrabold text-white disabled:opacity-40"
       >
         {pending ? 'Guardando…' : 'Guardar'}
       </button>

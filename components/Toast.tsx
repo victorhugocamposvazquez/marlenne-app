@@ -38,11 +38,11 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
           <div
             key={t.id}
             role="status"
-            className={`pointer-events-auto flex max-w-[400px] items-center gap-3 rounded-[16px] px-4 py-3 shadow-toast animate-toastIn ${
-              t.kind === 'err' ? 'bg-pink-600' : 'bg-ink'
+            className={`pointer-events-auto flex max-w-[400px] items-center gap-3 rounded-field px-4 py-3 shadow-toast animate-toastIn ${
+              t.kind === 'err' ? 'bg-danger' : 'bg-toast'
             }`}
           >
-            <p className="min-w-0 flex-1 text-[13px] font-bold text-white">
+            <p className={`min-w-0 flex-1 text-body font-bold ${t.kind === 'err' ? 'text-white' : 'text-toast-fg'}`}>
               {t.message}
             </p>
             {t.undo && (
@@ -53,7 +53,7 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
                   dismiss(t.id);
                   run?.();
                 }}
-                className="shrink-0 text-[13px] font-extrabold text-[#DDD6FE]"
+                className={`shrink-0 text-body font-extrabold ${t.kind === 'err' ? 'text-white' : 'text-toast-accent'}`}
               >
                 Deshacer
               </button>

@@ -2,22 +2,157 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Tokens semánticos (triplete RGB para poder usar <alpha-value> en Tailwind).
+ * Claro en :root, oscuro por sistema en el @media de abajo.
+ */
+:root {
+  color-scheme: light;
+
+  /* Marca */
+  --c-brand: 139 92 246;        /* #8B5CF6 */
+  --c-brand-2: 168 85 247;      /* #A855F7 */
+  --c-brand-deep: 109 40 217;   /* #6D28D9 — texto violeta con contraste */
+  --c-brand-soft: 237 233 254;  /* #EDE9FE */
+  --c-brand-tint: 245 243 255;  /* #F5F3FF */
+
+  /* Tinta */
+  --c-ink: 27 24 48;            /* #1B1830 */
+  --c-ink-2: 99 94 128;         /* #635E80 */
+  --c-ink-3: 148 143 178;       /* #948FB2 — subido un punto para contraste */
+
+  /* Superficies */
+  --c-bg: 238 236 250;          /* #EEECFA */
+  --c-card: 255 255 255;
+  --c-line: 239 237 248;        /* #EFEDF8 */
+  --c-grid-h: 225 221 242;
+  --c-grid-v: 221 216 239;
+  --c-track: 228 224 245;
+  --c-handle: 214 209 235;
+
+  /* Estados semánticos */
+  --c-ok: 16 185 129;           /* #10B981 */
+  --c-ok-fg: 4 120 87;          /* #047857 */
+  --c-ok-strong: 6 95 70;       /* #065F46 */
+  --c-ok-bg: 236 253 245;       /* #ECFDF5 */
+  --c-ok-line: 167 243 208;     /* #A7F3D0 */
+  --c-danger: 219 39 119;       /* #DB2777 */
+  --c-danger-fg: 190 24 93;     /* #BE185D */
+  --c-danger-bg: 253 242 248;   /* #FDF2F8 */
+  --c-danger-line: 251 207 232; /* #FBCFE8 */
+  --c-warn-fg: 146 64 14;       /* #92400E */
+  --c-warn-bg: 255 251 235;     /* #FFFBEB */
+  --c-warn-line: 253 230 138;   /* #FDE68A */
+
+  /* Toast (oscuro sobre claro; se invierte en dark) */
+  --c-toast-bg: 27 24 48;
+  --c-toast-fg: 255 255 255;
+  --c-toast-accent: 221 214 254; /* #DDD6FE */
+
+  /* Bloqueos (rayas) */
+  --c-stripe-a: 231 227 245;
+  --c-stripe-b: 239 236 249;
+
+  /* Blob decorativo de páginas públicas */
+  --c-blob: 221 211 255;
+
+  /* Estados de cita (inline styles) */
+  --st-prog-bg: #FFFFFF;   --st-prog-line: #EFEDF8;  --st-prog-edge: #8B5CF6;
+  --st-curso-bg: #ECFDF5;  --st-curso-line: #A7F3D0; --st-curso-edge: #10B981;
+  --st-done-bg: #F7F6FB;   --st-done-line: #EFEDF8;  --st-done-edge: #C9C4DE;
+  --st-noshow-bg: #FEF2F6; --st-noshow-line: #FBCFE8; --st-noshow-edge: #EC4899;
+
+  /* Categorías de servicio (inline styles) */
+  --cat-corporal-bg: #EDE9FE;   --cat-corporal-fg: #6D28D9;
+  --cat-facial-bg: #FCE7F3;     --cat-facial-fg: #BE185D;
+  --cat-laser-bg: #E0F2FE;      --cat-laser-fg: #0369A1;
+  --cat-micro-bg: #FEF3C7;      --cat-micro-fg: #B45309;
+  --cat-bienestar-bg: #D1FAE5;  --cat-bienestar-fg: #047857;
+  --cat-valoracion-bg: #F1EFF8; --cat-valoracion-fg: #635E80;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --c-brand: 167 139 250;       /* #A78BFA */
+    --c-brand-2: 192 132 252;     /* #C084FC */
+    --c-brand-deep: 196 181 253;  /* #C4B5FD */
+    --c-brand-soft: 60 48 110;    /* #3C306E */
+    --c-brand-tint: 43 35 77;     /* #2B234D */
+
+    --c-ink: 240 238 250;         /* #F0EEFA */
+    --c-ink-2: 178 173 206;       /* #B2ADCE */
+    --c-ink-3: 134 128 165;       /* #8680A5 */
+
+    --c-bg: 20 17 34;             /* #141122 */
+    --c-card: 30 26 48;           /* #1E1A30 */
+    --c-line: 46 40 72;           /* #2E2848 */
+    --c-grid-h: 42 36 66;
+    --c-grid-v: 47 41 74;
+    --c-track: 40 34 66;
+    --c-handle: 66 58 100;
+
+    --c-ok: 52 211 153;           /* #34D399 */
+    --c-ok-fg: 110 231 183;       /* #6EE7B7 */
+    --c-ok-strong: 167 243 208;   /* #A7F3D0 */
+    --c-ok-bg: 16 42 33;
+    --c-ok-line: 27 71 53;
+    --c-danger: 236 72 153;       /* #EC4899 */
+    --c-danger-fg: 244 158 199;
+    --c-danger-bg: 51 22 37;
+    --c-danger-line: 116 39 74;
+    --c-warn-fg: 252 211 77;      /* #FCD34D */
+    --c-warn-bg: 51 39 17;
+    --c-warn-line: 120 89 22;
+
+    --c-toast-bg: 50 43 82;       /* #322B52 */
+    --c-toast-fg: 240 238 250;
+    --c-toast-accent: 196 181 253;
+
+    --c-stripe-a: 40 34 64;
+    --c-stripe-b: 33 28 54;
+
+    --c-blob: 46 37 84;
+
+    --st-prog-bg: #1E1A30;   --st-prog-line: #2E2848;  --st-prog-edge: #A78BFA;
+    --st-curso-bg: #102A21;  --st-curso-line: #1B4735; --st-curso-edge: #34D399;
+    --st-done-bg: #191529;   --st-done-line: #272141;  --st-done-edge: #4A4468;
+    --st-noshow-bg: #2E1622; --st-noshow-line: #5A2440; --st-noshow-edge: #F472B6;
+
+    --cat-corporal-bg: #35296B;   --cat-corporal-fg: #C4B5FD;
+    --cat-facial-bg: #451A31;     --cat-facial-fg: #F9A8D4;
+    --cat-laser-bg: #0E2F46;      --cat-laser-fg: #7DD3FC;
+    --cat-micro-bg: #3D2A0C;      --cat-micro-fg: #FCD34D;
+    --cat-bienestar-bg: #0E3327;  --cat-bienestar-fg: #6EE7B7;
+    --cat-valoracion-bg: #2A2542; --cat-valoracion-fg: #B2ADCE;
+  }
+}
+
 @layer base {
   html, body {
     margin: 0;
     height: 100%;
-    background: #EEECFA;
+    background: rgb(var(--c-bg));
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
   }
   body { overscroll-behavior: none; }
   .app-shell-scroll { -webkit-overflow-scrolling: touch; }
-  a { color: #8B5CF6; }
-  a:hover { color: #6D28D9; }
+  a { color: rgb(var(--c-brand)); }
+  a:hover { color: rgb(var(--c-brand-deep)); }
   button, a, input, textarea, select { touch-action: manipulation; }
   ::-webkit-scrollbar { display: none; }
   * { scrollbar-width: none; }
-  :focus-visible { outline: 2px solid #8B5CF6; outline-offset: 2px; }
+  :focus-visible { outline: 2px solid rgb(var(--c-brand)); outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
 @layer utilities {

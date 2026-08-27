@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet';
+import Button from '@/components/ui/Button';
 import { createBlock, deleteBlock } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import { BLOCK_REASONS, type BlockReason } from '@/lib/consents';
@@ -35,28 +36,28 @@ export default function BlockSheet({
         subtitle="Quitar este hueco de la agenda"
         footer={
           <>
-            {error && <p className="mb-2 text-[12px] font-semibold text-pink-700">{error}</p>}
+            {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
             <div className="flex gap-2">
-              <button type="button" onClick={close} className="flex-1 rounded-field border border-surface-line bg-white py-3 text-[13.5px] font-bold text-ink-2">
+              <Button variant="secondary" className="flex-1 text-ink-2" onClick={close}>
                 Dejarlo
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="danger"
+                className="flex-1"
                 disabled={pending}
                 onClick={() => startTransition(async () => {
                   const r = await deleteBlock(createClient(), existing.id);
                   if (!r.ok) setError(r.error ?? 'No se ha podido borrar');
                   else close();
                 })}
-                className="flex-1 rounded-field bg-pink-600 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-40"
               >
                 Quitar bloqueo
-              </button>
+              </Button>
             </div>
           </>
         }
       >
-        <p className="mb-1 text-[13px] font-medium leading-snug text-ink-2">
+        <p className="mb-1 text-body font-medium leading-snug text-ink-2">
           Este hueco deja de estar bloqueado y vuelve a poder citarse.
         </p>
       </Sheet>
@@ -81,14 +82,10 @@ export default function BlockSheet({
       subtitle="Comida, descanso o cabina ocupada"
       footer={
         <>
-          {error && <p className="mb-2 text-[12px] font-semibold text-pink-700">{error}</p>}
-          <button
-            onClick={save}
-            disabled={pending || !providerId}
-            className="w-full rounded-field bg-grad py-3.5 text-[15px] font-extrabold text-white shadow-btn disabled:opacity-40"
-          >
+          {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
+          <Button size="lg" full onClick={save} disabled={pending || !providerId}>
             {pending ? 'Guardando…' : repeatWeekdays ? 'Bloquear laborables' : 'Bloquear'}
-          </button>
+          </Button>
         </>
       }
     >
@@ -139,16 +136,16 @@ export default function BlockSheet({
       <Field label="Etiqueta">
         <input className={inputCls} placeholder="Comida, formación…" value={label} onChange={e => setLabel(e.target.value)} />
       </Field>
-      <label className="mb-3 flex items-start gap-2.5 rounded-field border border-surface-line bg-white px-3.5 py-3">
+      <label className="mb-3 flex items-start gap-2.5 rounded-field border border-surface-line bg-surface-card px-3.5 py-3">
         <input
           type="checkbox"
-          className="mt-0.5"
+          className="mt-0.5 h-5 w-5 shrink-0 accent-v"
           checked={repeatWeekdays}
           onChange={e => setRepeatWeekdays(e.target.checked)}
         />
         <span>
-          <span className="block text-[13.5px] font-bold">Laborables, 4 semanas</span>
-          <span className="block text-[11.5px] font-medium text-ink-3">
+          <span className="block text-body font-bold">Laborables, 4 semanas</span>
+          <span className="block text-caption font-medium text-ink-3">
             Lunes a viernes a esta hora. Los días que ya estén ocupados se saltan.
           </span>
         </span>

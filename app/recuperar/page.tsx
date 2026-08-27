@@ -39,8 +39,8 @@ export default function RecuperarPage() {
 
   return (
     <div className="mx-auto flex min-h-[100dvh] max-w-[440px] flex-col bg-surface-bg px-6 pt-[max(4rem,calc(env(safe-area-inset-top)+1.5rem))]">
-      <h1 className="text-[26px] font-extrabold tracking-[-.025em]">Nueva contraseña</h1>
-      <p className="mt-2 text-[14px] font-medium text-ink-2">
+      <h1 className="text-display font-extrabold tracking-[-.025em]">Nueva contraseña</h1>
+      <p className="mt-2 text-body font-medium text-ink-2">
         {ready
           ? 'Elige una contraseña de al menos 8 caracteres.'
           : 'Abre el enlace del email para poder cambiarla.'}
@@ -63,11 +63,11 @@ export default function RecuperarPage() {
             value={confirm}
             onChange={e => setConfirm(e.target.value)}
           />
-          {error && <p className="text-[12px] font-semibold text-pink-700">{error}</p>}
+          {error && <p className="text-label font-semibold text-danger-fg">{error}</p>}
           <button
             onClick={save}
             disabled={pending || password.length < 8}
-            className="rounded-field bg-grad py-3.5 text-[15px] font-extrabold text-white shadow-btn disabled:opacity-40"
+            className="rounded-field bg-grad py-3.5 text-body-lg font-extrabold text-white shadow-btn disabled:opacity-40"
           >
             {pending ? 'Guardando…' : 'Guardar y entrar'}
           </button>

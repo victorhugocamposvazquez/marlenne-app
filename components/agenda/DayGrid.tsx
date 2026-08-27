@@ -133,25 +133,25 @@ export default function DayGrid({
         onContextMenu={e => e.preventDefault()}
       >
         <div className="min-w-max pr-3.5">
-          <div className="sticky top-0 z-[6] flex bg-[linear-gradient(180deg,#EEECFA_74%,rgba(238,236,250,0))] pb-2.5 pt-0.5">
+          <div className="sticky top-0 z-[6] flex bg-[linear-gradient(180deg,rgb(var(--c-bg))_74%,rgb(var(--c-bg)/0))] pb-2.5 pt-0.5">
             <div className="sticky left-0 z-[7] w-[46px] shrink-0 bg-surface-bg" />
             {providers.map(p => {
               const count = appointments.filter(a => place(a).provider === p.id).length;
               return (
                 <div key={p.id} className="shrink-0 pr-2" style={{ width: COL_W }}>
                   <div
-                    className="flex items-center gap-2 rounded-[15px] bg-white p-[7px_9px] shadow-card"
+                    className="flex items-center gap-2 rounded-pill bg-surface-card p-[7px_9px] shadow-card"
                     style={{ borderBottom: `3px solid ${p.color ?? avatarColor(p.full_name)}` }}
                   >
                     <span
-                      className="grid h-7 w-7 shrink-0 place-items-center rounded-[10px] text-[10.5px] font-bold text-white"
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-chip text-micro font-bold text-white"
                       style={{ background: p.color ?? avatarColor(p.full_name) }}
                     >
                       {p.initials}
                     </span>
                     <span className="min-w-0">
-                      <span className="block text-[13px] font-bold leading-tight tracking-[-.01em]">{p.full_name}</span>
-                      <span className="block text-[10.5px] font-medium text-ink-3">
+                      <span className="block text-body font-bold leading-tight tracking-[-.01em]">{p.full_name}</span>
+                      <span className="block text-micro font-medium text-ink-3">
                         {count === 1 ? '1 cita' : `${count} citas`}
                       </span>
                     </span>
@@ -164,7 +164,7 @@ export default function DayGrid({
           <div className="flex">
             <div className="sticky left-0 z-[5] w-[46px] shrink-0 bg-surface-bg" style={{ height: gridH }}>
               {hours.map(h => (
-                <div key={h.label} className="absolute right-2 -translate-y-1.5 text-[10.5px] font-semibold tabular-nums text-ink-3" style={{ top: h.top }}>
+                <div key={h.label} className="absolute right-2 -translate-y-1.5 text-micro font-semibold tabular-nums text-ink-3" style={{ top: h.top }}>
                   {h.label}
                 </div>
               ))}
@@ -178,7 +178,7 @@ export default function DayGrid({
                 <div key={i} className="absolute top-0 w-px bg-grid-v" style={{ left: (i + 1) * COL_W - 4, height: gridH }} />
               ))}
               {appointments.length === 0 && (
-                <p className="absolute left-2 right-2 z-[2] text-center text-[13px] font-semibold text-ink-3" style={{ top: 48 }}>
+                <p className="absolute left-2 right-2 z-[2] text-center text-body font-semibold text-ink-3" style={{ top: 48 }}>
                   No hay citas este día
                 </p>
               )}
@@ -195,7 +195,7 @@ export default function DayGrid({
                   className="pointer-events-none absolute z-[9] flex items-center"
                   style={{ top: (drag.start - DAY_START) * pxPerMin, width: providers.length * COL_W }}
                 >
-                  <span className="-ml-1 rounded-[8px] bg-v px-1.5 py-0.5 text-[11px] font-extrabold tabular-nums text-white shadow-pill">
+                  <span className="-ml-1 rounded-badge bg-v px-1.5 py-0.5 text-caption font-extrabold tabular-nums text-white shadow-pill">
                     {fmt(drag.start)}
                   </span>
                   <span className="h-0.5 flex-1 bg-v" />
@@ -207,8 +207,8 @@ export default function DayGrid({
                   className="pointer-events-none absolute z-[8] flex items-center"
                   style={{ top: (now - DAY_START) * pxPerMin, width: providers.length * COL_W }}
                 >
-                  <span className="-ml-1 h-2 w-2 shrink-0 rounded-full bg-[#EC4899] shadow-[0_0_0_3px_rgba(236,72,153,.25)]" />
-                  <span className="h-px flex-1 bg-[#EC4899]" />
+                  <span className="-ml-1 h-2 w-2 shrink-0 rounded-full bg-danger shadow-[0_0_0_3px_rgb(var(--c-danger)/.25)]" />
+                  <span className="h-px flex-1 bg-danger" />
                 </div>
               )}
 
@@ -233,7 +233,7 @@ export default function DayGrid({
                             e.stopPropagation();
                             shallowSet({ bloqueo: b.id });
                           }}
-                          className="absolute left-0.5 right-[9px] flex items-center justify-center rounded-[13px] border border-dashed border-[#CFC8E6] bg-block text-[11px] font-bold text-ink-3"
+                          className="absolute left-0.5 right-[9px] flex items-center justify-center rounded-icon border border-dashed border-handle bg-block text-caption font-bold text-ink-3"
                           style={{ top: (start - DAY_START) * pxPerMin + 2, height: b.duration_min * pxPerMin - 6 }}
                         >
                           {b.label ?? b.reason}
@@ -264,7 +264,7 @@ export default function DayGrid({
                       background: st.bg,
                       border: `1px solid ${st.border}`,
                       borderLeft: `4px solid ${st.edge}`,
-                      boxShadow: pos.dragging ? '0 18px 44px rgba(60,40,120,.28)' : '0 4px 20px rgba(60,40,120,.07)',
+                      boxShadow: pos.dragging ? '0 18px 44px rgba(20,10,60,.30)' : '0 4px 20px rgba(20,10,60,.07)',
                       transform: pos.dragging ? 'scale(1.03)' : 'none',
                       opacity: a.status === 'done' ? 0.62 : 1,
                       zIndex: pos.dragging ? 12 : 2,
@@ -295,13 +295,13 @@ export default function DayGrid({
                     >
                       <div className="flex items-center gap-[5px]">
                         <span className="h-1.5 w-1.5 shrink-0 rounded-sm" style={{ background: cat.color }} />
-                        <span className="truncate text-[12.5px] font-bold leading-tight tracking-[-.01em]">{a.client_label}</span>
+                        <span className="truncate text-label font-bold leading-tight tracking-[-.01em]">{a.client_label}</span>
                       </div>
-                      <div className="truncate text-[11px] font-medium text-ink-2">{a.service_name}</div>
+                      <div className="truncate text-caption font-medium text-ink-2">{a.service_name}</div>
                       {a.note && (
-                        <div className="truncate text-[10.5px] font-medium text-ink-3">{a.note}</div>
+                        <div className="truncate text-micro font-medium text-ink-3">{a.note}</div>
                       )}
-                      <div className="mt-0.5 text-[10.5px] font-semibold tabular-nums" style={{ color: st.edge }}>
+                      <div className="mt-0.5 text-micro font-semibold tabular-nums" style={{ color: st.edge }}>
                         {fmt(pos.start)} – {fmt(pos.start + a.duration_min)}
                       </div>
                     </button>
@@ -313,7 +313,7 @@ export default function DayGrid({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-3 overflow-x-auto px-5 pb-2.5 pt-2 text-[11px] font-semibold text-ink-3">
+      <div className="flex shrink-0 items-center gap-3 overflow-x-auto px-5 pb-2.5 pt-2 text-caption font-semibold text-ink-3">
         {Object.values(CATEGORIES).slice(0, 5).map(c => (
           <span key={c.label} className="flex shrink-0 items-center gap-[5px]">
             <span className="inline-block h-2 w-2 rounded-sm" style={{ background: c.color }} />

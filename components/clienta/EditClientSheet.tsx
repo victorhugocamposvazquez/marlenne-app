@@ -49,11 +49,11 @@ export default function EditClientSheet({ client }: { client: ClientRow }) {
       subtitle={client.full_name}
       footer={
         <>
-          {error && <p className="mb-2 text-[12px] font-semibold text-pink-700">{error}</p>}
+          {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
           <button
             onClick={save}
             disabled={name.trim().length < 2 || pending}
-            className="w-full rounded-field bg-grad py-3.5 text-[15px] font-extrabold text-white shadow-btn disabled:opacity-40"
+            className="w-full rounded-field bg-grad py-3.5 text-body-lg font-extrabold text-white shadow-btn disabled:opacity-40"
           >
             {pending ? 'Guardando…' : 'Guardar cambios'}
           </button>
@@ -79,12 +79,12 @@ export default function EditClientSheet({ client }: { client: ClientRow }) {
           onChange={e => setNotes(e.target.value)}
         />
       </Field>
-      <label className="mb-2 flex items-center gap-2 text-[13.5px] font-bold">
-        <input type="checkbox" checked={vip} onChange={e => setVip(e.target.checked)} className="h-4 w-4 accent-[#8B5CF6]" />
+      <label className="mb-2 flex items-center gap-2 text-body font-bold">
+        <input type="checkbox" checked={vip} onChange={e => setVip(e.target.checked)} className="h-5 w-5 accent-v" />
         VIP
       </label>
-      <label className="mb-2 flex items-center gap-2 text-[13.5px] font-bold">
-        <input type="checkbox" checked={sms} onChange={e => setSms(e.target.checked)} className="h-4 w-4 accent-[#8B5CF6]" />
+      <label className="mb-2 flex items-center gap-2 text-body font-bold">
+        <input type="checkbox" checked={sms} onChange={e => setSms(e.target.checked)} className="h-5 w-5 accent-v" />
         Recibe recordatorios SMS
       </label>
     </Sheet>

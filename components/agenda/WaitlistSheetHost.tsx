@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import WaitlistSheet from '@/components/agenda/WaitlistSheet';
 import Sheet from '@/components/Sheet';
+import Skeleton from '@/components/ui/Skeleton';
 import { loadClientOptions, loadServices, loadWaitlist } from '@/lib/agenda-catalog';
 import { createClient } from '@/lib/supabase/client';
 import { useShallowParam } from '@/hooks/useShallowQuery';
@@ -49,9 +50,9 @@ export default function WaitlistSheetHost({ initialOpen }: { initialOpen?: boole
   if (loading && items.length === 0 && clients.length === 0) {
     return (
       <Sheet title="Lista de espera">
-        <div className="animate-pulse space-y-3">
-          <div className="h-16 rounded-[12px] bg-surface-line" />
-          <div className="h-16 rounded-[12px] bg-surface-line" />
+        <div className="space-y-3">
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
         </div>
       </Sheet>
     );

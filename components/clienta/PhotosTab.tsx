@@ -36,7 +36,7 @@ function Frame({
 
   return (
     <div className="min-w-0 flex-1">
-      <div className="mb-1 text-[10.5px] font-bold uppercase tracking-[.03em] text-ink-3">{label}</div>
+      <div className="mb-1 text-micro font-bold uppercase tracking-[.03em] text-ink-3">{label}</div>
       {photo && url ? (
         <div className="relative">
           {/* Enlace firmado y temporal del bucket privado: no pasa por el optimizador. */}
@@ -44,22 +44,22 @@ function Frame({
             src={url}
             alt={`${label} · ${photo.zone ?? ''}`}
             loading="lazy"
-            className="aspect-[3/4] w-full rounded-[14px] border border-surface-line object-cover"
+            className="aspect-[3/4] w-full rounded-icon border border-surface-line object-cover"
           />
           {asking ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 rounded-[14px] bg-ink/60 p-2">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 rounded-icon bg-ink/60 p-2">
               <button
                 type="button"
                 disabled={pending}
                 onClick={() => onDelete(photo)}
-                className="rounded-[11px] bg-pink-600 px-3 py-1.5 text-[12px] font-extrabold text-white disabled:opacity-40"
+                className="rounded-chip bg-danger px-3 py-1.5 text-label font-extrabold text-white disabled:opacity-40"
               >
                 Borrar
               </button>
               <button
                 type="button"
                 onClick={onCancel}
-                className="text-[11.5px] font-bold text-white"
+                className="text-caption font-bold text-white"
               >
                 Dejarla
               </button>
@@ -69,14 +69,14 @@ function Frame({
               type="button"
               aria-label={`Borrar foto ${label}`}
               onClick={() => onAsk(photo.id)}
-              className="absolute right-1.5 top-1.5 grid h-8 w-8 place-items-center rounded-[10px] bg-white/90 text-pink-700 shadow-card"
+              className="absolute right-1.5 top-1.5 grid h-8 w-8 place-items-center rounded-chip bg-surface-card/90 text-danger-fg shadow-card"
             >
               <Trash2 size={14} strokeWidth={2.3} />
             </button>
           )}
         </div>
       ) : (
-        <div className="grid aspect-[3/4] w-full place-items-center rounded-[14px] border border-dashed border-handle bg-surface-bg/50 text-[11px] font-semibold text-ink-3">
+        <div className="grid aspect-[3/4] w-full place-items-center rounded-icon border border-dashed border-handle bg-surface-bg/50 text-caption font-semibold text-ink-3">
           Sin foto
         </div>
       )}
@@ -136,7 +136,7 @@ export default function PhotosTab({
       <PhotoUpload treatments={treatments} onUploaded={onUploaded} />
       {!list.length && <Empty>Todavía no hay fotos de esta clienta.</Empty>}
       {list.length > 0 && !photoConsent && (
-        <p className="flex items-start gap-2 rounded-row border border-amber-200 bg-amber-50 p-3 text-[12px] font-semibold leading-snug text-amber-800">
+        <p className="flex items-start gap-2 rounded-row border border-warn-line bg-warn-bg p-3 text-label font-semibold leading-snug text-warn-fg">
           <ShieldAlert size={16} strokeWidth={2.2} className="mt-px shrink-0" />
           Hay fotos guardadas y no consta consentimiento de imagen. Son datos de salud:
           conviene registrarlo antes de seguir usándolas.
@@ -144,11 +144,11 @@ export default function PhotosTab({
       )}
 
       {list.map(g => (
-        <article key={g.key} className="rounded-row border border-surface-line bg-white p-3.5 shadow-card">
+        <article key={g.key} className="rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
           <div className="mb-2.5 flex items-baseline gap-2">
-            <h3 className="min-w-0 flex-1 truncate text-[14px] font-bold tracking-[-.01em]">{g.title}</h3>
+            <h3 className="min-w-0 flex-1 truncate text-body font-bold tracking-[-.01em]">{g.title}</h3>
             {g.session !== null && (
-              <span className="shrink-0 rounded-[9px] bg-v-soft px-2 py-1 text-[10px] font-bold text-v-d">
+              <span className="shrink-0 rounded-badge bg-v-soft px-2 py-1 text-micro font-bold text-v-d">
                 Sesión {g.session}
               </span>
             )}
@@ -175,7 +175,7 @@ export default function PhotosTab({
               onDelete={remove}
             />
           </div>
-          <p className="mt-2 text-[10.5px] font-semibold text-ink-3">
+          <p className="mt-2 text-micro font-semibold text-ink-3">
             {[g.zone, dateLbl(g.takenAt)].filter(Boolean).join(' · ')}
           </p>
         </article>

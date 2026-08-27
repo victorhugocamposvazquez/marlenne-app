@@ -30,8 +30,8 @@ export default function PasswordForm() {
 
   return (
     <section className="mt-6">
-      <h2 className="mb-2.5 text-[13px] font-extrabold uppercase tracking-[.04em] text-ink-3">Tu contraseña</h2>
-      <div className="rounded-row border border-surface-line bg-white p-3.5 shadow-card">
+      <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-3">Tu contraseña</h2>
+      <div className="rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
         <input
           className={`${inputCls} mb-2`}
           type="password"
@@ -48,11 +48,11 @@ export default function PasswordForm() {
           value={confirm}
           onChange={e => setConfirm(e.target.value)}
         />
-        {error && <p className="mb-2 text-[12px] font-semibold text-pink-700">{error}</p>}
+        {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
         <button
           onClick={save}
           disabled={pending || password.length < 8}
-          className="w-full rounded-field bg-grad py-3 text-[13.5px] font-extrabold text-white shadow-btn disabled:opacity-40"
+          className="w-full rounded-field bg-grad py-3 text-body font-extrabold text-white shadow-btn disabled:opacity-40"
         >
           {pending ? 'Guardando…' : 'Cambiar contraseña'}
         </button>

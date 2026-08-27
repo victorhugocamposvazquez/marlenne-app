@@ -25,17 +25,17 @@ export default function IosShortcutsCard() {
 
   return (
     <section className="mt-6">
-      <h2 className="mb-2.5 text-[13px] font-extrabold uppercase tracking-[.04em] text-ink-3">
+      <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-3">
         iPhone · Siri y atajos
       </h2>
-      <div className="rounded-row border border-surface-line bg-white p-3.5 shadow-card">
-        <p className="text-[12.5px] font-medium leading-snug text-ink-2">
+      <div className="rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
+        <p className="text-label font-medium leading-snug text-ink-2">
           Safari → Compartir → Añadir a pantalla de inicio (así el micro no
           pide permiso cada vez). Siri no ve la PWA:
           crea un Atajo «Abrir URL» y añádelo a Siri. Si abre Safari en vez del
           icono, prueba la URL <span className="font-bold">webapp://</span>.
         </p>
-        <p className="mt-2 text-[12.5px] font-medium leading-snug text-ink-2">
+        <p className="mt-2 text-label font-medium leading-snug text-ink-2">
           Dentro de la app, el micrófono (o escribir) ejecuta agenda: huecos,
           citas, pasa, no vino. Si hay clave de modelo, se puede hablar normal.
           Solo agenda, nunca ficha clínica.
@@ -45,19 +45,19 @@ export default function IosShortcutsCard() {
             const https = `${origin}${p.path}`;
             const webapp = `webapp://${origin.replace(/^https?:\/\//, '')}${p.path}`;
             return (
-              <li key={p.path} className="rounded-[12px] bg-surface-bg px-3 py-2">
-                <div className="text-[13px] font-bold">«{p.phrase}»</div>
+              <li key={p.path} className="rounded-chip bg-surface-bg px-3 py-2">
+                <div className="text-body font-bold">«{p.phrase}»</div>
                 <button
                   type="button"
                   onClick={() => copy(https)}
-                  className="mt-0.5 block w-full truncate text-left text-[11px] font-semibold text-v-d"
+                  className="mt-0.5 block w-full truncate text-left text-caption font-semibold text-v-d"
                 >
                   {https || p.path}
                 </button>
                 <button
                   type="button"
                   onClick={() => copy(webapp)}
-                  className="block w-full truncate text-left text-[11px] font-medium text-ink-3"
+                  className="block w-full truncate text-left text-caption font-medium text-ink-3"
                 >
                   {origin ? webapp : `webapp://…${p.path}`}
                 </button>

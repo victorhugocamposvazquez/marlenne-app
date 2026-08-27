@@ -18,7 +18,7 @@ function Spark({ values }: { values: number[] }) {
       <polyline
         points={points}
         fill="none"
-        stroke="#8B5CF6"
+        stroke="rgb(var(--c-brand))"
         strokeWidth="2.5"
         strokeLinejoin="round"
         strokeLinecap="round"
@@ -52,19 +52,19 @@ export default function MeasurementsTab({ treatments }: { treatments: TreatmentR
         const delta = nums.length > 1 ? last - first : null;
 
         return (
-          <article key={metric} className="rounded-row border border-surface-line bg-white p-3.5 shadow-card">
+          <article key={metric} className="rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
             <div className="flex items-baseline gap-2">
-              <h3 className="flex-1 text-[13px] font-bold uppercase tracking-[.02em] text-ink-2">{metric}</h3>
+              <h3 className="flex-1 text-body font-bold uppercase tracking-[.02em] text-ink-2">{metric}</h3>
               {nums.length > 0 && (
-                <span className="text-[19px] font-extrabold tabular-nums tracking-[-.02em]">
+                <span className="text-title font-extrabold tabular-nums tracking-[-.02em]">
                   {last}
-                  <span className="ml-0.5 text-[12px] font-bold text-ink-3">{unit}</span>
+                  <span className="ml-0.5 text-label font-bold text-ink-3">{unit}</span>
                 </span>
               )}
               {delta !== null && delta !== 0 && (
                 <span
-                  className={`rounded-[9px] px-2 py-1 text-[11px] font-bold tabular-nums ${
-                    delta < 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-v-soft text-v-d'
+                  className={`rounded-badge px-2 py-1 text-caption font-bold tabular-nums ${
+                    delta < 0 ? 'bg-ok-bg text-ok-fg' : 'bg-v-soft text-v-d'
                   }`}
                 >
                   {delta > 0 ? '+' : ''}{Number(delta.toFixed(2))}{unit}
@@ -75,7 +75,7 @@ export default function MeasurementsTab({ treatments }: { treatments: TreatmentR
             {nums.length > 1 && (
               <>
                 <Spark values={nums} />
-                <div className="flex justify-between text-[10.5px] font-semibold text-ink-3">
+                <div className="flex justify-between text-micro font-semibold text-ink-3">
                   <span>{dateLbl(list[0].measured_at)} · {first}{unit}</span>
                   <span>{dateLbl(list[list.length - 1].measured_at)}</span>
                 </div>
@@ -85,7 +85,7 @@ export default function MeasurementsTab({ treatments }: { treatments: TreatmentR
             {list.some(m => m.value_text) && (
               <ul className="mt-2 flex flex-col gap-1">
                 {list.filter(m => m.value_text).map(m => (
-                  <li key={m.id} className="flex items-baseline gap-2 text-[12px] font-medium text-ink-2">
+                  <li key={m.id} className="flex items-baseline gap-2 text-label font-medium text-ink-2">
                     <span className="tabular-nums text-ink-3">{dateLbl(m.measured_at)}</span>
                     <span className="font-bold text-ink">{m.value_text}</span>
                     {m.session_no !== null && <span className="text-ink-3">sesión {m.session_no}</span>}
@@ -95,7 +95,7 @@ export default function MeasurementsTab({ treatments }: { treatments: TreatmentR
             )}
 
             {nums.length === 1 && !list.some(m => m.value_text) && (
-              <p className="mt-1.5 text-[11.5px] font-semibold text-ink-3">
+              <p className="mt-1.5 text-caption font-semibold text-ink-3">
                 Solo hay una toma, del {dateLbl(list[0].measured_at)}. Con dos ya se ve la evolución.
               </p>
             )}

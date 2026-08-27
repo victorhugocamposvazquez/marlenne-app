@@ -2,6 +2,7 @@
 
 import { useState, useTransition, type Dispatch, type SetStateAction } from 'react';
 import { Field, inputCls } from '@/components/Sheet';
+import Button from '@/components/ui/Button';
 import { closeSession } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import type { AgendaAppt } from '@/lib/types';
@@ -58,8 +59,8 @@ export function SessionCloseFields({
   showBody: boolean;
 }) {
   return (
-    <div className="mb-1 rounded-field border border-emerald-200 bg-emerald-50/60 p-3.5">
-      <p className="mb-3 text-[13px] font-bold text-emerald-800">
+    <div className="mb-1 rounded-field border border-ok-line bg-ok-bg/60 p-3.5">
+      <p className="mb-3 text-body font-bold text-ok-strong">
         Cerrar sesión · {appt.service_name}
       </p>
 
@@ -68,7 +69,7 @@ export function SessionCloseFields({
           <div className="grid grid-cols-2 gap-2">
             {appt.param_keys.map(key => (
               <label key={key} className="min-w-0">
-                <span className="mb-1 block text-[10.5px] font-bold uppercase tracking-[.03em] text-ink-3">
+                <span className="mb-1 block text-micro font-bold uppercase tracking-[.03em] text-ink-3">
                   {key}
                 </span>
                 <input
@@ -87,7 +88,7 @@ export function SessionCloseFields({
           <div className="grid grid-cols-3 gap-2">
             {BODY.map(m => (
               <label key={m.metric} className="min-w-0">
-                <span className="mb-1 block text-[10.5px] font-bold uppercase tracking-[.03em] text-ink-3">
+                <span className="mb-1 block text-micro font-bold uppercase tracking-[.03em] text-ink-3">
                   {m.metric}
                 </span>
                 <input
@@ -126,34 +127,20 @@ export function SessionCloseActions({
   return (
     <>
       {error && (
-        <p className="mb-2.5 rounded-[12px] bg-pink-50 px-3 py-2 text-[12px] font-semibold text-pink-700">
+        <p className="mb-2.5 rounded-chip bg-danger-bg px-3 py-2 text-label font-semibold text-danger-fg">
           {error}
         </p>
       )}
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() => save(false)}
-        className="w-full rounded-field bg-emerald-500 py-3 text-[14px] font-extrabold text-white disabled:opacity-40"
-      >
+      <Button full disabled={pending} onClick={() => save(false)} className="bg-none !bg-ok shadow-none">
         {pending ? 'Guardando…' : 'Guardar y marcar hecha'}
-      </button>
+      </Button>
       <div className="mt-2 flex gap-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="flex-1 rounded-field border border-surface-line bg-white py-2.5 text-[13px] font-bold text-ink-2"
-        >
+        <Button variant="secondary" size="sm" className="flex-1 text-ink-2" onClick={onCancel}>
           Seguir en cabina
-        </button>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => save(true)}
-          className="flex-1 rounded-field border border-surface-line bg-white py-2.5 text-[13px] font-bold text-ink-2"
-        >
+        </Button>
+        <Button variant="secondary" size="sm" className="flex-1 text-ink-2" disabled={pending} onClick={() => save(true)}>
           Hecha sin datos
-        </button>
+        </Button>
       </div>
     </>
   );

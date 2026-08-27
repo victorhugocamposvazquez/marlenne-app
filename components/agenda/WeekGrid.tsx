@@ -32,7 +32,7 @@ export default function WeekGrid({
             <section
               key={d.offset}
               className={`overflow-hidden rounded-row border shadow-card ${
-                d.isToday ? 'border-v/40 bg-v-tint' : 'border-surface-line bg-white'
+                d.isToday ? 'border-v/40 bg-v-tint' : 'border-surface-line bg-surface-card'
               }`}
             >
               <div className="flex items-center gap-2 px-3 py-2">
@@ -42,13 +42,13 @@ export default function WeekGrid({
                   className="min-w-0 flex-1 text-left"
                 >
                   <span className="flex items-baseline gap-1.5">
-                    <span className="text-[14px] font-extrabold tracking-[-.02em]">{d.name}</span>
-                    <span className="text-[13px] font-bold tabular-nums text-ink-2">{d.num}</span>
+                    <span className="text-body font-extrabold tracking-[-.02em]">{d.name}</span>
+                    <span className="text-body font-bold tabular-nums text-ink-2">{d.num}</span>
                     {d.isToday && (
-                      <span className="rounded-[6px] bg-grad px-1.5 py-px text-[9.5px] font-extrabold text-white">Hoy</span>
+                      <span className="rounded-badge bg-grad px-1.5 py-px text-micro font-extrabold text-white">Hoy</span>
                     )}
                   </span>
-                  <span className="block text-[11px] font-semibold text-ink-3">
+                  <span className="block text-caption font-semibold text-ink-3">
                     {n === 0 ? 'Sin citas' : n === 1 ? '1 cita' : `${n} citas`}
                   </span>
                 </button>
@@ -56,9 +56,9 @@ export default function WeekGrid({
                   type="button"
                   onClick={() => router.push(href(d.offset, { new: '1' }))}
                   aria-label={`Nueva cita el ${d.name}`}
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-white text-v-d shadow-card"
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-icon border border-surface-line bg-surface-card text-v-d shadow-card transition active:scale-[.96]"
                 >
-                  <Plus size={16} strokeWidth={2.4} />
+                  <Plus size={17} strokeWidth={2.4} />
                 </button>
               </div>
               {n > 0 && (
@@ -71,9 +71,9 @@ export default function WeekGrid({
                         key={a.id}
                         type="button"
                         onClick={() => router.push(href(d.offset, { appt: a.id }))}
-                        className="flex w-full items-center gap-2 border-b border-surface-line/70 px-3 py-2 text-left last:border-0 hover:bg-white/70"
+                        className="flex w-full items-center gap-2 border-b border-surface-line/70 px-3 py-2 text-left last:border-0 hover:bg-surface-card/70"
                       >
-                        <span className="w-[42px] shrink-0 text-[12.5px] font-extrabold tabular-nums text-v-d">
+                        <span className="w-[42px] shrink-0 text-label font-extrabold tabular-nums text-v-d">
                           {fmt(minutesOfDay(a.starts_at))}
                         </span>
                         <span
@@ -81,8 +81,8 @@ export default function WeekGrid({
                           style={{ background: a.status === 'done' ? st.edge : cat.color }}
                         />
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[13px] font-bold">{a.client_label}</span>
-                          <span className="block truncate text-[11px] font-medium text-ink-3">
+                          <span className="block truncate text-body font-bold">{a.client_label}</span>
+                          <span className="block truncate text-caption font-medium text-ink-3">
                             {a.service_name}{a.provider_name ? ` · ${a.provider_name.split(' ')[0]}` : ''}
                           </span>
                         </span>

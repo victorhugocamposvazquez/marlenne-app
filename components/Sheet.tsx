@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
+import IconButton from '@/components/ui/IconButton';
 import { shallowSet } from '@/hooks/useShallowQuery';
 
 /** Los sheets viven en la URL, así el botón atrás del móvil también los cierra. */
@@ -65,7 +66,7 @@ export default function Sheet({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative z-10 flex max-h-[88dvh] w-full max-w-[440px] animate-sheetUp flex-col rounded-t-sheet bg-white shadow-toast"
+        className="relative z-10 flex max-h-[88dvh] w-full max-w-[440px] animate-sheetUp flex-col rounded-t-sheet bg-surface-card shadow-toast"
         style={{ transform: dy ? `translateY(${dy}px)` : undefined, transition: dy ? 'none' : 'transform .2s' }}
       >
         <div
@@ -78,16 +79,12 @@ export default function Sheet({
           <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-handle" />
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
-              <h2 className="text-[19px] font-extrabold leading-tight tracking-[-.02em]">{title}</h2>
-              {subtitle && <p className="mt-0.5 text-[12.5px] font-medium text-ink-2">{subtitle}</p>}
+              <h2 className="text-title font-extrabold leading-tight tracking-[-.02em]">{title}</h2>
+              {subtitle && <p className="mt-0.5 text-label font-medium text-ink-2">{subtitle}</p>}
             </div>
-            <button
-              onClick={close}
-              aria-label="Cerrar"
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] border border-surface-line bg-white text-ink-2 shadow-card"
-            >
-              <X size={17} strokeWidth={2.2} />
-            </button>
+            <IconButton label="Cerrar" onClick={close}>
+              <X size={18} strokeWidth={2.2} />
+            </IconButton>
           </div>
         </div>
 
@@ -110,27 +107,13 @@ export default function Sheet({
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-3.5">
-      <div className="mb-1.5 text-[11.5px] font-bold uppercase tracking-[.03em] text-ink-3">{label}</div>
+      <div className="mb-1.5 text-caption font-bold uppercase tracking-[.03em] text-ink-3">{label}</div>
       {children}
     </div>
   );
 }
 
 export const inputCls =
-  'w-full rounded-field border border-surface-line bg-surface-bg/40 px-3.5 py-3 text-[14px] font-semibold text-ink outline-none focus:border-v focus:bg-white';
+  'w-full rounded-field border border-surface-line bg-surface-bg/40 px-3.5 py-3 text-body font-semibold text-ink outline-none focus:border-v focus:bg-surface-card';
 
-export function Chip({
-  active, children, ...rest
-}: { active?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return (
-    <button
-      type="button"
-      className={`rounded-chip px-3 py-2 text-[12.5px] font-bold transition ${
-        active ? 'bg-grad text-white shadow-pill' : 'border border-surface-line bg-white text-ink-2'
-      }`}
-      {...rest}
-    >
-      {children}
-    </button>
-  );
-}
+export { default as Chip } from '@/components/ui/Chip';

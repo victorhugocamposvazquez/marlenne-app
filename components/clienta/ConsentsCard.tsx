@@ -26,12 +26,12 @@ export default function ConsentsCard({
   }
 
   return (
-    <section className="mt-3 rounded-row border border-surface-line bg-white p-3.5 shadow-card">
-      <div className="mb-2.5 flex items-center gap-2 text-[13px] font-bold">
+    <section className="mt-3 rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
+      <div className="mb-2.5 flex items-center gap-2 text-body font-bold">
         <ShieldCheck size={16} strokeWidth={2.2} className="text-v" />
         Consentimientos
       </div>
-      <p className="mb-2.5 text-[11.5px] font-medium leading-snug text-ink-3">
+      <p className="mb-2.5 text-caption font-medium leading-snug text-ink-3">
         Se registra que la clienta lo ha consentido en persona. No sustituye el documento en papel si el centro lo usa.
       </p>
       <div className="flex flex-col gap-2">
@@ -40,11 +40,11 @@ export default function ConsentsCard({
           const expired = row?.expires_at ? row.expires_at < dayKey(new Date()) : false;
           return (
             <div key={kind} className="flex items-center gap-2">
-              <span className="min-w-0 flex-1 text-[12.5px] font-semibold text-ink-2">
+              <span className="min-w-0 flex-1 text-label font-semibold text-ink-2">
                 {CONSENT_KINDS[kind]}
               </span>
               {row && !expired ? (
-                <span className="text-[11px] font-bold text-emerald-700">
+                <span className="text-caption font-bold text-ok-fg">
                   {dateLbl(row.signed_at)}
                   {row.expires_at ? ` · hasta ${dateLbl(row.expires_at)}` : ''}
                 </span>
@@ -52,12 +52,12 @@ export default function ConsentsCard({
                 <button
                   disabled={pending}
                   onClick={() => setAsk(kind)}
-                  className="rounded-[10px] bg-v-soft px-2.5 py-1 text-[11px] font-bold text-v-d disabled:opacity-40"
+                  className="rounded-chip bg-v-soft px-2.5 py-1 text-caption font-bold text-v-d disabled:opacity-40"
                 >
                   {expired ? 'Renovar' : 'Registrar'}
                 </button>
               ) : (
-                <span className="text-[11px] font-bold text-ink-3">{expired ? 'Caducado' : 'Pendiente'}</span>
+                <span className="text-caption font-bold text-ink-3">{expired ? 'Caducado' : 'Pendiente'}</span>
               )}
             </div>
           );
@@ -65,13 +65,13 @@ export default function ConsentsCard({
       </div>
 
       {ask && (
-        <div className="mt-3 rounded-[14px] border border-v/30 bg-v-tint p-3">
-          <p className="text-[13px] font-bold text-v-d">{CONSENT_KINDS[ask]}</p>
-          <p className="mt-1.5 text-[12px] font-medium leading-snug text-ink-2">{CONSENT_COPY[ask]}</p>
+        <div className="mt-3 rounded-icon border border-v/30 bg-v-tint p-3">
+          <p className="text-body font-bold text-v-d">{CONSENT_KINDS[ask]}</p>
+          <p className="mt-1.5 text-label font-medium leading-snug text-ink-2">{CONSENT_COPY[ask]}</p>
           <div className="mt-3 flex gap-2">
             <button
               onClick={() => setAsk(null)}
-              className="flex-1 rounded-field border border-surface-line bg-white py-2 text-[12.5px] font-bold text-ink-2"
+              className="flex-1 rounded-field border border-surface-line bg-surface-card py-2 text-label font-bold text-ink-2"
             >
               Cancelar
             </button>
@@ -84,7 +84,7 @@ export default function ConsentsCard({
                   router.refresh();
                 }
               })}
-              className="flex-1 rounded-field bg-grad py-2 text-[12.5px] font-extrabold text-white disabled:opacity-40"
+              className="flex-1 rounded-field bg-grad py-2 text-label font-extrabold text-white disabled:opacity-40"
             >
               Lo ha consentido
             </button>

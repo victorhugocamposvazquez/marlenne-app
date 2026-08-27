@@ -3,6 +3,8 @@
 import { useMemo, useState, useTransition } from 'react';
 import { CalendarPlus, Check, MessageCircle } from 'lucide-react';
 import Sheet, { Field, inputCls } from '@/components/Sheet';
+import Button from '@/components/ui/Button';
+import IconButton from '@/components/ui/IconButton';
 import { addToWaitlist, resolveWaitlist } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import { shallowSet } from '@/hooks/useShallowQuery';
@@ -65,29 +67,25 @@ export default function WaitlistSheet({
       footer={
         adding ? (
           <>
-            {error && <p className="mb-2 text-[12px] font-semibold text-pink-700">{error}</p>}
+            {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
             <div className="flex gap-2">
-              <button type="button" onClick={() => setAdding(false)} className="flex-1 rounded-field border border-surface-line bg-white py-3 text-[13px] font-bold text-ink-2">
+              <Button variant="secondary" className="flex-1 text-ink-2" onClick={() => setAdding(false)}>
                 Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={who.length < 2 || pending}
-                onClick={save}
-                className="flex-1 rounded-field bg-grad py-3 text-[13px] font-extrabold text-white shadow-btn disabled:opacity-40"
-              >
+              </Button>
+              <Button className="flex-1" disabled={who.length < 2 || pending} onClick={save}>
                 Guardar
-              </button>
+              </Button>
             </div>
           </>
         ) : (
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            full
+            className="border-dashed !border-handle text-ink-2 shadow-none"
             onClick={() => setAdding(true)}
-            className="w-full rounded-field border border-dashed border-handle py-3 text-[13.5px] font-bold text-ink-2"
           >
             Añadir a la espera
-          </button>
+          </Button>
         )
       }
     >
@@ -99,16 +97,16 @@ export default function WaitlistSheet({
             `Hola ${firstName(name)}, ¿sigues esperando ${w.service?.name ?? 'cita'}? Tenemos un hueco.`,
           );
           return (
-            <div key={w.id} className="rounded-row border border-surface-line bg-white p-3 shadow-card">
+            <div key={w.id} className="rounded-row border border-surface-line bg-surface-card p-3 shadow-card">
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[14px] font-bold">{name}</div>
-                  <div className="text-[11.5px] font-medium text-ink-3">
+                  <div className="truncate text-body font-bold">{name}</div>
+                  <div className="text-caption font-medium text-ink-3">
                     {[w.service?.name, w.preference, dateLbl(w.created_at)].filter(Boolean).join(' · ')}
                   </div>
                   {w.client?.phone && (
                     <div className="mt-0.5 flex flex-wrap gap-2">
-                      <a href={`tel:${w.client.phone}`} className="text-[12px] font-bold text-v-d">
+                      <a href={`tel:${w.client.phone}`} className="text-label font-bold text-v-d">
                         {w.client.phone}
                       </a>
                       {wa && (
@@ -116,7 +114,7 @@ export default function WaitlistSheet({
                           href={wa}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[12px] font-bold text-emerald-700"
+                          className="inline-flex items-center gap-1 text-label font-bold text-ok-fg"
                         >
                           <MessageCircle size={13} strokeWidth={2.2} />
                           WhatsApp
@@ -125,14 +123,14 @@ export default function WaitlistSheet({
                     </div>
                   )}
                 </div>
-                <button
+                <IconButton
+                  label={`Quitar a ${name} de la espera`}
+                  tone="ok"
                   disabled={pending}
                   onClick={() => startTransition(() => { void resolveWaitlist(createClient(), w.id); })}
-                  aria-label={`Quitar a ${name} de la espera`}
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-emerald-50 text-emerald-700"
                 >
-                  <Check size={16} strokeWidth={2.4} />
-                </button>
+                  <Check size={17} strokeWidth={2.4} />
+                </IconButton>
               </div>
               <button
                 onClick={() => {
@@ -144,7 +142,7 @@ export default function WaitlistSheet({
                     servicio: w.service?.name ?? null,
                   });
                 }}
-                className="mt-2 flex items-center gap-1.5 text-[12px] font-bold text-v-d"
+                className="mt-1 flex min-h-[44px] items-center gap-1.5 text-label font-bold text-v-d"
               >
                 <CalendarPlus size={14} strokeWidth={2.2} />
                 Dar cita
@@ -165,7 +163,7 @@ export default function WaitlistSheet({
               <>
                 <input className={inputCls} placeholder="Nombre o buscar" value={query} onChange={e => setQuery(e.target.value)} />
                 {matches.map(c => (
-                  <button key={c.id} type="button" onClick={() => setClient(c)} className="mt-1 block w-full rounded-[12px] px-3 py-2 text-left text-[13px] font-bold hover:bg-v-tint">
+                  <button key={c.id} type="button" onClick={() => setClient(c)} className="mt-1 block w-full rounded-chip px-3 py-2 text-left text-body font-bold hover:bg-v-tint">
                     {c.full_name}
                   </button>
                 ))}

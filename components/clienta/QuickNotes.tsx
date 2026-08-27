@@ -22,7 +22,7 @@ export default function QuickNotes({
 
   if (!canEdit) {
     return (
-      <p className="mt-2.5 rounded-[12px] border border-surface-line bg-v-tint px-3 py-2 text-[12px] font-medium leading-snug text-ink-2">
+      <p className="mt-2.5 rounded-chip border border-surface-line bg-v-tint px-3 py-2 text-label font-medium leading-snug text-ink-2">
         {notes}
       </p>
     );
@@ -30,7 +30,7 @@ export default function QuickNotes({
 
   return (
     <div className="mt-2.5">
-      <div className="mb-1 text-[10.5px] font-bold uppercase tracking-[.03em] text-ink-3">Notas internas</div>
+      <div className="mb-1 text-micro font-bold uppercase tracking-[.03em] text-ink-3">Notas internas</div>
       <AutoGrowTextarea
         className={`${inputCls} resize-none`}
         placeholder="Alergias, prefiere tardes, viene con…"
@@ -44,7 +44,7 @@ export default function QuickNotes({
           });
         }}
       />
-      {err && <p className="mt-1 text-[11px] font-semibold text-pink-700">{err}</p>}
+      {err && <p className="mt-1 text-caption font-semibold text-danger-fg">{err}</p>}
     </div>
   );
 }

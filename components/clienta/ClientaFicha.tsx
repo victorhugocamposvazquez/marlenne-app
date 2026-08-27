@@ -63,7 +63,7 @@ export default function ClientaFicha({
     <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-fab pt-5">
       <Link
         href={canEdit ? '/clientas' : '/hoy'}
-        className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] font-bold text-ink-2 hover:text-v-d"
+        className="mb-3 inline-flex items-center gap-1.5 text-label font-bold text-ink-2 hover:text-v-d"
       >
         <ArrowLeft size={15} strokeWidth={2.4} />
         {canEdit ? 'Clientas' : 'Hoy'}
@@ -71,16 +71,16 @@ export default function ClientaFicha({
 
       <div className="flex items-start gap-3">
         <span
-          className="grid h-[50px] w-[50px] shrink-0 place-items-center rounded-[17px] text-[15px] font-bold text-white"
+          className="grid h-[50px] w-[50px] shrink-0 place-items-center rounded-field text-body-lg font-bold text-white"
           style={{ background: avatarColor(client.full_name) }}
         >
           {initials(client.full_name)}
         </span>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[21px] font-extrabold leading-tight tracking-[-.025em]">
+          <h1 className="truncate text-title font-extrabold leading-tight tracking-[-.025em]">
             {client.full_name}
           </h1>
-          <p className="mt-0.5 text-[12px] font-medium text-ink-3">
+          <p className="mt-0.5 text-label font-medium text-ink-3">
             {[
               age !== null ? `${age} años` : null,
               `alta ${dateLbl(client.created_at)}`,
@@ -94,7 +94,7 @@ export default function ClientaFicha({
               type="button"
               onClick={() => shallowSet({ editar: '1' })}
               aria-label="Editar ficha"
-              className="grid h-[42px] w-[42px] place-items-center rounded-[14px] border border-surface-line bg-white text-ink-2 shadow-card"
+              className="grid h-[42px] w-[42px] place-items-center rounded-icon border border-surface-line bg-surface-card text-ink-2 shadow-card"
             >
               <Pencil size={17} strokeWidth={2.2} />
             </button>
@@ -102,7 +102,7 @@ export default function ClientaFicha({
           <Link
             href={`/agenda?new=1&client=${client.id}`}
             aria-label="Nueva cita para esta clienta"
-            className="grid h-[42px] w-[42px] place-items-center rounded-[14px] bg-grad text-white shadow-btn"
+            className="grid h-[42px] w-[42px] place-items-center rounded-icon bg-grad text-white shadow-btn"
           >
             <CalendarPlus size={19} strokeWidth={2.2} />
           </Link>
@@ -112,7 +112,7 @@ export default function ClientaFicha({
       {client.tags?.length > 0 && (
         <div className="mt-2.5 flex flex-wrap gap-1.5">
           {client.tags.map(tag => (
-            <span key={tag} className="rounded-[8px] bg-v-soft px-2 py-1 text-[10.5px] font-extrabold text-v-d">
+            <span key={tag} className="rounded-badge bg-v-soft px-2 py-1 text-micro font-extrabold text-v-d">
               {tag}
             </span>
           ))}
@@ -122,19 +122,19 @@ export default function ClientaFicha({
       {nextAppt && (
         <Link
           href={`/agenda?day=${offsetFromDay(nextAppt.starts_at)}&appt=${nextAppt.id}`}
-          className="mt-2.5 flex items-center justify-between gap-2 rounded-[12px] border border-v/25 bg-v-tint px-3 py-2"
+          className="mt-2.5 flex items-center justify-between gap-2 rounded-chip border border-v/25 bg-v-tint px-3 py-2"
         >
           <span className="min-w-0">
-            <span className="block text-[10.5px] font-bold uppercase tracking-[.03em] text-v-d">Próxima cita</span>
-            <span className="block truncate text-[12.5px] font-bold text-ink">
+            <span className="block text-micro font-bold uppercase tracking-[.03em] text-v-d">Próxima cita</span>
+            <span className="block truncate text-label font-bold text-ink">
               {shortWhen(nextAppt.starts_at)} · {nextAppt.service_name}
             </span>
           </span>
-          <span className="shrink-0 text-[11.5px] font-bold text-v-d">Ver</span>
+          <span className="shrink-0 text-caption font-bold text-v-d">Ver</span>
         </Link>
       )}
       {!nextAppt && lastAppt && (
-        <p className="mt-2.5 text-[12px] font-medium text-ink-3">
+        <p className="mt-2.5 text-label font-medium text-ink-3">
           Última visita {shortWhen(lastAppt.starts_at)} · {lastAppt.service_name}
         </p>
       )}
@@ -143,7 +143,7 @@ export default function ClientaFicha({
         {client.phone && (
           <a
             href={`tel:${client.phone}`}
-            className="flex items-center gap-1.5 rounded-chip border border-surface-line bg-white px-2.5 py-1.5 text-[12px] font-bold shadow-card"
+            className="flex items-center gap-1.5 rounded-chip border border-surface-line bg-surface-card px-2.5 py-1.5 text-label font-bold shadow-card"
           >
             <Phone size={13} strokeWidth={2.4} className="text-v" />
             {client.phone}
@@ -154,7 +154,7 @@ export default function ClientaFicha({
             href={wa}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 rounded-chip border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[12px] font-bold text-emerald-800 shadow-card"
+            className="flex items-center gap-1.5 rounded-chip border border-ok-line bg-ok-bg px-2.5 py-1.5 text-label font-bold text-ok-strong shadow-card"
           >
             <MessageCircle size={13} strokeWidth={2.4} />
             WhatsApp
@@ -163,7 +163,7 @@ export default function ClientaFicha({
         {client.email && (
           <a
             href={`mailto:${client.email}`}
-            className="flex min-w-0 items-center gap-1.5 rounded-chip border border-surface-line bg-white px-2.5 py-1.5 text-[12px] font-bold shadow-card"
+            className="flex min-w-0 items-center gap-1.5 rounded-chip border border-surface-line bg-surface-card px-2.5 py-1.5 text-label font-bold shadow-card"
           >
             <Mail size={13} strokeWidth={2.4} className="text-v" />
             <span className="truncate">{client.email}</span>

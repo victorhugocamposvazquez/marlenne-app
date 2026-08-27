@@ -24,7 +24,7 @@ export default function TreatmentsTab({
         <Empty>Esta clienta todavía no tiene tratamientos. Se abren al marcar una cita como hecha.</Empty>
         <Link
           href={`/agenda?new=1&client=${clientId}`}
-          className="inline-flex items-center gap-1.5 rounded-field bg-grad px-4 py-2.5 text-[13px] font-extrabold text-white shadow-btn"
+          className="inline-flex items-center gap-1.5 rounded-field bg-grad px-4 py-2.5 text-body font-extrabold text-white shadow-btn"
         >
           <CalendarPlus size={16} strokeWidth={2.2} />
           Dar cita
@@ -67,20 +67,20 @@ function TreatmentCard({ t, clientId }: { t: TreatmentRow; clientId: string }) {
   };
 
   return (
-    <article className="rounded-row border border-surface-line bg-white p-3.5 shadow-card">
+    <article className="rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
       <div className="flex items-start gap-2.5">
         <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: cat.color }} />
         <div className="min-w-0 flex-1">
-          <h3 className="text-[14.5px] font-bold leading-tight tracking-[-.01em]">
+          <h3 className="text-body font-bold leading-tight tracking-[-.01em]">
             {t.service?.name ?? 'Tratamiento'}
           </h3>
-          <p className="mt-0.5 text-[11.5px] font-medium text-ink-3">
+          <p className="mt-0.5 text-caption font-medium text-ink-3">
             {t.provider?.full_name ?? '—'}
           </p>
         </div>
         <span
-          className={`shrink-0 rounded-[9px] px-2 py-1 text-[10px] font-bold ${
-            open ? 'bg-emerald-50 text-emerald-700' : 'bg-surface-bg text-ink-3'
+          className={`shrink-0 rounded-badge px-2 py-1 text-micro font-bold ${
+            open ? 'bg-ok-bg text-ok-fg' : 'bg-surface-bg text-ink-3'
           }`}
         >
           {open ? 'Abierto' : `Cerrado ${dateLbl(t.closed_at!)}`}
@@ -91,7 +91,7 @@ function TreatmentCard({ t, clientId }: { t: TreatmentRow; clientId: string }) {
         <div className="h-1.5 flex-1 overflow-hidden rounded bg-surface-line">
           <div className="h-1.5 rounded bg-grad" style={{ width: `${pct}%` }} />
         </div>
-        <span className="shrink-0 text-[11.5px] font-bold tabular-nums text-ink-2">
+        <span className="shrink-0 text-caption font-bold tabular-nums text-ink-2">
           {t.sessions_done}/{sessionsTotal} sesiones
         </span>
       </div>
@@ -99,7 +99,7 @@ function TreatmentCard({ t, clientId }: { t: TreatmentRow; clientId: string }) {
       {open && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <label>
-            <span className="mb-1 block text-[10.5px] font-bold uppercase tracking-[.03em] text-ink-3">Zona</span>
+            <span className="mb-1 block text-micro font-bold uppercase tracking-[.03em] text-ink-3">Zona</span>
             <input
               className={inputCls}
               placeholder="Abdomen, facial…"
@@ -112,7 +112,7 @@ function TreatmentCard({ t, clientId }: { t: TreatmentRow; clientId: string }) {
             />
           </label>
           <label>
-            <span className="mb-1 block text-[10.5px] font-bold uppercase tracking-[.03em] text-ink-3">Sesiones pactadas</span>
+            <span className="mb-1 block text-micro font-bold uppercase tracking-[.03em] text-ink-3">Sesiones pactadas</span>
             <input
               className={inputCls}
               inputMode="numeric"
@@ -130,12 +130,12 @@ function TreatmentCard({ t, clientId }: { t: TreatmentRow; clientId: string }) {
 
       {params.length > 0 && (
         <div className="mt-3">
-          <div className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[.03em] text-ink-3">
+          <div className="mb-1.5 text-micro font-bold uppercase tracking-[.03em] text-ink-3">
             Última sesión
           </div>
           <div className="flex flex-wrap gap-1.5">
             {params.map(([k, v]) => (
-              <span key={k} className="rounded-chip bg-surface-bg px-2 py-1 text-[11px] font-semibold text-ink-2">
+              <span key={k} className="rounded-chip bg-surface-bg px-2 py-1 text-caption font-semibold text-ink-2">
                 {k} <span className="font-bold text-ink">{String(v)}</span>
               </span>
             ))}
@@ -145,7 +145,7 @@ function TreatmentCard({ t, clientId }: { t: TreatmentRow; clientId: string }) {
 
       {open ? (
         <label className="mt-3 block">
-          <span className="mb-1 block text-[10.5px] font-bold uppercase tracking-[.03em] text-ink-3">Nota clínica</span>
+          <span className="mb-1 block text-micro font-bold uppercase tracking-[.03em] text-ink-3">Nota clínica</span>
           <AutoGrowTextarea
             className={`${inputCls} resize-none`}
             placeholder="Reacción, siguiente cita, parámetros que no se olviden…"
@@ -158,19 +158,19 @@ function TreatmentCard({ t, clientId }: { t: TreatmentRow; clientId: string }) {
           />
         </label>
       ) : t.note ? (
-        <p className="mt-3 rounded-[12px] bg-v-tint px-3 py-2 text-[12px] font-medium leading-snug text-ink-2">
+        <p className="mt-3 rounded-chip bg-v-tint px-3 py-2 text-label font-medium leading-snug text-ink-2">
           {t.note}
         </p>
       ) : null}
 
-      {err && <p className="mt-2 text-[11px] font-semibold text-pink-700">{err}</p>}
+      {err && <p className="mt-2 text-caption font-semibold text-danger-fg">{err}</p>}
 
       <div className="mt-2.5 flex items-center justify-between gap-2">
-        <p className="text-[10.5px] font-semibold text-ink-3">Abierto el {dateLbl(t.opened_at)}</p>
+        <p className="text-micro font-semibold text-ink-3">Abierto el {dateLbl(t.opened_at)}</p>
         {open && t.service?.name && (
           <Link
             href={`/agenda?new=1&client=${clientId}&servicio=${encodeURIComponent(t.service.name)}`}
-            className="inline-flex items-center gap-1 text-[12px] font-bold text-v-d"
+            className="inline-flex items-center gap-1 text-label font-bold text-v-d"
           >
             <CalendarPlus size={14} strokeWidth={2.2} />
             Nueva sesión

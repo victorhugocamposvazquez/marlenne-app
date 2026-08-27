@@ -25,7 +25,7 @@ export default function LoginForm({ emails }: { emails: { name: string; email: s
   return (
     <div className="flex flex-col gap-3 px-5 pb-8">
       <label>
-        <span className="mb-1.5 block text-[11.5px] font-bold uppercase tracking-[.03em] text-ink-3">Email</span>
+        <span className="mb-1.5 block text-caption font-bold uppercase tracking-[.03em] text-ink-3">Email</span>
         <input
           className={inputCls}
           type="email"
@@ -37,7 +37,7 @@ export default function LoginForm({ emails }: { emails: { name: string; email: s
         />
       </label>
       <label>
-        <span className="mb-1.5 block text-[11.5px] font-bold uppercase tracking-[.03em] text-ink-3">Contraseña</span>
+        <span className="mb-1.5 block text-caption font-bold uppercase tracking-[.03em] text-ink-3">Contraseña</span>
         <input
           className={inputCls}
           type="password"
@@ -49,16 +49,16 @@ export default function LoginForm({ emails }: { emails: { name: string; email: s
       </label>
 
       {error && (
-        <p className="rounded-[12px] bg-pink-50 px-3 py-2 text-[12px] font-semibold text-pink-700">{error}</p>
+        <p className="rounded-chip bg-danger-bg px-3 py-2 text-label font-semibold text-danger-fg">{error}</p>
       )}
       {info && (
-        <p className="rounded-[12px] bg-emerald-50 px-3 py-2 text-[12px] font-semibold text-emerald-800">{info}</p>
+        <p className="rounded-chip bg-ok-bg px-3 py-2 text-label font-semibold text-ok-strong">{info}</p>
       )}
 
       <button
         onClick={submit}
         disabled={pending || !email || !password}
-        className="mt-1 w-full rounded-field bg-grad py-3.5 text-[15px] font-extrabold text-white shadow-btn disabled:opacity-40"
+        className="mt-1 w-full rounded-field bg-grad py-3.5 text-body-lg font-extrabold text-white shadow-btn disabled:opacity-40"
       >
         {pending ? 'Entrando…' : 'Entrar'}
       </button>
@@ -76,21 +76,21 @@ export default function LoginForm({ emails }: { emails: { name: string; email: s
             else setInfo('Si el email existe, te hemos mandado un enlace para cambiar la contraseña.');
           });
         }}
-        className="text-[12.5px] font-bold text-v-d"
+        className="text-label font-bold text-v-d"
       >
         Olvidé la contraseña
       </button>
 
       {emails.length > 0 && (
         <div className="mt-3">
-          <p className="mb-2 text-[11.5px] font-bold uppercase tracking-[.03em] text-ink-3">Rellenar email del equipo</p>
+          <p className="mb-2 text-caption font-bold uppercase tracking-[.03em] text-ink-3">Rellenar email del equipo</p>
           <div className="flex flex-wrap gap-2">
             {emails.map(p => (
               <button
                 key={p.email}
                 type="button"
                 onClick={() => setEmail(p.email)}
-                className="rounded-chip border border-surface-line bg-white px-3 py-1.5 text-[12px] font-bold text-ink-2"
+                className="rounded-chip border border-surface-line bg-surface-card px-3 py-1.5 text-label font-bold text-ink-2"
               >
                 {p.name.split(' ')[0]}
               </button>

@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { CalendarClock, CalendarPlus, MessageCircle, Phone, Trash2, UserRound } from 'lucide-react';
 import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet';
+import Button from '@/components/ui/Button';
 import NextSlotControls from '@/components/agenda/NextSlotControls';
 import { CATEGORIES, STATUS, type StatusId } from '@/lib/categories';
 import {
@@ -117,13 +118,9 @@ export default function AppointmentSheet({
         title="Hueco libre"
         subtitle="Hay gente en espera para este servicio"
         footer={
-          <button
-            type="button"
-            onClick={close}
-            className="w-full rounded-field border border-surface-line bg-white py-3 text-[14px] font-bold text-ink-2"
-          >
+          <Button variant="secondary" full onClick={close} className="text-ink-2">
             Cerrar
-          </button>
+          </Button>
         }
       >
         <div className="mb-3 flex flex-col gap-2">
@@ -136,9 +133,9 @@ export default function AppointmentSheet({
               }))
               : null;
             return (
-              <div key={w.id} className="rounded-row border border-surface-line bg-white p-3 shadow-card">
-                <div className="truncate text-[14px] font-bold">{w.name}</div>
-                <p className="text-[11.5px] font-medium text-ink-3">
+              <div key={w.id} className="rounded-row border border-surface-line bg-surface-card p-3 shadow-card">
+                <div className="truncate text-body font-bold">{w.name}</div>
+                <p className="text-caption font-medium text-ink-3">
                   {[w.service, w.preference].filter(Boolean).join(' · ') || 'Cualquier servicio'}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -147,7 +144,7 @@ export default function AppointmentSheet({
                       href={wa}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-[12px] bg-emerald-50 px-3 py-2 text-[12px] font-bold text-emerald-800"
+                      className="inline-flex min-h-[44px] items-center gap-1.5 rounded-chip bg-ok-bg px-3 text-label font-bold text-ok-strong"
                     >
                       <MessageCircle size={14} strokeWidth={2.2} />
                       WhatsApp
@@ -164,7 +161,7 @@ export default function AppointmentSheet({
                         servicio: w.service ?? appt.service_name,
                       });
                     }}
-                    className="inline-flex items-center gap-1.5 rounded-[12px] border border-surface-line bg-white px-3 py-2 text-[12px] font-bold text-v-d"
+                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-chip border border-surface-line bg-surface-card px-3 text-label font-bold text-v-d"
                   >
                     <CalendarPlus size={14} strokeWidth={2.2} />
                     Dar cita
@@ -208,45 +205,33 @@ export default function AppointmentSheet({
   ) : moving ? (
     <>
       {error && (
-        <p className="mb-2.5 rounded-[12px] bg-pink-50 px-3 py-2 text-[12px] font-semibold text-pink-700">
+        <p className="mb-2.5 rounded-chip bg-danger-bg px-3 py-2 text-label font-semibold text-danger-fg">
           {error}
         </p>
       )}
       <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setMoving(false)}
-          className="flex-1 rounded-field border border-surface-line bg-white py-3 text-[13.5px] font-bold text-ink-2"
-        >
+        <Button variant="secondary" className="flex-1 text-ink-2" onClick={() => setMoving(false)}>
           Dejarlo
-        </button>
-        <button
-          type="button"
-          disabled={startMin === null || pending}
-          onClick={moveCita}
-          className="flex-1 rounded-field bg-grad py-3 text-[13.5px] font-extrabold text-white shadow-btn disabled:opacity-40 disabled:shadow-none"
-        >
+        </Button>
+        <Button className="flex-1" disabled={startMin === null || pending} onClick={moveCita}>
           Mover cita
-        </button>
+        </Button>
       </div>
     </>
   ) : confirmDelete ? (
     <>
       {error && (
-        <p className="mb-2.5 rounded-[12px] bg-pink-50 px-3 py-2 text-[12px] font-semibold text-pink-700">
+        <p className="mb-2.5 rounded-chip bg-danger-bg px-3 py-2 text-label font-semibold text-danger-fg">
           {error}
         </p>
       )}
       <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setConfirmDelete(false)}
-          className="flex-1 rounded-field border border-surface-line bg-white py-3 text-[13.5px] font-bold text-ink-2"
-        >
+        <Button variant="secondary" className="flex-1 text-ink-2" onClick={() => setConfirmDelete(false)}>
           No, dejarla
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="danger"
+          className="flex-1"
           disabled={pending}
           onClick={() => {
             setError(null);
@@ -257,27 +242,22 @@ export default function AppointmentSheet({
               else close();
             });
           }}
-          className="flex-1 rounded-field bg-pink-600 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-40"
         >
           Sí, cancelar
-        </button>
+        </Button>
       </div>
     </>
   ) : (
     <>
       {error && (
-        <p className="mb-2.5 rounded-[12px] bg-pink-50 px-3 py-2 text-[12px] font-semibold text-pink-700">
+        <p className="mb-2.5 rounded-chip bg-danger-bg px-3 py-2 text-label font-semibold text-danger-fg">
           {error}
         </p>
       )}
-      <button
-        type="button"
-        onClick={() => setConfirmDelete(true)}
-        className="flex w-full items-center justify-center gap-2 py-2.5 text-[13.5px] font-bold text-pink-700"
-      >
+      <Button variant="ghost" full className="text-danger-fg" onClick={() => setConfirmDelete(true)}>
         <Trash2 size={16} strokeWidth={2.2} />
         Cancelar cita
-      </button>
+      </Button>
     </>
   );
 
@@ -288,31 +268,31 @@ export default function AppointmentSheet({
       footer={footer}
     >
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <span className="rounded-[9px] px-2.5 py-1.5 text-[11px] font-bold" style={{ background: cat.bg, color: cat.fg }}>
+        <span className="rounded-badge px-2.5 py-1.5 text-caption font-bold" style={{ background: cat.bg, color: cat.fg }}>
           {cat.label}
         </span>
-        <span className="rounded-[9px] bg-surface-bg px-2.5 py-1.5 text-[11px] font-bold tabular-nums text-ink-2">
+        <span className="rounded-badge bg-surface-bg px-2.5 py-1.5 text-caption font-bold tabular-nums text-ink-2">
           {fmt(start)} – {fmt(start + appt.duration_min)} · {durLbl(appt.duration_min)}
         </span>
         {appt.price_cents !== null && (
-          <span className="rounded-[9px] bg-surface-bg px-2.5 py-1.5 text-[11px] font-bold text-ink-2">
+          <span className="rounded-badge bg-surface-bg px-2.5 py-1.5 text-caption font-bold text-ink-2">
             {(appt.price_cents / 100).toFixed(0)} €
           </span>
         )}
         {appt.session_no !== null && (
-          <span className="rounded-[9px] bg-v-soft px-2.5 py-1.5 text-[11px] font-bold text-v-d">
+          <span className="rounded-badge bg-v-soft px-2.5 py-1.5 text-caption font-bold text-v-d">
             Sesión {appt.session_no}
           </span>
         )}
         {appt.confirmed_at && (
-          <span className="rounded-[9px] bg-emerald-50 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700">
+          <span className="rounded-badge bg-ok-bg px-2.5 py-1.5 text-caption font-bold text-ok-fg">
             Confirmada
           </span>
         )}
         {sms && (
-          <span className={`rounded-[9px] px-2.5 py-1.5 text-[11px] font-bold ${
-            sms.status === 'sent' ? 'bg-emerald-50 text-emerald-700'
-              : sms.status === 'failed' ? 'bg-pink-50 text-pink-700'
+          <span className={`rounded-badge px-2.5 py-1.5 text-caption font-bold ${
+            sms.status === 'sent' ? 'bg-ok-bg text-ok-fg'
+              : sms.status === 'failed' ? 'bg-danger-bg text-danger-fg'
               : 'bg-surface-bg text-ink-2'
           }`}
           >
@@ -368,7 +348,7 @@ export default function AppointmentSheet({
           {appt.client_id && (
             <Link
               href={`/clientas/${appt.client_id}`}
-              className="mb-3 flex w-full items-center justify-center gap-2 rounded-field border border-surface-line bg-white py-3 text-[14px] font-bold text-v-d shadow-card"
+              className="mb-3 flex w-full items-center justify-center gap-2 rounded-field border border-surface-line bg-surface-card py-3 text-body font-bold text-v-d shadow-card"
             >
               <UserRound size={17} strokeWidth={2.2} />
               Ver ficha
@@ -377,7 +357,7 @@ export default function AppointmentSheet({
           {appt.client_phone && (
             <a
               href={`tel:${appt.client_phone}`}
-              className="mb-3 flex w-full items-center justify-center gap-2 rounded-field border border-surface-line bg-white py-3 text-[14px] font-bold text-v-d shadow-card"
+              className="mb-3 flex w-full items-center justify-center gap-2 rounded-field border border-surface-line bg-surface-card py-3 text-body font-bold text-v-d shadow-card"
             >
               <Phone size={17} strokeWidth={2.2} />
               Llamar {appt.client_phone}
@@ -388,10 +368,10 @@ export default function AppointmentSheet({
               type="button"
               disabled={pending}
               onClick={askConfirm}
-              className={`mb-3 flex w-full items-center justify-center gap-2 rounded-field py-3 text-[14px] font-bold shadow-card disabled:opacity-40 ${
+              className={`mb-3 flex w-full items-center justify-center gap-2 rounded-field py-3 text-body font-bold shadow-card disabled:opacity-40 ${
                 appt.client_phone
-                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-800'
-                  : 'border border-surface-line bg-white text-v-d'
+                  ? 'border border-ok-line bg-ok-bg text-ok-strong'
+                  : 'border border-surface-line bg-surface-card text-v-d'
               }`}
             >
               <MessageCircle size={17} strokeWidth={2.2} />
@@ -403,7 +383,7 @@ export default function AppointmentSheet({
             <button
               type="button"
               onClick={() => { setMoving(true); setStartMin(null); }}
-              className="mb-3 flex w-full items-center justify-center gap-2 rounded-field border border-surface-line bg-white py-3 text-[14px] font-bold text-v-d shadow-card"
+              className="mb-3 flex w-full items-center justify-center gap-2 rounded-field border border-surface-line bg-surface-card py-3 text-body font-bold text-v-d shadow-card"
             >
               <CalendarClock size={17} strokeWidth={2.2} />
               Reprogramar
@@ -445,9 +425,9 @@ export default function AppointmentSheet({
 
               <Field label="Nueva hora">
                 {slots === null ? (
-                  <p className="text-[12.5px] font-semibold text-ink-3">Buscando huecos…</p>
+                  <p className="text-label font-semibold text-ink-3">Buscando huecos…</p>
                 ) : slots.length === 0 ? (
-                  <p className="text-[12.5px] font-semibold text-ink-2">
+                  <p className="text-label font-semibold text-ink-2">
                     No queda hueco ese día. Prueba el próximo hueco arriba.
                   </p>
                 ) : (

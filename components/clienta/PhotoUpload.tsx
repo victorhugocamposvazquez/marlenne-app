@@ -62,8 +62,8 @@ export default function PhotoUpload({
   };
 
   return (
-    <div className="mb-3 rounded-row border border-surface-line bg-white p-3.5 shadow-card">
-      <div className="mb-2.5 flex items-center gap-2 text-[13px] font-bold">
+    <div className="mb-3 rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
+      <div className="mb-2.5 flex items-center gap-2 text-body font-bold">
         <Camera size={16} strokeWidth={2.2} className="text-v" />
         Añadir foto
       </div>
@@ -91,11 +91,11 @@ export default function PhotoUpload({
           capture="environment"
           disabled={pending}
           onChange={e => { void onFile(e.target.files?.[0]); e.target.value = ''; }}
-          className="w-full text-[12.5px] font-semibold text-ink-2 file:mr-3 file:rounded-[11px] file:border-0 file:bg-grad file:px-3 file:py-2 file:text-[12.5px] file:font-bold file:text-white"
+          className="w-full text-label font-semibold text-ink-2 file:mr-3 file:rounded-chip file:border-0 file:bg-grad file:px-3 file:py-2 file:text-label file:font-bold file:text-white"
         />
       </label>
-      {pending && <p className="mt-2 text-[12px] font-semibold text-ink-2">Comprimiendo y subiendo…</p>}
-      {error && <p className="mt-2 text-[12px] font-semibold text-pink-700">{error}</p>}
+      {pending && <p className="mt-2 text-label font-semibold text-ink-2">Comprimiendo y subiendo…</p>}
+      {error && <p className="mt-2 text-label font-semibold text-danger-fg">{error}</p>}
     </div>
   );
 }

@@ -15,13 +15,13 @@ export default async function LoginPage() {
   return (
     <div className="mx-auto flex min-h-[100dvh] max-w-[440px] flex-col bg-surface-bg pt-[env(safe-area-inset-top)]">
       <div className="relative overflow-hidden px-6 pb-[30px] pt-11">
-        <div className="absolute -right-[70px] -top-[90px] h-[240px] w-[240px] rounded-full bg-[radial-gradient(circle_at_30%_30%,#DDD3FF,#EEECFA_70%)]" />
+        <div className="absolute -right-[70px] -top-[90px] h-[240px] w-[240px] rounded-full bg-[radial-gradient(circle_at_30%_30%,rgb(var(--c-blob)),rgb(var(--c-bg))_70%)]" />
         <div className="relative">
-          <div className="mb-5 grid h-[52px] w-[52px] place-items-center rounded-2xl bg-grad shadow-[0_10px_24px_rgba(139,92,246,.4)]">
+          <div className="mb-5 grid h-[52px] w-[52px] place-items-center rounded-2xl bg-grad shadow-btn">
             <Sparkles size={26} className="text-white" strokeWidth={2} />
           </div>
-          <div className="text-[13px] font-semibold tracking-[.02em] text-v">Marlenne · Estética avanzada</div>
-          <h1 className="mt-1 text-[30px] font-extrabold leading-[1.15] tracking-[-.02em]">
+          <div className="text-body font-semibold tracking-[.02em] text-v">Marlenne · Estética avanzada</div>
+          <h1 className="mt-1 text-display font-extrabold leading-[1.15] tracking-[-.02em]">
             {hello}<br />Entra con tu usuario
           </h1>
           <p className="mt-2.5 max-w-[320px] text-sm font-medium leading-relaxed text-ink-2">

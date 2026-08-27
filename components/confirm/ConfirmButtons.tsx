@@ -32,7 +32,7 @@ export default function ConfirmButtons({
 
   return (
     <>
-      <p className="text-[15px] font-semibold leading-snug text-ink-2">
+      <p className="text-body-lg font-semibold leading-snug text-ink-2">
         Hola {firstName}. Tu cita de <span className="font-extrabold text-ink">{service}</span>
         {' '}es {shortWhen(startsAt)}.
       </p>
@@ -41,7 +41,7 @@ export default function ConfirmButtons({
           type="button"
           disabled={pending}
           onClick={() => act('yes')}
-          className="w-full rounded-field bg-grad py-3.5 text-[15px] font-extrabold text-white shadow-btn disabled:opacity-40"
+          className="w-full rounded-field bg-grad py-3.5 text-body-lg font-extrabold text-white shadow-btn disabled:opacity-40"
         >
           Sí, voy
         </button>
@@ -49,12 +49,12 @@ export default function ConfirmButtons({
           type="button"
           disabled={pending}
           onClick={() => act('no')}
-          className="w-full rounded-field border border-surface-line bg-white py-3.5 text-[15px] font-bold text-ink-2 disabled:opacity-40"
+          className="w-full rounded-field border border-surface-line bg-surface-card py-3.5 text-body-lg font-bold text-ink-2 disabled:opacity-40"
         >
           No puedo
         </button>
       </div>
-      {err && <p className="mt-3 text-[13px] font-semibold text-pink-700">{err}</p>}
+      {err && <p className="mt-3 text-body font-semibold text-danger-fg">{err}</p>}
     </>
   );
 }
@@ -62,13 +62,13 @@ export default function ConfirmButtons({
 export function DoneCard({ peek }: { peek: LinkPeek }) {
   if (peek.response === 'yes') {
     return (
-      <p className="text-[15px] font-semibold leading-snug text-ink-2">
+      <p className="text-body-lg font-semibold leading-snug text-ink-2">
         Perfecto, {peek.first_name}. Te esperamos {peek.starts_at ? shortWhen(peek.starts_at) : ''}.
       </p>
     );
   }
   return (
-    <p className="text-[15px] font-semibold leading-snug text-ink-2">
+    <p className="text-body-lg font-semibold leading-snug text-ink-2">
       Hueco liberado. Si quieres otra fecha, llama al centro.
     </p>
   );

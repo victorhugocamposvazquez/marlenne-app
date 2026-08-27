@@ -68,7 +68,7 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
       subtitle="Nombre y teléfono bastan. Luego das la cita."
       footer={
         <>
-          {error && <p className="mb-2 text-[12px] font-semibold text-pink-700">{error}</p>}
+          {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
           {dupId ? (
             <button
               type="button"
@@ -76,7 +76,7 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
                 close();
                 router.push(`/agenda?new=1&client=${dupId}`);
               }}
-              className="w-full rounded-field bg-grad py-3.5 text-[15px] font-extrabold text-white shadow-btn"
+              className="w-full rounded-field bg-grad py-3.5 text-body-lg font-extrabold text-white shadow-btn"
             >
               Dar cita a esa ficha
             </button>
@@ -86,7 +86,7 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
                 type="button"
                 onClick={() => save(true)}
                 disabled={name.trim().length < 2 || pending}
-                className="w-full rounded-field bg-grad py-3.5 text-[15px] font-extrabold text-white shadow-btn disabled:opacity-40"
+                className="w-full rounded-field bg-grad py-3.5 text-body-lg font-extrabold text-white shadow-btn disabled:opacity-40"
               >
                 {pending ? 'Guardando…' : 'Crear y dar cita'}
               </button>
@@ -94,7 +94,7 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
                 type="button"
                 onClick={() => save(false)}
                 disabled={name.trim().length < 2 || pending}
-                className="mt-2 w-full py-2 text-[13px] font-bold text-ink-2 disabled:opacity-40"
+                className="mt-2 w-full py-2 text-body font-bold text-ink-2 disabled:opacity-40"
               >
                 Solo la ficha
               </button>
@@ -133,8 +133,8 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
       </form>
 
       {matches.length > 0 && (
-        <div className="mb-3.5 overflow-hidden rounded-field border border-amber-200 bg-amber-50">
-          <p className="px-3 pt-2 text-[11px] font-bold uppercase tracking-[.03em] text-amber-800">
+        <div className="mb-3.5 overflow-hidden rounded-field border border-warn-line bg-warn-bg">
+          <p className="px-3 pt-2 text-caption font-bold uppercase tracking-[.03em] text-warn-fg">
             ¿Ya está en la base?
           </p>
           {matches.map(c => (
@@ -148,39 +148,39 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
               className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left last:pb-2.5"
             >
               <span className="min-w-0">
-                <span className="block truncate text-[13.5px] font-bold">{c.full_name}</span>
-                {c.phone && <span className="block text-[11px] font-medium text-ink-3">{c.phone}</span>}
+                <span className="block truncate text-body font-bold">{c.full_name}</span>
+                {c.phone && <span className="block text-caption font-medium text-ink-3">{c.phone}</span>}
               </span>
-              <span className="shrink-0 text-[12px] font-bold text-v-d">Dar cita</span>
+              <span className="shrink-0 text-label font-bold text-v-d">Dar cita</span>
             </button>
           ))}
         </div>
       )}
 
       <details className="mb-2">
-        <summary className="cursor-pointer text-[12.5px] font-bold text-ink-3">Más datos y consentimientos</summary>
+        <summary className="cursor-pointer text-label font-bold text-ink-3">Más datos y consentimientos</summary>
         <div className="mt-2.5">
           <Field label="Email">
             <input className={inputCls} type="email" placeholder="opcional" value={email} onChange={e => setEmail(e.target.value)} />
           </Field>
-          <label className="mb-2 flex items-center gap-2 text-[13.5px] font-bold">
-            <input type="checkbox" checked={vip} onChange={e => setVip(e.target.checked)} className="h-4 w-4 accent-[#8B5CF6]" />
+          <label className="mb-2 flex items-center gap-2 text-body font-bold">
+            <input type="checkbox" checked={vip} onChange={e => setVip(e.target.checked)} className="h-5 w-5 accent-v" />
             Marcar como VIP
           </label>
-          <label className="mb-2 flex items-start gap-2 text-[13.5px] font-bold">
-            <input type="checkbox" checked={salud} onChange={e => setSalud(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#8B5CF6]" />
+          <label className="mb-2 flex items-start gap-2 text-body font-bold">
+            <input type="checkbox" checked={salud} onChange={e => setSalud(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-v" />
             <span>
               Consentimiento de datos de salud
-              <span className="mt-0.5 block text-[11.5px] font-medium leading-snug text-ink-3">
+              <span className="mt-0.5 block text-caption font-medium leading-snug text-ink-3">
                 {CONSENT_COPY.datos_salud}
               </span>
             </span>
           </label>
-          <label className="mb-2 flex items-start gap-2 text-[13.5px] font-bold">
-            <input type="checkbox" checked={foto} onChange={e => setFoto(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#8B5CF6]" />
+          <label className="mb-2 flex items-start gap-2 text-body font-bold">
+            <input type="checkbox" checked={foto} onChange={e => setFoto(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-v" />
             <span>
               Consentimiento de fotografías
-              <span className="mt-0.5 block text-[11.5px] font-medium leading-snug text-ink-3">
+              <span className="mt-0.5 block text-caption font-medium leading-snug text-ink-3">
                 {CONSENT_COPY.fotografia}
               </span>
             </span>

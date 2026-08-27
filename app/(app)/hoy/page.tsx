@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { requireSession } from '@/lib/require-session';
 import { listProviders, getDayAgenda, countWaitlist, listRecalls } from '@/lib/queries';
 import { fmt, minutesOfDay, madridNow, DAY_START, DAY_END } from '@/lib/time';
-import { Bell, UserRound } from 'lucide-react';
+import { Bell, CalendarCheck, HeartHandshake, UserRound } from 'lucide-react';
+import EmptyState from '@/components/ui/EmptyState';
 import LiveRefresh from '@/components/LiveRefresh';
 import HoyApptRow from '@/components/hoy/HoyApptRow';
 import RecallCard from '@/components/hoy/RecallCard';
@@ -51,31 +52,31 @@ export default async function HoyPage() {
       <LiveRefresh tables={cabin ? ['appointments'] : ['appointments', 'waitlist']} />
       <div className="mb-[18px] flex items-center gap-3">
         <div className="flex-1">
-          <div className="text-[13px] font-medium text-ink-2">
+          <div className="text-body font-medium text-ink-2">
             {cabin ? todayLbl : `Hola ${me.full_name}`}
           </div>
-          <div className="text-2xl font-extrabold leading-[1.15] tracking-[-.025em]">
+          <h1 className="text-h1 font-extrabold tracking-[-.025em]">
             {cabin ? 'Tu día' : greeting}
-          </div>
+          </h1>
         </div>
         {!cabin && (
           <Link
             href="/agenda?wait=1"
-            className="relative grid h-[42px] w-[42px] place-items-center rounded-[14px] border border-surface-line bg-white shadow-card"
+            className="relative grid h-11 w-11 place-items-center rounded-icon border border-surface-line bg-surface-card text-ink-2 shadow-card transition active:scale-[.96]"
             aria-label="Lista de espera"
           >
             <Bell size={19} strokeWidth={2} />
-            {waiting > 0 && <span className="absolute right-2.5 top-2 h-2 w-2 rounded-full border-2 border-white bg-v" />}
+            {waiting > 0 && <span className="absolute right-2.5 top-2 h-2 w-2 rounded-full border-2 border-surface-card bg-v" />}
           </Link>
         )}
       </div>
 
       {cabin ? (
-        <div className="relative mb-5 overflow-hidden rounded-[22px] bg-grad px-5 py-[18px] text-white shadow-hero">
+        <div className="relative mb-5 overflow-hidden rounded-card bg-grad px-5 py-[18px] text-white shadow-hero">
           <div className="absolute -right-10 -top-10 h-[150px] w-[150px] rounded-full bg-white/[.13]" />
           <div className="relative">
-            <div className="text-[15px] font-bold leading-snug">{cabinStatus}</div>
-            <div className="mt-2 text-xs font-semibold opacity-85">
+            <div className="text-body-lg font-bold leading-snug">{cabinStatus}</div>
+            <div className="mt-2 text-caption font-semibold text-white/85">
               {appointments.length === 1 ? '1 cita hoy' : `${appointments.length} citas hoy`}
               {doneCount > 0 ? ` · ${doneCount} hechas` : ''}
               {noshow > 0 ? ` · ${noshow} no vino` : ''}
@@ -84,36 +85,36 @@ export default async function HoyPage() {
         </div>
       ) : (
         <>
-          <div className="relative mb-3 overflow-hidden rounded-[22px] bg-grad px-5 py-[18px] text-white shadow-hero">
+          <div className="relative mb-3 overflow-hidden rounded-card bg-grad px-5 py-[18px] text-white shadow-hero">
             <div className="absolute -right-10 -top-10 h-[150px] w-[150px] rounded-full bg-white/[.13]" />
             <div className="relative">
-              <div className="text-xs font-semibold opacity-85">{todayLbl}</div>
+              <div className="text-caption font-semibold text-white/85">{todayLbl}</div>
               <div className="mt-1.5 flex items-end gap-2">
                 <div className="text-[40px] font-extrabold leading-none tracking-[-.03em]">{appointments.length}</div>
-                <div className="pb-[5px] text-sm font-semibold">{appointments.length === 1 ? 'cita hoy' : 'citas hoy'}</div>
+                <div className="pb-[5px] text-body font-semibold">{appointments.length === 1 ? 'cita hoy' : 'citas hoy'}</div>
               </div>
               <div className="mt-3.5 flex flex-wrap gap-2">
-                <span className="rounded-xl bg-white/20 px-3 py-1.5 text-xs font-semibold">{revenue} € previstos</span>
-                <span className="rounded-xl bg-white/20 px-3 py-1.5 text-xs font-semibold">{occ} % ocupación</span>
+                <span className="rounded-pill bg-white/20 px-3 py-1.5 text-caption font-semibold">{revenue} € previstos</span>
+                <span className="rounded-pill bg-white/20 px-3 py-1.5 text-caption font-semibold">{occ} % ocupación</span>
                 {noshow > 0 && (
-                  <span className="rounded-xl bg-white/20 px-3 py-1.5 text-xs font-semibold">{noshow} no vino</span>
+                  <span className="rounded-pill bg-white/20 px-3 py-1.5 text-caption font-semibold">{noshow} no vino</span>
                 )}
               </div>
             </div>
           </div>
 
           <div className="mb-5 flex gap-2.5">
-            <div className="flex-1 rounded-row border border-surface-line bg-white p-3.5 shadow-card">
-              <div className="text-[11px] font-bold text-ink-3">CAJA HASTA AHORA</div>
-              <div className="mt-1 text-[22px] font-extrabold tracking-[-.02em]">{cash} €</div>
+            <div className="flex-1 rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
+              <div className="text-caption font-bold text-ink-3">CAJA HASTA AHORA</div>
+              <div className="mt-1 text-h1 font-extrabold tracking-[-.02em]">{cash} €</div>
               <div className="mt-2 h-1.5 overflow-hidden rounded bg-surface-line">
                 <div className="h-1.5 rounded bg-grad" style={{ width: `${revenue ? Math.round((100 * cash) / revenue) : 0}%` }} />
               </div>
             </div>
-            <div className="flex-1 rounded-row border border-surface-line bg-white p-3.5 shadow-card">
-              <div className="text-[11px] font-bold text-ink-3">HECHAS</div>
-              <div className="mt-1 text-[22px] font-extrabold tracking-[-.02em] tabular-nums">
-                {doneCount}<span className="text-[14px] font-bold text-ink-3"> / {appointments.length}</span>
+            <div className="flex-1 rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
+              <div className="text-caption font-bold text-ink-3">HECHAS</div>
+              <div className="mt-1 text-h1 font-extrabold tracking-[-.02em] tabular-nums">
+                {doneCount}<span className="text-body font-bold text-ink-3"> / {appointments.length}</span>
               </div>
               <div className="mt-2 h-1.5 overflow-hidden rounded bg-surface-line">
                 <div
@@ -129,8 +130,8 @@ export default async function HoyPage() {
       {live.length > 0 && (
         <>
           <div className="mb-2.5 flex items-center gap-[7px]">
-            <span className="h-2 w-2 animate-pulseDot rounded-full bg-emerald-500" />
-            <h2 className="text-base font-extrabold tracking-[-.02em]">En cabina ahora</h2>
+            <span className="h-2 w-2 animate-pulseDot rounded-full bg-ok" />
+            <h2 className="text-body-lg font-extrabold tracking-[-.02em]">En cabina ahora</h2>
           </div>
           <div className="mb-[22px] flex flex-col gap-2.5">
             {live.map(a => <LiveRow key={a.id} appt={a} cabin={cabin} />)}
@@ -140,35 +141,34 @@ export default async function HoyPage() {
 
       {overdue.length > 0 && (
         <>
-          <h2 className="mb-2.5 text-base font-extrabold tracking-[-.02em]">Sin llegar</h2>
+          <h2 className="mb-2.5 text-body-lg font-extrabold tracking-[-.02em]">Sin llegar</h2>
           <div className="mb-[22px] flex flex-col gap-2.5">
             {overdue.map(a => <HoyApptRow key={a.id} appt={a} late cabin={cabin} />)}
           </div>
         </>
       )}
 
-      <h2 className="mb-2.5 text-base font-extrabold tracking-[-.02em]">Siguientes</h2>
+      <h2 className="mb-2.5 text-body-lg font-extrabold tracking-[-.02em]">Siguientes</h2>
       <div className="flex flex-col gap-2.5 pb-2.5">
         {next.length === 0 && overdue.length === 0 && (
-          <p className="rounded-row border border-dashed border-handle bg-white/60 px-4 py-6 text-center text-[13px] font-semibold text-ink-3">
-            No quedan citas pendientes hoy.
-          </p>
+          <EmptyState icon={CalendarCheck} title="No quedan citas pendientes hoy." />
         )}
         {next.length === 0 && overdue.length > 0 && (
-          <p className="rounded-row border border-dashed border-handle bg-white/60 px-4 py-5 text-center text-[13px] font-semibold text-ink-3">
-            Las que faltan están arriba, con retraso.
-          </p>
+          <EmptyState title="Las que faltan están arriba, con retraso." />
         )}
         {next.map(a => <HoyApptRow key={a.id} appt={a} cabin={cabin} />)}
       </div>
 
-      {!cabin && recalls.length > 0 && (
+      {!cabin && (
         <>
-          <h2 className="mb-1 mt-5 text-base font-extrabold tracking-[-.02em]">Por volver</h2>
-          <p className="mb-2.5 text-[12px] font-medium text-ink-3">
+          <h2 className="mb-1 mt-5 text-body-lg font-extrabold tracking-[-.02em]">Por volver</h2>
+          <p className="mb-2.5 text-label font-medium text-ink-2">
             Última visita hace 3–17 semanas y sin cita. WhatsApp o dar hueco.
           </p>
           <div className="flex flex-col gap-2.5 pb-2.5">
+            {recalls.length === 0 && (
+              <EmptyState icon={HeartHandshake} title="Nadie pendiente de volver." hint="Cuando alguna clienta lleve tiempo sin venir, saldrá aquí." />
+            )}
             {recalls.map(r => <RecallCard key={r.client_id} row={r} />)}
           </div>
         </>
@@ -179,10 +179,10 @@ export default async function HoyPage() {
 
 function LiveRow({ appt, cabin }: { appt: AgendaAppt; cabin: boolean }) {
   return (
-    <div className="flex items-center gap-[11px] rounded-row border border-emerald-200 bg-emerald-50 p-3">
+    <div className="flex items-center gap-[11px] rounded-row border border-ok-line bg-ok-bg p-3">
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-bold tracking-[-.01em]">{appt.client_label}</div>
-        <div className="text-[11.5px] font-semibold text-emerald-700">
+        <div className="text-body font-bold tracking-[-.01em]">{appt.client_label}</div>
+        <div className="text-caption font-semibold text-ok-fg">
           {appt.service_name} · termina {fmt(minutesOfDay(appt.ends_at))}
         </div>
       </div>
@@ -190,14 +190,14 @@ function LiveRow({ appt, cabin }: { appt: AgendaAppt; cabin: boolean }) {
         <Link
           href={`/clientas/${appt.client_id}`}
           aria-label={`Ficha de ${appt.client_label}`}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] border border-emerald-200 bg-white text-v-d"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-icon border border-ok-line bg-surface-card text-v-d transition active:scale-[.96]"
         >
           <UserRound size={16} strokeWidth={2.2} />
         </Link>
       )}
       <Link
         href={appt.client_id ? `/agenda?appt=${appt.id}&close=1` : `/agenda?appt=${appt.id}`}
-        className="shrink-0 rounded-[13px] bg-emerald-500 px-3.5 py-2.5 text-[12.5px] font-bold text-white"
+        className="grid min-h-[44px] shrink-0 place-items-center rounded-icon bg-ok px-3.5 text-label font-bold text-white transition active:scale-[.97]"
       >
         Terminar
       </Link>

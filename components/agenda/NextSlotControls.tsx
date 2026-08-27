@@ -42,7 +42,7 @@ export default function NextSlotControls({
           type="button"
           disabled={pending || !durationMin}
           onClick={() => find(false)}
-          className="inline-flex items-center gap-1.5 rounded-[12px] border border-v/25 bg-v-tint px-3 py-2 text-[12.5px] font-bold text-v-d disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 rounded-chip border border-v/25 bg-v-tint px-3 py-2 text-label font-bold text-v-d disabled:opacity-40"
         >
           <Sparkles size={14} strokeWidth={2.2} />
           {pending ? 'Buscando…' : 'Próximo hueco'}
@@ -52,19 +52,19 @@ export default function NextSlotControls({
             type="button"
             disabled={pending || !durationMin}
             onClick={() => find(true)}
-            className="inline-flex items-center rounded-[12px] border border-surface-line bg-white px-3 py-2 text-[12.5px] font-bold text-ink-2 disabled:opacity-40"
+            className="inline-flex items-center rounded-chip border border-surface-line bg-surface-card px-3 py-2 text-label font-bold text-ink-2 disabled:opacity-40"
           >
             En cualquiera
           </button>
         )}
       </div>
       {hint && (
-        <p className="mt-1.5 text-[11.5px] font-semibold text-ink-2">
+        <p className="mt-1.5 text-caption font-semibold text-ink-2">
           Hueco {shortWhen(hint.startsAt)}
         </p>
       )}
       {empty && (
-        <p className="mt-1.5 text-[11.5px] font-semibold text-ink-3">
+        <p className="mt-1.5 text-caption font-semibold text-ink-3">
           No queda hueco en los próximos 7 días.
         </p>
       )}

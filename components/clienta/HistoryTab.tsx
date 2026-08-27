@@ -17,7 +17,7 @@ export default function HistoryTab({
         <Empty>No hay citas registradas todavía.</Empty>
         <Link
           href={`/agenda?new=1&client=${clientId}`}
-          className="inline-flex items-center gap-1.5 rounded-field bg-grad px-4 py-2.5 text-[13px] font-extrabold text-white shadow-btn"
+          className="inline-flex items-center gap-1.5 rounded-field bg-grad px-4 py-2.5 text-body font-extrabold text-white shadow-btn"
         >
           <CalendarPlus size={16} strokeWidth={2.2} />
           Dar cita
@@ -33,13 +33,13 @@ export default function HistoryTab({
   return (
     <>
       <div className="mb-2.5 flex gap-2.5">
-        <div className="flex-1 rounded-row border border-surface-line bg-white p-3 shadow-card">
-          <div className="text-[10.5px] font-bold uppercase tracking-[.03em] text-ink-3">Citas</div>
-          <div className="mt-0.5 text-[19px] font-extrabold tabular-nums">{appointments.length}</div>
+        <div className="flex-1 rounded-row border border-surface-line bg-surface-card p-3 shadow-card">
+          <div className="text-micro font-bold uppercase tracking-[.03em] text-ink-3">Citas</div>
+          <div className="mt-0.5 text-title font-extrabold tabular-nums">{appointments.length}</div>
         </div>
-        <div className="flex-1 rounded-row border border-surface-line bg-white p-3 shadow-card">
-          <div className="text-[10.5px] font-bold uppercase tracking-[.03em] text-ink-3">Gastado</div>
-          <div className="mt-0.5 text-[19px] font-extrabold tabular-nums">{spent} €</div>
+        <div className="flex-1 rounded-row border border-surface-line bg-surface-card p-3 shadow-card">
+          <div className="text-micro font-bold uppercase tracking-[.03em] text-ink-3">Gastado</div>
+          <div className="mt-0.5 text-title font-extrabold tabular-nums">{spent} €</div>
         </div>
       </div>
 
@@ -51,24 +51,24 @@ export default function HistoryTab({
             <Link
               key={a.id}
               href={`/agenda?day=${offsetFromDay(a.starts_at)}&appt=${a.id}`}
-              className="flex items-center gap-3 rounded-row border border-surface-line bg-white p-3 shadow-card transition hover:border-v/40"
+              className="flex items-center gap-3 rounded-row border border-surface-line bg-surface-card p-3 shadow-card transition hover:border-v/40"
             >
               <span className="w-[62px] shrink-0 text-center">
-                <span className="block text-[11.5px] font-bold leading-tight tabular-nums text-ink-2">
+                <span className="block text-caption font-bold leading-tight tabular-nums text-ink-2">
                   {dateLbl(a.starts_at)}
                 </span>
-                <span className="block text-[10.5px] font-semibold tabular-nums text-ink-3">
+                <span className="block text-micro font-semibold tabular-nums text-ink-3">
                   {fmt(minutesOfDay(a.starts_at))}
                 </span>
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13.5px] font-bold tracking-[-.01em]">{a.service_name}</span>
-                <span className="block truncate text-[11px] font-medium text-ink-3">
+                <span className="block truncate text-body font-bold tracking-[-.01em]">{a.service_name}</span>
+                <span className="block truncate text-caption font-medium text-ink-3">
                   {a.provider_name}{a.note ? ` · ${a.note}` : ''}
                 </span>
               </span>
               <span
-                className="shrink-0 rounded-[9px] px-2 py-1 text-[10px] font-bold"
+                className="shrink-0 rounded-badge px-2 py-1 text-micro font-bold"
                 style={{ background: cat.bg, color: st.edge }}
               >
                 {st.label}

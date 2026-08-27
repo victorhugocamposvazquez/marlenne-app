@@ -898,29 +898,29 @@ export default function VoiceFab() {
       className="pointer-events-none absolute inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-30 flex flex-col items-end px-3"
     >
       {open && (
-        <div className="pointer-events-auto mb-2 w-full max-w-[360px] rounded-[18px] border border-surface-line bg-white p-3 shadow-toast">
+        <div className="pointer-events-auto mb-2 w-full max-w-[360px] rounded-row border border-surface-line bg-surface-card p-3 shadow-toast">
           <div className="mb-1 flex justify-end">
             <button
               type="button"
               onClick={dismiss}
               aria-label="Cerrar"
-              className="grid h-8 w-8 place-items-center rounded-[10px] text-ink-3"
+              className="grid h-11 w-11 place-items-center rounded-icon text-ink-3 transition active:scale-[.96]"
             >
-              <X size={16} strokeWidth={2.4} />
+              <X size={18} strokeWidth={2.4} />
             </button>
           </div>
           {panel.mode === 'listen' && (
-            <p className="text-[13px] font-semibold text-ink-2">
+            <p className="text-body font-semibold text-ink-2">
               {panel.draft || 'Dime.'}
             </p>
           )}
           {panel.mode === 'msg' && (
-            <p className="text-[13px] font-semibold text-ink-2">{panel.say}</p>
+            <p className="text-body font-semibold text-ink-2">{panel.say}</p>
           )}
           {panel.mode === 'ask' && (
             <div>
-              <p className="text-[13px] font-semibold text-ink-2">{panel.say}</p>
-              <p className="mt-1 text-[12px] font-semibold text-v-d">
+              <p className="text-body font-semibold text-ink-2">{panel.say}</p>
+              <p className="mt-1 text-label font-semibold text-v-d">
                 {hearDraft || (hearing
                   ? (pendingRef.current?.need === 'time' ? 'Dilo: once y media, o toca una hora.' : 'Dilo: vacumterapia, facial…')
                   : 'Toca el micro y dilo, o elige abajo.')}
@@ -946,7 +946,7 @@ export default function VoiceFab() {
                           await continueBook({ serviceQ: opt });
                         });
                       }}
-                      className="rounded-[10px] bg-v-soft px-2.5 py-1.5 text-[11.5px] font-bold text-v-d"
+                      className="rounded-chip bg-v-soft px-2.5 py-1.5 text-caption font-bold text-v-d"
                     >
                       {opt}
                     </button>
@@ -957,7 +957,7 @@ export default function VoiceFab() {
                 <button
                   type="button"
                   onClick={() => { pendingRef.current = null; finish('Abro el alta.', panel.href); }}
-                  className="mt-2 text-[11.5px] font-bold text-ink-3"
+                  className="mt-2 text-caption font-bold text-ink-3"
                 >
                   Abrir el alta a mano
                 </button>
@@ -966,8 +966,8 @@ export default function VoiceFab() {
           )}
           {panel.mode === 'confirm' && (
             <div>
-              <p className="text-[13px] font-semibold text-ink-2">{panel.say}</p>
-              <p className="mt-1 text-[12px] font-semibold text-v-d">
+              <p className="text-body font-semibold text-ink-2">{panel.say}</p>
+              <p className="mt-1 text-label font-semibold text-v-d">
                 {hearDraft || (hearing ? 'Di sí o no.' : 'Di sí, o toca Sí.')}
               </p>
               {panel.choices && (
@@ -982,7 +982,7 @@ export default function VoiceFab() {
                           : await voiceApplyStatus(c.id, panel.status ?? 'noshow');
                         finish(r.say, r.href);
                       })}
-                      className="rounded-[12px] border border-surface-line bg-v-tint px-3 py-2 text-left text-[12.5px] font-bold text-v-d"
+                      className="rounded-chip border border-surface-line bg-v-tint px-3 py-2 text-left text-label font-bold text-v-d"
                     >
                       {c.label}
                     </button>
@@ -990,7 +990,7 @@ export default function VoiceFab() {
                   <button
                     type="button"
                     onClick={dismiss}
-                    className="rounded-[12px] border border-surface-line py-2 text-[12.5px] font-bold text-ink-2"
+                    className="rounded-chip border border-surface-line py-2 text-label font-bold text-ink-2"
                   >
                     Cancelar
                   </button>
@@ -1001,7 +1001,7 @@ export default function VoiceFab() {
                   <button
                     type="button"
                     onClick={dismiss}
-                    className="flex-1 rounded-[12px] border border-surface-line py-2 text-[12.5px] font-bold text-ink-2"
+                    className="flex-1 rounded-chip border border-surface-line py-2 text-label font-bold text-ink-2"
                   >
                     Cancelar
                   </button>
@@ -1011,7 +1011,7 @@ export default function VoiceFab() {
                       const r = await panel.run();
                       finish(r.say, r.href);
                     })}
-                    className="flex-1 rounded-[12px] bg-grad py-2 text-[12.5px] font-extrabold text-white disabled:opacity-40"
+                    className="flex-1 rounded-chip bg-grad py-2 text-label font-extrabold text-white disabled:opacity-40"
                   >
                     Sí
                   </button>
@@ -1020,11 +1020,11 @@ export default function VoiceFab() {
             </div>
           )}
           {panel.mode === 'idle' && (
-            <div className="text-[12.5px] font-medium leading-snug text-ink-2">
+            <div className="text-label font-medium leading-snug text-ink-2">
               <p className="font-bold text-ink">Así se usa</p>
               <p className="mt-1">1. «Dime», o toca el micro. En Más se apaga el oído.</p>
               <p>2. Si va a guardar, te pide confirmación.</p>
-              <p className="mt-2 text-[12px] text-ink-3">
+              <p className="mt-2 text-label text-ink-3">
                 Ej.: quién tiene hueco el miércoles a las 11:30 · cita para Lucía con Valeria a las 11:30
               </p>
             </div>
@@ -1040,13 +1040,13 @@ export default function VoiceFab() {
             }}
           >
             <input
-              className="min-w-0 flex-1 rounded-[12px] border border-surface-line px-3 py-2 text-[13px] font-semibold"
+              className="min-w-0 flex-1 rounded-chip border border-surface-line px-3 py-2 text-body font-semibold"
               placeholder="Escribe o dicta el comando"
               value={typed}
               onChange={e => setTyped(e.target.value)}
               aria-label="Comando"
             />
-            <button className="rounded-[12px] bg-v-soft px-3 py-2 text-[12px] font-bold text-v-d">Ir</button>
+            <button className="rounded-chip bg-v-soft px-3 py-2 text-label font-bold text-v-d">Ir</button>
           </form>
         </div>
       )}
@@ -1059,8 +1059,8 @@ export default function VoiceFab() {
             const overlay = open && (panel.mode === 'ask' || panel.mode === 'confirm');
             tapMic(overlay ? { overlay: true } : undefined);
           }}
-          className={`pointer-events-auto grid h-14 w-14 place-items-center rounded-[18px] text-white shadow-btn ${
-            hearing ? 'bg-pink-600' : 'bg-grad'
+          className={`pointer-events-auto grid h-14 w-14 place-items-center rounded-card text-white shadow-btn transition active:scale-[.96] ${
+            hearing ? 'bg-danger' : 'bg-grad'
           }`}
         >
           {hearing ? <Square size={20} strokeWidth={2.4} /> : <Mic size={22} strokeWidth={2.2} />}
@@ -1071,22 +1071,22 @@ export default function VoiceFab() {
             title={wakeOn ? 'Oído en espera. Toca para callar.' : 'Oído en pausa. Toca el micro para hablar.'}
             aria-label="Callar oído de Hola Marlenne"
             onClick={e => { e.stopPropagation(); hush(); }}
-            className="pointer-events-auto absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-white/80 shadow"
+            className="pointer-events-auto absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-surface-card/80 shadow"
           />
         )}
       </div>
       {!open && wakeHeard && (
-        <p className="pointer-events-none mt-1 max-w-[200px] text-right text-[10px] font-semibold text-ink-3">
+        <p className="pointer-events-none mt-1 max-w-[200px] text-right text-micro font-semibold text-ink-3">
           Oí «{wakeHeard}»
         </p>
       )}
       {!open && !hearing && micPerm !== 'granted' && micPerm !== 'unknown' && (
-        <p className="pointer-events-none mt-1 max-w-[220px] text-right text-[10.5px] font-semibold text-ink-3">
+        <p className="pointer-events-none mt-1 max-w-[220px] text-right text-micro font-semibold text-ink-3">
           Toca el micro para permitir el oído
         </p>
       )}
       {!hasMic && open && (
-        <p className="pointer-events-none mt-1 text-right text-[10.5px] font-semibold text-ink-3">
+        <p className="pointer-events-none mt-1 text-right text-micro font-semibold text-ink-3">
           Sin dictado en este navegador
         </p>
       )}

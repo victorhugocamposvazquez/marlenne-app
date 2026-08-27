@@ -20,11 +20,11 @@ export default function CatalogEditor({ services }: { services: ServiceOption[] 
         if (!list.length) return null;
         return (
           <div key={id}>
-            <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-bold" style={{ color: cat.fg }}>
+            <div className="mb-1.5 flex items-center gap-1.5 text-label font-bold" style={{ color: cat.fg }}>
               <span className="h-2 w-2 rounded-sm" style={{ background: cat.color }} />
               {cat.label}
             </div>
-            <div className="overflow-hidden rounded-row border border-surface-line bg-white">
+            <div className="overflow-hidden rounded-row border border-surface-line bg-surface-card">
               {list.map(s => (
                 <div key={s.id} className="border-b border-surface-line last:border-0">
                   <button
@@ -32,10 +32,10 @@ export default function CatalogEditor({ services }: { services: ServiceOption[] 
                     onClick={() => setOpen(o => o === s.id ? null : s.id)}
                     className="flex w-full items-baseline justify-between gap-3 px-3.5 py-2.5 text-left"
                   >
-                    <span className={`min-w-0 truncate text-[13px] font-semibold ${s.is_active === false ? 'text-ink-3 line-through' : ''}`}>
+                    <span className={`min-w-0 truncate text-body font-semibold ${s.is_active === false ? 'text-ink-3 line-through' : ''}`}>
                       {s.name}
                     </span>
-                    <span className="shrink-0 text-[11.5px] font-bold tabular-nums text-ink-3">
+                    <span className="shrink-0 text-caption font-bold tabular-nums text-ink-3">
                       {durLbl(s.duration_min)} · {(s.price_cents / 100).toFixed(0)} €
                     </span>
                   </button>
@@ -77,15 +77,15 @@ function EditRow({
   return (
     <div className="grid grid-cols-2 gap-2 px-3.5 pb-3">
       <label>
-        <span className="mb-1 block text-[10.5px] font-bold uppercase text-ink-3">Minutos</span>
+        <span className="mb-1 block text-micro font-bold uppercase text-ink-3">Minutos</span>
         <input className={inputCls} inputMode="numeric" value={mins} onChange={e => setMins(e.target.value)} />
       </label>
       <label>
-        <span className="mb-1 block text-[10.5px] font-bold uppercase text-ink-3">Precio €</span>
+        <span className="mb-1 block text-micro font-bold uppercase text-ink-3">Precio €</span>
         <input className={inputCls} inputMode="decimal" value={euros} onChange={e => setEuros(e.target.value)} />
       </label>
-      <label className="col-span-2 flex items-center gap-2 text-[13px] font-bold">
-        <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} className="h-4 w-4 accent-[#8B5CF6]" />
+      <label className="col-span-2 flex items-center gap-2 text-body font-bold">
+        <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} className="h-5 w-5 accent-v" />
         Visible al crear citas
       </label>
       <button
@@ -95,7 +95,7 @@ function EditRow({
           price_cents: Math.round(Number(euros.replace(',', '.')) * 100),
           is_active: active,
         })}
-        className="col-span-2 rounded-field bg-grad py-2.5 text-[13px] font-extrabold text-white disabled:opacity-40"
+        className="col-span-2 rounded-field bg-grad py-2.5 text-body font-extrabold text-white disabled:opacity-40"
       >
         {pending ? 'Guardando…' : 'Guardar'}
       </button>

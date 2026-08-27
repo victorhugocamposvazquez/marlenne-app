@@ -98,14 +98,14 @@ export default function NewAppointmentSheet({
       footer={
         <>
           {error && (
-            <p className="mb-2.5 rounded-[12px] bg-pink-50 px-3 py-2 text-[12px] font-semibold text-pink-700">
+            <p className="mb-2.5 rounded-chip bg-danger-bg px-3 py-2 text-label font-semibold text-danger-fg">
               {error}
             </p>
           )}
           <button
             onClick={save}
             disabled={!ready}
-            className="w-full rounded-field bg-grad py-3.5 text-[15px] font-extrabold text-white shadow-btn transition disabled:opacity-40 disabled:shadow-none"
+            className="w-full rounded-field bg-grad py-3.5 text-body-lg font-extrabold text-white shadow-btn transition disabled:opacity-40 disabled:shadow-none"
           >
             {pending ? 'Guardando…' : 'Guardar cita'}
           </button>
@@ -116,19 +116,19 @@ export default function NewAppointmentSheet({
         {client ? (
           <div className="flex items-center gap-2.5 rounded-field border border-surface-line bg-v-tint px-3.5 py-3">
             <span
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-[11px] text-[11px] font-bold text-white"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-chip text-caption font-bold text-white"
               style={{ background: avatarColor(client.full_name) }}
             >
               {client.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[14px] font-bold">{client.full_name}</span>
-              {client.phone && <span className="block text-[11.5px] font-medium text-ink-2">{client.phone}</span>}
+              <span className="block truncate text-body font-bold">{client.full_name}</span>
+              {client.phone && <span className="block text-caption font-medium text-ink-2">{client.phone}</span>}
             </span>
             <button
               onClick={() => { setClient(null); setQuery(''); }}
               aria-label="Quitar clienta"
-              className="grid h-7 w-7 shrink-0 place-items-center rounded-[10px] bg-white text-ink-2"
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-chip bg-surface-card text-ink-2"
             >
               <X size={15} strokeWidth={2.2} />
             </button>
@@ -154,15 +154,15 @@ export default function NewAppointmentSheet({
                     className="flex w-full items-center gap-2.5 border-b border-surface-line px-3 py-2.5 text-left last:border-0 hover:bg-v-tint"
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13.5px] font-bold">{c.full_name}</span>
-                      {c.phone && <span className="block text-[11px] font-medium text-ink-3">{c.phone}</span>}
+                      <span className="block truncate text-body font-bold">{c.full_name}</span>
+                      {c.phone && <span className="block text-caption font-medium text-ink-3">{c.phone}</span>}
                     </span>
                   </button>
                 ))}
               </div>
             )}
             {query.trim().length > 1 && matches.length === 0 && (
-              <p className="mt-1.5 flex items-center gap-1.5 text-[11.5px] font-semibold text-ink-2">
+              <p className="mt-1.5 flex items-center gap-1.5 text-caption font-semibold text-ink-2">
                 <UserPlus size={14} strokeWidth={2.2} className="text-v" />
                 Se guardará como «{query.trim()}», sin ficha
               </p>
@@ -238,11 +238,11 @@ export default function NewAppointmentSheet({
 
       <Field label="Hora">
         {!service ? (
-          <p className="text-[12.5px] font-semibold text-ink-3">Elige antes el servicio.</p>
+          <p className="text-label font-semibold text-ink-3">Elige antes el servicio.</p>
         ) : slots === null ? (
-          <p className="text-[12.5px] font-semibold text-ink-3">Buscando huecos…</p>
+          <p className="text-label font-semibold text-ink-3">Buscando huecos…</p>
         ) : slots.length === 0 ? (
-          <p className="text-[12.5px] font-semibold text-ink-2">
+          <p className="text-label font-semibold text-ink-2">
             No queda ningún hueco de {durLbl(service.duration_min)} ese día. Prueba el próximo hueco.
           </p>
         ) : (

@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Ban, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import Chip from '@/components/ui/Chip';
 import { shallowSet } from '@/hooks/useShallowQuery';
 import { dayTitle, weekMondayOffset, weekTitle } from '@/lib/time';
 import type { Provider } from '@/lib/types';
@@ -33,16 +34,16 @@ export default function AgendaHeader({
   };
 
   const seg = (active: boolean) =>
-    `rounded-[11px] px-5 py-[7px] text-[13px] font-semibold transition ${
-      active ? 'bg-white text-v-d shadow-seg' : 'text-ink-2'
+    `min-h-[36px] rounded-chip px-5 text-body font-semibold transition ${
+      active ? 'bg-surface-card text-v-d shadow-seg' : 'text-ink-2'
     }`;
 
   return (
     <header className="shrink-0 px-5 pb-3 pt-5">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-semibold text-v">{label}</div>
-          <h1 className="mt-0.5 text-[23px] font-extrabold leading-[1.15] tracking-[-.025em]">
+          <div className="text-caption font-bold uppercase tracking-[.04em] text-v">{label}</div>
+          <h1 className="mt-0.5 text-h1 font-extrabold leading-[1.15] tracking-[-.025em]">
             {mode === 'semana' ? weekTitle(day) : dayTitle(day)}
           </h1>
         </div>
@@ -51,7 +52,7 @@ export default function AgendaHeader({
             <button
               type="button"
               onClick={() => go(0, mode)}
-              className="rounded-[13px] border border-surface-line bg-white px-2.5 text-[12px] font-bold text-v-d shadow-card"
+              className="min-h-[44px] rounded-icon border border-surface-line bg-surface-card px-3 text-label font-bold text-v-d shadow-card transition active:scale-[.96]"
             >
               Hoy
             </button>
@@ -59,81 +60,63 @@ export default function AgendaHeader({
           <button
             onClick={() => go(mode === 'semana' ? weekMondayOffset(day) - 7 : day - 1, mode)}
             aria-label="Anterior"
-            className="grid h-[38px] w-[38px] place-items-center rounded-[13px] border border-surface-line bg-white shadow-card hover:bg-v-tint"
+            className="grid h-11 w-11 place-items-center rounded-icon border border-surface-line bg-surface-card text-ink-2 shadow-card transition hover:bg-v-tint active:scale-[.96]"
           >
-            <ChevronLeft size={17} strokeWidth={2.2} />
+            <ChevronLeft size={18} strokeWidth={2.2} />
           </button>
           <button
             onClick={() => go(mode === 'semana' ? weekMondayOffset(day) + 7 : day + 1, mode)}
             aria-label="Siguiente"
-            className="grid h-[38px] w-[38px] place-items-center rounded-[13px] border border-surface-line bg-white shadow-card hover:bg-v-tint"
+            className="grid h-11 w-11 place-items-center rounded-icon border border-surface-line bg-surface-card text-ink-2 shadow-card transition hover:bg-v-tint active:scale-[.96]"
           >
-            <ChevronRight size={17} strokeWidth={2.2} />
+            <ChevronRight size={18} strokeWidth={2.2} />
           </button>
         </div>
       </div>
 
       {canFilter && providers.length > 1 && (
         <div className="mt-3 flex gap-1.5 overflow-x-auto">
-          <FilterChip
-            active={!selectedPro}
-            onClick={() => go(day, mode, { pro: '' })}
-          >
+          <Chip className="shrink-0" active={!selectedPro} onClick={() => go(day, mode, { pro: '' })}>
             Todas
-          </FilterChip>
+          </Chip>
           {providers.map(p => (
-            <FilterChip
+            <Chip
               key={p.id}
+              className="shrink-0"
               active={selectedPro === p.id}
               onClick={() => go(day, mode, { pro: p.id })}
             >
               {p.full_name.split(' ')[0]}
-            </FilterChip>
+            </Chip>
           ))}
         </div>
       )}
 
       <div className="mt-3.5 flex items-center gap-2.5">
-        <div className="flex gap-1 rounded-[14px] bg-track p-1">
-          <button className={seg(mode === 'dia')} onClick={() => go(day, 'dia')}>Día</button>
-          <button className={seg(mode === 'semana')} onClick={() => go(day, 'semana')}>Semana</button>
+        <div role="group" aria-label="Vista de agenda" className="flex gap-1 rounded-icon bg-track p-1">
+          <button aria-pressed={mode === 'dia'} className={seg(mode === 'dia')} onClick={() => go(day, 'dia')}>Día</button>
+          <button aria-pressed={mode === 'semana'} className={seg(mode === 'semana')} onClick={() => go(day, 'semana')}>Semana</button>
         </div>
         <button
           onClick={() => shallowSet({
             block: '1', wait: null, new: null, appt: null, close: null, bloqueo: null,
           })}
           aria-label="Bloquear hueco"
-          className="ml-auto grid h-[38px] w-[38px] place-items-center rounded-[13px] border border-surface-line bg-white shadow-card"
+          className="ml-auto grid h-11 w-11 place-items-center rounded-icon border border-surface-line bg-surface-card shadow-card transition active:scale-[.96]"
         >
-          <Ban size={15} className="text-ink-2" strokeWidth={2.2} />
+          <Ban size={16} className="text-ink-2" strokeWidth={2.2} />
         </button>
         <button
           onClick={() => shallowSet({
             wait: '1', new: null, block: null, bloqueo: null, appt: null, close: null,
           })}
-          className="flex items-center gap-[7px] rounded-[13px] border border-surface-line bg-white px-3 py-2 text-[12.5px] font-bold shadow-card"
+          className="flex min-h-[44px] items-center gap-[7px] rounded-icon border border-surface-line bg-surface-card px-3 text-label font-bold shadow-card transition active:scale-[.96]"
         >
           <Clock size={15} className="text-v" strokeWidth={2.2} />
           Espera
-          <span className="rounded-lg bg-v-soft px-1.5 text-[11px] text-v-d">{waiting}</span>
+          <span className="rounded-lg bg-v-soft px-1.5 text-caption text-v-d">{waiting}</span>
         </button>
       </div>
     </header>
-  );
-}
-
-function FilterChip({
-  active, children, onClick,
-}: { active: boolean; children: React.ReactNode; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`shrink-0 rounded-chip px-3 py-1.5 text-[12px] font-bold ${
-        active ? 'bg-grad text-white shadow-pill' : 'border border-surface-line bg-white text-ink-2'
-      }`}
-    >
-      {children}
-    </button>
   );
 }
