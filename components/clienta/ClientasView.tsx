@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { CalendarPlus, MessageCircle, Phone, Plus, Search } from 'lucide-react';
 import NewClientSheet from '@/components/clienta/NewClientSheet';
+import Chip from '@/components/ui/Chip';
+import EmptyState from '@/components/ui/EmptyState';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 import { avatarColor, initials } from '@/lib/categories';
 import { phoneDigits, waHref, waRecallMsg } from '@/lib/phone';
@@ -64,7 +66,7 @@ export default function ClientasView({
             type="button"
             onClick={() => shallowSet({ alta: '1' })}
             aria-label="Nueva clienta"
-            className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-icon bg-grad text-white shadow-btn"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-icon bg-grad text-white shadow-btn transition active:scale-[.96]"
           >
             <Plus size={20} strokeWidth={2.4} />
           </button>
@@ -76,39 +78,34 @@ export default function ClientasView({
             onChange={e => setQ(e.target.value)}
             placeholder="Buscar nombre o teléfono"
             aria-label="Buscar clientas"
-            className="flex-1 border-0 bg-transparent py-3 text-sm font-medium outline-none"
+            className="flex-1 border-0 bg-transparent py-3 text-body font-medium outline-none"
           />
           {q && (
-            <button type="button" onClick={() => setQ('')} className="text-label font-bold text-ink-3">
+            <button type="button" onClick={() => setQ('')} className="min-h-[44px] text-label font-bold text-ink-2">
               Limpiar
             </button>
           )}
         </div>
         <div className="mt-3 flex gap-1.5 overflow-x-auto">
           {FILTERS.map(f => (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => setFilter(f.id)}
-              className={`shrink-0 rounded-chip px-3 py-1.5 text-label font-bold ${
-                filter === f.id ? 'bg-grad text-white shadow-pill' : 'border border-surface-line bg-surface-card text-ink-2'
-              }`}
-            >
+            <Chip key={f.id} className="shrink-0" active={filter === f.id} onClick={() => setFilter(f.id)}>
               {f.label}
-            </button>
+            </Chip>
           ))}
         </div>
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-auto px-5 pb-fab pt-0.5">
         {shown.length === 0 && (
-          <p className="rounded-row border border-dashed border-handle bg-surface-card/60 px-4 py-8 text-center text-body font-semibold text-ink-3">
-            {clients.length === 0
-              ? 'Todavía no hay clientas. El alta está arriba, a la derecha.'
+          <EmptyState
+            icon={Search}
+            title={clients.length === 0
+              ? 'Todavía no hay clientas.'
               : q
                 ? 'Ninguna clienta coincide con esa búsqueda.'
                 : 'Ninguna clienta en este filtro.'}
-          </p>
+            hint={clients.length === 0 ? 'El alta está arriba, a la derecha.' : undefined}
+          />
         )}
         {shown.map(c => {
           const wa = waHref(
@@ -150,7 +147,7 @@ export default function ClientasView({
               <Link
                 href={`/agenda?new=1&client=${c.id}`}
                 aria-label={`Nueva cita para ${c.full_name}`}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-chip border border-surface-line bg-surface-card text-v-d"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-icon border border-surface-line bg-surface-card text-v-d transition active:scale-[.96]"
               >
                 <CalendarPlus size={16} strokeWidth={2.2} />
               </Link>
@@ -158,7 +155,7 @@ export default function ClientasView({
                 <a
                   href={`tel:${c.phone}`}
                   aria-label={`Llamar a ${c.full_name}`}
-                  className="grid h-10 w-10 shrink-0 place-items-center rounded-chip bg-v-tint text-v-d"
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-icon bg-v-tint text-v-d transition active:scale-[.96]"
                 >
                   <Phone size={16} strokeWidth={2.2} />
                 </a>
@@ -169,7 +166,7 @@ export default function ClientasView({
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={`WhatsApp a ${c.full_name}`}
-                  className="grid h-10 w-10 shrink-0 place-items-center rounded-chip bg-ok-bg text-ok-fg"
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-icon bg-ok-bg text-ok-fg transition active:scale-[.96]"
                 >
                   <MessageCircle size={16} strokeWidth={2.2} />
                 </a>

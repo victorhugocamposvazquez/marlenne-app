@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Sheet, { Field, inputCls, useCloseSheet } from '@/components/Sheet';
+import Button from '@/components/ui/Button';
 import { addConsent, createClientRecord } from '@/lib/client-write';
 import { createClient } from '@/lib/supabase/client';
 import { CONSENT_COPY } from '@/lib/consents';
@@ -70,34 +71,30 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
         <>
           {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
           {dupId ? (
-            <button
-              type="button"
+            <Button
+              size="lg"
+              full
               onClick={() => {
                 close();
                 router.push(`/agenda?new=1&client=${dupId}`);
               }}
-              className="w-full rounded-field bg-grad py-3.5 text-body-lg font-extrabold text-white shadow-btn"
             >
               Dar cita a esa ficha
-            </button>
+            </Button>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={() => save(true)}
-                disabled={name.trim().length < 2 || pending}
-                className="w-full rounded-field bg-grad py-3.5 text-body-lg font-extrabold text-white shadow-btn disabled:opacity-40"
-              >
+              <Button size="lg" full onClick={() => save(true)} disabled={name.trim().length < 2 || pending}>
                 {pending ? 'Guardando…' : 'Crear y dar cita'}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="ghost"
+                full
+                className="mt-1 text-ink-2"
                 onClick={() => save(false)}
                 disabled={name.trim().length < 2 || pending}
-                className="mt-2 w-full py-2 text-body font-bold text-ink-2 disabled:opacity-40"
               >
                 Solo la ficha
-              </button>
+              </Button>
             </>
           )}
         </>

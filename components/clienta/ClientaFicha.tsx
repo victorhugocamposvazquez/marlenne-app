@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, CalendarPlus, Mail, MessageCircle, Pencil, Phone } from 'lucide-react';
 import EditClientSheet from '@/components/clienta/EditClientSheet';
+import IconButton from '@/components/ui/IconButton';
 import ConsentsCard from '@/components/clienta/ConsentsCard';
 import QuickNotes from '@/components/clienta/QuickNotes';
 import Tabs, { parseTab, type TabId } from '@/components/clienta/Tabs';
@@ -63,7 +64,7 @@ export default function ClientaFicha({
     <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-fab pt-5">
       <Link
         href={canEdit ? '/clientas' : '/hoy'}
-        className="mb-3 inline-flex items-center gap-1.5 text-label font-bold text-ink-2 hover:text-v-d"
+        className="mb-2 inline-flex min-h-[44px] items-center gap-1.5 text-label font-bold text-ink-2 hover:text-v-d"
       >
         <ArrowLeft size={15} strokeWidth={2.4} />
         {canEdit ? 'Clientas' : 'Hoy'}
@@ -90,19 +91,14 @@ export default function ClientaFicha({
         </div>
         <div className="flex shrink-0 gap-2">
           {canEdit && (
-            <button
-              type="button"
-              onClick={() => shallowSet({ editar: '1' })}
-              aria-label="Editar ficha"
-              className="grid h-[42px] w-[42px] place-items-center rounded-icon border border-surface-line bg-surface-card text-ink-2 shadow-card"
-            >
+            <IconButton label="Editar ficha" onClick={() => shallowSet({ editar: '1' })}>
               <Pencil size={17} strokeWidth={2.2} />
-            </button>
+            </IconButton>
           )}
           <Link
             href={`/agenda?new=1&client=${client.id}`}
             aria-label="Nueva cita para esta clienta"
-            className="grid h-[42px] w-[42px] place-items-center rounded-icon bg-grad text-white shadow-btn"
+            className="grid h-11 w-11 place-items-center rounded-icon bg-grad text-white shadow-btn transition active:scale-[.96]"
           >
             <CalendarPlus size={19} strokeWidth={2.2} />
           </Link>
@@ -134,7 +130,7 @@ export default function ClientaFicha({
         </Link>
       )}
       {!nextAppt && lastAppt && (
-        <p className="mt-2.5 text-label font-medium text-ink-3">
+        <p className="mt-2.5 text-label font-medium text-ink-2">
           Última visita {shortWhen(lastAppt.starts_at)} · {lastAppt.service_name}
         </p>
       )}
@@ -143,7 +139,7 @@ export default function ClientaFicha({
         {client.phone && (
           <a
             href={`tel:${client.phone}`}
-            className="flex items-center gap-1.5 rounded-chip border border-surface-line bg-surface-card px-2.5 py-1.5 text-label font-bold shadow-card"
+            className="flex min-h-[44px] items-center gap-1.5 rounded-chip border border-surface-line bg-surface-card px-3 text-label font-bold shadow-card transition active:scale-[.97]"
           >
             <Phone size={13} strokeWidth={2.4} className="text-v" />
             {client.phone}
@@ -154,7 +150,7 @@ export default function ClientaFicha({
             href={wa}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 rounded-chip border border-ok-line bg-ok-bg px-2.5 py-1.5 text-label font-bold text-ok-strong shadow-card"
+            className="flex min-h-[44px] items-center gap-1.5 rounded-chip border border-ok-line bg-ok-bg px-3 text-label font-bold text-ok-strong shadow-card transition active:scale-[.97]"
           >
             <MessageCircle size={13} strokeWidth={2.4} />
             WhatsApp
@@ -163,7 +159,7 @@ export default function ClientaFicha({
         {client.email && (
           <a
             href={`mailto:${client.email}`}
-            className="flex min-w-0 items-center gap-1.5 rounded-chip border border-surface-line bg-surface-card px-2.5 py-1.5 text-label font-bold shadow-card"
+            className="flex min-h-[44px] min-w-0 items-center gap-1.5 rounded-chip border border-surface-line bg-surface-card px-3 text-label font-bold shadow-card transition active:scale-[.97]"
           >
             <Mail size={13} strokeWidth={2.4} className="text-v" />
             <span className="truncate">{client.email}</span>

@@ -69,13 +69,12 @@ export default function ConsentsCard({
           <p className="text-body font-bold text-v-d">{CONSENT_KINDS[ask]}</p>
           <p className="mt-1.5 text-label font-medium leading-snug text-ink-2">{CONSENT_COPY[ask]}</p>
           <div className="mt-3 flex gap-2">
-            <button
-              onClick={() => setAsk(null)}
-              className="flex-1 rounded-field border border-surface-line bg-surface-card py-2 text-label font-bold text-ink-2"
-            >
+            <Button variant="secondary" size="sm" className="flex-1 text-ink-2" onClick={() => setAsk(null)}>
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
+              size="sm"
+              className="flex-1"
               disabled={pending}
               onClick={() => startTransition(async () => {
                 const r = await addConsent(createClient(), { clientId, kind: ask });
@@ -84,10 +83,9 @@ export default function ConsentsCard({
                   router.refresh();
                 }
               })}
-              className="flex-1 rounded-field bg-grad py-2 text-label font-extrabold text-white disabled:opacity-40"
             >
               Lo ha consentido
-            </button>
+            </Button>
           </div>
         </div>
       )}

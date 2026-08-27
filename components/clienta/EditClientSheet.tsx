@@ -50,13 +50,9 @@ export default function EditClientSheet({ client }: { client: ClientRow }) {
       footer={
         <>
           {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
-          <button
-            onClick={save}
-            disabled={name.trim().length < 2 || pending}
-            className="w-full rounded-field bg-grad py-3.5 text-body-lg font-extrabold text-white shadow-btn disabled:opacity-40"
-          >
+          <Button size="lg" full onClick={save} disabled={name.trim().length < 2 || pending}>
             {pending ? 'Guardando…' : 'Guardar cambios'}
-          </button>
+          </Button>
         </>
       }
     >

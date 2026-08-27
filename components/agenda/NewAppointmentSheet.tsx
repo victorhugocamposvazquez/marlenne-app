@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { Search, UserPlus, X } from 'lucide-react';
 import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet';
+import Button from '@/components/ui/Button';
 import NextSlotControls from '@/components/agenda/NextSlotControls';
 import { CATEGORIES, avatarColor } from '@/lib/categories';
 import { createAppointment, slotsFor } from '@/lib/agenda-write';
@@ -102,13 +103,9 @@ export default function NewAppointmentSheet({
               {error}
             </p>
           )}
-          <button
-            onClick={save}
-            disabled={!ready}
-            className="w-full rounded-field bg-grad py-3.5 text-body-lg font-extrabold text-white shadow-btn transition disabled:opacity-40 disabled:shadow-none"
-          >
+          <Button size="lg" full onClick={save} disabled={!ready} className="disabled:shadow-none">
             {pending ? 'Guardando…' : 'Guardar cita'}
-          </button>
+          </Button>
         </>
       }
     >
@@ -128,9 +125,9 @@ export default function NewAppointmentSheet({
             <button
               onClick={() => { setClient(null); setQuery(''); }}
               aria-label="Quitar clienta"
-              className="grid h-7 w-7 shrink-0 place-items-center rounded-chip bg-surface-card text-ink-2"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-icon bg-surface-card text-ink-2 transition active:scale-[.96]"
             >
-              <X size={15} strokeWidth={2.2} />
+              <X size={16} strokeWidth={2.2} />
             </button>
           </div>
         ) : (
