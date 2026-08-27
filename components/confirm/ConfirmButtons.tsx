@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { linkCopy, respondAppointmentLink, type LinkPeek } from '@/lib/confirm-link';
 import { createClient } from '@/lib/supabase/client';
 import { shortWhen } from '@/lib/time';
+import Button from '@/components/ui/Button';
 
 export default function ConfirmButtons({
   token, firstName, service, startsAt,
@@ -37,22 +38,12 @@ export default function ConfirmButtons({
         {' '}es {shortWhen(startsAt)}.
       </p>
       <div className="mt-6 flex flex-col gap-2.5">
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => act('yes')}
-          className="w-full rounded-field bg-grad py-3.5 text-body-lg font-extrabold text-white shadow-btn disabled:opacity-40"
-        >
+        <Button size="lg" full disabled={pending} onClick={() => act('yes')}>
           Sí, voy
-        </button>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => act('no')}
-          className="w-full rounded-field border border-surface-line bg-surface-card py-3.5 text-body-lg font-bold text-ink-2 disabled:opacity-40"
-        >
+        </Button>
+        <Button size="lg" full variant="secondary" disabled={pending} onClick={() => act('no')}>
           No puedo
-        </button>
+        </Button>
       </div>
       {err && <p className="mt-3 text-body font-semibold text-danger-fg">{err}</p>}
     </>

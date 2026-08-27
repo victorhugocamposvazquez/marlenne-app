@@ -7,6 +7,7 @@ import { deleteTreatmentPhoto } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/Toast';
 import type { TreatmentPhoto, TreatmentRow } from '@/lib/types';
+import Skeleton from '@/components/ui/Skeleton';
 import { Empty } from './Tabs';
 import PhotoUpload from './PhotoUpload';
 
@@ -36,7 +37,7 @@ function Frame({
 
   return (
     <div className="min-w-0 flex-1">
-      <div className="mb-1 text-micro font-bold uppercase tracking-[.03em] text-ink-3">{label}</div>
+      <div className="mb-1 text-caption font-bold uppercase tracking-[.03em] text-ink-2">{label}</div>
       {photo && url ? (
         <div className="relative">
           {/* Enlace firmado y temporal del bucket privado: no pasa por el optimizador. */}
@@ -52,14 +53,14 @@ function Frame({
                 type="button"
                 disabled={pending}
                 onClick={() => onDelete(photo)}
-                className="rounded-chip bg-danger px-3 py-1.5 text-label font-extrabold text-white disabled:opacity-40"
+                className="min-h-[44px] rounded-chip bg-danger px-3 text-label font-extrabold text-white disabled:opacity-40"
               >
                 Borrar
               </button>
               <button
                 type="button"
                 onClick={onCancel}
-                className="text-caption font-bold text-white"
+                className="min-h-[44px] text-caption font-bold text-white"
               >
                 Dejarla
               </button>
@@ -69,14 +70,16 @@ function Frame({
               type="button"
               aria-label={`Borrar foto ${label}`}
               onClick={() => onAsk(photo.id)}
-              className="absolute right-1.5 top-1.5 grid h-8 w-8 place-items-center rounded-chip bg-surface-card/90 text-danger-fg shadow-card"
+              className="absolute right-1.5 top-1.5 grid h-11 w-11 place-items-center rounded-icon bg-surface-card/90 text-danger-fg shadow-card motion-safe:active:scale-[.96]"
             >
               <Trash2 size={14} strokeWidth={2.3} />
             </button>
           )}
         </div>
+      ) : photo ? (
+        <Skeleton className="aspect-[3/4] w-full rounded-icon" />
       ) : (
-        <div className="grid aspect-[3/4] w-full place-items-center rounded-icon border border-dashed border-handle bg-surface-bg/50 text-caption font-semibold text-ink-3">
+        <div className="grid aspect-[3/4] w-full place-items-center rounded-icon border border-dashed border-handle bg-surface-bg/50 text-caption font-semibold text-ink-2">
           Sin foto
         </div>
       )}

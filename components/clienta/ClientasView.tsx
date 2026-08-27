@@ -6,6 +6,8 @@ import { CalendarPlus, MessageCircle, Phone, Plus, Search } from 'lucide-react';
 import NewClientSheet from '@/components/clienta/NewClientSheet';
 import Chip from '@/components/ui/Chip';
 import EmptyState from '@/components/ui/EmptyState';
+import IconButton from '@/components/ui/IconButton';
+import Badge from '@/components/ui/Badge';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 import { avatarColor, initials } from '@/lib/categories';
 import { phoneDigits, waHref, waRecallMsg } from '@/lib/phone';
@@ -62,16 +64,15 @@ export default function ClientasView({
                 : `${shown.length} de ${clients.length}`}
             </p>
           </div>
-          <button
-            type="button"
+          <IconButton
+            label="Nueva clienta"
+            tone="brand"
             onClick={() => shallowSet({ alta: '1' })}
-            aria-label="Nueva clienta"
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-icon bg-grad text-white shadow-btn transition active:scale-[.96]"
           >
             <Plus size={20} strokeWidth={2.4} />
-          </button>
+          </IconButton>
         </div>
-        <div className="mt-3.5 flex items-center gap-2.5 rounded-field border border-surface-line bg-surface-card px-3.5 shadow-card">
+        <div className="mt-3.5 flex items-center gap-2.5 rounded-field border border-surface-line bg-surface-card px-3.5 shadow-card focus-within:border-v focus-within:ring-2 focus-within:ring-v/40">
           <Search size={17} className="text-ink-3" strokeWidth={2.2} />
           <input
             value={q}
@@ -117,11 +118,11 @@ export default function ClientasView({
           return (
             <div
               key={c.id}
-              className="flex items-center gap-2 rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card"
+              className="flex items-center gap-2 rounded-row border border-surface-line bg-surface-card p-4 shadow-card"
             >
               <Link href={`/clientas/${c.id}`} className="flex min-w-0 flex-1 items-center gap-3">
                 <span
-                  className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-icon text-body font-bold text-white"
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-icon text-body font-bold text-white"
                   style={{ background: avatarColor(c.full_name) }}
                 >
                   {initials(c.full_name)}
@@ -130,10 +131,10 @@ export default function ClientasView({
                   <span className="flex items-center gap-1.5">
                     <span className="truncate text-body font-bold tracking-[-.01em]">{c.full_name}</span>
                     {c.tags?.includes('VIP') && (
-                      <span className="shrink-0 rounded-badge bg-v-soft px-[7px] py-0.5 text-micro font-extrabold text-v-d">VIP</span>
+                      <Badge tone="brand">VIP</Badge>
                     )}
                   </span>
-                  <span className="block truncate text-caption font-medium text-ink-3">
+                  <span className="block truncate text-caption font-medium text-ink-2">
                     {c.next_at
                       ? `Próxima ${shortWhen(c.next_at)}`
                       : c.last_at
@@ -147,7 +148,7 @@ export default function ClientasView({
               <Link
                 href={`/agenda?new=1&client=${c.id}`}
                 aria-label={`Nueva cita para ${c.full_name}`}
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-icon border border-surface-line bg-surface-card text-v-d transition active:scale-[.96]"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-icon border border-surface-line bg-surface-card text-v-d motion-safe:active:scale-[.96]"
               >
                 <CalendarPlus size={16} strokeWidth={2.2} />
               </Link>
@@ -155,7 +156,7 @@ export default function ClientasView({
                 <a
                   href={`tel:${c.phone}`}
                   aria-label={`Llamar a ${c.full_name}`}
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-icon bg-v-tint text-v-d transition active:scale-[.96]"
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-icon bg-v-tint text-v-d motion-safe:active:scale-[.96]"
                 >
                   <Phone size={16} strokeWidth={2.2} />
                 </a>
@@ -166,7 +167,7 @@ export default function ClientasView({
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={`WhatsApp a ${c.full_name}`}
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-icon bg-ok-bg text-ok-fg transition active:scale-[.96]"
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-icon bg-ok-bg text-ok-fg motion-safe:active:scale-[.96]"
                 >
                   <MessageCircle size={16} strokeWidth={2.2} />
                 </a>

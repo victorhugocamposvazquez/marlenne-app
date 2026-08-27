@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 
 export default function EmptyState({
@@ -8,9 +9,9 @@ export default function EmptyState({
   className = '',
 }: {
   icon?: LucideIcon;
-  title: React.ReactNode;
-  hint?: React.ReactNode;
-  action?: React.ReactNode;
+  title: ReactNode;
+  hint?: ReactNode;
+  action?: ReactNode;
   className?: string;
 }) {
   return (
@@ -21,7 +22,7 @@ export default function EmptyState({
         </span>
       )}
       <p className="text-body font-semibold text-ink-2">{title}</p>
-      {hint && <p className="text-label font-medium text-ink-3">{hint}</p>}
+      {hint && <p className="text-label font-medium text-ink-2">{hint}</p>}
       {action && <div className="mt-1">{action}</div>}
     </div>
   );

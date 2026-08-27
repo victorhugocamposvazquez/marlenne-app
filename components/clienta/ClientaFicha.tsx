@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, CalendarPlus, Mail, MessageCircle, Pencil, Phone } from 'lucide-react';
 import EditClientSheet from '@/components/clienta/EditClientSheet';
 import IconButton from '@/components/ui/IconButton';
+import Badge from '@/components/ui/Badge';
 import ConsentsCard from '@/components/clienta/ConsentsCard';
 import QuickNotes from '@/components/clienta/QuickNotes';
 import Tabs, { parseTab, type TabId } from '@/components/clienta/Tabs';
@@ -78,10 +79,10 @@ export default function ClientaFicha({
           {initials(client.full_name)}
         </span>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-title font-extrabold leading-tight tracking-[-.025em]">
+          <h1 className="truncate text-h1 font-extrabold leading-tight tracking-[-.025em]">
             {client.full_name}
           </h1>
-          <p className="mt-0.5 text-label font-medium text-ink-3">
+          <p className="mt-0.5 text-label font-medium text-ink-2">
             {[
               age !== null ? `${age} años` : null,
               `alta ${dateLbl(client.created_at)}`,
@@ -98,7 +99,7 @@ export default function ClientaFicha({
           <Link
             href={`/agenda?new=1&client=${client.id}`}
             aria-label="Nueva cita para esta clienta"
-            className="grid h-11 w-11 place-items-center rounded-icon bg-grad text-white shadow-btn transition active:scale-[.96]"
+            className="grid h-11 w-11 place-items-center rounded-icon bg-grad text-white shadow-btn transition motion-safe:active:scale-[.96]"
           >
             <CalendarPlus size={19} strokeWidth={2.2} />
           </Link>
@@ -108,9 +109,7 @@ export default function ClientaFicha({
       {client.tags?.length > 0 && (
         <div className="mt-2.5 flex flex-wrap gap-1.5">
           {client.tags.map(tag => (
-            <span key={tag} className="rounded-badge bg-v-soft px-2 py-1 text-micro font-extrabold text-v-d">
-              {tag}
-            </span>
+            <Badge key={tag} tone="brand">{tag}</Badge>
           ))}
         </div>
       )}
@@ -118,7 +117,7 @@ export default function ClientaFicha({
       {nextAppt && (
         <Link
           href={`/agenda?day=${offsetFromDay(nextAppt.starts_at)}&appt=${nextAppt.id}`}
-          className="mt-2.5 flex items-center justify-between gap-2 rounded-chip border border-v/25 bg-v-tint px-3 py-2"
+          className="mt-2.5 flex items-center justify-between gap-2 rounded-row border border-v/25 bg-v-tint px-3.5 py-3"
         >
           <span className="min-w-0">
             <span className="block text-micro font-bold uppercase tracking-[.03em] text-v-d">Próxima cita</span>
@@ -139,7 +138,7 @@ export default function ClientaFicha({
         {client.phone && (
           <a
             href={`tel:${client.phone}`}
-            className="flex min-h-[44px] items-center gap-1.5 rounded-chip border border-surface-line bg-surface-card px-3 text-label font-bold shadow-card transition active:scale-[.97]"
+            className="flex min-h-[44px] items-center gap-1.5 rounded-chip border border-surface-line bg-surface-card px-3 text-label font-bold shadow-card transition motion-safe:active:scale-[.97]"
           >
             <Phone size={13} strokeWidth={2.4} className="text-v" />
             {client.phone}
@@ -150,7 +149,7 @@ export default function ClientaFicha({
             href={wa}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex min-h-[44px] items-center gap-1.5 rounded-chip border border-ok-line bg-ok-bg px-3 text-label font-bold text-ok-strong shadow-card transition active:scale-[.97]"
+            className="flex min-h-[44px] items-center gap-1.5 rounded-chip border border-ok-line bg-ok-bg px-3 text-label font-bold text-ok-strong shadow-card transition motion-safe:active:scale-[.97]"
           >
             <MessageCircle size={13} strokeWidth={2.4} />
             WhatsApp
@@ -159,7 +158,7 @@ export default function ClientaFicha({
         {client.email && (
           <a
             href={`mailto:${client.email}`}
-            className="flex min-h-[44px] min-w-0 items-center gap-1.5 rounded-chip border border-surface-line bg-surface-card px-3 text-label font-bold shadow-card transition active:scale-[.97]"
+            className="flex min-h-[44px] min-w-0 items-center gap-1.5 rounded-chip border border-surface-line bg-surface-card px-3 text-label font-bold shadow-card transition motion-safe:active:scale-[.97]"
           >
             <Mail size={13} strokeWidth={2.4} className="text-v" />
             <span className="truncate">{client.email}</span>

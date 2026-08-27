@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react';
 import { Search, UserPlus, X } from 'lucide-react';
 import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
+import IconButton from '@/components/ui/IconButton';
 import NextSlotControls from '@/components/agenda/NextSlotControls';
 import { CATEGORIES, avatarColor } from '@/lib/categories';
 import { createAppointment, slotsFor } from '@/lib/agenda-write';
@@ -113,7 +114,7 @@ export default function NewAppointmentSheet({
         {client ? (
           <div className="flex items-center gap-2.5 rounded-field border border-surface-line bg-v-tint px-3.5 py-3">
             <span
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-chip text-caption font-bold text-white"
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-icon text-label font-bold text-white"
               style={{ background: avatarColor(client.full_name) }}
             >
               {client.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
@@ -122,13 +123,12 @@ export default function NewAppointmentSheet({
               <span className="block truncate text-body font-bold">{client.full_name}</span>
               {client.phone && <span className="block text-caption font-medium text-ink-2">{client.phone}</span>}
             </span>
-            <button
+            <IconButton
+              label="Quitar clienta"
               onClick={() => { setClient(null); setQuery(''); }}
-              aria-label="Quitar clienta"
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-icon bg-surface-card text-ink-2 transition active:scale-[.96]"
             >
               <X size={16} strokeWidth={2.2} />
-            </button>
+            </IconButton>
           </div>
         ) : (
           <>

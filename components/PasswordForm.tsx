@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { changePassword } from '@/app/actions/auth';
 import { inputCls } from '@/components/Sheet';
+import Button from '@/components/ui/Button';
 import { useToast } from '@/components/Toast';
 
 export default function PasswordForm() {
@@ -30,7 +31,7 @@ export default function PasswordForm() {
 
   return (
     <section className="mt-6">
-      <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-3">Tu contraseña</h2>
+      <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">Tu contraseña</h2>
       <div className="rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
         <input
           className={`${inputCls} mb-2`}
@@ -49,13 +50,13 @@ export default function PasswordForm() {
           onChange={e => setConfirm(e.target.value)}
         />
         {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
-        <button
+        <Button
+          full
           onClick={save}
           disabled={pending || password.length < 8}
-          className="w-full rounded-field bg-grad py-3 text-body font-extrabold text-white shadow-btn disabled:opacity-40"
         >
           {pending ? 'Guardando…' : 'Cambiar contraseña'}
-        </button>
+        </Button>
       </div>
     </section>
   );

@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { createMember, updateMember } from '@/app/actions/staff';
 import { avatarColor } from '@/lib/categories';
 import { Chip, Field, inputCls } from '@/components/Sheet';
+import Button from '@/components/ui/Button';
 import { useToast } from '@/components/Toast';
 import type { Provider, StaffRole } from '@/lib/types';
 
@@ -25,11 +26,11 @@ export default function TeamEditor({ team, meId }: { team: Provider[]; meId: str
   return (
     <div>
       <div className="mb-2.5 flex items-center justify-between">
-        <h2 className="text-body font-extrabold uppercase tracking-[.04em] text-ink-3">Equipo</h2>
+        <h2 className="text-body font-extrabold uppercase tracking-[.04em] text-ink-2">Equipo</h2>
         <button
           type="button"
           onClick={() => { setAdding(a => !a); setCreated(null); }}
-          className="rounded-chip bg-v-soft px-2.5 py-1 text-caption font-bold text-v-d"
+          className="min-h-[44px] rounded-chip bg-v-soft px-3 text-label font-bold text-v-d motion-safe:active:scale-[.97]"
         >
           {adding ? 'Cerrar' : 'Añadir'}
         </button>
@@ -65,7 +66,7 @@ export default function TeamEditor({ team, meId }: { team: Provider[]; meId: str
               className="flex w-full items-center gap-3 p-3 text-left"
             >
               <span
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-chip text-caption font-bold text-white"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-icon text-label font-bold text-white"
                 style={{ background: p.color ?? avatarColor(p.full_name) }}
               >
                 {p.initials}
@@ -130,13 +131,13 @@ function AddForm({
           ))}
         </div>
       </Field>
-      <button
+      <Button
+        full
         disabled={pending || name.trim().length < 2 || !email.includes('@')}
         onClick={() => onSave({ email, full_name: name, role, job_title: title })}
-        className="w-full rounded-field bg-grad py-3 text-body font-extrabold text-white disabled:opacity-40"
       >
         {pending ? 'Creando…' : 'Crear acceso'}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -168,17 +169,17 @@ function EditForm({
           ))}
         </div>
       </Field>
-      <label className="mb-3 flex items-center gap-2 text-body font-bold">
-        <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} className="h-5 w-5 accent-v" />
+      <label className="mb-3 flex items-center gap-2.5 text-body font-bold">
+        <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} />
         Activa en la agenda
       </label>
-      <button
+      <Button
+        full
         disabled={pending || name.trim().length < 2}
         onClick={() => onSave({ full_name: name, role, job_title: title, is_active: active })}
-        className="w-full rounded-field bg-grad py-2.5 text-body font-extrabold text-white disabled:opacity-40"
       >
         {pending ? 'Guardando…' : 'Guardar'}
-      </button>
+      </Button>
     </div>
   );
 }

@@ -178,7 +178,7 @@ export default function DayGrid({
                 <div key={i} className="absolute top-0 w-px bg-grid-v" style={{ left: (i + 1) * COL_W - 4, height: gridH }} />
               ))}
               {appointments.length === 0 && (
-                <p className="absolute left-2 right-2 z-[2] text-center text-body font-semibold text-ink-3" style={{ top: 48 }}>
+                <p className="absolute left-2 right-2 z-[2] text-center text-body font-semibold text-ink-2" style={{ top: 48 }}>
                   No hay citas este día
                 </p>
               )}
@@ -264,7 +264,7 @@ export default function DayGrid({
                       background: st.bg,
                       border: `1px solid ${st.border}`,
                       borderLeft: `4px solid ${st.edge}`,
-                      boxShadow: pos.dragging ? '0 18px 44px rgba(20,10,60,.30)' : '0 4px 20px rgba(20,10,60,.07)',
+                      boxShadow: pos.dragging ? 'var(--sh-drag)' : 'var(--sh-card)',
                       transform: pos.dragging ? 'scale(1.03)' : 'none',
                       opacity: a.status === 'done' ? 0.62 : 1,
                       zIndex: pos.dragging ? 12 : 2,
@@ -313,14 +313,14 @@ export default function DayGrid({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-3 overflow-x-auto px-5 pb-2.5 pt-2 text-caption font-semibold text-ink-3">
+      <div className="flex shrink-0 items-center gap-3 overflow-x-auto px-5 pb-2.5 pt-2 text-caption font-semibold text-ink-2">
         {Object.values(CATEGORIES).slice(0, 5).map(c => (
           <span key={c.label} className="flex shrink-0 items-center gap-[5px]">
             <span className="inline-block h-2 w-2 rounded-sm" style={{ background: c.color }} />
             {c.label}
           </span>
         ))}
-        <span className="ml-auto shrink-0 font-medium">Mantén para mover · toca para abrir</span>
+        <span className="ml-auto shrink-0 font-medium text-ink-2">Mantén para mover · toca para abrir</span>
       </div>
     </div>
   );

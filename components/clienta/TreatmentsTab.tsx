@@ -8,6 +8,7 @@ import { dateLbl } from '@/lib/time';
 import { updateTreatment } from '@/lib/client-write';
 import { createClient } from '@/lib/supabase/client';
 import AutoGrowTextarea from '@/components/AutoGrowTextarea';
+import { buttonClass } from '@/components/ui/Button';
 import { inputCls } from '@/components/Sheet';
 import type { TreatmentRow } from '@/lib/types';
 import { Empty } from './Tabs';
@@ -24,7 +25,7 @@ export default function TreatmentsTab({
         <Empty>Esta clienta todavía no tiene tratamientos. Se abren al marcar una cita como hecha.</Empty>
         <Link
           href={`/agenda?new=1&client=${clientId}`}
-          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-field bg-grad px-4 text-body font-extrabold text-white shadow-btn transition active:scale-[.97]"
+          className={buttonClass({ className: 'px-4' })}
         >
           <CalendarPlus size={16} strokeWidth={2.2} />
           Dar cita
@@ -99,7 +100,7 @@ function TreatmentCard({ t, clientId }: { t: TreatmentRow; clientId: string }) {
       {open && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <label>
-            <span className="mb-1 block text-micro font-bold uppercase tracking-[.03em] text-ink-3">Zona</span>
+            <span className="mb-1 block text-caption font-bold uppercase tracking-[.03em] text-ink-2">Zona</span>
             <input
               className={inputCls}
               placeholder="Abdomen, facial…"
@@ -112,7 +113,7 @@ function TreatmentCard({ t, clientId }: { t: TreatmentRow; clientId: string }) {
             />
           </label>
           <label>
-            <span className="mb-1 block text-micro font-bold uppercase tracking-[.03em] text-ink-3">Sesiones pactadas</span>
+            <span className="mb-1 block text-caption font-bold uppercase tracking-[.03em] text-ink-2">Sesiones pactadas</span>
             <input
               className={inputCls}
               inputMode="numeric"
@@ -130,7 +131,7 @@ function TreatmentCard({ t, clientId }: { t: TreatmentRow; clientId: string }) {
 
       {params.length > 0 && (
         <div className="mt-3">
-          <div className="mb-1.5 text-micro font-bold uppercase tracking-[.03em] text-ink-3">
+          <div className="mb-1.5 text-caption font-bold uppercase tracking-[.03em] text-ink-2">
             Última sesión
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -145,7 +146,7 @@ function TreatmentCard({ t, clientId }: { t: TreatmentRow; clientId: string }) {
 
       {open ? (
         <label className="mt-3 block">
-          <span className="mb-1 block text-micro font-bold uppercase tracking-[.03em] text-ink-3">Nota clínica</span>
+          <span className="mb-1 block text-caption font-bold uppercase tracking-[.03em] text-ink-2">Nota clínica</span>
           <AutoGrowTextarea
             className={`${inputCls} resize-none`}
             placeholder="Reacción, siguiente cita, parámetros que no se olviden…"

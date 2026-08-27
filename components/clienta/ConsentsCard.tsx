@@ -32,7 +32,7 @@ export default function ConsentsCard({
         <ShieldCheck size={16} strokeWidth={2.2} className="text-v" />
         Consentimientos
       </div>
-      <p className="mb-2.5 text-caption font-medium leading-snug text-ink-3">
+      <p className="mb-2.5 text-caption font-medium leading-snug text-ink-2">
         Se registra que la clienta lo ha consentido en persona. No sustituye el documento en papel si el centro lo usa.
       </p>
       <div className="flex flex-col gap-2">
@@ -53,7 +53,7 @@ export default function ConsentsCard({
                 <button
                   disabled={pending}
                   onClick={() => setAsk(kind)}
-                  className="rounded-chip bg-v-soft px-2.5 py-1 text-caption font-bold text-v-d disabled:opacity-40"
+                  className="min-h-[44px] rounded-chip bg-v-soft px-3 text-label font-bold text-v-d disabled:opacity-40"
                 >
                   {expired ? 'Renovar' : 'Registrar'}
                 </button>

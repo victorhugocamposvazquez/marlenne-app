@@ -25,7 +25,7 @@ export default function IosShortcutsCard() {
 
   return (
     <section className="mt-6">
-      <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-3">
+      <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">
         iPhone · Siri y atajos
       </h2>
       <div className="rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">

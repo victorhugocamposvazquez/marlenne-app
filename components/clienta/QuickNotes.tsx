@@ -30,7 +30,7 @@ export default function QuickNotes({
 
   return (
     <div className="mt-2.5">
-      <div className="mb-1 text-micro font-bold uppercase tracking-[.03em] text-ink-3">Notas internas</div>
+      <div className="mb-1 text-caption font-bold uppercase tracking-[.03em] text-ink-2">Notas internas</div>
       <AutoGrowTextarea
         className={`${inputCls} resize-none`}
         placeholder="Alergias, prefiere tardes, viene con…"

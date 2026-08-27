@@ -16,7 +16,7 @@ export default function BottomNav({ role }: { role: string }) {
   const Item = ({ href, icon: Icon, label }: { href: string; icon: typeof Home; label: string }) => (
     <Link
       href={href}
-      className="flex flex-1 flex-col items-center gap-1 py-1.5 text-micro font-bold"
+      className="flex flex-1 flex-col items-center gap-1 py-1.5 text-caption font-bold"
       style={{ color: on(href) ? ACTIVE : IDLE }}
     >
       <Icon size={21} strokeWidth={1.9} fill={on(href) ? 'rgb(var(--c-brand-soft))' : 'none'} />
@@ -42,7 +42,7 @@ export default function BottomNav({ role }: { role: string }) {
         href="/agenda?new=1"
         onClick={openNew}
         aria-label="Nueva cita"
-        className="mx-1.5 grid h-14 w-14 shrink-0 place-items-center rounded-card bg-grad text-white shadow-btn transition hover:-translate-y-[3px] active:scale-[.96]"
+        className="mx-1.5 grid h-14 w-14 shrink-0 place-items-center rounded-card bg-grad text-white shadow-btn transition motion-safe:hover:-translate-y-[3px] motion-safe:active:scale-[.96]"
       >
         <Plus size={26} strokeWidth={2.4} />
       </Link>

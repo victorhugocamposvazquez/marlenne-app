@@ -42,7 +42,7 @@ export default function NextSlotControls({
           type="button"
           disabled={pending || !durationMin}
           onClick={() => find(false)}
-          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-chip border border-v/25 bg-v-tint px-3 text-label font-bold text-v-d transition active:scale-[.97] disabled:opacity-40"
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-chip border border-v/25 bg-v-tint px-3 text-label font-bold text-v-d transition motion-safe:active:scale-[.97] disabled:opacity-40"
         >
           <Sparkles size={14} strokeWidth={2.2} />
           {pending ? 'Buscando…' : 'Próximo hueco'}
@@ -52,7 +52,7 @@ export default function NextSlotControls({
             type="button"
             disabled={pending || !durationMin}
             onClick={() => find(true)}
-            className="inline-flex min-h-[44px] items-center rounded-chip border border-surface-line bg-surface-card px-3 text-label font-bold text-ink-2 transition active:scale-[.97] disabled:opacity-40"
+            className="inline-flex min-h-[44px] items-center rounded-chip border border-surface-line bg-surface-card px-3 text-label font-bold text-ink-2 transition motion-safe:active:scale-[.97] disabled:opacity-40"
           >
             En cualquiera
           </button>

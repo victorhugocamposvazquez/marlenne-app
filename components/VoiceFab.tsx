@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Mic, Square, X } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import IconButton from '@/components/ui/IconButton';
 import {
   voiceAddWait, voiceApplyCancel, voiceApplyMove, voiceApplyStatus, voiceConfirmBook,
   voiceMatchClient, voicePreviewBook, voicePreviewCancel, voicePreviewMove, voicePreviewStatus,
@@ -900,14 +902,9 @@ export default function VoiceFab() {
       {open && (
         <div className="pointer-events-auto mb-2 w-full max-w-[360px] rounded-row border border-surface-line bg-surface-card p-3 shadow-toast">
           <div className="mb-1 flex justify-end">
-            <button
-              type="button"
-              onClick={dismiss}
-              aria-label="Cerrar"
-              className="grid h-11 w-11 place-items-center rounded-icon text-ink-3 transition active:scale-[.96]"
-            >
+            <IconButton label="Cerrar" tone="ghost" onClick={dismiss}>
               <X size={18} strokeWidth={2.4} />
-            </button>
+            </IconButton>
           </div>
           {panel.mode === 'listen' && (
             <p className="text-body font-semibold text-ink-2">
@@ -990,7 +987,7 @@ export default function VoiceFab() {
                   <button
                     type="button"
                     onClick={dismiss}
-                    className="rounded-chip border border-surface-line py-2 text-label font-bold text-ink-2"
+                    className="min-h-[44px] rounded-chip border border-surface-line px-3 text-label font-bold text-ink-2"
                   >
                     Cancelar
                   </button>
@@ -998,23 +995,19 @@ export default function VoiceFab() {
               )}
               {!panel.choices && (
                 <div className="mt-2 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={dismiss}
-                    className="flex-1 rounded-chip border border-surface-line py-2 text-label font-bold text-ink-2"
-                  >
+                  <Button variant="secondary" className="flex-1" onClick={dismiss}>
                     Cancelar
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    className="flex-1"
                     disabled={pending}
                     onClick={() => startTransition(async () => {
                       const r = await panel.run();
                       finish(r.say, r.href);
                     })}
-                    className="flex-1 rounded-chip bg-grad py-2 text-label font-extrabold text-white disabled:opacity-40"
                   >
                     Sí
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -1024,7 +1017,7 @@ export default function VoiceFab() {
               <p className="font-bold text-ink">Así se usa</p>
               <p className="mt-1">1. «Dime», o toca el micro. En Más se apaga el oído.</p>
               <p>2. Si va a guardar, te pide confirmación.</p>
-              <p className="mt-2 text-label text-ink-3">
+      <p className="mt-2 text-label text-ink-2">
                 Ej.: quién tiene hueco el miércoles a las 11:30 · cita para Lucía con Valeria a las 11:30
               </p>
             </div>
@@ -1059,7 +1052,7 @@ export default function VoiceFab() {
             const overlay = open && (panel.mode === 'ask' || panel.mode === 'confirm');
             tapMic(overlay ? { overlay: true } : undefined);
           }}
-          className={`pointer-events-auto grid h-14 w-14 place-items-center rounded-card text-white shadow-btn transition active:scale-[.96] ${
+          className={`pointer-events-auto grid h-14 w-14 place-items-center rounded-card text-white shadow-btn transition motion-safe:active:scale-[.96] ${
             hearing ? 'bg-danger' : 'bg-grad'
           }`}
         >

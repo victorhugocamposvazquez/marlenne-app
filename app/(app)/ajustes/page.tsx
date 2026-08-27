@@ -4,6 +4,7 @@ import { getReadyStatus } from '@/lib/ready';
 import { signOut } from '@/app/actions/auth';
 import { avatarColor } from '@/lib/categories';
 import { LogOut } from 'lucide-react';
+import Button from '@/components/ui/Button';
 import PasswordForm from '@/components/PasswordForm';
 import CatalogEditor from '@/components/CatalogEditor';
 import TeamEditor from '@/components/TeamEditor';
@@ -46,19 +47,19 @@ export default async function AjustesPage() {
           <TeamEditor team={team} meId={me.id} />
         ) : (
           <>
-            <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-3">Equipo</h2>
+            <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">Equipo</h2>
             <div className="flex flex-col gap-2">
               {team.map(p => (
                 <div key={p.id} className="flex items-center gap-3 rounded-row border border-surface-line bg-surface-card p-3 shadow-card">
                   <span
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-chip text-caption font-bold text-white"
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-icon text-label font-bold text-white"
                     style={{ background: p.color ?? avatarColor(p.full_name) }}
                   >
                     {p.initials}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-body font-bold">{p.full_name}</span>
-                    <span className="block truncate text-caption font-medium text-ink-3">{p.job_title}</span>
+                    <span className="block truncate text-caption font-medium text-ink-2">{p.job_title}</span>
                   </span>
                 </div>
               ))}
@@ -69,17 +70,17 @@ export default async function AjustesPage() {
 
       {me.role === 'admin' && (
         <section className="mt-6">
-          <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-3">
+          <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">
             Catálogo · {services.length} servicios
           </h2>
-          <p className="mb-2.5 text-label font-medium text-ink-3">Toca un servicio para cambiar precio, duración o ocultarlo.</p>
+          <p className="mb-2.5 text-label font-medium text-ink-2">Toca un servicio para cambiar precio, duración o ocultarlo.</p>
           <CatalogEditor services={services} />
         </section>
       )}
 
       {me.role === 'admin' && ready.length > 0 && (
         <section className="mt-6">
-          <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-3">
+          <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">
             Antes de clientas reales
           </h2>
           <ul className="rounded-row border border-surface-line bg-surface-card px-3.5 py-2 shadow-card">
@@ -88,7 +89,7 @@ export default async function AjustesPage() {
                 <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${item.ok ? 'bg-ok' : 'bg-danger'}`} />
                 <span>
                   <span className="block text-body font-semibold">{item.label}</span>
-                  <span className="block text-caption font-medium leading-snug text-ink-3">{item.hint}</span>
+                  <span className="block text-caption font-medium leading-snug text-ink-2">{item.hint}</span>
                 </span>
               </li>
             ))}
@@ -103,7 +104,7 @@ export default async function AjustesPage() {
       <PasswordForm />
 
       <section className="mt-6">
-        <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-3">En el radar</h2>
+        <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">En el radar</h2>
         <ul className="rounded-row border border-surface-line bg-surface-card px-3.5 py-2 shadow-card">
           {ROADMAP.map(item => (
             <li key={item.label} className="flex items-start gap-2.5 border-b border-surface-line py-2.5 last:border-0">
@@ -115,10 +116,10 @@ export default async function AjustesPage() {
       </section>
 
       <form action={signOut} className="mt-8">
-        <button className="flex w-full items-center justify-center gap-2 rounded-field border border-surface-line bg-surface-card py-3.5 text-body font-bold text-danger-fg shadow-card">
+        <Button type="submit" variant="secondary" full className="text-danger-fg">
           <LogOut size={17} strokeWidth={2.2} />
           Cerrar sesión
-        </button>
+        </Button>
       </form>
     </div>
   );

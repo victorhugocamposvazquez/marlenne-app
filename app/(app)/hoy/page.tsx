@@ -62,7 +62,7 @@ export default async function HoyPage() {
         {!cabin && (
           <Link
             href="/agenda?wait=1"
-            className="relative grid h-11 w-11 place-items-center rounded-icon border border-surface-line bg-surface-card text-ink-2 shadow-card transition active:scale-[.96]"
+            className="relative grid h-11 w-11 place-items-center rounded-icon border border-surface-line bg-surface-card text-ink-2 shadow-card transition motion-safe:active:scale-[.96]"
             aria-label="Lista de espera"
           >
             <Bell size={19} strokeWidth={2} />
@@ -90,7 +90,7 @@ export default async function HoyPage() {
             <div className="relative">
               <div className="text-caption font-semibold text-white/85">{todayLbl}</div>
               <div className="mt-1.5 flex items-end gap-2">
-                <div className="text-[40px] font-extrabold leading-none tracking-[-.03em]">{appointments.length}</div>
+                <div className="text-display font-extrabold leading-none tracking-[-.03em]">{appointments.length}</div>
                 <div className="pb-[5px] text-body font-semibold">{appointments.length === 1 ? 'cita hoy' : 'citas hoy'}</div>
               </div>
               <div className="mt-3.5 flex flex-wrap gap-2">
@@ -105,14 +105,14 @@ export default async function HoyPage() {
 
           <div className="mb-5 flex gap-2.5">
             <div className="flex-1 rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
-              <div className="text-caption font-bold text-ink-3">CAJA HASTA AHORA</div>
+              <div className="text-label font-bold text-ink-2">CAJA HASTA AHORA</div>
               <div className="mt-1 text-h1 font-extrabold tracking-[-.02em]">{cash} €</div>
               <div className="mt-2 h-1.5 overflow-hidden rounded bg-surface-line">
                 <div className="h-1.5 rounded bg-grad" style={{ width: `${revenue ? Math.round((100 * cash) / revenue) : 0}%` }} />
               </div>
             </div>
             <div className="flex-1 rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
-              <div className="text-caption font-bold text-ink-3">HECHAS</div>
+              <div className="text-label font-bold text-ink-2">HECHAS</div>
               <div className="mt-1 text-h1 font-extrabold tracking-[-.02em] tabular-nums">
                 {doneCount}<span className="text-body font-bold text-ink-3"> / {appointments.length}</span>
               </div>
@@ -190,14 +190,14 @@ function LiveRow({ appt, cabin }: { appt: AgendaAppt; cabin: boolean }) {
         <Link
           href={`/clientas/${appt.client_id}`}
           aria-label={`Ficha de ${appt.client_label}`}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-icon border border-ok-line bg-surface-card text-v-d transition active:scale-[.96]"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-icon border border-ok-line bg-surface-card text-v-d transition motion-safe:active:scale-[.96]"
         >
           <UserRound size={16} strokeWidth={2.2} />
         </Link>
       )}
       <Link
         href={appt.client_id ? `/agenda?appt=${appt.id}&close=1` : `/agenda?appt=${appt.id}`}
-        className="grid min-h-[44px] shrink-0 place-items-center rounded-icon bg-ok px-3.5 text-label font-bold text-white transition active:scale-[.97]"
+        className="grid min-h-[44px] shrink-0 place-items-center rounded-icon bg-ok px-3.5 text-label font-bold text-white transition motion-safe:active:scale-[.97]"
       >
         Terminar
       </Link>

@@ -25,7 +25,7 @@ export default function RecallCard({ row }: { row: RecallRow }) {
       <Link
         href={`/agenda?new=1&client=${row.client_id}${servicio}`}
         aria-label={`Dar cita a ${row.full_name}`}
-        className="grid h-11 w-11 shrink-0 place-items-center rounded-icon border border-surface-line bg-surface-card text-v-d transition active:scale-[.96]"
+        className="grid h-11 w-11 shrink-0 place-items-center rounded-icon border border-surface-line bg-surface-card text-v-d transition motion-safe:active:scale-[.96]"
       >
         <CalendarPlus size={16} strokeWidth={2.2} />
       </Link>
@@ -35,7 +35,7 @@ export default function RecallCard({ row }: { row: RecallRow }) {
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`WhatsApp a ${row.full_name}`}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-icon bg-ok-bg text-ok-fg transition active:scale-[.96]"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-icon bg-ok-bg text-ok-fg transition motion-safe:active:scale-[.96]"
         >
           <MessageCircle size={16} strokeWidth={2.2} />
         </a>

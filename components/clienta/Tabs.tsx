@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import EmptyState from '@/components/ui/EmptyState';
 
 const TABS = [
@@ -23,7 +24,7 @@ export default function Tabs({
   onSelect: (id: TabId) => void;
 }) {
   return (
-    <div className="flex gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-icon bg-track p-1">
+    <div role="tablist" aria-label="Secciones de la ficha" className="flex gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-icon bg-track p-1">
       {TABS.map(t => {
         const on = t.id === active;
         const n = counts[t.id];
@@ -31,15 +32,16 @@ export default function Tabs({
           <button
             key={t.id}
             type="button"
+            role="tab"
+            aria-selected={on}
             onClick={() => onSelect(t.id)}
-            aria-current={on ? 'page' : undefined}
-            className={`flex shrink-0 items-center gap-1.5 rounded-chip px-3.5 py-[7px] text-label font-semibold transition ${
+            className={`flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-chip px-3.5 text-label font-semibold transition motion-safe:active:scale-[.97] ${
               on ? 'bg-surface-card text-v-d shadow-seg' : 'text-ink-2'
             }`}
           >
             {t.label}
             {n ? (
-              <span className={`rounded-lg px-1.5 text-micro ${on ? 'bg-v-soft text-v-d' : 'bg-surface-card/70 text-ink-3'}`}>
+              <span className={`rounded-badge px-1.5 text-caption ${on ? 'bg-v-soft text-v-d' : 'bg-surface-card/70 text-ink-2'}`}>
                 {n}
               </span>
             ) : null}
@@ -50,6 +52,6 @@ export default function Tabs({
   );
 }
 
-export function Empty({ children }: { children: React.ReactNode }) {
+export function Empty({ children }: { children: ReactNode }) {
   return <EmptyState title={children} />;
 }

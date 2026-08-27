@@ -69,7 +69,7 @@ export function SessionCloseFields({
           <div className="grid grid-cols-2 gap-2">
             {appt.param_keys.map(key => (
               <label key={key} className="min-w-0">
-                <span className="mb-1 block text-micro font-bold uppercase tracking-[.03em] text-ink-3">
+                <span className="mb-1 block text-caption font-bold uppercase tracking-[.03em] text-ink-2">
                   {key}
                 </span>
                 <input
@@ -88,7 +88,7 @@ export function SessionCloseFields({
           <div className="grid grid-cols-3 gap-2">
             {BODY.map(m => (
               <label key={m.metric} className="min-w-0">
-                <span className="mb-1 block text-micro font-bold uppercase tracking-[.03em] text-ink-3">
+                <span className="mb-1 block text-caption font-bold uppercase tracking-[.03em] text-ink-2">
                   {m.metric}
                 </span>
                 <input

@@ -5,6 +5,7 @@ import { updateService } from '@/app/actions/services';
 import { CATEGORIES } from '@/lib/categories';
 import { durLbl } from '@/lib/time';
 import { inputCls } from '@/components/Sheet';
+import Button from '@/components/ui/Button';
 import { useToast } from '@/components/Toast';
 import type { ServiceOption } from '@/lib/types';
 
@@ -77,28 +78,29 @@ function EditRow({
   return (
     <div className="grid grid-cols-2 gap-2 px-3.5 pb-3">
       <label>
-        <span className="mb-1 block text-micro font-bold uppercase text-ink-3">Minutos</span>
+        <span className="mb-1 block text-caption font-bold uppercase text-ink-2">Minutos</span>
         <input className={inputCls} inputMode="numeric" value={mins} onChange={e => setMins(e.target.value)} />
       </label>
       <label>
-        <span className="mb-1 block text-micro font-bold uppercase text-ink-3">Precio €</span>
+        <span className="mb-1 block text-caption font-bold uppercase text-ink-2">Precio €</span>
         <input className={inputCls} inputMode="decimal" value={euros} onChange={e => setEuros(e.target.value)} />
       </label>
-      <label className="col-span-2 flex items-center gap-2 text-body font-bold">
-        <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} className="h-5 w-5 accent-v" />
+      <label className="col-span-2 flex items-center gap-2.5 text-body font-bold">
+        <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} />
         Visible al crear citas
       </label>
-      <button
+      <Button
+        className="col-span-2"
+        full
         disabled={pending}
         onClick={() => onSave({
           duration_min: Number(mins),
           price_cents: Math.round(Number(euros.replace(',', '.')) * 100),
           is_active: active,
         })}
-        className="col-span-2 rounded-field bg-grad py-2.5 text-body font-extrabold text-white disabled:opacity-40"
       >
         {pending ? 'Guardando…' : 'Guardar'}
-      </button>
+      </Button>
     </div>
   );
 }

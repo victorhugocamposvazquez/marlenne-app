@@ -1,9 +1,10 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import { CalendarPlus, Check, MessageCircle } from 'lucide-react';
+import { CalendarPlus, Check, Clock, MessageCircle } from 'lucide-react';
 import Sheet, { Field, inputCls } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
+import EmptyState from '@/components/ui/EmptyState';
 import IconButton from '@/components/ui/IconButton';
 import { addToWaitlist, resolveWaitlist } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
@@ -90,6 +91,13 @@ export default function WaitlistSheet({
       }
     >
       <div className="mb-3 flex flex-col gap-2">
+        {items.length === 0 && !adding && (
+          <EmptyState
+            icon={Clock}
+            title="Nadie en la lista de espera."
+            hint="Cuando no hay hueco, apunta aquí a quien llama."
+          />
+        )}
         {items.map(w => {
           const name = w.client?.full_name ?? w.client_name ?? 'Sin nombre';
           const wa = waHref(

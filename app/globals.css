@@ -56,6 +56,21 @@
   /* Blob decorativo de páginas públicas */
   --c-blob: 221 211 255;
 
+  /* Degradado de marca */
+  --grad: linear-gradient(100deg, rgb(var(--c-brand)), rgb(var(--c-brand-2)));
+  --grad-160: linear-gradient(160deg, rgb(var(--c-brand)), rgb(var(--c-brand-2)));
+
+  /* Sombras (más densas en oscuro) */
+  --sh-card: 0 4px 20px rgba(20, 10, 60, .07);
+  --sh-lift: 0 12px 28px rgba(20, 10, 60, .14);
+  --sh-toast: 0 18px 44px rgba(20, 10, 60, .22);
+  --sh-drag: 0 18px 44px rgba(20, 10, 60, .30);
+  --sh-btn: 0 10px 24px rgba(139, 92, 246, .42);
+  --sh-pill: 0 8px 20px rgba(139, 92, 246, .34);
+  --sh-hero: 0 14px 34px rgba(139, 92, 246, .32);
+  --sh-nav: 0 -6px 24px rgba(20, 10, 60, .08);
+  --sh-seg: 0 3px 10px rgba(20, 10, 60, .12);
+
   /* Estados de cita (inline styles) */
   --st-prog-bg: #FFFFFF;   --st-prog-line: #EFEDF8;  --st-prog-edge: #8B5CF6;
   --st-curso-bg: #ECFDF5;  --st-curso-line: #A7F3D0; --st-curso-edge: #10B981;
@@ -83,7 +98,7 @@
 
     --c-ink: 240 238 250;         /* #F0EEFA */
     --c-ink-2: 178 173 206;       /* #B2ADCE */
-    --c-ink-3: 134 128 165;       /* #8680A5 */
+    --c-ink-3: 158 152 192;       /* subido para microcopy AA */
 
     --c-bg: 20 17 34;             /* #141122 */
     --c-card: 30 26 48;           /* #1E1A30 */
@@ -115,6 +130,16 @@
 
     --c-blob: 46 37 84;
 
+    --sh-card: 0 4px 24px rgba(0, 0, 0, .35);
+    --sh-lift: 0 12px 32px rgba(0, 0, 0, .45);
+    --sh-toast: 0 18px 44px rgba(0, 0, 0, .5);
+    --sh-drag: 0 18px 44px rgba(0, 0, 0, .55);
+    --sh-btn: 0 10px 24px rgba(139, 92, 246, .38);
+    --sh-pill: 0 8px 20px rgba(139, 92, 246, .3);
+    --sh-hero: 0 14px 34px rgba(0, 0, 0, .4);
+    --sh-nav: 0 -6px 24px rgba(0, 0, 0, .35);
+    --sh-seg: 0 3px 10px rgba(0, 0, 0, .35);
+
     --st-prog-bg: #1E1A30;   --st-prog-line: #2E2848;  --st-prog-edge: #A78BFA;
     --st-curso-bg: #102A21;  --st-curso-line: #1B4735; --st-curso-edge: #34D399;
     --st-done-bg: #191529;   --st-done-line: #272141;  --st-done-edge: #4A4468;
@@ -142,6 +167,12 @@
   a { color: rgb(var(--c-brand)); }
   a:hover { color: rgb(var(--c-brand-deep)); }
   button, a, input, textarea, select { touch-action: manipulation; }
+  input[type='checkbox'] {
+    width: 1.25rem;
+    height: 1.25rem;
+    accent-color: rgb(var(--c-brand));
+    flex-shrink: 0;
+  }
   ::-webkit-scrollbar { display: none; }
   * { scrollbar-width: none; }
   :focus-visible { outline: 2px solid rgb(var(--c-brand)); outline-offset: 2px; }

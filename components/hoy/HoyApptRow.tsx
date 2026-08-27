@@ -43,7 +43,7 @@ export default function HoyApptRow({
         type="button"
         disabled={pending}
         onClick={() => set('curso')}
-        className="min-h-[44px] shrink-0 rounded-icon bg-v px-3 text-label font-bold text-white transition active:scale-[.97] disabled:opacity-40"
+        className="min-h-[44px] shrink-0 rounded-icon bg-v px-3 text-label font-bold text-white transition motion-safe:active:scale-[.97] disabled:opacity-40"
       >
         Pasa
       </button>
@@ -51,7 +51,7 @@ export default function HoyApptRow({
         type="button"
         disabled={pending}
         onClick={() => set('noshow')}
-        className="min-h-[44px] shrink-0 rounded-icon border border-danger-line bg-surface-card px-2.5 text-label font-bold text-danger-fg transition active:scale-[.97] disabled:opacity-40"
+        className="min-h-[44px] shrink-0 rounded-icon border border-danger-line bg-surface-card px-2.5 text-label font-bold text-danger-fg transition motion-safe:active:scale-[.97] disabled:opacity-40"
       >
         No vino
       </button>
@@ -59,7 +59,7 @@ export default function HoyApptRow({
         <a
           href={`tel:${appt.client_phone}`}
           aria-label={`Llamar a ${appt.client_label}`}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-icon border border-surface-line bg-surface-card text-v-d transition active:scale-[.96]"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-icon border border-surface-line bg-surface-card text-v-d transition motion-safe:active:scale-[.96]"
         >
           <Phone size={16} strokeWidth={2.2} />
         </a>
@@ -70,7 +70,7 @@ export default function HoyApptRow({
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`WhatsApp a ${appt.client_label}`}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-icon bg-ok-bg text-micro font-extrabold text-ok-fg transition active:scale-[.96]"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-icon bg-ok-bg text-micro font-extrabold text-ok-fg transition motion-safe:active:scale-[.96]"
         >
           WA
         </a>
@@ -93,7 +93,7 @@ export default function HoyApptRow({
           </div>
           <div className="min-w-0 flex-1">
             <div className="truncate text-body font-bold tracking-[-.01em]">{appt.client_label}</div>
-            <div className="truncate text-caption font-medium text-ink-3">
+            <div className="truncate text-caption font-medium text-ink-2">
               {appt.service_name}
               {cabin ? '' : ` · ${appt.provider_name}`}
               {late ? ' · retraso' : ''}
@@ -109,7 +109,7 @@ export default function HoyApptRow({
           <Link
             href={`/clientas/${appt.client_id}`}
             aria-label={`Ficha de ${appt.client_label}`}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-icon border border-surface-line bg-surface-card text-v-d transition active:scale-[.96]"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-icon border border-surface-line bg-surface-card text-v-d transition motion-safe:active:scale-[.96]"
           >
             <UserRound size={16} strokeWidth={2.2} />
           </Link>

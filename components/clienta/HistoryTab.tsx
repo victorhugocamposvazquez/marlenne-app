@@ -3,6 +3,7 @@ import { CalendarPlus } from 'lucide-react';
 import { CATEGORIES, STATUS } from '@/lib/categories';
 import { dateLbl, fmt, minutesOfDay, offsetFromDay } from '@/lib/time';
 import type { AgendaAppt } from '@/lib/types';
+import { buttonClass } from '@/components/ui/Button';
 import { Empty } from './Tabs';
 
 export default function HistoryTab({
@@ -17,7 +18,7 @@ export default function HistoryTab({
         <Empty>No hay citas registradas todavía.</Empty>
         <Link
           href={`/agenda?new=1&client=${clientId}`}
-          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-field bg-grad px-4 text-body font-extrabold text-white shadow-btn transition active:scale-[.97]"
+          className={buttonClass({ className: 'px-4' })}
         >
           <CalendarPlus size={16} strokeWidth={2.2} />
           Dar cita
@@ -34,11 +35,11 @@ export default function HistoryTab({
     <>
       <div className="mb-2.5 flex gap-2.5">
         <div className="flex-1 rounded-row border border-surface-line bg-surface-card p-3 shadow-card">
-          <div className="text-micro font-bold uppercase tracking-[.03em] text-ink-3">Citas</div>
+          <div className="text-caption font-bold uppercase tracking-[.03em] text-ink-2">Citas</div>
           <div className="mt-0.5 text-title font-extrabold tabular-nums">{appointments.length}</div>
         </div>
         <div className="flex-1 rounded-row border border-surface-line bg-surface-card p-3 shadow-card">
-          <div className="text-micro font-bold uppercase tracking-[.03em] text-ink-3">Gastado</div>
+          <div className="text-caption font-bold uppercase tracking-[.03em] text-ink-2">Gastado</div>
           <div className="mt-0.5 text-title font-extrabold tabular-nums">{spent} €</div>
         </div>
       </div>

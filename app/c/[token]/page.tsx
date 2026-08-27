@@ -1,8 +1,8 @@
 export const dynamic = 'force-dynamic';
 
 import type { Metadata } from 'next';
-import { Sparkles } from 'lucide-react';
 import ConfirmButtons, { DoneCard } from '@/components/confirm/ConfirmButtons';
+import PublicHero from '@/components/PublicHero';
 import { linkCopy, peekAppointmentLink } from '@/lib/confirm-link';
 import { createClient } from '@/lib/supabase/server';
 
@@ -21,18 +21,7 @@ export default async function ConfirmPage({ params }: { params: { token: string 
 
   return (
     <div className="mx-auto flex min-h-[100dvh] max-w-[440px] flex-col bg-surface-bg pt-[env(safe-area-inset-top)]">
-      <div className="relative overflow-hidden px-6 pb-8 pt-11">
-        <div className="absolute -right-[70px] -top-[90px] h-[240px] w-[240px] rounded-full bg-[radial-gradient(circle_at_30%_30%,rgb(var(--c-blob)),rgb(var(--c-bg))_70%)]" />
-        <div className="relative">
-          <div className="mb-5 grid h-[52px] w-[52px] place-items-center rounded-2xl bg-grad shadow-btn">
-            <Sparkles size={26} className="text-white" strokeWidth={2} />
-          </div>
-          <div className="text-body font-semibold tracking-[.02em] text-v">Marlenne</div>
-          <h1 className="mt-1 text-display font-extrabold leading-[1.15] tracking-[-.02em]">
-            Tu cita
-          </h1>
-        </div>
-      </div>
+      <PublicHero kicker="Marlenne" title="Tu cita" />
 
       <div className="px-6 pb-10">
         {!peek.ok ? (

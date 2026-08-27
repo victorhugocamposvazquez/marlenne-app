@@ -107,13 +107,13 @@ export default function Sheet({
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-3.5">
-      <div className="mb-1.5 text-caption font-bold uppercase tracking-[.03em] text-ink-3">{label}</div>
+      <div className="mb-1.5 text-caption font-bold uppercase tracking-[.03em] text-ink-2">{label}</div>
       {children}
     </div>
   );
 }
 
 export const inputCls =
-  'w-full rounded-field border border-surface-line bg-surface-bg/40 px-3.5 py-3 text-body font-semibold text-ink outline-none focus:border-v focus:bg-surface-card';
+  'w-full rounded-field border border-surface-line bg-surface-bg/40 px-3.5 py-3 text-body font-semibold text-ink outline-none focus:border-v focus:bg-surface-card focus-visible:ring-2 focus-visible:ring-v/40';
 
 export { default as Chip } from '@/components/ui/Chip';

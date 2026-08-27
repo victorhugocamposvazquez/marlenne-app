@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
+import IconButton from '@/components/ui/IconButton';
 import { fmt, minutesOfDay } from '@/lib/time';
 import { CATEGORIES, STATUS } from '@/lib/categories';
 import type { WeekDay } from '@/lib/types';
@@ -35,7 +36,7 @@ export default function WeekGrid({
                 d.isToday ? 'border-v/40 bg-v-tint' : 'border-surface-line bg-surface-card'
               }`}
             >
-              <div className="flex items-center gap-2 px-3 py-2">
+              <div className="flex items-center gap-2 px-3.5 py-3">
                 <button
                   type="button"
                   onClick={() => router.push(href(d.offset))}
@@ -48,18 +49,16 @@ export default function WeekGrid({
                       <span className="rounded-badge bg-grad px-1.5 py-px text-micro font-extrabold text-white">Hoy</span>
                     )}
                   </span>
-                  <span className="block text-caption font-semibold text-ink-3">
+                  <span className="block text-caption font-semibold text-ink-2">
                     {n === 0 ? 'Sin citas' : n === 1 ? '1 cita' : `${n} citas`}
                   </span>
                 </button>
-                <button
-                  type="button"
+                <IconButton
+                  label={`Nueva cita el ${d.name}`}
                   onClick={() => router.push(href(d.offset, { new: '1' }))}
-                  aria-label={`Nueva cita el ${d.name}`}
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-icon border border-surface-line bg-surface-card text-v-d shadow-card transition active:scale-[.96]"
                 >
                   <Plus size={17} strokeWidth={2.4} />
-                </button>
+                </IconButton>
               </div>
               {n > 0 && (
                 <div className="border-t border-surface-line/80">
@@ -71,7 +70,7 @@ export default function WeekGrid({
                         key={a.id}
                         type="button"
                         onClick={() => router.push(href(d.offset, { appt: a.id }))}
-                        className="flex w-full items-center gap-2 border-b border-surface-line/70 px-3 py-2 text-left last:border-0 hover:bg-surface-card/70"
+                        className="flex w-full items-center gap-2 border-b border-surface-line/70 px-3.5 py-2.5 text-left last:border-0 hover:bg-surface-card/70"
                       >
                         <span className="w-[42px] shrink-0 text-label font-extrabold tabular-nums text-v-d">
                           {fmt(minutesOfDay(a.starts_at))}
