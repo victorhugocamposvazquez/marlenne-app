@@ -17,7 +17,7 @@ export default function HistoryTab({
         <Empty>No hay citas registradas todavía.</Empty>
         <Link
           href={`/agenda?new=1&client=${clientId}`}
-          className="inline-flex items-center gap-1.5 rounded-field bg-grad px-4 py-2.5 text-body font-extrabold text-white shadow-btn"
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-field bg-grad px-4 text-body font-extrabold text-white shadow-btn transition active:scale-[.97]"
         >
           <CalendarPlus size={16} strokeWidth={2.2} />
           Dar cita

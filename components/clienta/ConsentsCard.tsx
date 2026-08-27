@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShieldCheck } from 'lucide-react';
+import Button from '@/components/ui/Button';
 import { addConsent } from '@/lib/client-write';
 import { createClient } from '@/lib/supabase/client';
 import { CONSENT_COPY, CONSENT_KINDS, type ConsentKind } from '@/lib/consents';

@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Sheet, { Field, inputCls, useCloseSheet } from '@/components/Sheet';
+import Button from '@/components/ui/Button';
 import { updateClientRecord } from '@/lib/client-write';
 import { createClient } from '@/lib/supabase/client';
 import type { ClientRow } from '@/lib/types';
