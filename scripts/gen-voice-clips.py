@@ -16,6 +16,9 @@ PITCH = "+8Hz"
 
 async def one(clip: dict) -> None:
     dest = OUT / f"{clip['id']}.mp3"
+    if dest.exists() and dest.stat().st_size > 0:
+        print(f"{clip['id']}  (ya estaba)")
+        return
     comm = edge_tts.Communicate(clip["text"], VOICE, rate=RATE, pitch=PITCH)
     await comm.save(str(dest))
     print(f"{clip['id']}  {dest.stat().st_size} bytes")

@@ -389,6 +389,129 @@ export function parseVoice(text: string): VoiceCmd {
   if (/^(precios?|cuanto (vale|cuesta|es)|tarifas?)$/.test(t)) {
     return { kind: 'chat', say: 'Los precios están en Servicios.', stay: true };
   }
+  if (/^(eres un sol|que maja|que mona|muy maja|que buena)$/.test(t)) {
+    return { kind: 'chat', say: 'Tú más.', stay: true };
+  }
+  if (/^(eres la mejor|la mejor|que lista|eres lista|que inteligente)$/.test(t)) {
+    return { kind: 'chat', say: 'Hoy sí. ¿Qué toca?', stay: true };
+  }
+  if (/^(muy bien|que bien|genial|perfecto)$/.test(t)) {
+    return { kind: 'chat', say: 'Gracias. ¿Algo más?', stay: true };
+  }
+  if (/^(te quiero|te quiero mucho)$/.test(t)) {
+    return { kind: 'chat', say: 'Y yo, la agenda.', stay: true };
+  }
+  if (/^(jaja|jajaja|jeje|me rio|que gracia)$/.test(t)) {
+    return { kind: 'chat', say: 'Me río yo también. ¿Seguimos?', stay: true };
+  }
+  if (/^(estas tonta|que tonta|que pesada|callate|no me rayes)$/.test(t)) {
+    return { kind: 'chat', say: 'Bueno. ¿La cita?', stay: true };
+  }
+  if (/^(que dia|menudo dia|vaya dia|que dia mas)$/.test(t)) {
+    return { kind: 'chat', say: 'De esos. ¿Qué hay hoy?', stay: true };
+  }
+  if (/^(estoy cansada|estoy cansado|que cansancio|estoy muerta)$/.test(t)) {
+    return { kind: 'chat', say: 'Un hueco y a casa.', stay: true };
+  }
+  if (/^(hace calor|que calor|asfixia)$/.test(t)) {
+    return { kind: 'chat', say: 'Pues un facial viene bien.', stay: true };
+  }
+  if (/^(tengo hambre|que hambre|vamos a comer)$/.test(t)) {
+    return { kind: 'chat', say: 'Después de la cita, mejor.', stay: true };
+  }
+  if (/^(es lunes|que lunes|odioso lunes)$/.test(t)) {
+    return { kind: 'chat', say: 'Lo sé. ¿Empezamos?', stay: true };
+  }
+  if (/^(feliz viernes|por fin viernes|es viernes)$/.test(t)) {
+    return { kind: 'chat', say: 'Y a vosotras. ¿El día?', stay: true };
+  }
+  if (/^(me caes bien|me cae bien|caigo bien)$/.test(t)) {
+    return { kind: 'chat', say: 'Recíproco. ¿Qué hay?', stay: true };
+  }
+  if (/^(quiero un cafe|un cafe|cafe)$/.test(t)) {
+    return { kind: 'chat', say: 'Ojalá. Yo solo apunto. ¿Dime?', stay: true };
+  }
+  if (/^(llueve|esta lloviendo|que lluvia)$/.test(t)) {
+    return { kind: 'chat', say: 'Mal para el pelo, bien para huecos.', stay: true };
+  }
+  if (/^(el wifi|no va (el )?wifi|se ha caido)$/.test(t)) {
+    return { kind: 'chat', say: 'Eso no lo arreglo. ¿Una cita?', stay: true };
+  }
+  if (/^(la jefa|manda la jefa)$/.test(t)) {
+    return { kind: 'chat', say: 'Aquí mando la agenda. Es broma.', stay: true };
+  }
+  if (/^(todo el mundo|todo a la vez|un lio|vaya lio)$/.test(t)) {
+    return { kind: 'chat', say: 'Una a una. ¿Quién primero?', stay: true };
+  }
+  if (/^(otra vez yo|otra vez)$/.test(t)) {
+    return { kind: 'chat', say: 'Siempre. ¿Dime?', stay: true };
+  }
+  if (/^(se me olvido|me olvide|olvidado)$/.test(t)) {
+    return { kind: 'chat', say: 'Por eso estoy yo.', stay: true };
+  }
+  if (/^(no se|ni idea)$/.test(t)) {
+    return { kind: 'chat', say: 'Nombre y hora, y lo vemos.', stay: true };
+  }
+  if (/^(estoy perdida|estoy perdido|no me entero)$/.test(t)) {
+    return { kind: 'chat', say: 'Tranquila. ¿Cita, hueco o ficha?', stay: true };
+  }
+  if (/^(que aburrida|que aburrido|aburrida)$/.test(t)) {
+    return { kind: 'chat', say: 'Pues una cita lo anima.', stay: true };
+  }
+  if (/^(es una sorpresa|es sorpresa|sorpresa)$/.test(t)) {
+    return { kind: 'chat', say: 'Ni una palabra. ¿El nombre?', stay: true };
+  }
+  if (/^(es un regalo|un regalo|para regalar)$/.test(t)) {
+    return { kind: 'chat', say: 'Bonito. ¿La apuntamos?', stay: true };
+  }
+  if (/^(primera vez|es la primera|no ha venido nunca)$/.test(t)) {
+    return { kind: 'chat', say: 'Alta y cita. ¿El nombre?', stay: true };
+  }
+  if (/^(viene sin cita|sin cita|ha venido sin cita)$/.test(t)) {
+    return { kind: 'chat', say: 'Miro un hueco.', stay: true };
+  }
+  if (/^(es urgente|urgente)$/.test(t)) {
+    return { kind: 'chat', say: 'Miro el primer hueco.', stay: true };
+  }
+  if (/^(me he equivocado de hora|hora mal|hora equivocada)$/.test(t)) {
+    return { kind: 'chat', say: 'La movemos. ¿A cuál?', stay: true };
+  }
+  if (/^(no va a venir|no viene|ya no viene)$/.test(t)) {
+    return { kind: 'chat', say: '¿La marco como no vino?', stay: true };
+  }
+  if (/^(esta aparcando|esta aparcando ya|aparca)$/.test(t)) {
+    return { kind: 'chat', say: 'Dile que no corra.', stay: true };
+  }
+  if (/^(esta en el bano|en el aseo)$/.test(t)) {
+    return { kind: 'chat', say: 'Vale. Aviso cuando salga.', stay: true };
+  }
+  if (/^(viene con amiga|vienen dos|las dos)$/.test(t)) {
+    return { kind: 'chat', say: '¿Las dos? Dime nombres.', stay: true };
+  }
+  if (/^(te has equivocado|eso no|mal)$/.test(t)) {
+    return { kind: 'chat', say: 'Perdona. Dime otra vez.', stay: true };
+  }
+  if (/^(feliz cumple|feliz cumpleanos|cumpleanos)$/.test(t)) {
+    return { kind: 'chat', say: 'Gracias. ¿Lo celebramos con una cita?', stay: true };
+  }
+  if (/^(felices fiestas|feliz navidad|próspero|prospero ano)$/.test(t)) {
+    return { kind: 'chat', say: 'Igualmente. ¿Apuntamos?', stay: true };
+  }
+  if (/^(buenas vacaciones|felices vacaciones|buenas vacas)$/.test(t)) {
+    return { kind: 'chat', say: 'Disfrutad. Yo me quedo con la agenda.', stay: true };
+  }
+  if (/^(es tarde|ya es tarde|se hace tarde)$/.test(t)) {
+    return { kind: 'chat', say: 'Aún se puede. ¿Un hueco?', stay: true };
+  }
+  if (/^(estoy de mal humor|que mal humor|hoy no)$/.test(t)) {
+    return { kind: 'chat', say: 'Hoy va suave. ¿Quién viene?', stay: true };
+  }
+  if (/^(hoy no quiero hablar|no quiero hablar)$/.test(t)) {
+    return { kind: 'chat', say: 'Solo toca. Aquí estoy.', stay: true };
+  }
+  if (/^(cliente dificil|esta dificil|que pesada la clienta)$/.test(t)) {
+    return { kind: 'chat', say: 'Con calma. ¿La ficha?', stay: true };
+  }
 
   return { kind: 'unknown', text: raw };
 }
