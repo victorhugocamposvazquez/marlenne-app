@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, CalendarPlus, Mail, MessageCircle, Pencil, Phone } from 'lucide-react';
+import { ArrowLeft, CalendarPlus, Mail, MessageCircle, Pencil, Phone, ShieldAlert } from 'lucide-react';
 import EditClientSheet from '@/components/clienta/EditClientSheet';
+import ExportFichaButton from '@/components/clienta/ExportFichaButton';
 import IconButton from '@/components/ui/IconButton';
 import Badge from '@/components/ui/Badge';
 import ConsentsCard from '@/components/clienta/ConsentsCard';
@@ -18,6 +19,7 @@ import { loadSignedPhotoUrls } from '@/lib/agenda-catalog';
 import { createClient } from '@/lib/supabase/client';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 import { avatarColor, initials } from '@/lib/categories';
+import { consentExpired, latestConsents } from '@/lib/consents';
 import { waHref } from '@/lib/phone';
 import { dateLbl, offsetFromDay, shortWhen } from '@/lib/time';
 import type { AgendaAppt, ClientRow, Consent, TreatmentRow } from '@/lib/types';
@@ -49,6 +51,8 @@ export default function ClientaFicha({
   const nextAppt = upcoming[0] ?? appointments.find(a => a.status === 'curso');
   const lastAppt = appointments.find(a => a.status === 'done');
   const wa = waHref(client.phone);
+  const photoConsent = latestConsents(consents).get('fotografia');
+  const photoConsentBad = photoPaths.length > 0 && (!photoConsent || consentExpired(photoConsent));
 
   useEffect(() => {
     if (tab !== 'fotos' || !photoPaths.length) return;
@@ -92,6 +96,14 @@ export default function ClientaFicha({
         </div>
         <div className="flex shrink-0 gap-2">
           {canEdit && (
+            <ExportFichaButton
+              client={client}
+              treatments={treatments}
+              appointments={appointments}
+              consents={consents}
+            />
+          )}
+          {canEdit && (
             <IconButton label="Editar ficha" onClick={() => shallowSet({ editar: '1' })}>
               <Pencil size={17} strokeWidth={2.2} />
             </IconButton>
@@ -112,6 +124,15 @@ export default function ClientaFicha({
             <Badge key={tag} tone="brand">{tag}</Badge>
           ))}
         </div>
+      )}
+
+      {photoConsentBad && (
+        <p className="mt-2.5 flex items-start gap-2 rounded-row border border-warn-line bg-warn-bg p-3 text-label font-semibold leading-snug text-warn-fg">
+          <ShieldAlert size={16} strokeWidth={2.2} className="mt-px shrink-0" />
+          {photoConsent && consentExpired(photoConsent)
+            ? `El consentimiento de fotos caducó el ${dateLbl(photoConsent.expires_at!)}. Renúevalo en Consentimientos.`
+            : 'Hay fotos y no consta consentimiento de imagen. Conviene registrarlo antes de seguir usándolas.'}
+        </p>
       )}
 
       {nextAppt && (

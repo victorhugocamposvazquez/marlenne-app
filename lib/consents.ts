@@ -1,3 +1,6 @@
+import type { Consent } from '@/lib/types';
+import { dayKey } from '@/lib/time';
+
 export const CONSENT_KINDS = {
   fotografia: 'Fotos de tratamiento',
   datos_salud: 'Datos de salud',
@@ -24,3 +27,16 @@ export const BLOCK_REASONS = {
 } as const;
 
 export type BlockReason = keyof typeof BLOCK_REASONS;
+
+export function latestConsents(consents: Consent[]) {
+  const latest = new Map<string, Consent>();
+  for (const c of consents) {
+    const prev = latest.get(c.kind);
+    if (!prev || +new Date(c.signed_at) > +new Date(prev.signed_at)) latest.set(c.kind, c);
+  }
+  return latest;
+}
+
+export function consentExpired(row: Consent | undefined, today = dayKey(new Date())) {
+  return !!(row?.expires_at && row.expires_at < today);
+}

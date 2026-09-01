@@ -6,8 +6,8 @@ import { ShieldCheck } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { addConsent } from '@/lib/client-write';
 import { createClient } from '@/lib/supabase/client';
-import { CONSENT_COPY, CONSENT_KINDS, type ConsentKind } from '@/lib/consents';
-import { dateLbl, dayKey } from '@/lib/time';
+import { CONSENT_COPY, CONSENT_KINDS, consentExpired, latestConsents, type ConsentKind } from '@/lib/consents';
+import { dateLbl } from '@/lib/time';
 import type { Consent } from '@/lib/types';
 
 export default function ConsentsCard({
@@ -20,11 +20,7 @@ export default function ConsentsCard({
   const [pending, startTransition] = useTransition();
   const [ask, setAsk] = useState<ConsentKind | null>(null);
   const router = useRouter();
-  const latest = new Map<string, Consent>();
-  for (const c of consents) {
-    const prev = latest.get(c.kind);
-    if (!prev || +new Date(c.signed_at) > +new Date(prev.signed_at)) latest.set(c.kind, c);
-  }
+  const latest = latestConsents(consents);
 
   return (
     <section className="mt-3 rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
@@ -38,7 +34,7 @@ export default function ConsentsCard({
       <div className="flex flex-col gap-2">
         {(Object.keys(CONSENT_KINDS) as ConsentKind[]).map(kind => {
           const row = latest.get(kind);
-          const expired = row?.expires_at ? row.expires_at < dayKey(new Date()) : false;
+          const expired = consentExpired(row);
           return (
             <div key={kind} className="flex items-center gap-2">
               <span className="min-w-0 flex-1 text-label font-semibold text-ink-2">
