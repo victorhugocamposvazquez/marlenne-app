@@ -343,7 +343,7 @@ export function parseVoice(text: string): VoiceCmd {
     return { kind: 'go', href: '/agenda', say: 'Agenda' };
   }
   if (/^(ajustes|configuracion|mas)$/.test(t)) {
-    return { kind: 'go', href: '/ajustes', say: 'Más' };
+    return { kind: 'go', href: '/ajustes', say: 'Ajustes' };
   }
 
   return { kind: 'unknown', text: raw };

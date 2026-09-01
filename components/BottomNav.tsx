@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { MouseEvent } from 'react';
-import { Home, Calendar, Users, Menu, Plus } from 'lucide-react';
+import { Home, Calendar, Users, Settings, Plus } from 'lucide-react';
 import { shallowSet } from '@/hooks/useShallowQuery';
 
 const ACTIVE = 'rgb(var(--c-brand-deep))';
@@ -47,7 +47,7 @@ export default function BottomNav({ role }: { role: string }) {
         <Plus size={26} strokeWidth={2.4} />
       </Link>
       {role !== 'provider' && <Item href="/clientas" icon={Users} label="Clientas" />}
-      <Item href="/ajustes" icon={Menu} label="Más" />
+      <Item href="/ajustes" icon={Settings} label="Ajustes" />
     </nav>
   );
 }

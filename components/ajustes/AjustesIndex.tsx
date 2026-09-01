@@ -64,7 +64,7 @@ export default function AjustesIndex({
 
   return (
     <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-fab pt-5">
-      <h1 className="text-h1 font-extrabold tracking-[-.025em]">Más</h1>
+      <h1 className="text-h1 font-extrabold tracking-[-.025em]">Ajustes</h1>
       <p className="mt-px text-body font-medium text-ink-2">{me.full_name} · {me.job_title ?? me.role}</p>
       <Group title="Centro" rows={centro} />
       <Group title="Cuenta" rows={cuenta} />

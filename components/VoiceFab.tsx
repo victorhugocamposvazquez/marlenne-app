@@ -1015,7 +1015,7 @@ export default function VoiceFab() {
           {panel.mode === 'idle' && (
             <div className="text-label font-medium leading-snug text-ink-2">
               <p className="font-bold text-ink">Así se usa</p>
-              <p className="mt-1">1. «Dime», o toca el micro. En Más se apaga el oído.</p>
+              <p className="mt-1">1. «Dime», o toca el micro. En Ajustes se apaga el oído.</p>
               <p>2. Si va a guardar, te pide confirmación.</p>
       <p className="mt-2 text-label text-ink-2">
                 Ej.: quién tiene hueco el miércoles a las 11:30 · cita para Lucía con Valeria a las 11:30
