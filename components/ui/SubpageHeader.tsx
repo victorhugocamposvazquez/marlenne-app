@@ -15,14 +15,14 @@ export default function SubpageHeader({
 }) {
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="shrink-0 border-b border-surface-line bg-surface-bg px-3 py-1.5">
-        <div className="flex items-center gap-1">
+      <header className="shrink-0 border-b border-surface-line bg-surface-bg px-3 py-2.5">
+        <div className="flex items-center gap-2.5">
           <Link
             href={href}
             aria-label={back}
-            className="-ml-1 grid h-11 w-11 shrink-0 place-items-center text-v-d motion-safe:active:opacity-70"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-field bg-surface-card text-v-d shadow-card motion-safe:active:scale-[.96]"
           >
-            <ChevronLeft size={32} strokeWidth={2.4} aria-hidden />
+            <ChevronLeft size={26} strokeWidth={2.4} aria-hidden />
           </Link>
           {leading}
           <h1 className="min-w-0 flex-1 truncate text-title font-extrabold leading-tight tracking-[-.02em]">
