@@ -82,6 +82,7 @@ function mapService(row: Record<string, unknown>): ServiceOption {
     category_id: (row.category_id as string | undefined) ?? undefined,
     category_label: cat?.name,
     category_color: cat?.color,
+    color: (row.color as string | null | undefined) ?? null,
     duration_min: row.duration_min as number,
     price_cents: row.price_cents as number,
     is_active: row.is_active as boolean | undefined,
@@ -92,7 +93,7 @@ export async function listServices(opts?: { includeInactive?: boolean }): Promis
   const sb = createClient();
   let query = sb
     .from('services')
-    .select('id, name, category, category_id, duration_min, price_cents, is_active, cat:service_categories(name, color)')
+    .select('id, name, category, category_id, duration_min, price_cents, is_active, color, cat:service_categories(name, color)')
     .order('sort_order');
   if (!opts?.includeInactive) query = query.eq('is_active', true);
   const { data, error } = await query;
@@ -119,7 +120,7 @@ export async function listClientOptions(): Promise<ClientOption[]> {
 export async function getAppointment(id: string): Promise<AgendaAppt | null> {
   const sb = createClient();
   let { data, error } = await sb.from('appointments').select(APPT_SELECT).eq('id', id).maybeSingle();
-  if (error && /confirmed_at|client_pack/i.test(error.message)) {
+  if (error && /confirmed_at|client_pack|color/i.test(error.message)) {
     ({ data, error } = await sb.from('appointments').select(APPT_SELECT_CORE).eq('id', id).maybeSingle());
   }
   return data ? mapAppt(data) : null;
@@ -156,7 +157,7 @@ export async function getDayAgenda(date: Date, providerIds: string[]) {
 
   let rows = appts.data;
   if (appts.error) {
-    const retry = /confirmed_at|client_pack/i.test(appts.error.message) ? await load(APPT_SELECT_CORE) : null;
+    const retry = /confirmed_at|client_pack|color/i.test(appts.error.message) ? await load(APPT_SELECT_CORE) : null;
     rows = retry?.data ?? null;
     if (!rows) console.error('getDayAgenda', appts.error.message);
   }
@@ -184,7 +185,7 @@ export async function getWeekCounts(providerIds: string[], dayOffset = 0): Promi
   const sunday = dateFromOffset(mondayOff + 6);
 
   const { data } = await sb.from('appointments')
-    .select('id, starts_at, duration_min, status, client_name, service:services(name, category), provider:staff!appointments_provider_id_fkey(full_name), client:clients(full_name)')
+    .select('id, starts_at, duration_min, status, client_name, service:services(name, category, color), provider:staff!appointments_provider_id_fkey(full_name), client:clients(full_name)')
     .gte('starts_at', toTimestamp(monday, 0))
     .lte('starts_at', toTimestamp(sunday, 24 * 60 - 1))
     .in('provider_id', providerIds)
@@ -199,6 +200,7 @@ export async function getWeekCounts(providerIds: string[], dayOffset = 0): Promi
         starts_at: a.starts_at,
         duration_min: a.duration_min,
         category: a.service?.category ?? 'corporal',
+        service_color: a.service?.color ?? null,
         client_label: a.client?.full_name ?? a.client_name ?? 'Sin nombre',
         service_name: a.service?.name ?? '',
         provider_name: a.provider?.full_name ?? '',
@@ -318,7 +320,7 @@ export async function listClientAppointments(clientId: string): Promise<AgendaAp
     .order('starts_at', { ascending: false })
     .limit(60);
   let rows: unknown[] = primary.data ?? [];
-  if (primary.error && /confirmed_at|client_pack/i.test(primary.error.message)) {
+  if (primary.error && /confirmed_at|client_pack|color/i.test(primary.error.message)) {
     const retry = await sb
       .from('appointments')
       .select(APPT_SELECT_CORE)

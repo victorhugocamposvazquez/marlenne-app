@@ -95,6 +95,7 @@ export async function createService(input: {
   category_id: string;
   duration_min: number;
   price_cents: number;
+  color?: string | null;
 }) {
   const me = await requireAdmin();
   if (!me) return { ok: false, error: 'Solo dirección' };
@@ -118,6 +119,7 @@ export async function createService(input: {
     category_id: input.category_id,
     duration_min: input.duration_min,
     price_cents: input.price_cents,
+    color: input.color || null,
     is_active: true,
     sort_order: (last?.sort_order ?? 0) + 10,
   });
@@ -132,6 +134,7 @@ export async function updateService(input: {
   duration_min: number;
   price_cents: number;
   is_active: boolean;
+  color?: string | null;
 }) {
   const me = await requireAdmin();
   if (!me) return { ok: false, error: 'Solo dirección' };
@@ -147,6 +150,7 @@ export async function updateService(input: {
     duration_min: input.duration_min,
     price_cents: input.price_cents,
     is_active: input.is_active,
+    ...(input.color !== undefined ? { color: input.color || null } : {}),
   }).eq('id', input.id);
   bump();
   return { ok: !error, error: error?.message ?? null };

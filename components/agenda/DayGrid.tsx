@@ -249,7 +249,7 @@ export default function DayGrid({
                 const col = providers.findIndex(p => p.id === pos.provider);
                 if (col < 0) return null;
                 const st = STATUS[a.status];
-                const cat = catStyle(a.category);
+                const cat = catStyle(a.category, { color: a.service_color });
                 const canDrag = a.status !== 'done';
                 return (
                   <div

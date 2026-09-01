@@ -14,13 +14,12 @@ export default async function BonosPage() {
   ]);
 
   return (
-    <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-fab pt-5">
-      <AjustesHeader
-        title="Bonos"
-        subtitle={admin
-          ? 'Plantillas para vender. Recarga en los vendidos. El pack amigo se marca en la ficha.'
-          : 'Recargar sesiones. Vender uno nuevo, en la ficha.'}
-      />
+    <AjustesHeader
+      title="Bonos"
+      subtitle={admin
+        ? 'Plantillas para vender. Recarga en los vendidos. El pack amigo se marca en la ficha.'
+        : 'Recargar sesiones. Vender uno nuevo, en la ficha.'}
+    >
       {admin && (
         <section className="mb-6">
           <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">
@@ -33,6 +32,6 @@ export default async function BonosPage() {
         </section>
       )}
       <SoldPacksCard packs={packs} canEdit className="mt-0" />
-    </div>
+    </AjustesHeader>
   );
 }

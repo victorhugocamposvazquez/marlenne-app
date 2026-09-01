@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, CalendarPlus, Mail, MessageCircle, Pencil, Phone, ShieldAlert } from 'lucide-react';
+import { CalendarPlus, Mail, MessageCircle, Pencil, Phone, ShieldAlert } from 'lucide-react';
+import SubpageHeader from '@/components/ui/SubpageHeader';
 import EditClientSheet from '@/components/clienta/EditClientSheet';
 import ExportFichaButton from '@/components/clienta/ExportFichaButton';
 import IconButton from '@/components/ui/IconButton';
@@ -70,34 +71,24 @@ export default function ClientaFicha({
   const goTab = (id: TabId) => shallowSet({ tab: id === 'tratamientos' ? null : id });
 
   return (
-    <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-fab pt-5">
-      <Link
-        href={canEdit ? '/clientas' : '/hoy'}
-        className="mb-2 inline-flex min-h-[44px] items-center gap-1.5 text-label font-bold text-ink-2 hover:text-v-d"
-      >
-        <ArrowLeft size={15} strokeWidth={2.4} />
-        {canEdit ? 'Clientas' : 'Hoy'}
-      </Link>
-
-      <div className="flex items-start gap-3">
+    <SubpageHeader
+      href={canEdit ? '/clientas' : '/hoy'}
+      back={canEdit ? 'Clientas' : 'Hoy'}
+      title={client.full_name}
+      subtitle={[
+        age !== null ? `${age} años` : null,
+        `alta ${dateLbl(client.created_at)}`,
+        client.sms_opt_in ? null : 'sin SMS',
+      ].filter(Boolean).join(' · ')}
+      leading={(
         <span
           className="grid h-[50px] w-[50px] shrink-0 place-items-center rounded-field text-body-lg font-bold text-white"
           style={{ background: avatarColor(client.full_name) }}
         >
           {initials(client.full_name)}
         </span>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-h1 font-extrabold leading-tight tracking-[-.025em]">
-            {client.full_name}
-          </h1>
-          <p className="mt-0.5 text-label font-medium text-ink-2">
-            {[
-              age !== null ? `${age} años` : null,
-              `alta ${dateLbl(client.created_at)}`,
-              client.sms_opt_in ? null : 'sin SMS',
-            ].filter(Boolean).join(' · ')}
-          </p>
-        </div>
+      )}
+      extra={(
         <div className="flex shrink-0 gap-2">
           {canEdit && (
             <ExportFichaButton
@@ -121,10 +112,11 @@ export default function ClientaFicha({
             <CalendarPlus size={19} strokeWidth={2.2} />
           </Link>
         </div>
-      </div>
+      )}
+    >
 
       {client.tags?.length > 0 && (
-        <div className="mt-2.5 flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {client.tags.map(tag => (
             <Badge key={tag} tone="brand">{tag}</Badge>
           ))}
@@ -242,6 +234,6 @@ export default function ClientaFicha({
           photoCount={photoPaths.length}
         />
       )}
-    </div>
+    </SubpageHeader>
   );
 }

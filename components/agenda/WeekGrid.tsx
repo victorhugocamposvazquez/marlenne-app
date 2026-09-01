@@ -63,7 +63,7 @@ export default function WeekGrid({
               {n > 0 && (
                 <div className="border-t border-surface-line/80">
                   {d.appointments.map(a => {
-                    const cat = catStyle(a.category);
+                    const cat = catStyle(a.category, { color: a.service_color });
                     const st = STATUS[a.status];
                     return (
                       <button

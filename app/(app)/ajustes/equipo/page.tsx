@@ -9,11 +9,10 @@ export default async function EquipoPage() {
   const team = await listStaff({ includeInactive: me.role === 'admin' });
 
   return (
-    <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-fab pt-5">
-      <AjustesHeader
-        title="Equipo"
-        subtitle={me.role === 'admin' ? 'Altas, rol y baja' : 'Quién trabaja en el centro'}
-      />
+    <AjustesHeader
+      title="Equipo"
+      subtitle={me.role === 'admin' ? 'Altas, rol y baja' : 'Quién trabaja en el centro'}
+    >
       {me.role === 'admin' ? (
         <TeamEditor team={team} meId={me.id} heading={false} />
       ) : (
@@ -34,6 +33,6 @@ export default async function EquipoPage() {
           ))}
         </div>
       )}
-    </div>
+    </AjustesHeader>
   );
 }

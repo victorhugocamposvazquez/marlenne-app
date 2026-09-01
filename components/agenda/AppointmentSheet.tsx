@@ -56,7 +56,7 @@ export default function AppointmentSheet({
   const session = useSessionClose(appt, close);
 
   const start = minutesOfDay(appt.starts_at);
-  const cat = catStyle(appt.category);
+  const cat = catStyle(appt.category, { color: appt.service_color });
 
   useEffect(() => {
     if (!moving) return;

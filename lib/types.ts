@@ -34,6 +34,7 @@ export type AgendaAppt = {
   confirmed_at: string | null;
   client_pack_id: string | null;
   pack_name: string | null;
+  service_color?: string | null;
 };
 
 export type Waiter = {
@@ -60,7 +61,7 @@ export type WeekDay = {
   name: string;
   num: number;
   isToday: boolean;
-  appointments: Pick<AgendaAppt, 'id' | 'starts_at' | 'duration_min' | 'category' | 'client_label' | 'service_name' | 'provider_name' | 'status'>[];
+  appointments: Pick<AgendaAppt, 'id' | 'starts_at' | 'duration_min' | 'category' | 'client_label' | 'service_name' | 'provider_name' | 'status' | 'service_color'>[];
 };
 
 export type ServiceCategory = {
@@ -80,6 +81,7 @@ export type ServiceOption = {
   category_id?: string;
   category_label?: string;
   category_color?: string;
+  color?: string | null;
   duration_min: number;
   price_cents: number;
   is_active?: boolean;

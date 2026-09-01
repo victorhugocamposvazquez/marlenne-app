@@ -9,6 +9,7 @@ import { CAT_COLORS, CATEGORIES, catStyle } from '@/lib/categories';
 import { durLbl } from '@/lib/time';
 import { inputCls } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
+import ColorDots from '@/components/ui/ColorDots';
 import { useToast } from '@/components/Toast';
 import type { ServiceCategory, ServiceOption } from '@/lib/types';
 
@@ -142,6 +143,10 @@ export default function CatalogEditor({
                 {list.map(s => (
                   <div key={s.id} className="border-b border-surface-line last:border-0">
                     <div className="flex items-center gap-2 px-3.5 py-2">
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-sm"
+                        style={{ background: s.color || look.color }}
+                      />
                       <span className="min-w-0 flex-1">
                         <span className={`block truncate text-body font-semibold ${s.is_active === false ? 'text-ink-3 line-through' : ''}`}>
                           {s.name}
@@ -174,6 +179,7 @@ export default function CatalogEditor({
                             duration_min: input.duration_min,
                             price_cents: input.price_cents,
                             is_active: input.is_active ?? true,
+                            color: input.color,
                           }),
                           'Servicio actualizado',
                           () => setEditSvc(null),
@@ -200,28 +206,6 @@ export default function CatalogEditor({
           );
         })}
       </div>
-    </div>
-  );
-}
-
-function ColorDots({
-  value, onChange,
-}: {
-  value: string;
-  onChange: (c: string) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {CAT_COLORS.map(c => (
-        <button
-          key={c}
-          type="button"
-          aria-label={`Color ${c}`}
-          onClick={() => onChange(c)}
-          className={`h-9 w-9 rounded-full motion-safe:active:scale-[.94] ${value === c ? 'ring-2 ring-ink ring-offset-2' : ''}`}
-          style={{ background: c }}
-        />
-      ))}
     </div>
   );
 }
@@ -292,6 +276,7 @@ function ServiceForm({
     duration_min: number;
     price_cents: number;
     is_active?: boolean;
+    color?: string | null;
   }) => void;
   onCancel: () => void;
   onDelete?: () => void;
@@ -303,6 +288,8 @@ function ServiceForm({
   const [mins, setMins] = useState(String(service?.duration_min ?? 30));
   const [euros, setEuros] = useState(service ? String(service.price_cents / 100) : '0');
   const [active, setActive] = useState(service?.is_active !== false);
+  const [color, setColor] = useState(service?.color ?? '');
+  const catColor = categories.find(c => c.id === categoryId)?.color ?? CAT_COLORS[0];
 
   return (
     <div className={service
@@ -332,6 +319,19 @@ function ServiceForm({
           <input className={inputCls} inputMode="decimal" value={euros} onChange={e => setEuros(e.target.value)} />
         </label>
       </div>
+      <div className="mt-3">
+        <span className="mb-1.5 block text-caption font-bold uppercase text-ink-2">Color en la agenda</span>
+        <button
+          type="button"
+          onClick={() => setColor('')}
+          className={`mb-2 min-h-[40px] rounded-chip px-3 text-label font-bold ${
+            !color ? 'bg-v-soft text-v-d' : 'border border-surface-line bg-surface-card text-ink-2'
+          }`}
+        >
+          El de la categoría
+        </button>
+        <ColorDots value={color || catColor} onChange={setColor} />
+      </div>
       {service && (
         <label className="mt-2 flex items-center gap-2.5 text-body font-bold">
           <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} />
@@ -348,6 +348,7 @@ function ServiceForm({
             duration_min: Number(mins),
             price_cents: Math.round(Number(euros.replace(',', '.')) * 100),
             is_active: active,
+            color: color || null,
           })}
         >
           {pending ? 'Guardando…' : service ? 'Guardar' : 'Crear servicio'}

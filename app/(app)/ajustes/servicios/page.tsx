@@ -11,12 +11,11 @@ export default async function ServiciosPage() {
   ]);
 
   return (
-    <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-fab pt-5">
-      <AjustesHeader
-        title="Servicios"
-        subtitle="Categorías y lo que se vende. Es el catálogo de la agenda, no la ficha clínica."
-      />
+    <AjustesHeader
+      title="Servicios"
+      subtitle="Categorías y lo que se vende. Es el catálogo de la agenda, no la ficha clínica."
+    >
       <CatalogEditor categories={categories} services={services} />
-    </div>
+    </AjustesHeader>
   );
 }
