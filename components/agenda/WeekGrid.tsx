@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import IconButton from '@/components/ui/IconButton';
 import { fmt, minutesOfDay } from '@/lib/time';
-import { CATEGORIES, STATUS } from '@/lib/categories';
+import { catStyle, STATUS } from '@/lib/categories';
 import type { WeekDay } from '@/lib/types';
 
 export default function WeekGrid({
@@ -63,7 +63,7 @@ export default function WeekGrid({
               {n > 0 && (
                 <div className="border-t border-surface-line/80">
                   {d.appointments.map(a => {
-                    const cat = CATEGORIES[a.category];
+                    const cat = catStyle(a.category);
                     const st = STATUS[a.status];
                     return (
                       <button

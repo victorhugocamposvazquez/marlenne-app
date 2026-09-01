@@ -44,7 +44,7 @@ export default function AjustesIndex({
     ...(admin ? [{
       href: '/ajustes/servicios',
       title: 'Servicios',
-      hint: 'Precio, duración u ocultar en la agenda',
+      hint: 'Categorías, precios y duración',
     }] : []),
     ...(desk ? [{
       href: '/ajustes/bonos',

@@ -6,7 +6,7 @@ import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet'
 import Button from '@/components/ui/Button';
 import IconButton from '@/components/ui/IconButton';
 import NextSlotControls from '@/components/agenda/NextSlotControls';
-import { CATEGORIES, avatarColor } from '@/lib/categories';
+import { avatarColor, catStyle } from '@/lib/categories';
 import { createAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import { dayKey, durLbl, fmt, minutesOfDay } from '@/lib/time';
@@ -200,18 +200,30 @@ export default function NewAppointmentSheet({
           onChange={e => setServiceId(e.target.value)}
         >
           <option value="">Elegir servicio…</option>
-          {Object.entries(CATEGORIES).map(([id, cat]) => {
+          {(() => {
             const q = fold(serviceQ);
-            const list = services.filter(s => s.category === id && (!q || fold(s.name).includes(q)));
-            if (!list.length) return null;
-            return (
-              <optgroup key={id} label={cat.label}>
-                {list.map(s => (
-                  <option key={s.id} value={s.id}>{s.name} · {durLbl(s.duration_min)}</option>
-                ))}
-              </optgroup>
-            );
-          })}
+            const order: string[] = [];
+            const by = new Map<string, typeof services>();
+            for (const s of services) {
+              if (q && !fold(s.name).includes(q)) continue;
+              if (!by.has(s.category)) {
+                by.set(s.category, []);
+                order.push(s.category);
+              }
+              by.get(s.category)!.push(s);
+            }
+            return order.map(id => {
+              const list = by.get(id)!;
+              const label = catStyle(id, { label: list[0]?.category_label, color: list[0]?.category_color }).label;
+              return (
+                <optgroup key={id} label={label}>
+                  {list.map(s => (
+                    <option key={s.id} value={s.id}>{s.name} · {durLbl(s.duration_min)}</option>
+                  ))}
+                </optgroup>
+              );
+            });
+          })()}
         </select>
       </Field>
 

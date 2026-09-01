@@ -6,7 +6,7 @@ import { requireSession } from '@/lib/require-session';
 import {
   freeSlots, getDayAgenda, listClientOptions, listProviders, listServices,
 } from '@/lib/queries';
-import { CATEGORIES } from '@/lib/categories';
+import { CATEGORIES, catStyle } from '@/lib/categories';
 import { dateFromOffset, dayKey, dayTitle, fmt, minutesOfDay } from '@/lib/time';
 import { bestNameMatches, bestServiceMatches, matchCategory, saidServiceVariant, serviceFamily } from '@/lib/voice';
 
@@ -224,13 +224,13 @@ export async function voicePreviewBook(
       else if (inCat.length > 1) {
         const names = inCat.map(s => s.name);
         return askService(
-          `En ${CATEGORIES[cat].label.toLowerCase()} tengo ${spoken(names)}. ¿Cuál le hacemos a ${whoLabel}?`,
+          `En ${catStyle(cat).label.toLowerCase()} tengo ${spoken(names)}. ¿Cuál le hacemos a ${whoLabel}?`,
           names,
           null,
           true,
         );
       } else {
-        return askService(`No hay servicios de ${CATEGORIES[cat].label}. ¿Otra categoría?`, cats, null, false);
+        return askService(`No hay servicios de ${catStyle(cat).label}. ¿Otra categoría?`, cats, null, false);
       }
     }
   }

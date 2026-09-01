@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CATEGORIES, STATUS, avatarColor } from '@/lib/categories';
+import { CATEGORIES, catStyle, STATUS, avatarColor } from '@/lib/categories';
 import { citaCambiada, fmt, minutesOfDay, nowMinutes, dayKey, DAY_START, DAY_END } from '@/lib/time';
 import { moveAppointment } from '@/lib/move-appointment';
 import { createClient } from '@/lib/supabase/client';
@@ -249,7 +249,7 @@ export default function DayGrid({
                 const col = providers.findIndex(p => p.id === pos.provider);
                 if (col < 0) return null;
                 const st = STATUS[a.status];
-                const cat = CATEGORIES[a.category];
+                const cat = catStyle(a.category);
                 const canDrag = a.status !== 'done';
                 return (
                   <div

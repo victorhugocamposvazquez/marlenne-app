@@ -32,10 +32,16 @@ async function insertServices(
       continue;
     }
     if (row.action !== 'create') continue;
+    const { data: cat } = await sb
+      .from('service_categories')
+      .select('id')
+      .eq('salon_id', salonId)
+      .eq('slug', row.category)
+      .maybeSingle();
     const { data, error } = await sb.from('services').insert({
       salon_id: salonId,
       name: row.name,
-      category: row.category,
+      ...(cat?.id ? { category_id: cat.id } : { category: row.category }),
       duration_min: row.duration_min,
       price_cents: row.price_cents,
       sort_order: 800 + row.row,

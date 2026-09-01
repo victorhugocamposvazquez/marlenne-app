@@ -5,7 +5,7 @@ import { packExpired, packRemaining } from '@/lib/packs';
 import { listClientPacks, listPackTemplates, listSalonPacks } from '@/lib/pack-write';
 import type {
   AgendaAppt, AgendaBlock, ClientListRow, ClientOption, ClientPack, ClientRow, Consent, PackTemplate, Provider,
-  RecallRow, ServiceOption, TreatmentRow, WaitItem, WeekDay,
+  RecallRow, ServiceCategory, ServiceOption, TreatmentRow, WaitItem, WeekDay,
 } from '@/lib/types';
 
 export async function getSession() {
@@ -60,16 +60,53 @@ export async function listLoginTeam(): Promise<{ name: string; email: string }[]
   }
 }
 
+export async function listCategories(): Promise<ServiceCategory[]> {
+  try {
+    const sb = createClient();
+    const { data } = await sb
+      .from('service_categories')
+      .select('id, slug, name, color, sort_order, is_active, opens_treatment')
+      .order('sort_order');
+    return (data ?? []) as ServiceCategory[];
+  } catch {
+    return [];
+  }
+}
+
+function mapService(row: Record<string, unknown>): ServiceOption {
+  const cat = row.cat as { name?: string; color?: string } | null;
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    category: row.category as string,
+    category_id: (row.category_id as string | undefined) ?? undefined,
+    category_label: cat?.name,
+    category_color: cat?.color,
+    duration_min: row.duration_min as number,
+    price_cents: row.price_cents as number,
+    is_active: row.is_active as boolean | undefined,
+  };
+}
+
 export async function listServices(opts?: { includeInactive?: boolean }): Promise<ServiceOption[]> {
   const sb = createClient();
   let query = sb
     .from('services')
-    .select('id, name, category, duration_min, price_cents, is_active')
-    .order('category')
+    .select('id, name, category, category_id, duration_min, price_cents, is_active, cat:service_categories(name, color)')
     .order('sort_order');
   if (!opts?.includeInactive) query = query.eq('is_active', true);
-  const { data } = await query;
-  return (data ?? []) as ServiceOption[];
+  const { data, error } = await query;
+  if (error || !data) {
+    let fallback = sb
+      .from('services')
+      .select('id, name, category, duration_min, price_cents, is_active')
+      .order('category')
+      .order('sort_order');
+    if (!opts?.includeInactive) fallback = fallback.eq('is_active', true);
+    const again = await fallback;
+    return (again.data ?? []) as ServiceOption[];
+  }
+  return data.map(row => mapService(row as Record<string, unknown>));
 }
 
 /** Solo lo que necesita el selector del sheet de nueva cita. */

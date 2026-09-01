@@ -63,10 +63,23 @@ export type WeekDay = {
   appointments: Pick<AgendaAppt, 'id' | 'starts_at' | 'duration_min' | 'category' | 'client_label' | 'service_name' | 'provider_name' | 'status'>[];
 };
 
+export type ServiceCategory = {
+  id: string;
+  slug: string;
+  name: string;
+  color: string;
+  sort_order: number;
+  is_active: boolean;
+  opens_treatment: boolean;
+};
+
 export type ServiceOption = {
   id: string;
   name: string;
   category: CategoryId;
+  category_id?: string;
+  category_label?: string;
+  category_color?: string;
   duration_min: number;
   price_cents: number;
   is_active?: boolean;

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CalendarPlus } from 'lucide-react';
-import { CATEGORIES } from '@/lib/categories';
+import { catStyle } from '@/lib/categories';
 import { dateLbl } from '@/lib/time';
 import { updateTreatment } from '@/lib/client-write';
 import { createClient } from '@/lib/supabase/client';
@@ -44,7 +44,7 @@ export default function TreatmentsTab({
 }
 
 function TreatmentCard({ t, clientId }: { t: TreatmentRow; clientId: string }) {
-  const cat = CATEGORIES[t.service?.category ?? 'corporal'];
+  const cat = catStyle(t.service?.category ?? 'corporal');
   const open = !t.closed_at;
   const [note, setNote] = useState(t.note ?? '');
   const [zone, setZone] = useState(t.zone ?? '');

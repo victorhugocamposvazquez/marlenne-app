@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { CalendarPlus } from 'lucide-react';
-import { CATEGORIES, STATUS } from '@/lib/categories';
+import { catStyle, STATUS } from '@/lib/categories';
 import { dateLbl, fmt, minutesOfDay, offsetFromDay } from '@/lib/time';
 import type { AgendaAppt } from '@/lib/types';
 import { buttonClass } from '@/components/ui/Button';
@@ -46,7 +46,7 @@ export default function HistoryTab({
 
       <div className="flex flex-col gap-2">
         {appointments.map(a => {
-          const cat = CATEGORIES[a.category];
+          const cat = catStyle(a.category);
           const st = STATUS[a.status];
           return (
             <Link

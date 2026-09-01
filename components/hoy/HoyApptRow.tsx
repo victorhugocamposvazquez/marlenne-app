@@ -4,7 +4,7 @@ import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Phone, UserRound } from 'lucide-react';
-import { CATEGORIES } from '@/lib/categories';
+import { catStyle } from '@/lib/categories';
 import { durLbl, fmt, minutesOfDay } from '@/lib/time';
 import { updateStatus } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
@@ -18,7 +18,7 @@ export default function HoyApptRow({
   late?: boolean;
   cabin?: boolean;
 }) {
-  const cat = CATEGORIES[appt.category];
+  const cat = catStyle(appt.category);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const wa = waHref(

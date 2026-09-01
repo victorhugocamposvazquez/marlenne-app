@@ -6,7 +6,7 @@ import { CalendarClock, CalendarPlus, MessageCircle, Phone, Trash2, UserRound } 
 import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
 import NextSlotControls from '@/components/agenda/NextSlotControls';
-import { CATEGORIES, STATUS, type StatusId } from '@/lib/categories';
+import { catStyle, STATUS, type StatusId } from '@/lib/categories';
 import {
   cancelAppointment, slotsFor, updateAppointmentNote, updateStatus,
 } from '@/lib/agenda-write';
@@ -56,7 +56,7 @@ export default function AppointmentSheet({
   const session = useSessionClose(appt, close);
 
   const start = minutesOfDay(appt.starts_at);
-  const cat = CATEGORIES[appt.category];
+  const cat = catStyle(appt.category);
 
   useEffect(() => {
     if (!moving) return;
