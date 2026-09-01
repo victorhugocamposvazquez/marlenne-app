@@ -6,10 +6,7 @@ export default async function ImportarPage() {
   await requireRole('admin');
 
   return (
-    <AjustesHeader
-      title="Importar CSV"
-      subtitle="Una mudanza, no un sync. Servicios, clientas y citas."
-    >
+    <AjustesHeader title="Importar CSV">
       <CsvImportCard />
     </AjustesHeader>
   );

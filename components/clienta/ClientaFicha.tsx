@@ -47,9 +47,6 @@ export default function ClientaFicha({
 
   const photoPaths = treatments.flatMap(t => (t.treatment_photos ?? []).map(p => p.storage_path));
   const metrics = new Set(treatments.flatMap(t => (t.measurements ?? []).map(m => m.metric)));
-  const age = client.birth_date
-    ? Math.floor((Date.now() - +new Date(client.birth_date)) / 31557600000)
-    : null;
   const upcoming = appointments
     .filter(a => (a.status === 'prog' || a.status === 'curso') && +new Date(a.starts_at) >= Date.now())
     .sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at));
@@ -73,13 +70,8 @@ export default function ClientaFicha({
   return (
     <SubpageHeader
       href={canEdit ? '/clientas' : '/hoy'}
-      back={canEdit ? 'Clientas' : 'Hoy'}
+      back={canEdit ? 'Volver a Clientas' : 'Volver a Hoy'}
       title={client.full_name}
-      subtitle={[
-        age !== null ? `${age} años` : null,
-        `alta ${dateLbl(client.created_at)}`,
-        client.sms_opt_in ? null : 'sin SMS',
-      ].filter(Boolean).join(' · ')}
       leading={(
         <span
           className="grid h-9 w-9 shrink-0 place-items-center rounded-icon text-caption font-bold text-white"

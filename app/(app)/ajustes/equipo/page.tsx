@@ -9,10 +9,7 @@ export default async function EquipoPage() {
   const team = await listStaff({ includeInactive: me.role === 'admin' });
 
   return (
-    <AjustesHeader
-      title="Equipo"
-      subtitle={me.role === 'admin' ? 'Altas, rol y baja' : 'Quién trabaja en el centro'}
-    >
+    <AjustesHeader title="Equipo">
       {me.role === 'admin' ? (
         <TeamEditor team={team} meId={me.id} heading={false} />
       ) : (

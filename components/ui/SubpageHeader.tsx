@@ -1,37 +1,33 @@
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import type { ReactNode } from 'react';
 
-/** Cabecera fija: atrás a la izquierda, título al lado, subtítulo debajo del título. */
+/** Cabecera fija: chevron atrás (estilo WhatsApp) y título. */
 export default function SubpageHeader({
-  href, back, title, subtitle, leading, extra, children,
+  href, back, title, leading, extra, children,
 }: {
   href: string;
   back: string;
   title: string;
-  subtitle?: string;
   leading?: ReactNode;
   extra?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="shrink-0 border-b border-surface-line bg-surface-bg px-4 py-2.5">
-        <div className="flex items-center gap-2.5">
+      <header className="shrink-0 border-b border-surface-line bg-surface-bg px-3 py-1.5">
+        <div className="flex items-center gap-1">
           <Link
             href={href}
-            className="inline-flex h-11 shrink-0 items-center gap-1 text-label font-bold text-v-d motion-safe:active:opacity-70"
+            aria-label={back}
+            className="-ml-1 grid h-11 w-11 shrink-0 place-items-center text-v-d motion-safe:active:opacity-70"
           >
-            <ArrowLeft size={18} strokeWidth={2.4} aria-hidden />
-            {back}
+            <ChevronLeft size={32} strokeWidth={2.4} aria-hidden />
           </Link>
           {leading}
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-title font-extrabold leading-tight tracking-[-.02em]">{title}</h1>
-            {subtitle && (
-              <p className="mt-0.5 truncate text-caption font-medium leading-snug text-ink-2">{subtitle}</p>
-            )}
-          </div>
+          <h1 className="min-w-0 flex-1 truncate text-title font-extrabold leading-tight tracking-[-.02em]">
+            {title}
+          </h1>
           {extra}
         </div>
       </header>

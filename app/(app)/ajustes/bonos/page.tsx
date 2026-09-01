@@ -14,12 +14,7 @@ export default async function BonosPage() {
   ]);
 
   return (
-    <AjustesHeader
-      title="Bonos"
-      subtitle={admin
-        ? 'Plantillas para vender. Recarga en los vendidos. El pack amigo se marca en la ficha.'
-        : 'Recargar sesiones. Vender uno nuevo, en la ficha.'}
-    >
+    <AjustesHeader title="Bonos">
       {admin && (
         <section className="mb-6">
           <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">

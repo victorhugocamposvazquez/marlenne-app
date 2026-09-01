@@ -30,7 +30,7 @@ export default async function CuentaPage() {
   await requireSession();
 
   return (
-    <AjustesHeader title="Tu cuenta" subtitle="Esto es de cada persona, no del centro.">
+    <AjustesHeader title="Tu cuenta">
       <VoiceSettingsCard />
       <IosShortcutsCard />
       <PasswordForm />

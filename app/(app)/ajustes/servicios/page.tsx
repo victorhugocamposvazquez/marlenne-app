@@ -11,10 +11,7 @@ export default async function ServiciosPage() {
   ]);
 
   return (
-    <AjustesHeader
-      title="Servicios"
-      subtitle="Categorías y lo que se vende. Es el catálogo de la agenda, no la ficha clínica."
-    >
+    <AjustesHeader title="Servicios">
       <CatalogEditor categories={categories} services={services} />
     </AjustesHeader>
   );
