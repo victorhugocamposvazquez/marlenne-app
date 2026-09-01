@@ -82,7 +82,7 @@ export default function ClientaFicha({
       ].filter(Boolean).join(' · ')}
       leading={(
         <span
-          className="grid h-[50px] w-[50px] shrink-0 place-items-center rounded-field text-body-lg font-bold text-white"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-icon text-caption font-bold text-white"
           style={{ background: avatarColor(client.full_name) }}
         >
           {initials(client.full_name)}

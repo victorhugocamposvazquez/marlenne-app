@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import type { ReactNode } from 'react';
 
-/** Cabecera fija: atrás siempre a la vista, el cuerpo hace scroll debajo. */
+/** Cabecera fija y baja: atrás y título en la misma fila. */
 export default function SubpageHeader({
   href, back, title, subtitle, leading, extra, children,
 }: {
@@ -16,19 +16,21 @@ export default function SubpageHeader({
 }) {
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="shrink-0 border-b border-surface-line bg-surface-bg px-5 pb-3 pt-4">
-        <Link
-          href={href}
-          className="mb-2 inline-flex min-h-[44px] items-center gap-1.5 rounded-chip bg-v-soft px-3 text-label font-bold text-v-d motion-safe:active:scale-[.97]"
-        >
-          <ArrowLeft size={16} strokeWidth={2.4} aria-hidden />
-          {back}
-        </Link>
-        <div className="flex items-start gap-3">
+      <header className="shrink-0 border-b border-surface-line bg-surface-bg px-4 py-2">
+        <div className="flex items-center gap-2">
+          <Link
+            href={href}
+            className="inline-flex h-11 shrink-0 items-center gap-1 rounded-chip bg-v-soft px-2.5 text-label font-bold text-v-d motion-safe:active:scale-[.97]"
+          >
+            <ArrowLeft size={16} strokeWidth={2.4} aria-hidden />
+            {back}
+          </Link>
           {leading}
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-h1 font-extrabold tracking-[-.025em]">{title}</h1>
-            {subtitle && <p className="mt-px text-body font-medium text-ink-2">{subtitle}</p>}
+            <h1 className="truncate text-title font-extrabold tracking-[-.02em]">{title}</h1>
+            {subtitle && (
+              <p className="truncate text-caption font-medium text-ink-2">{subtitle}</p>
+            )}
           </div>
           {extra}
         </div>
