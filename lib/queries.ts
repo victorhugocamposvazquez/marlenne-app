@@ -2,9 +2,9 @@ import { createClient } from '@/lib/supabase/server';
 import { toTimestamp, dateFromOffset, dayKey, weekMondayOffset, isRecallDue } from '@/lib/time';
 import { APPT_SELECT, APPT_SELECT_CORE, mapAppt } from '@/lib/agenda-appt';
 import { packExpired, packRemaining } from '@/lib/packs';
-import { listClientPacks, listPackTemplates } from '@/lib/pack-write';
+import { listClientPacks, listPackTemplates, listSalonPacks } from '@/lib/pack-write';
 import type {
-  AgendaAppt, AgendaBlock, ClientListRow, ClientOption, ClientRow, Consent, PackTemplate, Provider,
+  AgendaAppt, AgendaBlock, ClientListRow, ClientOption, ClientPack, ClientRow, Consent, PackTemplate, Provider,
   RecallRow, ServiceOption, TreatmentRow, WaitItem, WeekDay,
 } from '@/lib/types';
 
@@ -266,6 +266,10 @@ export async function getClient(id: string) {
 
 export async function listSalonPackTemplates(): Promise<PackTemplate[]> {
   return listPackTemplates(createClient(), { includeInactive: true });
+}
+
+export async function listSoldPacks(): Promise<ClientPack[]> {
+  return listSalonPacks(createClient());
 }
 
 export async function listClientAppointments(clientId: string): Promise<AgendaAppt[]> {

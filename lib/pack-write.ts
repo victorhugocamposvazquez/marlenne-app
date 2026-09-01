@@ -230,3 +230,24 @@ export async function setPackFriend(
     .eq('id', packId);
   return { ok: !error, error: error?.message ?? null };
 }
+
+/** Suma sesiones al bono ya vendido (como recargar el papel). */
+export async function addPackSessions(
+  sb: SupabaseClient,
+  packId: string,
+  extra: number,
+): Promise<PackWriteResult> {
+  const n = Math.round(extra);
+  if (!Number.isFinite(n) || n < 1) return { ok: false, error: 'Pon al menos una sesión' };
+  const { data: pack } = await sb
+    .from('client_packs')
+    .select('id, sessions_total')
+    .eq('id', packId)
+    .maybeSingle();
+  if (!pack) return { ok: false, error: 'No está este bono' };
+  const { error } = await sb
+    .from('client_packs')
+    .update({ sessions_total: pack.sessions_total + n })
+    .eq('id', packId);
+  return { ok: !error, error: error?.message ?? null };
+}

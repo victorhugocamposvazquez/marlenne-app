@@ -10,7 +10,7 @@ import Chip from '@/components/ui/Chip';
 import EmptyState from '@/components/ui/EmptyState';
 import { loadClientOptions } from '@/lib/agenda-catalog';
 import { draftFromTemplate, packExpired, packIsOpen } from '@/lib/packs';
-import { sellPack, setPackFriend } from '@/lib/pack-write';
+import { addPackSessions, sellPack, setPackFriend } from '@/lib/pack-write';
 import { createClient } from '@/lib/supabase/client';
 import { dateLbl } from '@/lib/time';
 import { fold } from '@/lib/voice';
@@ -100,6 +100,14 @@ function PackRow({
   const expired = packExpired(pack.expires_at);
   const pct = Math.min(100, Math.round((100 * (pack.sessions_done + pack.reserved)) / pack.sessions_total));
   const [friendOpen, setFriendOpen] = useState(false);
+  const [pendingAdd, startAdd] = useTransition();
+
+  const add = (n: number) => {
+    startAdd(async () => {
+      const r = await addPackSessions(createClient(), pack.id, n);
+      if (r.ok) router.refresh();
+    });
+  };
 
   return (
     <article className={`rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card ${muted ? 'opacity-70' : ''}`}>
@@ -158,6 +166,8 @@ function PackRow({
           >
             {pack.friend_client_id ? 'Cambiar amiga' : 'Hacer pack amigo'}
           </button>
+          <Button variant="secondary" size="sm" disabled={pendingAdd} onClick={() => add(1)}>+1</Button>
+          <Button variant="secondary" size="sm" disabled={pendingAdd} onClick={() => add(4)}>+4</Button>
         </div>
       )}
 
