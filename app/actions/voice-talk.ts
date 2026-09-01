@@ -34,10 +34,6 @@ function dayOf(label?: string | null) {
   return weekdayOffset(label) ?? 0;
 }
 
-export function voiceLlmReady() {
-  return !!process.env.OPENAI_API_KEY;
-}
-
 export async function voiceTalk(text: string, history: VoiceTurn[] = []): Promise<VoiceTalkResult> {
   await requireSession();
   if (!process.env.OPENAI_API_KEY) {
@@ -57,7 +53,7 @@ Solo agenda: citas, huecos, cabina, no-show, espera. Nunca fotos, medidas, notas
 Usa las herramientas. No inventes huecos ni nombres.
 Si falta el servicio, llama a preview_cita igual (sin servicio) y pregunta cuál es. No mandes a abrir el alta.
 Si el equipo responde solo con el nombre del servicio, vuelve a llamar a preview_cita con ese servicio.
-Las herramientas de escribir solo PREVISUALIZAN: tú preguntas si lo hacemos. El equipo confirma en pantalla.
+Las herramientas de escribir solo PREVISUALIZAN: tú preguntas si lo hacemos. El equipo confirma en pantalla.`,
     messages: [
       ...history.slice(-6).map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
       { role: 'user' as const, content: text },

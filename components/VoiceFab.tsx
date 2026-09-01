@@ -450,8 +450,8 @@ export default function VoiceFab() {
   const remember = (user: string, say: string) => {
     historyRef.current = [
       ...historyRef.current,
-      { role: 'user', content: user },
-      { role: 'assistant', content: say },
+      { role: 'user' as const, content: user },
+      { role: 'assistant' as const, content: say },
     ].slice(-8);
   };
 
