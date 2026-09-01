@@ -386,6 +386,48 @@ const CHAT: ChatRow[] = [
   { re: /^(eres rapida|que rapida eres|vaya maquina)$/, say: 'Hoy sí. ¿Qué toca?' },
   { re: /^(buenas|muy buenas)$/, say: 'Te escucho.' },
   { re: /^(de nada|a ti)$/, say: 'Cuando quieras.' },
+  { re: /^(esta esperando|esta sentada|ha venido antes|llego pronto|llego temprano)$/, say: 'Que se siente. Aviso a cabina.' },
+  { re: /^(lleva un rato|lleva rato esperando|esta tardando la cabina)$/, say: 'Lleva un rato. Aviso.' },
+  { re: /^(la paso|la paso ya|entro o espera|la dejo esperar)$/, say: '¿La paso a cabina o espera?' },
+  { re: /^(preguntan por un hueco|buscan hueco|hay hueco por telefono|llaman por hueco)$/, say: '¿Qué día y a qué hora?' },
+  { re: /^(se ha puesto enferma|falta una|falta una profesional|no viene una|esta de baja)$/, say: 'Miro huecos de las demás.' },
+  { re: /^(a que hora cerramos|cuando cerramos|hasta que hora|cerramos pronto|a que hora cierra)$/, say: 'Hasta las ocho. ¿Un hueco?' },
+  { re: /^(abrimos manana|a que hora abrimos|manana abrimos|cuando abrimos)$/, say: 'Mañana a las nueve. ¿Apuntamos?' },
+  { re: /^(paga en efectivo|paga con tarjeta|bizum|con tarjeta|en efectivo|como paga|quiere factura)$/, say: 'Eso en caja. Yo apunto la cita.' },
+  { re: /^(tiene bono|usa el bono|lleva bono|es de bono|cuanto queda del bono|le queda bono)$/, say: 'En la ficha, en Bonos.' },
+  { re: /^(quiere cambiar de profesional|otra profesional|no quiere ir con ella|cambia de cabina)$/, say: '¿Con quién la quieres?' },
+  { re: /^(dice que tenia cita|tenia cita|dice que esta apuntada|no la encuentro y dice que si)$/, say: 'Miro si está apuntada.' },
+  { re: /^(llega tarde|avisa que se retrasa|se retrasa|viene tarde|llega en cinco)$/, say: 'Aviso a cabina.' },
+  { re: /^(diez minutos|en diez|se retrasa diez|diez min)$/, say: 'Diez minutos. Aviso.' },
+  { re: /^(la cabina esta ocupada|no esta lista la cabina|cabina ocupada|aun no esta lista)$/, say: 'En cuanto quede libre.' },
+  { re: /^(se alarga|se esta alargando|va con retraso|el tratamiento se alarga)$/, say: 'Aviso a la siguiente.' },
+  { re: /^(tiene que firmar|el consentimiento|consentimiento|hay que firmar|las normas)$/, say: 'La ficha y el consentimiento.' },
+  { re: /^(es menor|viene una menor|es una nina|con la madre)$/, say: 'Hace falta tutor. ¿La ficha?' },
+  { re: /^(no tiene movil|no tiene telefono|sin telefono|no hay numero)$/, say: 'Apunto sin SMS.' },
+  { re: /^(no quiere sms|sin sms|que no le avise|no la avises)$/, say: 'Sin aviso. ¿La cita?' },
+  { re: /^(esta embarazada|viene embarazada|es embarazo)$/, say: 'Miro qué se puede. ¿El servicio?' },
+  { re: /^(viene con ninos|trae a los ninos|viene con el nino|con carrito)$/, say: 'Que se sienten. ¿La cita?' },
+  { re: /^(es la de siempre|la de siempre|la habitual|como siempre)$/, say: 'Dime el nombre.' },
+  { re: /^(esta duplicada|hay dos citas|se ha duplicado|sale dos veces)$/, say: 'Miro cuál dejamos.' },
+  { re: /^(es festivo|estamos de puente|no se abre|cerramos el festivo|es puente)$/, say: 'Si no abrimos, no apunto.' },
+  { re: /^(quiere cancelar|hay que cancelar|anular cita|van a cancelar)$/, say: '¿De quién es la cita?' },
+  { re: /^(quiere cambiarla|hay que moverla|la cambiamos|reprogramar)$/, say: '¿A quién muevo y a qué hora?' },
+  { re: /^(es laser|viene de laser|quiere laser|depilacion|quiere depilarse)$/, say: 'Láser. ¿Nombre y hora?' },
+  { re: /^(es facial|viene de facial|quiere facial|un facial)$/, say: 'Facial. ¿Nombre y hora?' },
+  { re: /^(es corporal|viene de corporal|quiere corporal|cavitacion|vacum)$/, say: 'Corporal. ¿Nombre y hora?' },
+  { re: /^(es masaje|quiere masaje|un masaje)$/, say: 'Masaje. ¿Nombre y hora?' },
+  { re: /^(es micro|microblading|quiere micro|cejas)$/, say: 'Micro. ¿Nombre y hora?' },
+  { re: /^(es valoracion|quiere valoracion|solo valoracion|asesoria)$/, say: 'Valoración. ¿Nombre y hora?' },
+  { re: /^(paga la amiga|invita ella|lo paga otra|regalo de la amiga)$/, say: 'Da igual. ¿El nombre de la cita?' },
+  { re: /^(cerramos|ya esta el dia|se acabo|ultima cita|es la ultima)$/, say: '¿Queda alguna?' },
+  { re: /^(el ipad no va|no va el ipad|se ha colgado|no carga la app)$/, say: 'Prueba a recargar. Yo sigo.' },
+  { re: /^(no me deja guardar|no se guarda|falla al guardar|error al guardar)$/, say: 'Nombre y hora otra vez.' },
+  { re: /^(le ha sentado mal|le duele|esta incomoda|reaccion)$/, say: 'Aviso. ¿La ficha?' },
+  { re: /^(quiere fotos|las fotos|medidas|el antes y despues)$/, say: 'Las fotos no van aquí. La cita sí.' },
+  { re: /^(quieren confirmar|llama para confirmar|confirma la cita)$/, say: 'Para confirmar, el nombre.' },
+  { re: /^(esta menstruando|viene con la regla|tiene la regla)$/, say: 'Aviso a cabina.' },
+  { re: /^(viene de otra clinica|es de fuera|nueva de otro sitio)$/, say: 'Alta y cita. ¿El nombre?' },
+  { re: /^(ha visto instagram|viene de instagram|es de redes)$/, say: 'Bonito. ¿La apuntamos?' },
 ];
 
 function parseChat(t: string): VoiceCmd | null {
@@ -483,6 +525,18 @@ export function parseVoice(text: string): VoiceCmd {
   if (slots) return slots;
   const opened = parseOpenNew(t);
   if (opened) return opened;
+  if (/^(bonos|el bono|los bonos|abre bonos|abre los bonos|packs|los packs)$/.test(t)) {
+    return { kind: 'go', href: '/ajustes/bonos', say: 'Abro Bonos.' };
+  }
+  if (/^(servicios|los servicios|el catalogo|abre servicios|abre los servicios|las tarifas|el tarifario)$/.test(t)) {
+    return { kind: 'go', href: '/ajustes/servicios', say: 'Abro Servicios.' };
+  }
+  if (/^(el equipo|las chicas|quien trabaja|abre el equipo)$/.test(t)) {
+    return { kind: 'go', href: '/ajustes/equipo', say: 'Abro el equipo.' };
+  }
+  if (/^(no veo la cita|no aparece|no esta en la agenda|no la veo)$/.test(t)) {
+    return { kind: 'go', href: '/agenda', say: 'Abro la agenda.' };
+  }
   const booked = parseBook(t);
   if (booked) return booked;
 
