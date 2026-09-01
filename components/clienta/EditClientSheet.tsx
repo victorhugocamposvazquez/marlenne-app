@@ -4,11 +4,17 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Sheet, { Field, inputCls, useCloseSheet } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
-import { updateClientRecord } from '@/lib/client-write';
+import { deleteClientRecord, updateClientRecord } from '@/lib/client-write';
 import { createClient } from '@/lib/supabase/client';
 import type { ClientRow } from '@/lib/types';
 
-export default function EditClientSheet({ client }: { client: ClientRow }) {
+export default function EditClientSheet({
+  client, upcomingCount = 0, photoCount = 0,
+}: {
+  client: ClientRow;
+  upcomingCount?: number;
+  photoCount?: number;
+}) {
   const close = useCloseSheet();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -20,6 +26,7 @@ export default function EditClientSheet({ client }: { client: ClientRow }) {
   const [vip, setVip] = useState(client.tags?.includes('VIP') ?? false);
   const [sms, setSms] = useState(client.sms_opt_in);
   const [error, setError] = useState<string | null>(null);
+  const [askDelete, setAskDelete] = useState(false);
 
   const save = () => {
     setError(null);
@@ -44,46 +51,93 @@ export default function EditClientSheet({ client }: { client: ClientRow }) {
     });
   };
 
+  const remove = () => {
+    setError(null);
+    startTransition(async () => {
+      const r = await deleteClientRecord(createClient(), client.id);
+      if (!r.ok) setError(r.error ?? 'No se ha podido borrar');
+      else router.replace('/clientas');
+    });
+  };
+
   return (
     <Sheet
-      title="Editar ficha"
+      title={askDelete ? 'Borrar ficha' : 'Editar ficha'}
       subtitle={client.full_name}
       footer={
-        <>
-          {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
-          <Button size="lg" full onClick={save} disabled={name.trim().length < 2 || pending}>
-            {pending ? 'Guardando…' : 'Guardar cambios'}
-          </Button>
-        </>
+        askDelete ? (
+          <>
+            {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
+            <div className="flex gap-2">
+              <Button variant="secondary" className="flex-1 text-ink-2" onClick={() => setAskDelete(false)}>
+                Dejarla
+              </Button>
+              <Button variant="danger" className="flex-1" disabled={pending} onClick={remove}>
+                {pending ? 'Borrando…' : 'Borrar del todo'}
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
+            <Button size="lg" full onClick={save} disabled={name.trim().length < 2 || pending}>
+              {pending ? 'Guardando…' : 'Guardar cambios'}
+            </Button>
+          </>
+        )
       }
     >
-      <Field label="Nombre">
-        <input className={inputCls} value={name} onChange={e => setName(e.target.value)} />
-      </Field>
-      <Field label="Teléfono">
-        <input className={inputCls} type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
-      </Field>
-      <Field label="Email">
-        <input className={inputCls} type="email" value={email} onChange={e => setEmail(e.target.value)} />
-      </Field>
-      <Field label="Fecha de nacimiento">
-        <input className={inputCls} type="date" value={birth} onChange={e => setBirth(e.target.value)} />
-      </Field>
-      <Field label="Notas">
-        <textarea
-          className={`${inputCls} min-h-[88px] resize-none`}
-          value={notes}
-          onChange={e => setNotes(e.target.value)}
-        />
-      </Field>
-      <label className="mb-2 flex items-center gap-2 text-body font-bold">
-        <input type="checkbox" checked={vip} onChange={e => setVip(e.target.checked)} className="h-5 w-5 accent-v" />
-        VIP
-      </label>
-      <label className="mb-2 flex items-center gap-2 text-body font-bold">
-        <input type="checkbox" checked={sms} onChange={e => setSms(e.target.checked)} className="h-5 w-5 accent-v" />
-        Recibe recordatorios SMS
-      </label>
+      {askDelete ? (
+        <div className="mb-2">
+          <p className="text-body font-medium leading-snug text-ink-2">
+            Se borra la ficha, consentimientos, medidas y fotos. No hay marcha atrás.
+          </p>
+          {photoCount > 0 && (
+            <p className="mt-2 text-label font-semibold text-ink-2">
+              {photoCount === 1 ? '1 foto' : `${photoCount} fotos`} de tratamiento también se quitan.
+            </p>
+          )}
+          {upcomingCount > 0 && (
+            <p className="mt-2 text-label font-semibold text-ink-2">
+              {upcomingCount === 1 ? 'Hay 1 cita futura' : `Hay ${upcomingCount} citas futuras`}:
+              se quedan en la agenda con el nombre, sin ficha.
+            </p>
+          )}
+        </div>
+      ) : (
+        <>
+          <Field label="Nombre">
+            <input className={inputCls} value={name} onChange={e => setName(e.target.value)} />
+          </Field>
+          <Field label="Teléfono">
+            <input className={inputCls} type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
+          </Field>
+          <Field label="Email">
+            <input className={inputCls} type="email" value={email} onChange={e => setEmail(e.target.value)} />
+          </Field>
+          <Field label="Fecha de nacimiento">
+            <input className={inputCls} type="date" value={birth} onChange={e => setBirth(e.target.value)} />
+          </Field>
+          <Field label="Notas">
+            <textarea
+              className={`${inputCls} min-h-[88px] resize-none`}
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+            />
+          </Field>
+          <label className="mb-2 flex items-center gap-2.5 text-body font-bold">
+            <input type="checkbox" checked={vip} onChange={e => setVip(e.target.checked)} />
+            VIP
+          </label>
+          <label className="mb-4 flex items-center gap-2.5 text-body font-bold">
+            <input type="checkbox" checked={sms} onChange={e => setSms(e.target.checked)} />
+            Recibe recordatorios SMS
+          </label>
+          <Button variant="ghost" className="text-danger-fg" onClick={() => setAskDelete(true)}>
+            Borrar ficha
+          </Button>
+        </>
+      )}
     </Sheet>
   );
 }

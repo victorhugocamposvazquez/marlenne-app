@@ -89,6 +89,59 @@ export async function patchClientNotes(
   return { ok: !error, error: error?.message ?? null };
 }
 
+const STORAGE_CHUNK = 50;
+
+/** Borra ficha, fotos de Storage, tratamientos y consentimientos. Las citas se quedan con el nombre. */
+export async function deleteClientRecord(
+  sb: SupabaseClient,
+  id: string,
+): Promise<ClientWriteResult> {
+  const { salonId } = await salonOf(sb);
+  if (!salonId) return { ok: false, error: 'Sin sesión' };
+
+  const { data: client, error: foundErr } = await sb
+    .from('clients')
+    .select('id, full_name')
+    .eq('id', id)
+    .maybeSingle();
+  if (foundErr) return { ok: false, error: foundErr.message };
+  if (!client) return { ok: false, error: 'No está esta ficha' };
+
+  const { data: treatments, error: txErr } = await sb
+    .from('treatments')
+    .select('id')
+    .eq('client_id', id);
+  if (txErr) return { ok: false, error: txErr.message };
+
+  const txIds = (treatments ?? []).map(t => t.id);
+  let paths: string[] = [];
+  if (txIds.length) {
+    const { data: photos, error: phErr } = await sb
+      .from('treatment_photos')
+      .select('storage_path')
+      .in('treatment_id', txIds);
+    if (phErr) return { ok: false, error: phErr.message };
+    paths = (photos ?? []).map(p => p.storage_path).filter(Boolean);
+  }
+
+  // Hay que borrar Storage con los tratamientos aún vivos: la política mira esa fila.
+  for (let i = 0; i < paths.length; i += STORAGE_CHUNK) {
+    const { error: stErr } = await sb.storage
+      .from('treatment-photos')
+      .remove(paths.slice(i, i + STORAGE_CHUNK));
+    if (stErr) return { ok: false, error: stErr.message };
+  }
+
+  const { error: stampErr } = await sb
+    .from('appointments')
+    .update({ client_name: client.full_name })
+    .eq('client_id', id);
+  if (stampErr) return { ok: false, error: stampErr.message };
+
+  const { error } = await sb.from('clients').delete().eq('id', id);
+  return { ok: !error, error: error?.message ?? null };
+}
+
 export async function updateTreatment(
   sb: SupabaseClient,
   input: { id: string; note?: string | null; zone?: string | null; sessions_total?: number },

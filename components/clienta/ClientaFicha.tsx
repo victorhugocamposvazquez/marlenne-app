@@ -200,7 +200,13 @@ export default function ClientaFicha({
           <HistoryTab appointments={appointments} clientId={client.id} />
         )}
       </div>
-      {canEdit && editar === '1' && <EditClientSheet client={client} />}
+      {canEdit && editar === '1' && (
+        <EditClientSheet
+          client={client}
+          upcomingCount={upcoming.length}
+          photoCount={photoPaths.length}
+        />
+      )}
     </div>
   );
 }
