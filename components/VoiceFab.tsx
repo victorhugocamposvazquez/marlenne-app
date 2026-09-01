@@ -11,8 +11,9 @@ import {
   voiceSlots, voiceToday,
   type PendingBook,
 } from '@/app/actions/voice';
-import type { VoiceTalkResult } from '@/app/actions/voice-talk';
+import { voiceTalk, type VoiceTalkResult, type VoiceTurn } from '@/app/actions/voice-talk';
 import { voiceSpeakMp3 } from '@/app/actions/voice-speak';
+import VoiceWaves from '@/components/VoiceWaves';
 import { VOICE_HELP, fold, forEar, isVoiceYes, parseVoice, pickSpokenIndex, splitWake, takeTime, wakeRestIsCommand } from '@/lib/voice';
 import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/hooks/voice-prefs';
 import {
@@ -67,7 +68,7 @@ async function playCloud(text: string, kind: 'ask' | 'say') {
   const key = `${kind}:${text}`;
   let b64 = ttsB64.get(key) ?? null;
   if (!b64) {
-    b64 = await withTime(voiceSpeakMp3(text, kind), 6000);
+    b64 = await withTime(voiceSpeakMp3(text, kind), 12000);
     if (!b64) return false;
     ttsB64.set(key, b64);
     if (ttsB64.size > 40) {
@@ -78,10 +79,20 @@ async function playCloud(text: string, kind: 'ask' | 'say') {
   return playB64(key, b64);
 }
 
+function wait(ms: number) {
+  return new Promise<void>(r => window.setTimeout(r, ms));
+}
+
 async function utter(text: string, ask: boolean) {
   const ear = forEar(text);
+  warmVoiceAudio();
+  await wait(180);
   const ok = await playCloud(ear, ask ? 'ask' : 'say');
-  if (!ok) await speakLocal(ear, ask);
+  if (!ok) {
+    unlockSpeak();
+    await wait(80);
+    await speakLocal(ear, ask);
+  }
 }
 
 function afterSpeak(gen: number, onDone?: () => void) {
@@ -183,11 +194,10 @@ export default function VoiceFab() {
   const draftRef = useRef('');
   const optionsRef = useRef<string[]>([]);
   const commitRef = useRef<() => void>(() => {});
-  const [hearDraft, setHearDraft] = useState('');
   const [hearing, setHearing] = useState(false);
   const [armed, setArmed] = useState(false);
   const [wakeOn, setWakeOn] = useState(false);
-  const [wakeHeard, setWakeHeard] = useState('');
+  const historyRef = useRef<VoiceTurn[]>([]);
   const armedRef = useRef(false);
   const hushRef = useRef(false);
   const busyRef = useRef(false);
@@ -250,7 +260,6 @@ export default function VoiceFab() {
     overlayRef.current = false;
     draftRef.current = '';
     setHearing(false);
-    setHearDraft('');
     killRec();
     stopSpeak();
     pendingRef.current = null;
@@ -266,7 +275,6 @@ export default function VoiceFab() {
     overlayRef.current = false;
     draftRef.current = '';
     setHearing(false);
-    setHearDraft('');
     killRec();
     setOpen(true);
     setPanel(say ? { mode: 'msg', say } : { mode: 'idle' });
@@ -353,12 +361,6 @@ export default function VoiceFab() {
   }, []);
 
   useEffect(() => {
-    if (!wakeHeard) return;
-    const t = window.setTimeout(() => setWakeHeard(''), 4000);
-    return () => window.clearTimeout(t);
-  }, [wakeHeard]);
-
-  useEffect(() => {
     const sheet = ['new', 'appt', 'alta', 'editar', 'close', 'block', 'bloqueo', 'wait']
       .some(k => searchParams.get(k));
     const check = () => {
@@ -433,6 +435,14 @@ export default function VoiceFab() {
         startWakeRef.current();
       }, 1400);
     });
+  };
+
+  const remember = (user: string, say: string) => {
+    historyRef.current = [
+      ...historyRef.current,
+      { role: 'user', content: user },
+      { role: 'assistant', content: say },
+    ].slice(-8);
   };
 
   const applyTalk = (r: VoiceTalkResult) => {
@@ -562,7 +572,13 @@ export default function VoiceFab() {
           applyTalk(await voicePreviewBook(cmd.text, null, null, 0, null));
           return;
         }
-        const say = `No he pillado «${cmd.text}». Dime el servicio, la hora, o una cita.`;
+        const talk = await voiceTalk(cmd.text, historyRef.current);
+        if (!talk.fallback && talk.say) {
+          remember(cmd.text, talk.say);
+          applyTalk(talk);
+          return;
+        }
+        const say = 'No lo he pillado. Dime el servicio, la hora, o una cita.';
         speak(say, () => startListen());
         setPanel({ mode: 'msg', say });
         return;
@@ -680,7 +696,7 @@ export default function VoiceFab() {
     genRef.current += 1;
     killRec();
     setHearing(false);
-    setHearDraft('');
+    warmVoiceAudio();
     if (text) {
       missesRef.current = 0;
       setTyped('');
@@ -734,14 +750,10 @@ export default function VoiceFab() {
       }
       const heard = text.trim();
       if (!heard) return;
-      const last = ev.results[ev.results.length - 1];
       const wake = splitWake(heard);
       const cmd = parseVoice(heard);
       const isCmd = cmd.kind !== 'unknown' && cmd.kind !== 'help' && cmd.kind !== 'dismiss';
-      if (!wake.woke && !isCmd) {
-        if (last?.isFinal) setWakeHeard(heard);
-        return;
-      }
+      if (!wake.woke && !isCmd) return;
       wakeRef.current = false;
       setWakeOn(false);
       genRef.current += 1;
@@ -753,7 +765,7 @@ export default function VoiceFab() {
       }
       if (wakeRestIsCommand(wake.rest)) {
         setOpen(true);
-        setPanel({ mode: 'listen', draft: wake.rest });
+        setPanel({ mode: 'listen', draft: '' });
         runText(wake.rest);
         return;
       }
@@ -804,7 +816,6 @@ export default function VoiceFab() {
     listenRef.current = true;
     overlayRef.current = !!opts?.overlay;
     setHearing(true);
-    setHearDraft('');
     killRec();
     const rec = makeRec();
     if (!rec) {
@@ -823,8 +834,6 @@ export default function VoiceFab() {
         text += ev.results[i]?.[0]?.transcript ?? '';
       }
       draftRef.current = text.trim();
-      if (overlayRef.current) setHearDraft(draftRef.current);
-      else setPanel({ mode: 'listen', draft: draftRef.current });
       if (ev.results[ev.results.length - 1]?.isFinal && draftRef.current) {
         commitListen();
       }
@@ -907,9 +916,7 @@ export default function VoiceFab() {
             </IconButton>
           </div>
           {panel.mode === 'listen' && (
-            <p className="text-body font-semibold text-ink-2">
-              {panel.draft || 'Dime.'}
-            </p>
+            <VoiceWaves label={pending ? 'Un segundo' : hearing ? 'Escuchando' : 'Dime'} />
           )}
           {panel.mode === 'msg' && (
             <p className="text-body font-semibold text-ink-2">{panel.say}</p>
@@ -917,11 +924,15 @@ export default function VoiceFab() {
           {panel.mode === 'ask' && (
             <div>
               <p className="text-body font-semibold text-ink-2">{panel.say}</p>
-              <p className="mt-1 text-label font-semibold text-v-d">
-                {hearDraft || (hearing
-                  ? (pendingRef.current?.need === 'time' ? 'Dilo: once y media, o toca una hora.' : 'Dilo: vacumterapia, facial…')
-                  : 'Toca el micro y dilo, o elige abajo.')}
-              </p>
+              {hearing || pending ? (
+                <div className="mt-2">
+                  <VoiceWaves label={pending ? 'Un segundo' : pendingRef.current?.need === 'time' ? 'Dilo o toca una hora' : 'Escuchando'} />
+                </div>
+              ) : (
+                <p className="mt-1 text-label font-semibold text-v-d">
+                  Toca el micro y dilo, o elige abajo.
+                </p>
+              )}
               {panel.options && panel.options.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {panel.options.map(opt => (
@@ -964,9 +975,13 @@ export default function VoiceFab() {
           {panel.mode === 'confirm' && (
             <div>
               <p className="text-body font-semibold text-ink-2">{panel.say}</p>
-              <p className="mt-1 text-label font-semibold text-v-d">
-                {hearDraft || (hearing ? 'Di sí o no.' : 'Di sí, o toca Sí.')}
-              </p>
+              {hearing || pending ? (
+                <div className="mt-2">
+                  <VoiceWaves label={pending ? 'Un segundo' : 'Di sí o no'} />
+                </div>
+              ) : (
+                <p className="mt-1 text-label font-semibold text-v-d">Di sí, o toca Sí.</p>
+              )}
               {panel.choices && (
                 <div className="mt-2 flex flex-col gap-1.5">
                   {panel.choices.map(c => (
@@ -1068,11 +1083,6 @@ export default function VoiceFab() {
           />
         )}
       </div>
-      {!open && wakeHeard && (
-        <p className="pointer-events-none mt-1 max-w-[200px] text-right text-micro font-semibold text-ink-3">
-          Oí «{wakeHeard}»
-        </p>
-      )}
       {!open && !hearing && micPerm !== 'granted' && micPerm !== 'unknown' && (
         <p className="pointer-events-none mt-1 max-w-[220px] text-right text-micro font-semibold text-ink-3">
           Toca el micro para permitir el oído

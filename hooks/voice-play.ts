@@ -154,6 +154,7 @@ export function speakLocal(text: string, ask: boolean) {
       resolve();
       return;
     }
+    try { window.speechSynthesis.cancel(); } catch { /* */ }
     const u = new SpeechSynthesisUtterance(text);
     const voice = pickWomanVoice();
     if (voice) {
@@ -171,6 +172,10 @@ export function speakLocal(text: string, ask: boolean) {
     };
     u.onend = end;
     u.onerror = end;
-    window.speechSynthesis.speak(u);
+    // Tras el dictado Safari a veces traga el speak si va en el mismo tick.
+    window.setTimeout(() => {
+      try { void audioCtx().resume(); } catch { /* */ }
+      window.speechSynthesis.speak(u);
+    }, 80);
   });
 }

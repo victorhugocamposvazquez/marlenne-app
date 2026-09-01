@@ -61,7 +61,7 @@ export default function VoiceSettingsCard() {
         />
         <Row
           title="Responder en voz"
-          hint="Lee confirmaciones. Si va apagado, solo texto."
+          hint="Lee las confirmaciones en voz alta. Si va apagado, solo se ve el texto."
           on={prefs.speak}
           onToggle={() => setVoicePrefs({ speak: !prefs.speak })}
         />

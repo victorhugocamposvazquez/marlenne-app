@@ -78,11 +78,13 @@ export default {
         sheetUp: { from: { transform: 'translateY(30px)', opacity: '0' }, to: { transform: 'none', opacity: '1' } },
         toastIn: { from: { transform: 'translateY(10px) scale(.97)', opacity: '0' }, to: { transform: 'none', opacity: '1' } },
         pulseDot: { '0%,100%': { opacity: '1' }, '50%': { opacity: '.35' } },
+        voiceBar: { '0%,100%': { transform: 'scaleY(0.28)' }, '50%': { transform: 'scaleY(1)' } },
       },
       animation: {
         sheetUp: 'sheetUp .26s cubic-bezier(.2,.9,.3,1)',
         toastIn: 'toastIn .22s ease',
         pulseDot: 'pulseDot 1.6s infinite',
+        voiceBar: 'voiceBar .7s ease-in-out infinite',
       },
     },
   },
