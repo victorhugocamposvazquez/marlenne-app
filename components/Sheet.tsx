@@ -114,6 +114,6 @@ export function Field({ label, children }: { label: string; children: React.Reac
 }
 
 export const inputCls =
-  'w-full rounded-field border border-surface-line bg-surface-bg/40 px-3.5 py-3 text-body font-semibold text-ink outline-none focus:border-v focus:bg-surface-card focus-visible:ring-2 focus-visible:ring-v/40';
+  'w-full rounded-field border border-surface-line bg-surface-bg/40 px-3.5 py-3 text-[16px] font-semibold leading-snug text-ink outline-none focus:border-v focus:bg-surface-card focus-visible:ring-2 focus-visible:ring-v/40';
 
 export { default as Chip } from '@/components/ui/Chip';

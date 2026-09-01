@@ -1033,7 +1033,7 @@ export default function VoiceFab() {
             }}
           >
             <input
-              className="min-w-0 flex-1 rounded-chip border border-surface-line px-3 py-2 text-body font-semibold"
+              className="min-w-0 flex-1 rounded-chip border border-surface-line px-3 py-2 text-[16px] font-semibold leading-snug"
               placeholder="Escribe o dicta el comando"
               value={typed}
               onChange={e => setTyped(e.target.value)}

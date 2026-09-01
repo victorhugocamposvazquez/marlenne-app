@@ -81,7 +81,7 @@ export default function ClientasView({
             onChange={e => setQ(e.target.value)}
             placeholder="Buscar nombre o teléfono"
             aria-label="Buscar clientas"
-            className="flex-1 border-0 bg-transparent py-3 text-body font-medium outline-none"
+            className="flex-1 border-0 bg-transparent py-3 text-[16px] font-medium leading-snug outline-none"
           />
           {q && (
             <button type="button" onClick={() => setQ('')} className="min-h-[44px] text-label font-bold text-ink-2">
