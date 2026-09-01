@@ -255,6 +255,7 @@ export default function DayGrid({
                   <div
                     key={a.id}
                     data-id={a.id}
+                    data-no-pull
                     className={`absolute flex overflow-hidden rounded-pill select-none [-webkit-touch-callout:none] ${pos.dragging ? 'touch-none' : ''}`}
                     style={{
                       left: col * COL_W,
