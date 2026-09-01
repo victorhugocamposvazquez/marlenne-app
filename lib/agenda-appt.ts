@@ -8,7 +8,7 @@ export const APPT_SELECT_CORE = `
   client:clients(full_name, phone)
 `;
 
-export const APPT_SELECT = `${APPT_SELECT_CORE}, confirmed_at`;
+export const APPT_SELECT = `${APPT_SELECT_CORE}, confirmed_at, client_pack_id, client_pack:client_packs(name)`;
 
 export function mapAppt(row: unknown): AgendaAppt {
   const r = row as {
@@ -26,9 +26,11 @@ export function mapAppt(row: unknown): AgendaAppt {
     service_id: string;
     note?: string | null;
     confirmed_at?: string | null;
+    client_pack_id?: string | null;
     service?: { name?: string; category?: AgendaAppt['category']; param_keys?: string[] } | null;
     provider?: { full_name?: string } | null;
     client?: { full_name?: string; phone?: string | null } | null;
+    client_pack?: { name?: string } | null;
   };
   return {
     id: r.id,
@@ -50,5 +52,7 @@ export function mapAppt(row: unknown): AgendaAppt {
     note: r.note ?? null,
     client_phone: r.client?.phone ?? null,
     confirmed_at: r.confirmed_at ?? null,
+    client_pack_id: r.client_pack_id ?? null,
+    pack_name: r.client_pack?.name ?? null,
   };
 }

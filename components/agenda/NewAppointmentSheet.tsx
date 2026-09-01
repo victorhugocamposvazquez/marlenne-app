@@ -11,16 +11,18 @@ import { createAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import { dayKey, durLbl, fmt, minutesOfDay } from '@/lib/time';
 import { bestNameMatches, fold, parseClock } from '@/lib/voice';
-import type { ClientOption, Provider, ServiceOption } from '@/lib/types';
+import { packFitsService, packIsOpen, packLabel, packUsableBy, pickPackForService } from '@/lib/packs';
+import type { ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
 
 export default function NewAppointmentSheet({
-  day, providers, services, clients, preselected = null,
+  day, providers, services, clients, packs = [], preselected = null,
   initialName = '', initialHora = '', initialServiceQ = '', initialProviderId,
 }: {
   day: string;
   providers: Provider[];
   services: ServiceOption[];
   clients: ClientOption[];
+  packs?: ClientPack[];
   preselected?: ClientOption | null;
   initialName?: string;
   initialHora?: string;
@@ -47,8 +49,12 @@ export default function NewAppointmentSheet({
   const [error, setError] = useState<string | null>(null);
   const [serviceQ, setServiceQ] = useState(initialServiceQ);
   const [note, setNote] = useState('');
+  const [packId, setPackId] = useState('');
 
   const service = services.find(s => s.id === serviceId) ?? null;
+  const usablePacks = client && serviceId
+    ? packs.filter(p => packUsableBy(p, client.id) && packFitsService(p, serviceId) && packIsOpen(p))
+    : [];
 
   const matches = useMemo(() => {
     const q = fold(query);
@@ -72,6 +78,12 @@ export default function NewAppointmentSheet({
     if (startMin !== null && slots && !slots.includes(startMin)) setStartMin(null);
   }, [slots, startMin]);
 
+  useEffect(() => {
+    if (!client || !serviceId) { setPackId(''); return; }
+    const picked = pickPackForService(packs, client.id, serviceId);
+    setPackId(picked?.id ?? '');
+  }, [client?.id, serviceId, packs]);
+
   const who = client?.full_name ?? query.trim();
   const ready = !!service && !!providerId && startMin !== null && who.length > 1 && !pending;
 
@@ -87,6 +99,7 @@ export default function NewAppointmentSheet({
         date,
         startMin,
         note: note.trim() || undefined,
+        clientPackId: packId || undefined,
       });
       if (r.ok) close();
       else setError(r.error ?? 'No se ha podido guardar la cita');
@@ -96,7 +109,11 @@ export default function NewAppointmentSheet({
   return (
     <Sheet
       title="Nueva cita"
-      subtitle={service ? `${durLbl(service.duration_min)} · ${(service.price_cents / 100).toFixed(0)} €` : 'Elige clienta, servicio y hora'}
+      subtitle={service
+        ? (packId
+          ? `${durLbl(service.duration_min)} · bono`
+          : `${durLbl(service.duration_min)} · ${(service.price_cents / 100).toFixed(0)} €`)
+        : 'Elige clienta, servicio y hora'}
       footer={
         <>
           {error && (
@@ -197,6 +214,20 @@ export default function NewAppointmentSheet({
           })}
         </select>
       </Field>
+
+      {usablePacks.length > 0 && (
+        <Field label="Bono">
+          <div className="flex flex-wrap gap-2">
+            <Chip active={!packId} onClick={() => setPackId('')}>Sin bono</Chip>
+            {usablePacks.map(p => (
+              <Chip key={p.id} active={packId === p.id} onClick={() => setPackId(p.id)}>
+                {packLabel(p)}
+                {p.owner_client_id !== client?.id ? ' · amiga' : ''}
+              </Chip>
+            ))}
+          </div>
+        </Field>
+      )}
 
       {providers.length > 1 && (
         <Field label="Profesional">

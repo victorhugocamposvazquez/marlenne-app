@@ -276,7 +276,12 @@ export default function AppointmentSheet({
         </span>
         {appt.price_cents !== null && (
           <span className="rounded-badge bg-surface-bg px-2.5 py-1.5 text-caption font-bold text-ink-2">
-            {(appt.price_cents / 100).toFixed(0)} €
+            {appt.client_pack_id ? 'Bono' : `${(appt.price_cents / 100).toFixed(0)} €`}
+          </span>
+        )}
+        {appt.pack_name && (
+          <span className="rounded-badge bg-v-soft px-2.5 py-1.5 text-caption font-bold text-v-d">
+            {appt.pack_name}
           </span>
         )}
         {appt.session_no !== null && (

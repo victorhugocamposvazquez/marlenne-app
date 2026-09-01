@@ -4,20 +4,21 @@ import { Download } from 'lucide-react';
 import IconButton from '@/components/ui/IconButton';
 import { useToast } from '@/components/Toast';
 import { fichaFileName, formatClientFicha } from '@/lib/client-export';
-import type { AgendaAppt, ClientRow, Consent, TreatmentRow } from '@/lib/types';
+import type { AgendaAppt, ClientPack, ClientRow, Consent, TreatmentRow } from '@/lib/types';
 
 export default function ExportFichaButton({
-  client, treatments, appointments, consents,
+  client, treatments, packs = [], appointments, consents,
 }: {
   client: ClientRow;
   treatments: TreatmentRow[];
+  packs?: ClientPack[];
   appointments: AgendaAppt[];
   consents: Consent[];
 }) {
   const toast = useToast();
 
   const download = () => {
-    const body = formatClientFicha({ client, treatments, appointments, consents });
+    const body = formatClientFicha({ client, treatments, packs, appointments, consents });
     const blob = new Blob([body], { type: 'text/plain;charset=utf-8' });
     const href = URL.createObjectURL(blob);
     const a = document.createElement('a');

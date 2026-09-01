@@ -32,6 +32,8 @@ export type AgendaAppt = {
   note: string | null;
   client_phone: string | null;
   confirmed_at: string | null;
+  client_pack_id: string | null;
+  pack_name: string | null;
 };
 
 export type Waiter = {
@@ -91,6 +93,7 @@ export type ClientRow = {
 export type ClientListRow = ClientOption & {
   tags: string[];
   open_treatments: string[];
+  open_packs: string[];
   next_at: string | null;
   last_at: string | null;
 };
@@ -153,4 +156,36 @@ export type WaitItem = {
   created_at: string;
   service: { name: string; category: CategoryId } | null;
   client: { full_name: string; phone: string | null } | null;
+};
+
+export type PackTemplate = {
+  id: string;
+  name: string;
+  service_id: string | null;
+  service_name: string | null;
+  sessions_total: number;
+  price_cents: number;
+  valid_days: number | null;
+  is_active: boolean;
+  sort_order: number;
+};
+
+export type ClientPack = {
+  id: string;
+  name: string;
+  service_id: string | null;
+  service_name: string | null;
+  owner_client_id: string;
+  owner_name: string;
+  friend_client_id: string | null;
+  friend_name: string | null;
+  sessions_total: number;
+  sessions_done: number;
+  reserved: number;
+  remaining: number;
+  price_cents: number;
+  purchased_at: string;
+  expires_at: string | null;
+  note: string | null;
+  template_id: string | null;
 };

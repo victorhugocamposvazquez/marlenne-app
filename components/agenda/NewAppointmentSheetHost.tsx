@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react';
 import NewAppointmentSheet from '@/components/agenda/NewAppointmentSheet';
 import Sheet from '@/components/Sheet';
 import { SheetSkeleton } from '@/components/ui/Skeleton';
-import { loadClientOptions, loadServices } from '@/lib/agenda-catalog';
+import { loadClientOptions, loadSalonPacks, loadServices } from '@/lib/agenda-catalog';
 import { createClient } from '@/lib/supabase/client';
 import { useShallowParam } from '@/hooks/useShallowQuery';
 import { bestNameMatches } from '@/lib/voice';
-import type { ClientOption, Provider, ServiceOption } from '@/lib/types';
+import type { ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
 
 export default function NewAppointmentSheetHost({
   day, providers,
@@ -32,6 +32,7 @@ export default function NewAppointmentSheetHost({
 
   const [services, setServices] = useState<ServiceOption[]>([]);
   const [clients, setClients] = useState<ClientOption[]>([]);
+  const [packs, setPacks] = useState<ClientPack[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,10 +40,11 @@ export default function NewAppointmentSheetHost({
     let alive = true;
     setLoading(true);
     const sb = createClient();
-    void Promise.all([loadServices(sb), loadClientOptions(sb)]).then(([s, c]) => {
+    void Promise.all([loadServices(sb), loadClientOptions(sb), loadSalonPacks(sb)]).then(([s, c, p]) => {
       if (!alive) return;
       setServices(s);
       setClients(c);
+      setPacks(p);
       setLoading(false);
     });
     return () => { alive = false; };
@@ -66,6 +68,7 @@ export default function NewAppointmentSheetHost({
       providers={providers}
       services={services}
       clients={clients}
+      packs={packs}
       preselected={preselected}
       initialName={nombre ?? ''}
       initialHora={hora ?? ''}

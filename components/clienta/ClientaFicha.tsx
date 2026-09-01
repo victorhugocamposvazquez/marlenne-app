@@ -15,6 +15,7 @@ import TreatmentsTab from '@/components/clienta/TreatmentsTab';
 import MeasurementsTab from '@/components/clienta/MeasurementsTab';
 import PhotosTab from '@/components/clienta/PhotosTab';
 import HistoryTab from '@/components/clienta/HistoryTab';
+import PacksCard from '@/components/clienta/PacksCard';
 import { loadSignedPhotoUrls } from '@/lib/agenda-catalog';
 import { createClient } from '@/lib/supabase/client';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
@@ -22,13 +23,16 @@ import { avatarColor, initials } from '@/lib/categories';
 import { consentExpired, latestConsents } from '@/lib/consents';
 import { waHref } from '@/lib/phone';
 import { dateLbl, offsetFromDay, shortWhen } from '@/lib/time';
-import type { AgendaAppt, ClientRow, Consent, TreatmentRow } from '@/lib/types';
+import type { AgendaAppt, ClientPack, ClientRow, Consent, PackTemplate, ServiceOption, TreatmentRow } from '@/lib/types';
 
 export default function ClientaFicha({
-  client, treatments, appointments, consents, canEdit, initialTab, initialEdit,
+  client, treatments, packs, templates, services, appointments, consents, canEdit, initialTab, initialEdit,
 }: {
   client: ClientRow;
   treatments: TreatmentRow[];
+  packs: ClientPack[];
+  templates: PackTemplate[];
+  services: ServiceOption[];
   appointments: AgendaAppt[];
   consents: Consent[];
   canEdit: boolean;
@@ -99,6 +103,7 @@ export default function ClientaFicha({
             <ExportFichaButton
               client={client}
               treatments={treatments}
+              packs={packs}
               appointments={appointments}
               consents={consents}
             />
@@ -190,6 +195,15 @@ export default function ClientaFicha({
       <QuickNotes clientId={client.id} notes={client.notes} canEdit={canEdit} />
 
       <ConsentsCard clientId={client.id} consents={consents} canEdit={canEdit} />
+
+      <PacksCard
+        clientId={client.id}
+        clientName={client.full_name}
+        packs={packs}
+        templates={templates}
+        services={services}
+        canEdit={canEdit}
+      />
 
       <div className="mt-3.5">
         <Tabs

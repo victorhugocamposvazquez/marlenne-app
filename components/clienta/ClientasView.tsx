@@ -15,7 +15,7 @@ import { isRecallDue, shortWhen } from '@/lib/time';
 import { fold } from '@/lib/voice';
 import type { ClientListRow } from '@/lib/types';
 
-type Filter = 'todas' | 'vip' | 'proxima' | 'sin' | 'tratamiento' | 'volver';
+type Filter = 'todas' | 'vip' | 'proxima' | 'sin' | 'tratamiento' | 'volver' | 'bono';
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'todas', label: 'Todas' },
@@ -23,6 +23,7 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'sin', label: 'Sin próxima' },
   { id: 'volver', label: 'Por volver' },
   { id: 'tratamiento', label: 'En curso' },
+  { id: 'bono', label: 'Con bono' },
   { id: 'vip', label: 'VIP' },
 ];
 
@@ -44,6 +45,7 @@ export default function ClientasView({
       if (filter === 'proxima' && !c.next_at) return false;
       if (filter === 'sin' && c.next_at) return false;
       if (filter === 'tratamiento' && !c.open_treatments.length) return false;
+      if (filter === 'bono' && !c.open_packs.length) return false;
       if (filter === 'volver' && !isRecallDue(c.last_at, c.next_at)) return false;
       if (!needle && tel.length < 3) return true;
       const nameHit = needle && fold(c.full_name).includes(needle);
@@ -137,11 +139,13 @@ export default function ClientasView({
                   <span className="block truncate text-caption font-medium text-ink-2">
                     {c.next_at
                       ? `Próxima ${shortWhen(c.next_at)}`
-                      : c.last_at
-                        ? `Última ${shortWhen(c.last_at)}`
-                        : c.open_treatments?.length
-                          ? c.open_treatments.join(' · ')
-                          : (c.phone || 'Sin citas todavía')}
+                      : c.open_packs?.length
+                        ? c.open_packs[0]
+                        : c.last_at
+                          ? `Última ${shortWhen(c.last_at)}`
+                          : c.open_treatments?.length
+                            ? c.open_treatments.join(' · ')
+                            : (c.phone || 'Sin citas todavía')}
                   </span>
                 </span>
               </Link>

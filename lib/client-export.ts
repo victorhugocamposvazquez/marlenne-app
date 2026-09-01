@@ -1,7 +1,7 @@
 import { STATUS } from '@/lib/categories';
 import { CONSENT_KINDS, consentExpired, latestConsents, type ConsentKind } from '@/lib/consents';
 import { dateLbl, dayKey, shortWhen } from '@/lib/time';
-import type { AgendaAppt, ClientRow, Consent, TreatmentRow } from '@/lib/types';
+import type { AgendaAppt, ClientPack, ClientRow, Consent, TreatmentRow } from '@/lib/types';
 
 function slugName(name: string) {
   return name
@@ -21,10 +21,11 @@ export function fichaFileName(fullName: string, when = new Date()) {
 export function formatClientFicha(input: {
   client: ClientRow;
   treatments: TreatmentRow[];
+  packs?: ClientPack[];
   appointments: AgendaAppt[];
   consents: Consent[];
 }) {
-  const { client, treatments, appointments, consents } = input;
+  const { client, treatments, packs = [], appointments, consents } = input;
   const photos = treatments.flatMap(t => t.treatment_photos ?? []);
   const latest = latestConsents(consents);
   const lines: string[] = [
@@ -55,6 +56,15 @@ export function formatClientFicha(input: {
       : 'sin caducidad';
     lines.push(`- ${CONSENT_KINDS[kind]}: ${dateLbl(row.signed_at)} (${until})`);
   });
+
+  lines.push('', 'Bonos');
+  if (!packs.length) lines.push('- Ninguno');
+  for (const p of packs) {
+    const friend = p.friend_name ? ` · pack amigo con ${p.friend_name}` : '';
+    const owner = p.owner_client_id !== client.id ? ` · de ${p.owner_name}` : '';
+    const exp = p.expires_at ? ` · caduca ${dateLbl(p.expires_at)}` : '';
+    lines.push(`- ${p.name}: ${p.sessions_done}/${p.sessions_total} usadas${friend}${owner}${exp}`);
+  }
 
   lines.push('', 'Tratamientos');
   if (!treatments.length) lines.push('- Ninguno');

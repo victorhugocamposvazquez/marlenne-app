@@ -61,23 +61,34 @@ export async function createAppointment(
   sb: SupabaseClient,
   input: {
     clientId?: string; clientName?: string; serviceId: string; providerId: string;
-    date: string; startMin: number; note?: string;
+    date: string; startMin: number; note?: string; clientPackId?: string;
   },
 ): Promise<WriteResult> {
-  const { data, error } = await sb.rpc('create_appointment', {
+  const params: {
+    p_client_id: string | null;
+    p_client_name: string | null;
+    p_service_id: string;
+    p_provider_id: string;
+    p_starts_at: string;
+    p_note: string | null;
+    p_client_pack_id?: string;
+  } = {
     p_client_id: input.clientId ?? null,
     p_client_name: input.clientName ?? null,
     p_service_id: input.serviceId,
     p_provider_id: input.providerId,
     p_starts_at: toTimestamp(input.date, input.startMin),
     p_note: input.note ?? null,
-  });
+  };
+  if (input.clientPackId) params.p_client_pack_id = input.clientPackId;
+  const { data, error } = await sb.rpc('create_appointment', params);
   if (error) {
     return { ok: false, error: overlapMsg(error.message) ? BUSY : (error.message || FORBIDDEN) };
   }
   const row = data as { ok?: boolean; code?: string; id?: string } | null;
   if (row?.ok && row.id) return { ok: true, error: null, id: row.id };
   if (row?.code === 'overlap' || row?.code === 'blocked') return { ok: false, error: BUSY };
+  if (row?.code === 'pack') return { ok: false, error: 'Ese bono no se puede usar en esta cita' };
   return { ok: false, error: FORBIDDEN };
 }
 

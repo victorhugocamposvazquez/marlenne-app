@@ -1,5 +1,5 @@
 import { requireSession } from '@/lib/require-session';
-import { listStaff, listServices } from '@/lib/queries';
+import { listStaff, listServices, listSalonPackTemplates } from '@/lib/queries';
 import { getReadyStatus } from '@/lib/ready';
 import { signOut } from '@/app/actions/auth';
 import { avatarColor } from '@/lib/categories';
@@ -7,6 +7,8 @@ import { LogOut } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import PasswordForm from '@/components/PasswordForm';
 import CatalogEditor from '@/components/CatalogEditor';
+import PackTemplatesEditor from '@/components/PackTemplatesEditor';
+import CsvImportCard from '@/components/CsvImportCard';
 import TeamEditor from '@/components/TeamEditor';
 import IosShortcutsCard from '@/components/IosShortcutsCard';
 import VoiceSettingsCard from '@/components/VoiceSettingsCard';
@@ -26,14 +28,16 @@ const ROADMAP = [
   { done: true, label: 'No-show desde Hoy' },
   { done: true, label: 'Hablar o escribir comandos de agenda' },
   { done: true, label: 'Próximo hueco, confirmación y por volver' },
+  { done: true, label: 'Bonos, pack amigo e importar CSV' },
   { done: false, label: 'App offline usable (agenda del día en local)' },
 ];
 
 export default async function AjustesPage() {
   const me = await requireSession();
-  const [team, services, ready] = await Promise.all([
+  const [team, services, templates, ready] = await Promise.all([
     listStaff({ includeInactive: me.role === 'admin' }),
     me.role === 'admin' ? listServices({ includeInactive: true }) : Promise.resolve([]),
+    me.role === 'admin' ? listSalonPackTemplates() : Promise.resolve([]),
     me.role === 'admin' ? getReadyStatus() : Promise.resolve([]),
   ]);
 
@@ -78,6 +82,26 @@ export default async function AjustesPage() {
         </section>
       )}
 
+      {me.role === 'admin' && (
+        <section className="mt-6">
+          <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">
+            Bonos · {templates.length} en catálogo
+          </h2>
+          <p className="mb-2.5 text-label font-medium text-ink-2">
+            Se venden en la ficha. El pack amigo comparte el saldo con otra clienta. No es el recuento clínico del tratamiento.
+          </p>
+          <PackTemplatesEditor templates={templates} services={services} />
+        </section>
+      )}
+
+      {me.role === 'admin' && (
+        <section className="mt-6">
+          <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">
+            Importar CSV
+          </h2>
+          <CsvImportCard />
+        </section>
+      )}
       {me.role === 'admin' && ready.length > 0 && (
         <section className="mt-6">
           <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">

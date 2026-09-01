@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase/server';
 import { toTimestamp, dateFromOffset, dayKey, weekMondayOffset, isRecallDue } from '@/lib/time';
 import { APPT_SELECT, APPT_SELECT_CORE, mapAppt } from '@/lib/agenda-appt';
+import { packExpired, packRemaining } from '@/lib/packs';
+import { listClientPacks, listPackTemplates } from '@/lib/pack-write';
 import type {
-  AgendaAppt, AgendaBlock, ClientListRow, ClientOption, ClientRow, Consent, Provider, RecallRow, ServiceOption,
-  TreatmentRow, WaitItem, WeekDay,
+  AgendaAppt, AgendaBlock, ClientListRow, ClientOption, ClientRow, Consent, PackTemplate, Provider,
+  RecallRow, ServiceOption, TreatmentRow, WaitItem, WeekDay,
 } from '@/lib/types';
 
 export async function getSession() {
@@ -80,7 +82,7 @@ export async function listClientOptions(): Promise<ClientOption[]> {
 export async function getAppointment(id: string): Promise<AgendaAppt | null> {
   const sb = createClient();
   let { data, error } = await sb.from('appointments').select(APPT_SELECT).eq('id', id).maybeSingle();
-  if (error && /confirmed_at/i.test(error.message)) {
+  if (error && /confirmed_at|client_pack/i.test(error.message)) {
     ({ data, error } = await sb.from('appointments').select(APPT_SELECT_CORE).eq('id', id).maybeSingle());
   }
   return data ? mapAppt(data) : null;
@@ -117,7 +119,7 @@ export async function getDayAgenda(date: Date, providerIds: string[]) {
 
   let rows = appts.data;
   if (appts.error) {
-    const retry = /confirmed_at/i.test(appts.error.message) ? await load(APPT_SELECT_CORE) : null;
+    const retry = /confirmed_at|client_pack/i.test(appts.error.message) ? await load(APPT_SELECT_CORE) : null;
     rows = retry?.data ?? null;
     if (!rows) console.error('getDayAgenda', appts.error.message);
   }
@@ -179,9 +181,11 @@ export async function listClients(): Promise<ClientListRow[]> {
 
   const nextBy = new Map<string, string>();
   const lastBy = new Map<string, string>();
+  const packsBy = new Map<string, string[]>();
   if (ids.length) {
     const now = new Date().toISOString();
-    const [{ data: upcoming }, { data: past }] = await Promise.all([
+    const today = dayKey(new Date());
+    const [{ data: upcoming }, { data: past }, packsRes] = await Promise.all([
       sb.from('appointments')
         .select('client_id, starts_at')
         .in('client_id', ids)
@@ -195,12 +199,27 @@ export async function listClients(): Promise<ClientListRow[]> {
         .gte('starts_at', toTimestamp(dateFromOffset(-400), 0))
         .lt('starts_at', now)
         .order('starts_at', { ascending: false }),
+      sb.from('client_packs')
+        .select('name, sessions_done, sessions_total, expires_at, owner_client_id, friend_client_id'),
     ]);
     for (const a of upcoming ?? []) {
       if (a.client_id && !nextBy.has(a.client_id)) nextBy.set(a.client_id, a.starts_at);
     }
     for (const a of past ?? []) {
       if (a.client_id && !lastBy.has(a.client_id)) lastBy.set(a.client_id, a.starts_at);
+    }
+    if (!packsRes.error) {
+      for (const p of packsRes.data ?? []) {
+        if (packExpired(p.expires_at, today)) continue;
+        if (packRemaining(p) <= 0) continue;
+        const label = `${p.name} ${packRemaining(p)}/${p.sessions_total}`;
+        for (const cid of [p.owner_client_id, p.friend_client_id]) {
+          if (!cid) continue;
+          const list = packsBy.get(cid) ?? [];
+          list.push(label);
+          packsBy.set(cid, list);
+        }
+      }
     }
   }
 
@@ -216,6 +235,7 @@ export async function listClients(): Promise<ClientListRow[]> {
       .filter(t => !t.closed_at)
       .map(t => t.service?.name)
       .filter((n): n is string => !!n),
+    open_packs: packsBy.get(c.id) ?? [],
     next_at: nextBy.get(c.id) ?? null,
     last_at: lastBy.get(c.id) ?? null,
   }));
@@ -223,7 +243,7 @@ export async function listClients(): Promise<ClientListRow[]> {
 
 export async function getClient(id: string) {
   const sb = createClient();
-  const [client, treatments] = await Promise.all([
+  const [client, treatments, packs] = await Promise.all([
     sb.from('clients').select('*').eq('id', id).maybeSingle(),
     sb.from('treatments')
       .select(`
@@ -235,22 +255,38 @@ export async function getClient(id: string) {
       `)
       .eq('client_id', id)
       .order('opened_at', { ascending: false }),
+    listClientPacks(sb, id),
   ]);
   return {
     client: (client.data ?? null) as ClientRow | null,
     treatments: (treatments.data ?? []) as unknown as TreatmentRow[],
+    packs,
   };
+}
+
+export async function listSalonPackTemplates(): Promise<PackTemplate[]> {
+  return listPackTemplates(createClient(), { includeInactive: true });
 }
 
 export async function listClientAppointments(clientId: string): Promise<AgendaAppt[]> {
   const sb = createClient();
-  const { data } = await sb
+  const primary = await sb
     .from('appointments')
     .select(APPT_SELECT)
     .eq('client_id', clientId)
     .order('starts_at', { ascending: false })
     .limit(60);
-  return (data ?? []).map(mapAppt);
+  let rows: unknown[] = primary.data ?? [];
+  if (primary.error && /confirmed_at|client_pack/i.test(primary.error.message)) {
+    const retry = await sb
+      .from('appointments')
+      .select(APPT_SELECT_CORE)
+      .eq('client_id', clientId)
+      .order('starts_at', { ascending: false })
+      .limit(60);
+    rows = retry.data ?? [];
+  }
+  return rows.map(mapAppt);
 }
 
 export async function listConsents(clientId: string): Promise<Consent[]> {
