@@ -876,7 +876,11 @@ export default function VoiceFab() {
       commitListen();
       return;
     }
-    const listen = () => startListen(opts);
+    const listen = () => {
+      setOpen(true);
+      if (!opts?.overlay) setPanel({ mode: 'listen', draft: '' });
+      sayDime(() => startListen(opts));
+    };
     if (micRef.current === 'granted') {
       listen();
       return;
@@ -1022,7 +1026,7 @@ export default function VoiceFab() {
           {panel.mode === 'idle' && (
             <div className="text-label font-medium leading-snug text-ink-2">
               <p className="font-bold text-ink">Así se usa</p>
-              <p className="mt-1">1. «Hola Marlenne» y el comando, o toca el micro. En Ajustes se apaga el oído.</p>
+              <p className="mt-1">1. Toca el micro: dice «¿Dime?» y te oye. O «Hola Marlenne» y el comando. En Ajustes se apaga el oído.</p>
               <p>2. Si va a guardar, te pide confirmación.</p>
       <p className="mt-2 text-label text-ink-2">
                 Ej.: quién tiene hueco el miércoles a las 11:30 · cita para Lucía con Valeria a las 11:30
