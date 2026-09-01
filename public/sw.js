@@ -1,4 +1,4 @@
-const CACHE = 'marlenne-shell-v4';
+const CACHE = 'marlenne-shell-v5';
 const PRECACHE = [
   '/manifest.json',
   '/icon-192.png',
@@ -20,7 +20,7 @@ self.addEventListener('activate', event => {
 function isHashedAsset(url) {
   if (url.pathname === '/sw.js') return false;
   return url.pathname.startsWith('/_next/static/')
-    || /\.(png|js|css|woff2|wav)$/.test(url.pathname)
+    || /\.(png|js|css|woff2|wav|mp3)$/.test(url.pathname)
     || url.pathname === '/manifest.json';
 }
 

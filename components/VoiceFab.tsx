@@ -15,9 +15,10 @@ import { voiceTalk, type VoiceTalkResult, type VoiceTurn } from '@/app/actions/v
 import { voiceSpeakMp3 } from '@/app/actions/voice-speak';
 import VoiceWaves from '@/components/VoiceWaves';
 import { VOICE_HELP, fold, forEar, isVoiceYes, parseVoice, pickSpokenIndex, splitWake, takeTime, wakeRestIsCommand } from '@/lib/voice';
+import { voiceClipUrl } from '@/lib/voice-clips';
 import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/hooks/voice-prefs';
 import {
-  decodeB64, pickWomanVoice, playB64, speakLocal, stopVoicePlay, unlockSpeak, warmVoiceAudio,
+  decodeB64, pickWomanVoice, playB64, playUrl, speakLocal, stopVoicePlay, unlockSpeak, warmVoiceAudio,
 } from '@/hooks/voice-play';
 import { micBlockedSay, queryMicPerm, requestMic, watchMicPerm, type MicPerm } from '@/hooks/voice-mic';
 
@@ -55,7 +56,9 @@ function prefetchSpeak(text: string, kind: 'ask' | 'say') {
 
 function warmAudio() {
   warmVoiceAudio();
-  prefetchSpeak('¿Dime?', 'ask');
+  const dime = voiceClipUrl('¿Dime?');
+  if (dime) void playUrl(dime, dime);
+  else prefetchSpeak('¿Dime?', 'ask');
 }
 
 function stopSpeak() {
@@ -87,6 +90,11 @@ async function utter(text: string, ask: boolean) {
   const ear = forEar(text);
   warmVoiceAudio();
   await wait(180);
+  const clip = voiceClipUrl(ear);
+  if (clip) {
+    const hit = await playUrl(clip, clip);
+    if (hit) return;
+  }
   const ok = await playCloud(ear, ask ? 'ask' : 'say');
   if (!ok) {
     unlockSpeak();
@@ -529,6 +537,15 @@ export default function VoiceFab() {
       const cmd = parseVoice(text);
       if (cmd.kind === 'dismiss') {
         dismiss();
+        return;
+      }
+      if (cmd.kind === 'chat') {
+        if (cmd.stay) {
+          speak(cmd.say, () => startListen());
+          setPanel({ mode: 'msg', say: cmd.say });
+        } else {
+          finish(cmd.say);
+        }
         return;
       }
 

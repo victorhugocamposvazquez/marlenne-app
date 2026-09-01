@@ -15,6 +15,7 @@ export type VoiceCmd =
   | { kind: 'move'; who: string; startMin: number; dayOffset: number; providerQ: string | null }
   | { kind: 'dismiss' }
   | { kind: 'help' }
+  | { kind: 'chat'; say: string; stay: boolean }
   | { kind: 'unknown'; text: string };
 
 const WEEKDAYS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] as const;
@@ -344,6 +345,49 @@ export function parseVoice(text: string): VoiceCmd {
   }
   if (/^(ajustes|configuracion|mas)$/.test(t)) {
     return { kind: 'go', href: '/ajustes', say: 'Ajustes' };
+  }
+
+  if (/^(gracias|muchas gracias|mil gracias|gracias marlenne|gracias marlene)$/.test(t)) {
+    return { kind: 'chat', say: 'De nada.', stay: true };
+  }
+  if (/^(que tal estas|como estas|como te va|que tal)$/.test(t)) {
+    return { kind: 'chat', say: 'Bien, aquí. ¿Una cita o un hueco?', stay: true };
+  }
+  if (/^(buenos dias|buen dia)$/.test(t)) {
+    return { kind: 'chat', say: 'Buenos días. ¿Qué hacemos?', stay: true };
+  }
+  if (/^(buenas tardes)$/.test(t)) {
+    return { kind: 'chat', say: 'Buenas tardes. ¿Qué hacemos?', stay: true };
+  }
+  if (/^(buenas noches)$/.test(t)) {
+    return { kind: 'chat', say: 'Buenas noches. ¿Qué hacemos?', stay: true };
+  }
+  if (/^(adios|hasta luego|chao|nos vemos|ya esta|eso es todo|nada mas)$/.test(t)) {
+    return { kind: 'chat', say: 'Hasta luego.', stay: false };
+  }
+  if (/^(me oyes|estas ahi|sigues ahi|hola)$/.test(t)) {
+    return { kind: 'chat', say: 'Sí, dime.', stay: true };
+  }
+  if (/^(quien eres|como te llamas|como te llamas tu)$/.test(t)) {
+    return { kind: 'chat', say: 'Soy Marlenne, la agenda.', stay: true };
+  }
+  if (/^(puedes ayudarme|ayudame|que sabes hacer)$/.test(t)) {
+    return { kind: 'chat', say: 'Sí. Citas, huecos, cabina.', stay: true };
+  }
+  if (/^(perdona|perdon|lo siento|sorry)$/.test(t)) {
+    return { kind: 'chat', say: 'No pasa nada.', stay: true };
+  }
+  if (/^(igualmente)$/.test(t)) {
+    return { kind: 'chat', say: 'Igualmente.', stay: true };
+  }
+  if (/^(encantada|encantado|un placer)$/.test(t)) {
+    return { kind: 'chat', say: 'Encantada.', stay: true };
+  }
+  if (/^(repite|que has dicho|no te he oido)$/.test(t)) {
+    return { kind: 'chat', say: '¿Lo repites?', stay: true };
+  }
+  if (/^(precios?|cuanto (vale|cuesta|es)|tarifas?)$/.test(t)) {
+    return { kind: 'chat', say: 'Los precios están en Servicios.', stay: true };
   }
 
   return { kind: 'unknown', text: raw };
