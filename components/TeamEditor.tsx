@@ -16,7 +16,13 @@ const ROLES: { id: StaffRole; label: string }[] = [
 
 const roleLbl = (r: StaffRole) => ROLES.find(x => x.id === r)?.label ?? r;
 
-export default function TeamEditor({ team, meId }: { team: Provider[]; meId: string }) {
+export default function TeamEditor({
+  team, meId, heading = true,
+}: {
+  team: Provider[];
+  meId: string;
+  heading?: boolean;
+}) {
   const toast = useToast();
   const [adding, setAdding] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
@@ -25,8 +31,10 @@ export default function TeamEditor({ team, meId }: { team: Provider[]; meId: str
 
   return (
     <div>
-      <div className="mb-2.5 flex items-center justify-between">
-        <h2 className="text-body font-extrabold uppercase tracking-[.04em] text-ink-2">Equipo</h2>
+      <div className={`mb-2.5 flex items-center ${heading ? 'justify-between' : 'justify-end'}`}>
+        {heading && (
+          <h2 className="text-body font-extrabold uppercase tracking-[.04em] text-ink-2">Equipo</h2>
+        )}
         <button
           type="button"
           onClick={() => { setAdding(a => !a); setCreated(null); }}

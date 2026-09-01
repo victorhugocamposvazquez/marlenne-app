@@ -14,12 +14,18 @@ import type { ClientPack } from '@/lib/types';
 
 const TOP_UPS = [1, 4] as const;
 
-export default function SoldPacksCard({ packs, canEdit }: { packs: ClientPack[]; canEdit: boolean }) {
+export default function SoldPacksCard({
+  packs, canEdit, className = 'mt-6',
+}: {
+  packs: ClientPack[];
+  canEdit: boolean;
+  className?: string;
+}) {
   const open = packs.filter(p => packIsOpen(p));
   const closed = packs.filter(p => !packIsOpen(p));
 
   return (
-    <section className="mt-6">
+    <section className={className}>
       <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">
         Bonos vendidos · {open.length} vivos
       </h2>
@@ -29,7 +35,7 @@ export default function SoldPacksCard({ packs, canEdit }: { packs: ClientPack[];
       {packs.length === 0 ? (
         <EmptyState
           title="Todavía no hay ningún bono vendido"
-          hint="Se venden en la ficha de la clienta, con la plantilla de arriba."
+          hint="Se venden en la ficha de la clienta."
         />
       ) : (
         <div className="flex flex-col gap-2">

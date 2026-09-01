@@ -18,7 +18,7 @@ export async function updateService(input: {
     price_cents: input.price_cents,
     is_active: input.is_active,
   }).eq('id', input.id);
-  revalidatePath('/ajustes');
+  revalidatePath('/ajustes', 'layout');
   revalidatePath('/agenda');
   return { ok: !error, error: error?.message ?? null };
 }

@@ -63,7 +63,7 @@ export async function createMember(input: {
   });
   if (staffErr) return { ok: false, error: staffErr.message, password: null };
 
-  revalidatePath('/ajustes');
+  revalidatePath('/ajustes', 'layout');
   revalidatePath('/agenda');
   revalidatePath('/hoy');
   return { ok: true, error: null, password };
@@ -93,7 +93,7 @@ export async function updateMember(input: {
     is_active: input.is_active,
   }).eq('id', input.id).eq('salon_id', me.salon_id);
 
-  revalidatePath('/ajustes');
+  revalidatePath('/ajustes', 'layout');
   revalidatePath('/agenda');
   revalidatePath('/hoy');
   return { ok: !error, error: error?.message ?? null };
