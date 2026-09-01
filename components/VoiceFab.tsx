@@ -18,7 +18,7 @@ import { VOICE_HELP, fold, forEar, isVoiceYes, parseVoice, pickSpokenIndex, spli
 import { voiceClipUrl } from '@/lib/voice-clips';
 import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/hooks/voice-prefs';
 import {
-  decodeB64, pickWomanVoice, playB64, playUrl, speakLocal, stopVoicePlay, unlockSpeak, warmVoiceAudio,
+  decodeB64, decodeUrl, playB64, playUrl, stopVoicePlay, warmVoiceAudio,
 } from '@/hooks/voice-play';
 import { micBlockedSay, queryMicPerm, requestMic, watchMicPerm, type MicPerm } from '@/hooks/voice-mic';
 
@@ -56,9 +56,8 @@ function prefetchSpeak(text: string, kind: 'ask' | 'say') {
 
 function warmAudio() {
   warmVoiceAudio();
-  const dime = voiceClipUrl('¿Dime?');
-  if (dime) void playUrl(dime, dime);
-  else prefetchSpeak('¿Dime?', 'ask');
+  const clip = voiceClipUrl('¿Dime?');
+  if (clip) void decodeUrl(clip, clip);
 }
 
 function stopSpeak() {
@@ -92,17 +91,10 @@ async function utter(text: string, ask: boolean) {
   await wait(180);
   const clip = voiceClipUrl(text) ?? voiceClipUrl(ear);
   if (clip) {
-    const hit = await playUrl(clip, clip);
-    if (hit) return;
-    // Clip de Marlenne: no caer a nova ni al iPad.
+    await playUrl(clip, clip);
     return;
   }
-  const ok = await playCloud(ear, ask ? 'ask' : 'say');
-  if (!ok) {
-    unlockSpeak();
-    await wait(80);
-    await speakLocal(ear, ask);
-  }
+  await playCloud(ear, ask ? 'ask' : 'say');
 }
 
 function afterSpeak(gen: number, onDone?: () => void) {
@@ -142,7 +134,7 @@ function speak(text: string, onDone?: () => void) {
   });
 }
 
-/** El «¿Dime?» del saludo usa el mismo TTS que el resto, aunque la voz de respuestas esté apagada. */
+/** Al tocar el micro: misma Elvira, aunque las respuestas habladas estén apagadas. */
 function sayDime(onDone: () => void) {
   stopSpeak();
   const gen = ++speakGen;
@@ -156,7 +148,7 @@ function sayDime(onDone: () => void) {
       onDone();
     });
   };
-  const safety = window.setTimeout(finish, 14000);
+  const safety = window.setTimeout(finish, 8000);
   void utter('¿Dime?', true).then(() => {
     window.clearTimeout(safety);
     finish();
@@ -307,9 +299,6 @@ export default function VoiceFab() {
 
   useEffect(() => {
     setHasMic(!!makeRec());
-    pickWomanVoice();
-    const onVoices = () => pickWomanVoice();
-    window.speechSynthesis?.addEventListener('voiceschanged', onVoices);
     syncPrefs();
     const onFirst = () => warmAudio();
     window.addEventListener('pointerdown', onFirst, { once: true });
@@ -362,7 +351,6 @@ export default function VoiceFab() {
     document.addEventListener('visibilitychange', onVis);
     return () => {
       stopWatch();
-      window.speechSynthesis?.removeEventListener('voiceschanged', onVoices);
       document.removeEventListener('visibilitychange', onVis);
       window.removeEventListener(VOICE_PREFS_EVENT, onPrefs);
       window.removeEventListener('pointerdown', onFirst);
@@ -722,10 +710,10 @@ export default function VoiceFab() {
       draftRef.current = '';
       const wake = splitWake(text);
       if (wake.woke && !wakeRestIsCommand(wake.rest)) {
-        promptDimeThenListen(overlay ? { overlay: true } : undefined);
+        window.setTimeout(() => startListenRef.current(overlay ? { overlay: true } : undefined), 180);
         return;
       }
-      runText(wake.woke ? wake.rest : text);
+      runText(wake.woke && wake.rest ? wake.rest : text);
       return;
     }
     if (overlay) {
@@ -770,25 +758,21 @@ export default function VoiceFab() {
       const heard = text.trim();
       if (!heard) return;
       const wake = splitWake(heard);
-      const cmd = parseVoice(heard);
-      const isCmd = cmd.kind !== 'unknown' && cmd.kind !== 'help' && cmd.kind !== 'dismiss';
-      if (!wake.woke && !isCmd) return;
+      const spoken = wake.woke && wake.rest ? wake.rest : heard;
+      const cmd = parseVoice(spoken);
+      const useful = cmd.kind !== 'unknown';
+      if (!wake.woke && !useful) return;
       wakeRef.current = false;
       setWakeOn(false);
       genRef.current += 1;
       killRec();
-      if (isCmd && !wake.woke) {
-        setOpen(true);
-        runText(heard);
-        return;
-      }
-      if (wakeRestIsCommand(wake.rest)) {
+      if (useful || wakeRestIsCommand(wake.rest)) {
         setOpen(true);
         setPanel({ mode: 'listen', draft: '' });
-        runText(wake.rest);
+        runText(spoken);
         return;
       }
-      promptDimeThenListen();
+      window.setTimeout(() => startListenRef.current(), 180);
     };
     rec.onerror = ev => {
       if (gen !== genRef.current) return;
@@ -886,16 +870,6 @@ export default function VoiceFab() {
   };
   startListenRef.current = startListen;
 
-  const promptDimeThenListen = (opts?: { overlay?: boolean }) => {
-    listenRef.current = false;
-    overlayRef.current = false;
-    setHearing(false);
-    killRec();
-    setOpen(true);
-    if (!opts?.overlay) setPanel({ mode: 'listen', draft: '' });
-    sayDime(() => startListenRef.current(opts));
-  };
-
   const tapMic = (opts?: { overlay?: boolean }) => {
     warmAudio();
     if (hearing) {
@@ -959,7 +933,6 @@ export default function VoiceFab() {
                       key={opt}
                       disabled={pending}
                       onClick={() => {
-                        unlockSpeak();
                         startTransition(async () => {
                           const held = pendingRef.current;
                           if (held?.need === 'time') {
@@ -1049,7 +1022,7 @@ export default function VoiceFab() {
           {panel.mode === 'idle' && (
             <div className="text-label font-medium leading-snug text-ink-2">
               <p className="font-bold text-ink">Así se usa</p>
-              <p className="mt-1">1. «Dime», o toca el micro. En Ajustes se apaga el oído.</p>
+              <p className="mt-1">1. «Hola Marlenne» y el comando, o toca el micro. En Ajustes se apaga el oído.</p>
               <p>2. Si va a guardar, te pide confirmación.</p>
       <p className="mt-2 text-label text-ink-2">
                 Ej.: quién tiene hueco el miércoles a las 11:30 · cita para Lucía con Valeria a las 11:30

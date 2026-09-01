@@ -188,7 +188,7 @@ function stripTime(s: string) {
 }
 
 function parseSlots(t: string): VoiceCmd | null {
-  if (!/(hueco|libre|disponib|cuando puede|a que hora|hay sitio|quien puede|quien esta libre)/.test(t)) {
+  if (!/(hueco|libre|disponib|cuando puede|a que hora|hay sitio|quien puede|quien esta libre|me cabe|tienes sitio)/.test(t)) {
     return null;
   }
   const p = takeProvider(t);
@@ -281,20 +281,30 @@ function parseMove(t: string): VoiceCmd | null {
 
 function chatSaid(t: string) {
   return t
-    .replace(/\b(oye|eh|a ver|por favor|porfa|marlenne|marlene|tu|usted)\b/g, ' ')
+    .replace(/^(hola|ola)(?:\s+|$)/, '')
+    .replace(/^buenas(?! tardes| noches)\s+/, '')
+    .replace(/\b(oye|eh+|a ver|por favor|porfa|marlenne|marlene|tu|usted|nena|tia|guapa|cielo)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function chatCore(t: string) {
+  return chatSaid(t)
+    .replace(/\b(ya|pues|entonces|ahora|a ti)\b/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
 function parseChat(t: string): VoiceCmd | null {
-  const s = chatSaid(t);
+  const s = chatCore(t);
+  if (!s) return null;
   if (
-    /\b(que tal estas|que tal esta|que tal andas|que tal te va|como estas|como esta|como te va|como te encuentras|como andas)\b/.test(s)
-    || /^(que tal|que tal hoy|que hay de ti)$/.test(s)
+    /\b(que tal estas|que tal esta|que tal stas|que tal andas|que tal te va|que tal tu|como estas|como esta|como stas|como tes|como te va|como te encuentras|como andas|ke tal|k tal estas|todo bien|estas bien)\b/.test(s)
+    || /^(que tal|que tal hoy|que hay de ti|que tal nena)$/.test(s)
   ) {
     return { kind: 'chat', say: 'Bien, aquí. ¿Una cita o un hueco?', stay: true };
   }
-  if (/^(gracias|muchas gracias|mil gracias)$/.test(s)) {
+  if (/^(gracias|muchas gracias|mil gracias)(\s+\w+){0,2}$/.test(s)) {
     return { kind: 'chat', say: 'De nada.', stay: true };
   }
   if (/^(buenos dias|buen dia)$/.test(s)) {
@@ -309,8 +319,8 @@ function parseChat(t: string): VoiceCmd | null {
   if (/^(adios|hasta luego|chao|nos vemos|ya esta|eso es todo|nada mas)$/.test(s)) {
     return { kind: 'chat', say: 'Hasta luego.', stay: false };
   }
-  if (/^(me oyes|estas ahi|sigues ahi|hola)$/.test(s)) {
-    return { kind: 'chat', say: 'Sí, dime.', stay: true };
+  if (/^(me oyes|estas ahi|sigues ahi|me escuchas)$/.test(s)) {
+    return { kind: 'chat', say: 'Te escucho.', stay: true };
   }
   if (/^(quien eres|como te llamas)$/.test(s)) {
     return { kind: 'chat', say: 'Soy Marlenne, la agenda.', stay: true };
@@ -373,7 +383,7 @@ function parseChat(t: string): VoiceCmd | null {
     return { kind: 'chat', say: 'Recíproco. ¿Qué hay?', stay: true };
   }
   if (/^(quiero un cafe|un cafe|cafe)$/.test(s)) {
-    return { kind: 'chat', say: 'Ojalá. Yo solo apunto. ¿Dime?', stay: true };
+    return { kind: 'chat', say: 'Ojalá. Yo solo apunto. ¿Algo más?', stay: true };
   }
   if (/^(llueve|esta lloviendo|que lluvia)$/.test(s)) {
     return { kind: 'chat', say: 'Mal para el pelo, bien para huecos.', stay: true };
@@ -388,7 +398,7 @@ function parseChat(t: string): VoiceCmd | null {
     return { kind: 'chat', say: 'Una a una. ¿Quién primero?', stay: true };
   }
   if (/^(otra vez yo|otra vez)$/.test(s)) {
-    return { kind: 'chat', say: 'Siempre. ¿Dime?', stay: true };
+    return { kind: 'chat', say: 'Te escucho.', stay: true };
   }
   if (/^(se me olvido|me olvide|olvidado)$/.test(s)) {
     return { kind: 'chat', say: 'Por eso estoy yo.', stay: true };
@@ -433,7 +443,7 @@ function parseChat(t: string): VoiceCmd | null {
     return { kind: 'chat', say: '¿Las dos? Dime nombres.', stay: true };
   }
   if (/^(te has equivocado|eso no|mal)$/.test(s)) {
-    return { kind: 'chat', say: 'Perdona. Dime otra vez.', stay: true };
+    return { kind: 'chat', say: '¿Lo repites?', stay: true };
   }
   if (/^(feliz cumple|feliz cumpleanos|cumpleanos)$/.test(s)) {
     return { kind: 'chat', say: 'Gracias. ¿Lo celebramos con una cita?', stay: true };
@@ -459,8 +469,13 @@ function parseChat(t: string): VoiceCmd | null {
   return null;
 }
 
+function stripWakePrefix(raw: string) {
+  const wake = splitWake(raw);
+  return wake.woke && wake.rest ? wake.rest : raw;
+}
+
 export function parseVoice(text: string): VoiceCmd {
-  const raw = text.replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' ').trim();
+  const raw = stripWakePrefix(text.replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' ').trim());
   const t = fold(raw);
   if (!t) return { kind: 'unknown', text: raw };
 
@@ -513,7 +528,7 @@ export function parseVoice(text: string): VoiceCmd {
   if (slots) return slots;
   const booked = parseBook(t);
   if (booked) return booked;
-  if (/^(nueva cita|apuntar|anotar|agendar|reservar)$/.test(t)) {
+  if (/^(nueva cita|apuntar|anotar|agendar|reservar|quiero cita|dame cita|pon cita|una cita)$/.test(t)) {
     return { kind: 'go', href: '/agenda?new=1', say: 'Nueva cita' };
   }
 
@@ -737,11 +752,10 @@ function looksLikeMarlenne(word: string) {
 
 const WAKE_FILLER = /^(eh+|a+|ah+|um+|uhm+|mm+|este|bueno|pues|oye|hola|dime|ya|vale|ok|okay)$/;
 
-/** Tras el saludo: ¿viene un comando de verdad o solo «Hola Marlenne»? */
+/** Tras el saludo: ¿viene un comando (o un nombre) o solo «Hola Marlenne»? */
 export function wakeRestIsCommand(rest: string) {
   const t = fold(rest.replace(/[¿?¡!.,]/g, ' ')).replace(/\s+/g, ' ').trim();
   if (!t || WAKE_FILLER.test(t)) return false;
-  if (t.split(/\s+/).length < 2 && t.length < 8) return false;
   return true;
 }
 
