@@ -7,7 +7,12 @@ export type VoiceClip = { id: string; kind: VoiceClipKind; text: string };
 export const VOICE_CLIPS = clips as VoiceClip[];
 
 function earKey(text: string) {
-  return forEar(text).replace(/[.!?…]+$/u, '').trim().toLowerCase();
+  return forEar(text)
+    .replace(/[¿¡]/g, '')
+    .replace(/[.!?…]+$/u, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
 }
 
 const byEar = new Map(VOICE_CLIPS.map(c => [earKey(c.text), `/voice/${c.id}.mp3`]));

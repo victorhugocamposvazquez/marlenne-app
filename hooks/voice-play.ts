@@ -98,7 +98,33 @@ export function decodeUrl(key: string, url: string) {
     const res = await fetch(url);
     if (!res.ok) throw new Error('clip');
     const ab = await res.arrayBuffer();
-    return audioCtx().decodeAudioData(ab.slice(0));
+    const copy = ab.slice(0);
+    const c = audioCtx();
+    void c.resume();
+    return c.decodeAudioData(copy);
+  });
+}
+
+/** Si Web Audio no traga el MP3 (Safari + MPEG-2), el elemento audio a veces sí. */
+export function playHtmlAudio(url: string) {
+  const my = playGen;
+  return new Promise<boolean>(resolve => {
+    try {
+      const el = new Audio(url);
+      el.preload = 'auto';
+      const end = () => {
+        el.onended = null;
+        el.onerror = null;
+        resolve(my === playGen);
+      };
+      el.onended = end;
+      el.onerror = () => resolve(false);
+      void el.play().then(() => {
+        window.setTimeout(end, Math.round((el.duration || 3) * 1000) + 200);
+      }).catch(() => resolve(false));
+    } catch {
+      resolve(false);
+    }
   });
 }
 
@@ -144,8 +170,8 @@ export async function playB64(key: string, b64: string, opts?: { rate?: number; 
 
 export async function playUrl(key: string, url: string, opts?: { rate?: number; gain?: number }) {
   const buf = await decodeUrl(key, url);
-  if (!buf) return false;
-  return playBuffer(buf, opts);
+  if (buf) return playBuffer(buf, opts);
+  return playHtmlAudio(url);
 }
 
 export function speakLocal(text: string, ask: boolean) {

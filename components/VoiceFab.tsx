@@ -90,10 +90,12 @@ async function utter(text: string, ask: boolean) {
   const ear = forEar(text);
   warmVoiceAudio();
   await wait(180);
-  const clip = voiceClipUrl(ear);
+  const clip = voiceClipUrl(text) ?? voiceClipUrl(ear);
   if (clip) {
     const hit = await playUrl(clip, clip);
     if (hit) return;
+    // Clip de Marlenne: no caer a nova ni al iPad.
+    return;
   }
   const ok = await playCloud(ear, ask ? 'ask' : 'say');
   if (!ok) {
