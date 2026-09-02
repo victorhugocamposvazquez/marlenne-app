@@ -10,6 +10,9 @@ import {
   type PendingBook,
 } from '@/app/actions/voice';
 import { requireSession } from '@/lib/require-session';
+import { voiceLlmEnabled } from '@/lib/voice-flags';
+import { LLM_PER_HOUR, takeVoiceSlot } from '@/lib/voice-limits';
+import { voiceLog } from '@/lib/voice-log';
 
 export type VoiceTurn = { role: 'user' | 'assistant'; content: string };
 
@@ -35,8 +38,13 @@ function dayOf(label?: string | null) {
 }
 
 export async function voiceTalk(text: string, history: VoiceTurn[] = []): Promise<VoiceTalkResult> {
-  await requireSession();
-  if (!process.env.OPENAI_API_KEY) {
+  const me = await requireSession();
+  if (!voiceLlmEnabled()) {
+    voiceLog('llm_skip', { reason: 'off' });
+    return { ok: false, fallback: true, say: '' };
+  }
+  if (!takeVoiceSlot(`llm:${me.salon_id}`, LLM_PER_HOUR, 60 * 60_000)) {
+    voiceLog('llm_fail', { reason: 'rate' });
     return { ok: false, fallback: true, say: '' };
   }
 
@@ -141,10 +149,12 @@ Las herramientas de escribir solo PREVISUALIZAN: tú preguntas si lo hacemos. El
     },
   });
   } catch {
+    voiceLog('llm_fail', { reason: 'openai' });
     return { ok: false, fallback: true, say: '' };
   }
 
   const say = result.text?.trim() || last.say;
+  voiceLog('llm_used', { n: text.length });
   return { ...last, ok: true, say };
 }
 

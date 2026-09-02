@@ -2,13 +2,14 @@ export type VoicePrefs = {
   hola: boolean;
   speak: boolean;
   micOnly: boolean;
+  cloud: boolean;
 };
 
 export const VOICE_PREFS_EVENT = 'marlenne-voice-prefs';
 const KEY = 'marlenne-voice';
 const OLD = 'marlenne-wake';
 
-const DEFAULTS: VoicePrefs = { hola: true, speak: true, micOnly: false };
+const DEFAULTS: VoicePrefs = { hola: true, speak: true, micOnly: false, cloud: true };
 
 export function getVoicePrefs(): VoicePrefs {
   if (typeof window === 'undefined') return DEFAULTS;

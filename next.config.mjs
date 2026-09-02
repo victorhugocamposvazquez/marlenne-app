@@ -2,7 +2,7 @@
 const nextConfig = {
   experimental: {
     typedRoutes: false,
-    serverComponentsExternalPackages: ['edge-tts-universal'],
+    serverComponentsExternalPackages: ['edge-tts-universal', 'mpg123-decoder'],
   },
   poweredByHeader: false,
 };

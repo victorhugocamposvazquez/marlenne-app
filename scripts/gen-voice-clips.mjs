@@ -2,7 +2,7 @@
 /**
  * Genera public/voice/*.mp3
  *   node scripts/gen-voice-clips.mjs          → Elvira (Edge, sin clave)
- *   node scripts/gen-voice-clips.mjs --openai → nova (hace falta OPENAI_API_KEY)
+ *   node scripts/gen-voice-clips.mjs --openai → nova (NO usar en prod: mezcla voces)
  */
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';

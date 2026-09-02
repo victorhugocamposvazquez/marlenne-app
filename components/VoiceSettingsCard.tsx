@@ -31,7 +31,7 @@ function Row({
 }
 
 export default function VoiceSettingsCard() {
-  const [prefs, setPrefs] = useState<VoicePrefs>({ hola: true, speak: true, micOnly: false });
+  const [prefs, setPrefs] = useState<VoicePrefs>({ hola: true, speak: true, micOnly: false, cloud: true });
 
   useEffect(() => {
     const sync = () => setPrefs(getVoicePrefs());
@@ -64,6 +64,13 @@ export default function VoiceSettingsCard() {
           hint="Lee las confirmaciones en voz alta. Si va apagado, solo se ve el texto."
           on={prefs.speak}
           onToggle={() => setVoicePrefs({ speak: !prefs.speak })}
+        />
+        <Row
+          title="Frases nuevas en la nube"
+          hint="Nombres y horas con la misma Elvira. Los clips no gastan. Se puede apagar aquí o en el servidor."
+          on={prefs.cloud && prefs.speak}
+          disabled={!prefs.speak}
+          onToggle={() => setVoicePrefs({ cloud: !prefs.cloud })}
         />
       </div>
     </section>

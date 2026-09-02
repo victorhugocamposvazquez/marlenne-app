@@ -8,6 +8,8 @@ import { requireSession } from '@/lib/require-session';
 
 const VoiceFab = dynamic(() => import('@/components/VoiceFab'), { ssr: false });
 
+export const maxDuration = 20;
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const me = await requireSession();
 

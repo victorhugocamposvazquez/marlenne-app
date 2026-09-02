@@ -12,9 +12,10 @@ import {
   type PendingBook,
 } from '@/app/actions/voice';
 import { voiceTalk, type VoiceTalkResult, type VoiceTurn } from '@/app/actions/voice-talk';
-import { voiceSpeakMp3 } from '@/app/actions/voice-speak';
+import { voiceSpeakMp3, type VoiceSpeakResult } from '@/app/actions/voice-speak';
 import VoiceWaves from '@/components/VoiceWaves';
 import { VOICE_HELP, fold, forEar, isVoiceYes, parseVoice, pickSpokenIndex, splitWake, takeTime, wakeRestIsCommand } from '@/lib/voice';
+import { voiceLog } from '@/lib/voice-log';
 import { voiceClipUrl } from '@/lib/voice-clips';
 import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/hooks/voice-prefs';
 import {
@@ -30,7 +31,7 @@ type Panel =
   | { mode: 'ask'; say: string; options?: string[]; href?: string }
   | { mode: 'confirm'; say: string; status?: 'curso' | 'noshow'; pick?: 'status' | 'cancel'; run: () => Promise<{ ok: boolean; say: string; href?: string }>; choices?: Choice[] };
 
-const ttsB64 = new Map<string, string>();
+const ttsB64 = new Map<string, VoiceSpeakResult>();
 let speakGen = 0;
 let speaking = false;
 
@@ -46,11 +47,11 @@ function withTime<T>(p: Promise<T>, ms: number) {
 
 function prefetchSpeak(text: string, kind: 'ask' | 'say') {
   const key = `${kind}:${text}`;
-  if (ttsB64.has(key)) return;
-  void withTime(voiceSpeakMp3(text, kind), 6000).then(b64 => {
-    if (!b64) return;
-    ttsB64.set(key, b64);
-    void decodeB64(key, b64);
+  if (ttsB64.has(key) || !getVoicePrefs().cloud) return;
+  void withTime(voiceSpeakMp3(text, kind), 6000).then(payload => {
+    if (!payload) return;
+    ttsB64.set(key, payload);
+    void decodeB64(key, payload.b64);
   });
 }
 
@@ -67,18 +68,19 @@ function stopSpeak() {
 }
 
 async function playCloud(text: string, kind: 'ask' | 'say') {
+  if (!getVoicePrefs().cloud) return false;
   const key = `${kind}:${text}`;
-  let b64 = ttsB64.get(key) ?? null;
-  if (!b64) {
-    b64 = await withTime(voiceSpeakMp3(text, kind), 12000);
-    if (!b64) return false;
-    ttsB64.set(key, b64);
+  let payload = ttsB64.get(key) ?? null;
+  if (!payload) {
+    payload = await withTime(voiceSpeakMp3(text, kind), 12000);
+    if (!payload) return false;
+    ttsB64.set(key, payload);
     if (ttsB64.size > 40) {
       const first = ttsB64.keys().next().value;
       if (first) ttsB64.delete(first);
     }
   }
-  return playB64(key, b64);
+  return playB64(key, payload.b64, { mime: payload.mime });
 }
 
 function wait(ms: number) {
@@ -91,26 +93,30 @@ async function utter(text: string, ask: boolean) {
   await wait(180);
   const clip = voiceClipUrl(text) ?? voiceClipUrl(ear);
   if (clip) {
-    await playUrl(clip, clip);
-    return;
+    voiceLog('tts_clip', { n: ear.length });
+    const ok = await playUrl(clip, clip);
+    if (!ok) voiceLog('tts_fail', { reason: 'clip_play' });
+    return ok;
   }
-  await playCloud(ear, ask ? 'ask' : 'say');
+  const ok = await playCloud(ear, ask ? 'ask' : 'say');
+  if (!ok) voiceLog('tts_fail', { reason: 'cloud' });
+  return ok;
 }
 
-function afterSpeak(gen: number, onDone?: () => void) {
+function afterSpeak(gen: number, onDone?: (heard: boolean) => void, heard = true) {
   window.setTimeout(() => {
     if (gen !== speakGen) return;
-    onDone?.();
+    onDone?.(heard);
   }, 320);
 }
 
-function speak(text: string, onDone?: () => void) {
+function speak(text: string, onDone?: (heard: boolean) => void) {
   if (typeof window === 'undefined' || !getVoicePrefs().speak) {
     const gen = ++speakGen;
     speaking = true;
     afterSpeak(gen, () => {
       speaking = false;
-      onDone?.();
+      onDone?.(true);
     });
     return;
   }
@@ -119,18 +125,18 @@ function speak(text: string, onDone?: () => void) {
   speaking = true;
   const ask = /\?/.test(text);
   let done = false;
-  const finish = () => {
+  const finish = (heard: boolean) => {
     if (done || gen !== speakGen) return;
     done = true;
     afterSpeak(gen, () => {
       speaking = false;
-      onDone?.();
-    });
+      onDone?.(heard);
+    }, heard);
   };
-  const safety = window.setTimeout(finish, 14000);
-  void utter(text, ask).then(() => {
+  const safety = window.setTimeout(() => finish(false), 14000);
+  void utter(text, ask).then(heard => {
     window.clearTimeout(safety);
-    finish();
+    finish(heard);
   });
 }
 
@@ -199,6 +205,7 @@ export default function VoiceFab() {
   const [hearing, setHearing] = useState(false);
   const [armed, setArmed] = useState(false);
   const [wakeOn, setWakeOn] = useState(false);
+  const [sayLoud, setSayLoud] = useState(false);
   const historyRef = useRef<VoiceTurn[]>([]);
   const armedRef = useRef(false);
   const hushRef = useRef(false);
@@ -209,6 +216,7 @@ export default function VoiceFab() {
   const ignoreOutsideRef = useRef(0);
   const missesRef = useRef(0);
   const startListenRef = useRef<(opts?: { overlay?: boolean }) => void>(() => {});
+  const wakeWaitRef = useRef(800);
   const rootRef = useRef<HTMLDivElement>(null);
   const [hasMic, setHasMic] = useState(false);
   const [micPerm, setMicPerm] = useState<MicPerm>('unknown');
@@ -423,15 +431,17 @@ export default function VoiceFab() {
   const finish = (say: string, href?: string) => {
     const gen = ++genRef.current;
     killRec();
+    setSayLoud(false);
     setPanel({ mode: 'msg', say });
     if (href) router.push(href);
-    speak(say, () => {
+    speak(say, heard => {
+      if (!heard) setSayLoud(true);
       window.setTimeout(() => {
         if (gen !== genRef.current) return;
         setPanel({ mode: 'idle' });
         setOpen(false);
         startWakeRef.current();
-      }, 1400);
+      }, heard ? 1400 : 4800);
     });
   };
 
@@ -525,14 +535,19 @@ export default function VoiceFab() {
 
     startTransition(async () => {
       const cmd = parseVoice(text);
+      voiceLog('parse_kind', { kind: cmd.kind });
       if (cmd.kind === 'dismiss') {
         dismiss();
         return;
       }
       if (cmd.kind === 'chat') {
         if (cmd.stay) {
-          speak(cmd.say, () => startListen());
+          setSayLoud(false);
           setPanel({ mode: 'msg', say: cmd.say });
+          speak(cmd.say, heard => {
+            if (!heard) setSayLoud(true);
+            startListen();
+          });
         } else {
           finish(cmd.say);
         }
@@ -586,8 +601,12 @@ export default function VoiceFab() {
           return;
         }
         const say = 'No lo he pillado. Dime el servicio, la hora, o una cita.';
-        speak(say, () => startListen());
+        setSayLoud(false);
         setPanel({ mode: 'msg', say });
+        speak(say, heard => {
+          if (!heard) setSayLoud(true);
+          startListen();
+        });
         return;
       }
       if (cmd.kind === 'help') {
@@ -766,6 +785,7 @@ export default function VoiceFab() {
       setWakeOn(false);
       genRef.current += 1;
       killRec();
+      wakeWaitRef.current = 800;
       if (useful || wakeRestIsCommand(wake.rest)) {
         setOpen(true);
         setPanel({ mode: 'listen', draft: '' });
@@ -779,21 +799,25 @@ export default function VoiceFab() {
       wakeRef.current = false;
       setWakeOn(false);
       if (ev.error === 'not-allowed') {
+        voiceLog('stt_error', { error: ev.error, wake: true });
         applyMic('denied');
         return;
       }
       if (ev.error === 'no-speech') {
-        window.setTimeout(() => startWakeRef.current(), 700);
+        wakeWaitRef.current = Math.min(4000, Math.round(wakeWaitRef.current * 1.4));
+        window.setTimeout(() => startWakeRef.current(), wakeWaitRef.current);
         return;
       }
-      window.setTimeout(() => startWakeRef.current(), 1100);
+      if (ev.error && ev.error !== 'aborted') voiceLog('stt_error', { error: ev.error, wake: true });
+      wakeWaitRef.current = Math.min(4000, Math.round(wakeWaitRef.current * 1.25));
+      window.setTimeout(() => startWakeRef.current(), Math.max(1200, wakeWaitRef.current));
     };
     rec.onend = () => {
       if (gen !== genRef.current) return;
       wakeRef.current = false;
       setWakeOn(false);
       if (!wakeWanted(prefsRef.current) || busyRef.current || listenRef.current || speaking || document.hidden || hushRef.current) return;
-      window.setTimeout(() => startWakeRef.current(), 800);
+      window.setTimeout(() => startWakeRef.current(), wakeWaitRef.current);
     };
     try {
       rec.start();
@@ -844,6 +868,7 @@ export default function VoiceFab() {
     rec.onerror = ev => {
       if (gen !== genRef.current) return;
       if (ev.error === 'not-allowed') {
+        voiceLog('stt_error', { error: ev.error, wake: false });
         applyMic('denied');
         listenRef.current = false;
         overlayRef.current = false;
@@ -916,7 +941,9 @@ export default function VoiceFab() {
             <VoiceWaves label={pending ? 'Un segundo' : hearing ? 'Escuchando' : 'Dime'} />
           )}
           {panel.mode === 'msg' && (
-            <p className="text-body font-semibold text-ink-2">{panel.say}</p>
+            <p className={`font-semibold text-ink-2 ${sayLoud ? 'text-title leading-snug' : 'text-body'}`}>
+              {panel.say}
+            </p>
           )}
           {panel.mode === 'ask' && (
             <div>
@@ -1027,7 +1054,7 @@ export default function VoiceFab() {
             <div className="text-label font-medium leading-snug text-ink-2">
               <p className="font-bold text-ink">Así se usa</p>
               <p className="mt-1">1. Toca el micro: dice «¿Dime?» y te oye. O «Hola Marlenne» y el comando. En Ajustes se apaga el oído.</p>
-              <p>2. Si va a guardar, te pide confirmación.</p>
+              <p>2. Si va a guardar, te pide confirmación. Si no dicta, escribe el comando abajo.</p>
       <p className="mt-2 text-label text-ink-2">
                 Ej.: quién tiene hueco el miércoles a las 11:30 · cita para Lucía con Valeria a las 11:30
               </p>

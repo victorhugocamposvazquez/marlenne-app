@@ -1,12 +1,47 @@
-const CACHE = 'marlenne-shell-v5';
+const CACHE = 'marlenne-shell-v6';
 const PRECACHE = [
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
+  '/voice/dime.mp3',
+  '/voice/te-escucho.mp3',
+  '/voice/bien-aqui.mp3',
+  '/voice/de-nada.mp3',
+  '/voice/hasta-luego.mp3',
+  '/voice/cuando-quieras.mp3',
+  '/voice/algo-mas.mp3',
+  '/voice/no-lo-he-pillado.mp3',
+  '/voice/vale.mp3',
+  '/voice/claro.mp3',
+  '/voice/perfecto.mp3',
+  '/voice/listo.mp3',
+  '/voice/hecho.mp3',
+  '/voice/la-guardo.mp3',
+  '/voice/lo-apuntamos.mp3',
+  '/voice/de-acuerdo.mp3',
+  '/voice/que-servicio.mp3',
+  '/voice/a-que-hora.mp3',
+  '/voice/para-quien.mp3',
+  '/voice/el-nombre.mp3',
+  '/voice/nueva-cita.mp3',
+  '/voice/abro-la-agenda.mp3',
+  '/voice/no-pasa-nada.mp3',
+  '/voice/un-segundo.mp3',
+  '/voice/ahora-miro.mp3',
+  '/voice/citas-huecos.mp3',
+  '/voice/soy-marlenne.mp3',
+  '/voice/gracias-algo-mas.mp3',
+  '/voice/buenos-dias.mp3',
+  '/voice/buenas-tardes.mp3',
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches.open(CACHE).then(async c => {
+      await Promise.all(PRECACHE.map(u => c.add(u).catch(() => undefined)));
+      await self.skipWaiting();
+    }),
+  );
 });
 
 self.addEventListener('activate', event => {

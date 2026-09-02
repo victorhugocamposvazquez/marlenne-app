@@ -183,10 +183,15 @@ export function playBuffer(buf: AudioBuffer, opts?: { rate?: number; gain?: numb
   });
 }
 
-export async function playB64(key: string, b64: string, opts?: { rate?: number; gain?: number }) {
+export async function playB64(
+  key: string,
+  b64: string,
+  opts?: { rate?: number; gain?: number; mime?: 'audio/mpeg' | 'audio/wav' },
+) {
   const buf = await decodeB64(key, b64);
   if (buf) return playBuffer(buf, opts);
-  return playHtmlAudio(`data:audio/mpeg;base64,${b64}`);
+  const mime = opts?.mime ?? 'audio/mpeg';
+  return playHtmlAudio(`data:${mime};base64,${b64}`);
 }
 
 export async function playUrl(key: string, url: string, opts?: { rate?: number; gain?: number }) {
