@@ -20,6 +20,7 @@ export type VoiceTalkResult = {
   ok: boolean;
   fallback?: boolean;
   say: string;
+  ear?: string;
   href?: string;
   ready?: boolean;
   draft?: Record<string, unknown>;
@@ -113,7 +114,7 @@ Las herramientas de escribir solo PREVISUALIZAN: tú preguntas si lo hacemos. El
         description: 'Poner a alguien en lista de espera. No lo apunta aún.',
         parameters: z.object({ clienta: z.string() }),
         execute: async ({ clienta }) => {
-          last = { ok: true, say: `¿Pongo a ${clienta} en espera?`, draft: { who: clienta } };
+          last = { ok: true, say: `¿Pongo a ${clienta} en espera?`, ear: '¿Apunto en espera?', draft: { who: clienta } };
           return last;
         },
       }),

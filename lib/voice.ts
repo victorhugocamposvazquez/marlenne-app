@@ -49,6 +49,56 @@ export function spokenClock(min: number) {
   return `${hour} ${m}`;
 }
 
+const DAY_SPOKE = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'] as const;
+
+/** «hoy», «mañana», «el miércoles». Para oír, no para pantallas. */
+export function spokenDay(offset: number) {
+  if (offset === 0) return 'hoy';
+  if (offset === 1) return 'mañana';
+  if (offset === 2) return 'pasado mañana';
+  const { y, m, d } = madridNow();
+  const todayMon0 = (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
+  return DAY_SPOKE[(todayMon0 + offset) % 7];
+}
+
+export function aLasDe(min: number) {
+  return /^una\b/.test(spokenClock(min)) ? 'a la' : 'a las';
+}
+
+export function earAskSave(dayOffset: number, startMin: number) {
+  return `¿La guardo para ${spokenDay(dayOffset)} ${aLasDe(startMin)} ${spokenClock(startMin)}?`;
+}
+
+export function earSaved(dayOffset: number, startMin: number) {
+  return `Guardo la cita para ${spokenDay(dayOffset)} ${aLasDe(startMin)} ${spokenClock(startMin)}.`;
+}
+
+export function earMove(dayOffset: number, startMin: number) {
+  return `La paso a ${spokenDay(dayOffset)} ${aLasDe(startMin)} ${spokenClock(startMin)}. ¿De acuerdo?`;
+}
+
+export function earNadie(dayOffset: number, startMin: number) {
+  return `Nadie libre ${spokenDay(dayOffset)} ${aLasDe(startMin)} ${spokenClock(startMin)}.`;
+}
+
+export function earHueco(dayOffset: number, startMin: number) {
+  return `Hay hueco ${spokenDay(dayOffset)} ${aLasDe(startMin)} ${spokenClock(startMin)}.`;
+}
+
+export function earAskTime(dayOffset: number) {
+  return dayOffset === 0 ? '¿A qué hora?' : `¿A qué hora para ${spokenDay(dayOffset)}?`;
+}
+
+const CITA_COUNTS = ['', 'una', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez', 'once', 'doce'] as const;
+
+/** Resumen de hoy sin nombres. La lista va en pantalla. */
+export function earTodayCount(n: number) {
+  if (n <= 0) return 'Hoy no hay citas.';
+  if (n === 1) return 'Hoy hay una cita.';
+  if (n <= 12) return `Hoy hay ${CITA_COUNTS[n]} citas.`;
+  return 'Hoy hay citas.';
+}
+
 /** Lo que se oye: horas dichas, comas en vez de ·, sin «di sí o no». */
 export function forEar(text: string) {
   return text

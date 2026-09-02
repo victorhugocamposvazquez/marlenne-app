@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { forEar, parseVoice, splitWake, wakeRestIsCommand } from '../lib/voice';
+import { earAskSave, earSaved, forEar, parseVoice, splitWake, wakeRestIsCommand } from '../lib/voice';
 import { takeVoiceSlot } from '../lib/voice-limits';
 
 test('qué tal estás y dictado sucio son chat', () => {
@@ -35,6 +35,13 @@ test('splitWake y resto útil', () => {
 
 test('forEar dice las horas', () => {
   assert.match(forEar('Cita a las 11:30'), /once y media/);
+});
+
+test('oído de cita no dice el nombre', () => {
+  assert.match(earAskSave(1, 11 * 60), /mañana/);
+  assert.match(earAskSave(1, 11 * 60), /once/);
+  assert.doesNotMatch(earAskSave(1, 11 * 60), /Luc/i);
+  assert.match(earSaved(1, 11 * 60), /Guardo la cita para/);
 });
 
 test('tope de ventana', () => {

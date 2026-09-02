@@ -71,7 +71,7 @@ export function pickWomanVoice(): SpeechSynthesisVoice | null {
 
 function remember(key: string, buf: AudioBuffer) {
   bufs.set(key, buf);
-  if (bufs.size > 36) {
+  if (bufs.size > 96) {
     const first = bufs.keys().next().value;
     if (first) bufs.delete(first);
   }

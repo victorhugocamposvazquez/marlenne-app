@@ -17,6 +17,7 @@ import VoiceWaves from '@/components/VoiceWaves';
 import { VOICE_HELP, fold, forEar, isVoiceYes, parseVoice, pickSpokenIndex, splitWake, takeTime, wakeRestIsCommand } from '@/lib/voice';
 import { voiceLog } from '@/lib/voice-log';
 import { voiceClipUrl } from '@/lib/voice-clips';
+import { stitchVoice } from '@/lib/voice-stitch';
 import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/hooks/voice-prefs';
 import {
   decodeB64, decodeUrl, playB64, playUrl, stopVoicePlay, warmVoiceAudio,
@@ -29,7 +30,7 @@ type Panel =
   | { mode: 'listen'; draft: string }
   | { mode: 'msg'; say: string }
   | { mode: 'ask'; say: string; options?: string[]; href?: string }
-  | { mode: 'confirm'; say: string; status?: 'curso' | 'noshow'; pick?: 'status' | 'cancel'; run: () => Promise<{ ok: boolean; say: string; href?: string }>; choices?: Choice[] };
+  | { mode: 'confirm'; say: string; status?: 'curso' | 'noshow'; pick?: 'status' | 'cancel'; run: () => Promise<{ ok: boolean; say: string; href?: string; ear?: string }>; choices?: Choice[] };
 
 const ttsB64 = new Map<string, VoiceSpeakResult>();
 let speakGen = 0;
@@ -46,6 +47,7 @@ function withTime<T>(p: Promise<T>, ms: number) {
 }
 
 function prefetchSpeak(text: string, kind: 'ask' | 'say') {
+  if (stitchVoice(text)) return;
   const key = `${kind}:${text}`;
   if (ttsB64.has(key) || !getVoicePrefs().cloud) return;
   void withTime(voiceSpeakMp3(text, kind), 6000).then(payload => {
@@ -91,12 +93,18 @@ async function utter(text: string, ask: boolean) {
   const ear = forEar(text);
   warmVoiceAudio();
   await wait(180);
-  const clip = voiceClipUrl(text) ?? voiceClipUrl(ear);
-  if (clip) {
-    voiceLog('tts_clip', { n: ear.length });
-    const ok = await playUrl(clip, clip);
-    if (!ok) voiceLog('tts_fail', { reason: 'clip_play' });
-    return ok;
+  const parts = stitchVoice(text) ?? stitchVoice(ear);
+  if (parts?.length) {
+    voiceLog('tts_clip', { n: ear.length, parts: parts.length });
+    for (let i = 0; i < parts.length; i++) {
+      if (i) await wait(60);
+      const ok = await playUrl(parts[i], parts[i]);
+      if (!ok) {
+        voiceLog('tts_fail', { reason: 'clip_play' });
+        return false;
+      }
+    }
+    return true;
   }
   const ok = await playCloud(ear, ask ? 'ask' : 'say');
   if (!ok) voiceLog('tts_fail', { reason: 'cloud' });
@@ -124,6 +132,7 @@ function speak(text: string, onDone?: (heard: boolean) => void) {
   const gen = ++speakGen;
   speaking = true;
   const ask = /\?/.test(text);
+  const parts = stitchVoice(text);
   let done = false;
   const finish = (heard: boolean) => {
     if (done || gen !== speakGen) return;
@@ -133,7 +142,7 @@ function speak(text: string, onDone?: (heard: boolean) => void) {
       onDone?.(heard);
     }, heard);
   };
-  const safety = window.setTimeout(() => finish(false), 14000);
+  const safety = window.setTimeout(() => finish(false), parts && parts.length > 1 ? 22000 : 14000);
   void utter(text, ask).then(heard => {
     window.clearTimeout(safety);
     finish(heard);
@@ -423,18 +432,18 @@ export default function VoiceFab() {
     return () => document.removeEventListener('pointerdown', onDown);
   }, [open]);
 
-  const speakThenListen = (say: string) => {
+  const speakThenListen = (say: string, ear?: string) => {
     missesRef.current = 0;
-    speak(say, () => startListenRef.current({ overlay: true }));
+    speak(ear ?? say, () => startListenRef.current({ overlay: true }));
   };
 
-  const finish = (say: string, href?: string) => {
+  const finish = (say: string, href?: string, ear?: string) => {
     const gen = ++genRef.current;
     killRec();
     setSayLoud(false);
     setPanel({ mode: 'msg', say });
     if (href) router.push(href);
-    speak(say, heard => {
+    speak(ear ?? say, heard => {
       if (!heard) setSayLoud(true);
       window.setTimeout(() => {
         if (gen !== genRef.current) return;
@@ -463,37 +472,37 @@ export default function VoiceFab() {
         pick: r.cancel ? 'cancel' : 'status',
         run: async () => ({ ok: false, say: 'Elige una' }),
       });
-      speakThenListen(r.say);
+      speakThenListen(r.say, r.ear);
       return;
     }
     if (r.ready && r.draft && r.move) {
       pendingRef.current = null;
       const draft = r.draft as { id: string; date: string; startMin: number; providerId: string };
       setPanel({ mode: 'confirm', say: r.say, run: () => voiceApplyMove(draft) });
-      speakThenListen(r.say);
+      speakThenListen(r.say, r.ear);
       return;
     }
     if (r.ready && r.draft && !r.move && !r.draft.who) {
       pendingRef.current = null;
       const draft = r.draft as Parameters<typeof voiceConfirmBook>[0];
       setPanel({ mode: 'confirm', say: r.say, run: () => voiceConfirmBook(draft) });
-      speakThenListen(r.say);
+      speakThenListen(r.say, r.ear);
       return;
     }
     if (r.draft && typeof r.draft.who === 'string') {
       const who = r.draft.who;
       setPanel({ mode: 'confirm', say: r.say, run: () => voiceAddWait(who) });
-      speakThenListen(r.say);
+      speakThenListen(r.say, r.ear);
       return;
     }
     if (r.matches?.length === 1 && r.cancel) {
       setPanel({ mode: 'confirm', say: r.say, run: () => voiceApplyCancel(r.matches![0].id) });
-      speakThenListen(r.say);
+      speakThenListen(r.say, r.ear);
       return;
     }
     if (r.matches?.length === 1 && r.status) {
       setPanel({ mode: 'confirm', say: r.say, run: () => voiceApplyStatus(r.matches![0].id, r.status!) });
-      speakThenListen(r.say);
+      speakThenListen(r.say, r.ear);
       return;
     }
     if ((r.need === 'service' || r.need === 'time') && r.pending) {
@@ -503,11 +512,11 @@ export default function VoiceFab() {
         return `${h}:${String(m % 60).padStart(2, '0')}`;
       }) ?? [];
       setPanel({ mode: 'ask', say: r.say, options: r.options, href: r.href });
-      speakThenListen(r.say);
+      speakThenListen(r.say, r.ear);
       return;
     }
     pendingRef.current = null;
-    finish(r.say, r.href);
+    finish(r.say, r.href, r.ear);
   };
 
   const continueBook = async (patch: Partial<PendingBook>) => {
@@ -524,7 +533,7 @@ export default function VoiceFab() {
     if (confirming && isVoiceYes(said)) {
       startTransition(async () => {
         const r = await confirming.run();
-        finish(r.say, r.href);
+        finish(r.say, r.href, r.ear);
       });
       return;
     }
@@ -625,7 +634,7 @@ export default function VoiceFab() {
       }
       if (cmd.kind === 'today') {
         const r = await voiceToday();
-        finish(r.say, r.href);
+        finish(r.say, r.href, r.ear);
         return;
       }
       if (cmd.kind === 'wait') {
@@ -639,13 +648,13 @@ export default function VoiceFab() {
           say: `¿Apunto a ${who} en espera?`,
           run: () => voiceAddWait(who),
         });
-        speakThenListen(`¿Apunto a ${who} en espera?`);
+        speakThenListen(`¿Apunto a ${who} en espera?`, '¿Apunto en espera?');
         return;
       }
       if (cmd.kind === 'status') {
         const preview = await voicePreviewStatus(cmd.who, cmd.status);
         if (!preview.ok || preview.matches.length === 0) {
-          finish(preview.say);
+          finish(preview.say, undefined, preview.ear);
           return;
         }
         if (preview.matches.length === 1) {
@@ -655,7 +664,7 @@ export default function VoiceFab() {
             say: preview.say,
             run: () => voiceApplyStatus(id, cmd.status),
           });
-          speakThenListen(preview.say);
+          speakThenListen(preview.say, preview.ear);
           return;
         }
         setPanel({
@@ -666,12 +675,12 @@ export default function VoiceFab() {
           choices: preview.matches,
           run: async () => ({ ok: false, say: 'Elige una' }),
         });
-        speakThenListen(preview.say);
+        speakThenListen(preview.say, preview.ear);
         return;
       }
       if (cmd.kind === 'slots') {
         const r = await voiceSlots(cmd.dayOffset, cmd.startMin, cmd.providerQ);
-        finish(r.say, r.href);
+        finish(r.say, r.href, r.ear);
         return;
       }
       if (cmd.kind === 'book') {
@@ -681,13 +690,13 @@ export default function VoiceFab() {
       if (cmd.kind === 'cancel') {
         const preview = await voicePreviewCancel(cmd.who, cmd.dayOffset);
         if (!preview.ok || preview.matches.length === 0) {
-          finish(preview.say);
+          finish(preview.say, undefined, preview.ear);
           return;
         }
         if (preview.matches.length === 1) {
           const id = preview.matches[0].id;
           setPanel({ mode: 'confirm', say: preview.say, run: () => voiceApplyCancel(id) });
-          speakThenListen(preview.say);
+          speakThenListen(preview.say, preview.ear);
           return;
         }
         setPanel({
@@ -697,18 +706,18 @@ export default function VoiceFab() {
           choices: preview.matches,
           run: async () => ({ ok: false, say: 'Elige una' }),
         });
-        speakThenListen(preview.say);
+        speakThenListen(preview.say, preview.ear);
         return;
       }
       if (cmd.kind === 'move') {
         const preview = await voicePreviewMove(cmd.who, cmd.startMin, cmd.dayOffset, cmd.providerQ);
         if (!preview.ok || !preview.draft) {
-          finish(preview.say, preview.href);
+          finish(preview.say, preview.href, preview.ear);
           return;
         }
         const draft = preview.draft;
         setPanel({ mode: 'confirm', say: preview.say, run: () => voiceApplyMove(draft) });
-        speakThenListen(preview.say);
+        speakThenListen(preview.say, preview.ear);
       }
     });
   };
@@ -1041,7 +1050,7 @@ export default function VoiceFab() {
                     disabled={pending}
                     onClick={() => startTransition(async () => {
                       const r = await panel.run();
-                      finish(r.say, r.href);
+                      finish(r.say, r.href, r.ear);
                     })}
                   >
                     Sí

@@ -7,8 +7,11 @@ import {
   freeSlots, getDayAgenda, listClientOptions, listProviders, listServices,
 } from '@/lib/queries';
 import { CATEGORIES, catStyle } from '@/lib/categories';
-import { dateFromOffset, dayKey, dayTitle, fmt, minutesOfDay } from '@/lib/time';
-import { bestNameMatches, bestServiceMatches, matchCategory, saidServiceVariant, serviceFamily } from '@/lib/voice';
+import { dateFromOffset, dayKey, dayTitle, fmt, minutesOfDay, offsetFromDay } from '@/lib/time';
+import {
+  bestNameMatches, bestServiceMatches, earAskSave, earAskTime, earHueco, earMove, earNadie,
+  earSaved, earTodayCount, matchCategory, saidServiceVariant, serviceFamily,
+} from '@/lib/voice';
 
 export type PendingBook = {
   who: string;
@@ -63,7 +66,7 @@ export async function voiceToday() {
   if (next.length) {
     bits.push(`Siguientes: ${next.map(a => `${a.client_label} a las ${fmt(minutesOfDay(a.starts_at))}`).join(', ')}.`);
   }
-  return { ok: true as const, say: bits.join(' '), href: '/hoy' };
+  return { ok: true as const, say: bits.join(' '), ear: earTodayCount(appointments.length), href: '/hoy' };
 }
 
 export async function voicePreviewStatus(who: string, status: 'curso' | 'noshow') {
@@ -77,11 +80,16 @@ export async function voicePreviewStatus(who: string, status: 'curso' | 'noshow'
     label: `${a.client_label} · ${fmt(minutesOfDay(a.starts_at))} · ${a.service_name}`,
   }));
   if (matches.length === 0) {
-    return { ok: false as const, say: `No encuentro a ${who} en la agenda de hoy.`, matches: [] };
+    return {
+      ok: false as const,
+      say: `No encuentro a ${who} en la agenda de hoy.`,
+      ear: 'No encuentro a esa clienta.',
+      matches: [],
+    };
   }
   const verb = status === 'curso' ? 'Pasa a cabina' : 'No vino';
   if (matches.length === 1) {
-    return { ok: true as const, say: `${verb}: ${matches[0].label}. ¿Lo marco?`, matches };
+    return { ok: true as const, say: `${verb}: ${matches[0].label}. ¿Lo marco?`, ear: '¿Lo marco?', matches };
   }
   return { ok: true as const, say: `Hay varias. ¿Cuál es?`, matches };
 }
@@ -118,11 +126,17 @@ export async function voiceSlots(
       if (slots.map(minutesOfDay).includes(startMin)) free.push(p.full_name.split(' ')[0]);
     }
     if (free.length === 0) {
-      return { ok: true as const, say: `Nadie libre ${whenLbl} a las ${fmt(startMin)}.`, href };
+      return {
+        ok: true as const,
+        say: `Nadie libre ${whenLbl} a las ${fmt(startMin)}.`,
+        ear: earNadie(dayOffset, startMin),
+        href,
+      };
     }
     return {
       ok: true as const,
       say: `${free.join(', ')} ${free.length === 1 ? 'está libre' : 'están libres'} ${whenLbl} a las ${fmt(startMin)}.`,
+      ear: earHueco(dayOffset, startMin),
       href,
     };
   }
@@ -178,6 +192,7 @@ export async function voicePreviewBook(
     options: string[],
     q: string | null = serviceQ,
     lockChoices = false,
+    ear = '¿Qué servicio?',
   ) => ({
     ok: true as const,
     ready: false as const,
@@ -189,6 +204,7 @@ export async function voicePreviewBook(
     options,
     href,
     say,
+    ear,
   });
 
   const [clients, allServices] = await Promise.all([listClientOptions(), listServices()]);
@@ -212,7 +228,7 @@ export async function voicePreviewBook(
     if (named.length === 1) picked = named[0];
     else if (named.length > 1) {
       const names = named.map(s => s.name);
-      return askService(`Hay varias. ${spoken(names)}. ¿Cuál le hacemos a ${whoLabel}?`, names, serviceQ, true);
+      return askService(`Hay varias. ${spoken(names)}. ¿Cuál le hacemos a ${whoLabel}?`, names, serviceQ, true, 'Hay varias. ¿Cuál es?');
     }
   }
 
@@ -228,6 +244,7 @@ export async function voicePreviewBook(
           names,
           null,
           true,
+          'Hay varias. ¿Cuál es?',
         );
       } else {
         return askService(`No hay servicios de ${catStyle(cat).label}. ¿Otra categoría?`, cats, null, false);
@@ -240,7 +257,7 @@ export async function voicePreviewBook(
     if (named.length === 1) picked = named[0];
     else if (named.length > 1) {
       const names = named.map(s => s.name);
-      return askService(`Hay varias. ${spoken(names)}. ¿Cuál le hacemos a ${whoLabel}?`, names, serviceQ, true);
+      return askService(`Hay varias. ${spoken(names)}. ¿Cuál le hacemos a ${whoLabel}?`, names, serviceQ, true, 'Hay varias. ¿Cuál es?');
     }
   }
 
@@ -269,6 +286,7 @@ export async function voicePreviewBook(
       names,
       serviceQ,
       true,
+      'Hay varias. ¿Cuál es?',
     );
   }
 
@@ -286,6 +304,7 @@ export async function voicePreviewBook(
       options: holes.map(fmt),
       href,
       say: `¿A qué hora le hacemos ${picked.name} a ${whoLabel}${whenBit}${withPro}?${holeBit}`,
+      ear: earAskTime(dayOffset),
     };
   }
   const service = picked;
@@ -309,6 +328,7 @@ export async function voicePreviewBook(
         options: holes.map(fmt),
         href,
         say: `Esa hora no está libre. Tengo ${spoken(holes.map(fmt), 4)}. ¿Cuál?`,
+        ear: 'Esa hora no está libre.',
       };
     }
     return { ok: false as const, ready: false as const, href, say: 'No queda hueco ese día. Abro el alta.' };
@@ -319,6 +339,7 @@ export async function voicePreviewBook(
     ready: true as const,
     href,
     say: `${whoLabel}, ${whenLbl.toLowerCase()} a las ${fmt(startMin)}, ${service.name}${withPro}. ¿La guardo?`,
+    ear: earAskSave(dayOffset, startMin),
     draft: {
       clientId: client?.id,
       clientName: client ? undefined : who,
@@ -346,6 +367,7 @@ export async function voiceConfirmBook(draft: {
   return {
     ok: r.ok,
     say: r.ok ? 'Cita guardada.' : (r.error ?? 'No se ha podido guardar'),
+    ear: r.ok ? earSaved(offsetFromDay(draft.date), draft.startMin) : undefined,
     href: r.ok ? '/hoy' : '/agenda?new=1',
   };
 }
@@ -359,11 +381,17 @@ export async function voicePreviewCancel(who: string, dayOffset = 0) {
     label: `${a.client_label} · ${fmt(minutesOfDay(a.starts_at))} · ${a.service_name}`,
   }));
   if (!matches.length) {
-    return { ok: false as const, say: `No hay cita de ${who} ${dayTitle(dayOffset)}.`, matches: [] };
+    return {
+      ok: false as const,
+      say: `No hay cita de ${who} ${dayTitle(dayOffset)}.`,
+      ear: 'No hay cita de esa clienta hoy.',
+      matches: [],
+    };
   }
   return {
     ok: true as const,
     say: matches.length === 1 ? `Cancelo ${matches[0].label}. ¿De acuerdo?` : 'Hay varias. ¿Cuál cancelo?',
+    ear: matches.length === 1 ? '¿Lo cancelamos?' : undefined,
     matches,
   };
 }
@@ -401,6 +429,7 @@ export async function voicePreviewMove(
     ok: true as const,
     ready: true as const,
     say: `Paso a ${appt.client_label} ${dayTitle(dayOffset).toLowerCase()} a las ${fmt(startMin)} con ${provider.full_name.split(' ')[0]}. ¿De acuerdo?`,
+    ear: earMove(dayOffset, startMin),
     draft: { id: appt.id, date: dayKey(when), startMin, providerId: provider.id },
   };
 }
