@@ -6,13 +6,13 @@ import { requireSession } from '@/lib/require-session';
 import {
   freeSlots, getDayAgenda, listClientOptions, listProviders, listServices,
 } from '@/lib/queries';
-import { CATEGORIES, catStyle } from '@/lib/categories';
+import { CATEGORIES } from '@/lib/categories';
 import { dateFromOffset, dayKey, dayTitle, fmt, minutesOfDay, offsetFromDay } from '@/lib/time';
 import {
-  bestNameMatches, bestServiceMatches, earAskSave, earAskTimeHoles, earHoraOcupada,
-  earHueco, earHuecos, earMove, earNadie, earSaved, earTodayCount, matchCategory,
-  saidServiceVariant, serviceFamily,
+  bestNameMatches, earAskSave, earAskTime, earAskTimeHoles, earHoraOcupada,
+  earHueco, earHuecos, earMove, earNadie, earSaved, earTodayCount,
 } from '@/lib/voice';
+import { resolveService, serviceBase, variantQuestion } from '@/lib/voice-services';
 
 export type PendingBook = {
   who: string;
@@ -21,8 +21,10 @@ export type PendingBook = {
   providerQ: string | null;
   serviceQ: string | null;
   need: 'service' | 'time';
-  choices?: string[];
+  choices?: string[] | null;
   slotMins?: number[];
+  /** Veces que ya se ha preguntado esto: la segunda va corta. */
+  asks?: number;
 };
 
 async function firstFreeMins(
@@ -168,7 +170,7 @@ export async function voiceSlots(
 
 export async function voicePreviewBook(
   who: string, startMin: number | null, serviceQ: string | null, dayOffset = 0, providerQ: string | null = null,
-  choices: string[] | null = null,
+  choices: string[] | null = null, asks = 0,
 ) {
   const when = dateFromOffset(dayOffset);
   const qs = new URLSearchParams({ new: '1', nombre: who });
@@ -203,19 +205,20 @@ export async function voicePreviewBook(
         : `${short.slice(0, -1).join(', ')} o ${short[short.length - 1]}`;
     return items.length > max ? `${list}, y más en pantalla` : list;
   };
+  const again = asks >= 1;
   const askService = (
     say: string,
     options: string[],
-    q: string | null = serviceQ,
-    lockChoices = false,
+    lock: string[] | null,
     ear = '¿Qué servicio?',
   ) => ({
     ok: true as const,
     ready: false as const,
     need: 'service' as const,
     pending: {
-      who, startMin, dayOffset, providerQ, serviceQ: q, need: 'service' as const,
-      choices: lockChoices ? options : undefined,
+      who, startMin, dayOffset, providerQ, serviceQ: null, need: 'service' as const,
+      choices: lock?.length ? lock : undefined,
+      asks: asks + 1,
     },
     options,
     href,
@@ -226,89 +229,58 @@ export async function voicePreviewBook(
   const [clients, allServices] = await Promise.all([listClientOptions(), listServices()]);
   const clientHits = bestNameMatches(clients, who, c => c.full_name);
   const whoLabel = clientHits.length === 1 ? clientHits[0].full_name : who;
-  const fromList = choices?.length
+  const within = choices?.length
     ? allServices.filter(s => choices.some(c => c.toLowerCase() === s.name.toLowerCase()))
-    : [];
-  const services = fromList.length ? fromList : allServices;
+    : null;
 
   if (!serviceQ) {
-    return askService(`¿Qué le hacemos a ${whoLabel}?`, cats, null, false);
+    return askService(again ? '¿Qué servicio?' : `¿Qué le hacemos a ${whoLabel}?`, cats, null);
   }
 
-  const exact = services.filter(s => s.name.localeCompare(serviceQ, 'es', { sensitivity: 'accent' }) === 0
-    || s.name.toLowerCase() === serviceQ.toLowerCase());
-  let picked = exact.length === 1 ? exact[0] : null;
+  const found = resolveService(allServices, serviceQ, within);
 
-  if (!picked) {
-    const named = bestServiceMatches(services, serviceQ, s => s.name);
-    if (named.length === 1) picked = named[0];
-    else if (named.length > 1) {
-      const names = named.map(s => s.name);
-      return askService(`Hay varias. ${spoken(names)}. ¿Cuál le hacemos a ${whoLabel}?`, names, serviceQ, true, 'Hay varias. ¿Cuál es?');
+  if (found.kind === 'variants') {
+    const q = variantQuestion(found.base, found.options);
+    return askService(q.say, found.options.map(s => s.name), found.options.map(s => s.name), q.ear);
+  }
+
+  if (found.kind === 'list') {
+    const names = found.options.map(s => s.name);
+    const fams = found.families;
+    const say = again
+      ? '¿Cuál?'
+      : found.title
+        ? `${found.title}: ${spoken(fams)}. ¿Cuál?`
+        : `Hay varias: ${spoken(fams)}. ¿Cuál?`;
+    return askService(say, fams.length < names.length ? fams : names, names, again ? '¿Cuál?' : 'Hay varias. ¿Cuál es?');
+  }
+
+  if (found.kind === 'none') {
+    if (within?.length) {
+      const fams = [...new Set(within.map(s => serviceBase(s.name)))];
+      const opts = fams.length < within.length && fams.length > 1 ? fams : within.map(s => s.name);
+      return askService(
+        asks >= 2 ? 'No lo pillo. Toca una en pantalla.' : `No lo he pillado. ¿Cuál de estas?`,
+        opts,
+        within.map(s => s.name),
+        asks >= 2 ? 'No lo pillo. Toca una en pantalla.' : '¿Cuál?',
+      );
     }
-  }
-
-  if (!picked) {
-    const cat = matchCategory(serviceQ);
-    if (cat) {
-      const inCat = (fromList.length ? allServices : services).filter(s => s.category === cat);
-      if (inCat.length === 1) picked = inCat[0];
-      else if (inCat.length > 1) {
-        const names = inCat.map(s => s.name);
-        return askService(
-          `En ${catStyle(cat).label.toLowerCase()} tengo ${spoken(names)}. ¿Cuál le hacemos a ${whoLabel}?`,
-          names,
-          null,
-          true,
-          'Hay varias. ¿Cuál es?',
-        );
-      } else {
-        return askService(`No hay servicios de ${catStyle(cat).label}. ¿Otra categoría?`, cats, null, false);
-      }
-    }
-  }
-
-  if (!picked && fromList.length) {
-    const named = bestServiceMatches(allServices, serviceQ, s => s.name);
-    if (named.length === 1) picked = named[0];
-    else if (named.length > 1) {
-      const names = named.map(s => s.name);
-      return askService(`Hay varias. ${spoken(names)}. ¿Cuál le hacemos a ${whoLabel}?`, names, serviceQ, true, 'Hay varias. ¿Cuál es?');
-    }
-  }
-
-  if (!picked) {
-    const corporal = allServices.filter(s => s.category === 'corporal').map(s => s.name);
     return askService(
-      `No he pillado el servicio. Prueba otra vez, o elige: ${spoken(corporal)}.`,
-      corporal.length ? corporal : cats,
+      asks >= 2 ? 'No lo pillo. Toca una en pantalla.' : `No he pillado el servicio. ¿Facial, corporal, láser…?`,
+      cats,
       null,
-      false,
+      asks >= 2 ? 'No lo pillo. Toca una en pantalla.' : '¿Qué servicio?',
     );
   }
 
-  const kin = serviceFamily(picked.name, allServices, s => s.name);
-  if (kin.length > 1 && !saidServiceVariant(serviceQ)) {
-    const names = kin.map(s => s.name);
-    const bits = names.map(n => {
-      if (/\+\s*cavit/i.test(n)) return 'con cavitación';
-      if (/1 hora/i.test(n)) return 'de una hora';
-      if (/2 h/i.test(n)) return 'de dos horas';
-      return 'de media hora';
-    });
-    const family = picked.name.replace(/\s*[-+–].*$/, '').trim();
-    return askService(
-      `Tengo ${family} ${spoken(bits, 4)}. ¿Cuál le hacemos a ${whoLabel}?`,
-      names,
-      serviceQ,
-      true,
-      'Hay varias. ¿Cuál es?',
-    );
-  }
+  const picked = found.service;
 
   if (startMin === null) {
     const holes = await firstFreeMins(providers, when, picked.duration_min);
-    const holeBit = holes.length ? ` Tengo ${spoken(holes.map(fmt), 4)}.` : '';
+    const timeAsks = choices?.length ? 0 : asks;
+    const shortAsk = timeAsks >= 1;
+    const holeBit = holes.length && !shortAsk ? ` Tengo ${spoken(holes.map(fmt), 4)}.` : '';
     return {
       ok: true as const,
       ready: false as const,
@@ -316,11 +288,14 @@ export async function voicePreviewBook(
       pending: {
         who, startMin, dayOffset, providerQ, serviceQ: picked.name, need: 'time' as const,
         slotMins: holes,
+        asks: timeAsks + 1,
       },
       options: holes.map(fmt),
       href,
-      say: `¿A qué hora le hacemos ${picked.name} a ${whoLabel}${whenBit}${withPro}?${holeBit}`,
-      ear: earAskTimeHoles(dayOffset, holes),
+      say: shortAsk
+        ? '¿A qué hora?'
+        : `¿A qué hora le hacemos ${picked.name} a ${whoLabel}${whenBit}${withPro}?${holeBit}`,
+      ear: shortAsk ? earAskTime(dayOffset) : earAskTimeHoles(dayOffset, holes),
     };
   }
   const service = picked;
@@ -356,6 +331,8 @@ export async function voicePreviewBook(
     href,
     say: `${whoLabel}, ${whenLbl.toLowerCase()} a las ${fmt(startMin)}, ${service.name}${withPro}. ¿La guardo?`,
     ear: earAskSave(dayOffset, startMin),
+    /** Para corregir «mejor a las doce» / «la de una hora» sin rehacer el diálogo. */
+    book: { who, startMin, serviceQ: service.name, dayOffset, providerQ },
     draft: {
       clientId: client?.id,
       clientName: client ? undefined : who,

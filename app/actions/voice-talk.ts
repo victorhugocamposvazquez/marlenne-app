@@ -31,6 +31,8 @@ export type VoiceTalkResult = {
   need?: 'service' | 'time';
   pending?: PendingBook;
   options?: string[];
+  /** Cita propuesta (¿La guardo?), por si la corrigen de viva voz. */
+  book?: { who: string; startMin: number | null; serviceQ: string | null; dayOffset: number; providerQ: string | null };
 };
 
 function dayOf(label?: string | null) {

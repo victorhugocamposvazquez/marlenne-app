@@ -1,4 +1,4 @@
-const CACHE = 'marlenne-shell-v8';
+const CACHE = 'marlenne-shell-v9';
 const PRECACHE = [
   '/manifest.json',
   '/icon-192.png',
@@ -41,6 +41,14 @@ const PRECACHE = [
   '/voice/dia-manana.mp3',
   '/voice/tengo.mp3',
   '/voice/huecos.mp3',
+  '/voice/o.mp3',
+  '/voice/de-media-hora.mp3',
+  '/voice/de-una-hora.mp3',
+  '/voice/de-dos-horas.mp3',
+  '/voice/con-cavitacion.mp3',
+  '/voice/cual.mp3',
+  '/voice/cual-de-estas.mp3',
+  '/voice/toca-una.mp3',
 ];
 
 self.addEventListener('install', event => {

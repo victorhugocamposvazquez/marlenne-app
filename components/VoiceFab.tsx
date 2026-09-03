@@ -14,7 +14,10 @@ import {
 import { voiceTalk, type VoiceTalkResult, type VoiceTurn } from '@/app/actions/voice-talk';
 import { voiceSpeakMp3, type VoiceSpeakResult } from '@/app/actions/voice-speak';
 import VoiceWaves from '@/components/VoiceWaves';
-import { VOICE_HELP, fold, forEar, isVoiceYes, parseVoice, pickSpokenIndex, splitWake, takeTime, wakeRestIsCommand } from '@/lib/voice';
+import {
+  VOICE_HELP, fold, forEar, isVoiceYes, parseBookLoose, parseVoice, pickSpokenIndex, saidDayOffset, splitWake,
+  takeTime, wakeRestIsCommand,
+} from '@/lib/voice';
 import { voiceLog } from '@/lib/voice-log';
 import { voiceClipUrl } from '@/lib/voice-clips';
 import { stitchVoice } from '@/lib/voice-stitch';
@@ -199,6 +202,7 @@ export default function VoiceFab() {
   const recRef = useRef<RecApi | null>(null);
   const pendingRef = useRef<PendingBook | null>(null);
   const confirmRef = useRef<Extract<Panel, { mode: 'confirm' }> | null>(null);
+  const bookRef = useRef<VoiceTalkResult['book'] | null>(null);
   const genRef = useRef(0);
   const listenRef = useRef(false);
   const overlayRef = useRef(false);
@@ -276,6 +280,7 @@ export default function VoiceFab() {
     killRec();
     stopSpeak();
     pendingRef.current = null;
+    bookRef.current = null;
     setTyped('');
     setPanel({ mode: 'idle' });
     setOpen(false);
@@ -457,6 +462,7 @@ export default function VoiceFab() {
   };
 
   const applyTalk = (r: VoiceTalkResult) => {
+    bookRef.current = null;
     if (r.matches && r.matches.length > 1) {
       setPanel({
         mode: 'confirm',
@@ -478,6 +484,7 @@ export default function VoiceFab() {
     }
     if (r.ready && r.draft && !r.move && !r.draft.who) {
       pendingRef.current = null;
+      bookRef.current = r.book ?? null;
       const draft = r.draft as Parameters<typeof voiceConfirmBook>[0];
       setPanel({ mode: 'confirm', say: r.say, run: () => voiceConfirmBook(draft) });
       speakThenListen(r.say, r.ear);
@@ -514,9 +521,12 @@ export default function VoiceFab() {
   };
 
   const continueBook = async (patch: Partial<PendingBook>) => {
-    const p = { ...pendingRef.current!, ...patch };
+    const held = pendingRef.current!;
+    const p = { ...held, ...patch };
     const preview = await voicePreviewBook(
-      p.who, p.startMin, p.serviceQ, p.dayOffset, p.providerQ, pendingRef.current?.choices ?? null,
+      p.who, p.startMin, p.serviceQ, p.dayOffset, p.providerQ,
+      patch.choices === null ? null : (held.choices ?? null),
+      held.asks ?? 0,
     );
     applyTalk(preview);
   };
@@ -534,6 +544,25 @@ export default function VoiceFab() {
     if (confirming && (/^(no|ahora no|mejor no|cancelar?)\b/.test(said) || parseVoice(text).kind === 'dismiss')) {
       dismiss();
       return;
+    }
+    // «¿La guardo?» y contestan «mejor a las doce» / «el jueves» / «la de una hora»: se corrige, no se empieza de cero.
+    const book = confirming ? bookRef.current : null;
+    if (book) {
+      const clock = takeTime(text).startMin ?? (/^(mejor )?(a )?(la )?una$/.test(said) ? 13 * 60 : null);
+      const day = saidDayOffset(text);
+      const variant = /cavit|media hora|una hora|hora y media|dos horas|tres horas|minutos|corta|larga|gratuita/.test(said);
+      if (clock !== null || day !== null || variant) {
+        startTransition(async () => {
+          applyTalk(await voicePreviewBook(
+            book.who,
+            clock ?? book.startMin,
+            variant && book.serviceQ ? `${book.serviceQ} ${text}` : book.serviceQ,
+            day ?? book.dayOffset,
+            book.providerQ,
+          ));
+        });
+        return;
+      }
     }
 
     startTransition(async () => {
@@ -571,13 +600,15 @@ export default function VoiceFab() {
           return;
         }
         if (held.need === 'time') {
-          const clock = takeTime(text).startMin ?? (cmd.kind === 'book' ? cmd.startMin : null);
+          const clock = takeTime(text).startMin
+            ?? (cmd.kind === 'book' ? cmd.startMin : null)
+            ?? (/^(a )?(la )?una( hora)?$/.test(said) ? 13 * 60 : null);
           if (clock !== null) {
             await continueBook({ startMin: clock });
             return;
           }
-          if (held.serviceQ && /hora|cavit|media|corta|larga/.test(said)) {
-            await continueBook({ serviceQ: `${held.serviceQ} ${text}`, startMin: held.startMin });
+          if (held.serviceQ && /cavit|media|corta|larga|minutos|dos horas|hora y media|tres horas/.test(said)) {
+            await continueBook({ serviceQ: `${held.serviceQ} ${text}`, startMin: held.startMin, choices: null });
             return;
           }
           await continueBook({ startMin: null, serviceQ: held.serviceQ });
@@ -585,7 +616,7 @@ export default function VoiceFab() {
         }
         const serviceQ = cmd.kind === 'book' && cmd.serviceQ
           ? cmd.serviceQ
-          : text.trim().replace(/^(pues |mira |vale |una |un |de |el |la |le hacemos |hacemos |quiero |ponle )/i, '').trim();
+          : text.trim();
         await continueBook({ serviceQ });
         return;
       }
@@ -596,6 +627,14 @@ export default function VoiceFab() {
         if (named) {
           applyTalk(await voicePreviewBook(cmd.text, null, null, 0, null));
           return;
+        }
+        const loose = parseBookLoose(cmd.text);
+        if (loose) {
+          const client = await voiceMatchClient(loose.who);
+          if (client) {
+            applyTalk(await voicePreviewBook(client, loose.startMin, loose.serviceQ, loose.dayOffset, loose.providerQ));
+            return;
+          }
         }
         const talk = await voiceTalk(cmd.text, historyRef.current);
         if (!talk.fallback && talk.say) {

@@ -233,6 +233,13 @@ function takeProvider(s: string): { text: string; providerQ: string | null } {
   return { text: s, providerQ: null };
 }
 
+/** «mejor mañana», «el jueves» → días desde hoy. Null si no nombra un día. */
+export function saidDayOffset(text: string): number | null {
+  const m = fold(text).match(DAY_RE);
+  if (!m) return null;
+  return weekdayOffset(m[1]);
+}
+
 function takeDay(s: string): { text: string; dayOffset: number } {
   const m = s.match(DAY_RE);
   if (!m) return { text: s, dayOffset: 0 };
@@ -319,6 +326,29 @@ function parseBook(t: string): VoiceCmd | null {
   const split = takeServiceTail(rest);
   if (split.who.length < 2) return null;
   if (!saidBook && time.startMin === null) return null;
+  return {
+    kind: 'book',
+    who: split.who,
+    startMin: time.startMin,
+    serviceQ: split.serviceQ,
+    dayOffset: d.dayOffset,
+    providerQ: p.providerQ,
+  };
+}
+
+/**
+ * «Lucía vacum una hora», sin decir «cita». Solo vale si luego la clienta existe:
+ * quien llama decide, aquí solo se parte el texto.
+ */
+export function parseBookLoose(text: string): Extract<VoiceCmd, { kind: 'book' }> | null {
+  const t = fold(text.replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' ').trim());
+  if (!t || /(hueco|libre|disponib|cancela|anula|mueve|cambia|que es|cuanto|precio)/.test(t)) return null;
+  const p = takeProvider(t);
+  const d = takeDay(p.text);
+  const time = takeTime(d.text);
+  const rest = stripTime(d.text).replace(/^(para |a |de )/, '').trim();
+  const split = takeServiceTail(rest);
+  if (!split.serviceQ || split.who.length < 2 || split.who.split(' ').length > 3) return null;
   return {
     kind: 'book',
     who: split.who,
@@ -677,6 +707,27 @@ const SERVICE_ALIASES: Record<string, string> = {
   presoterapia: 'presoterapia',
   crioliposis: 'criolipolisis',
   criolipolisis: 'criolipolisis',
+  crio: 'criolipolisis',
+  criolipo: 'criolipolisis',
+  crioterapia: 'criolipolisis',
+  cavi: 'cavitacion',
+  lipo: 'lipolaser',
+  info: 'infoasesoramiento',
+  asesoramiento: 'infoasesoramiento',
+  radio: 'radiofrecuencia',
+  radiofrecuencias: 'radiofrecuencia',
+  hifus: 'hifu',
+  ifu: 'hifu',
+  jifu: 'hifu',
+  express: 'tratamientoexpress',
+  expres: 'tratamientoexpress',
+  lifting: 'facialradiancelifting',
+  radiance: 'facialradiancelifting',
+  bloom: 'facialbloom',
+  blum: 'facialbloom',
+  microblading: 'microblading',
+  microblending: 'microblading',
+  micro: 'microblading',
   cabitacion: 'cavitacion',
   gravitacion: 'cavitacion',
   cavitacion: 'cavitacion',
@@ -694,6 +745,11 @@ function normalizeServiceHeard(raw: string) {
     .replace(/\bconterpia\b/g, 'vacumterapia')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/** Texto de servicio como lo dijo, con los oídos típicos del dictado ya corregidos. */
+export function hearService(raw: string) {
+  return normalizeServiceHeard(raw);
 }
 
 function terapiaAlias(c: string) {

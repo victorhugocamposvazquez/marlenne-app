@@ -191,5 +191,19 @@
   { "id": "hoy-hay-doce-citas", "kind": "say", "text": "Hoy hay doce citas." },
   { "id": "hoy-hay-citas", "kind": "say", "text": "Hoy hay citas." },
   { "id": "tengo", "kind": "say", "text": "Tengo" },
-  { "id": "huecos", "kind": "say", "text": "Huecos" }
+  { "id": "huecos", "kind": "say", "text": "Huecos" },
+  { "id": "o", "kind": "say", "text": "o" },
+  { "id": "de-quince-minutos", "kind": "say", "text": "de quince minutos" },
+  { "id": "de-media-hora", "kind": "say", "text": "de media hora" },
+  { "id": "de-tres-cuartos", "kind": "say", "text": "de tres cuartos de hora" },
+  { "id": "de-una-hora", "kind": "say", "text": "de una hora" },
+  { "id": "de-hora-y-media", "kind": "say", "text": "de hora y media" },
+  { "id": "de-dos-horas", "kind": "say", "text": "de dos horas" },
+  { "id": "de-tres-horas", "kind": "say", "text": "de tres horas" },
+  { "id": "con-cavitacion", "kind": "say", "text": "con cavitación" },
+  { "id": "gratuita", "kind": "say", "text": "gratuita" },
+  { "id": "cual", "kind": "ask", "text": "¿Cuál?" },
+  { "id": "cual-de-estas", "kind": "ask", "text": "No lo he pillado. ¿Cuál de estas?" },
+  { "id": "toca-una", "kind": "say", "text": "No lo pillo. Toca una en pantalla." },
+  { "id": "no-pille-servicio", "kind": "ask", "text": "No he pillado el servicio. ¿Facial, corporal, láser…?" }
 ]

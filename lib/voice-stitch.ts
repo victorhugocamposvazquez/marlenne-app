@@ -1,6 +1,29 @@
 import { DAY_END, DAY_START } from '@/lib/time';
 import { aLasDe, fold, forEar, spokenClock } from '@/lib/voice';
 import { voiceClipUrl } from '@/lib/voice-clips';
+import { VARIANT_LABELS } from '@/lib/voice-services';
+
+const VARIANTS = new Set(VARIANT_LABELS.map(fold));
+
+/** Silencio entre opciones, en ms. `playUrls` lo entiende. */
+export const PAUSE = 'pause:140';
+
+/** «¿De media hora, de una hora o con cavitación?» → clips con «o» y pausas. */
+function stitchVariants(text: string): string[] | null {
+  const q = forEar(text).replace(/[¿¡]/g, '').replace(/[?.!]+$/g, '').trim();
+  const items = q.split(/,\s*|\s+o\s+/).map(s => s.trim()).filter(Boolean);
+  if (items.length < 2 || !items.every(i => VARIANTS.has(fold(i)))) return null;
+  const o = voiceClipUrl('o');
+  if (!o) return null;
+  const urls: string[] = [];
+  for (let i = 0; i < items.length; i++) {
+    const clip = voiceClipUrl(items[i]);
+    if (!clip) return null;
+    if (i > 0) urls.push(i === items.length - 1 ? o : PAUSE);
+    urls.push(clip);
+  }
+  return urls;
+}
 
 const DAY_IDS: Record<string, string> = {
   hoy: 'dia-hoy',
@@ -195,6 +218,8 @@ function stitchDayHour(ear: string, agree: boolean): string[] | null {
 export function stitchVoice(text: string): string[] | null {
   const whole = voiceClipUrl(text) ?? voiceClipUrl(forEar(text));
   if (whole) return [whole];
+  const variants = stitchVariants(text);
+  if (variants) return variants;
 
   let ear = cleanEar(text);
   if (!ear) return null;

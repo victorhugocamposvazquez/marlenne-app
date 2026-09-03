@@ -213,22 +213,43 @@ function concatAudio(parts: AudioBuffer[]) {
   return out;
 }
 
-/** Varios clips como una sola frase. Si uno no decodifica, se oyen en cadena. */
-export async function playUrls(urls: string[], opts?: { rate?: number; gain?: number }) {
+function pauseMs(part: string) {
+  const m = part.match(/^pause:(\d+)$/);
+  return m ? Number(m[1]) : null;
+}
+
+function silence(ms: number, rate: number) {
+  return audioCtx().createBuffer(1, Math.max(1, Math.round((ms / 1000) * rate)), rate);
+}
+
+/** Varios clips como una sola frase. `pause:140` mete silencio. Si uno no decodifica, se oyen en cadena. */
+export async function playUrls(parts: string[], opts?: { rate?: number; gain?: number }) {
+  const urls = parts.filter(p => pauseMs(p) === null);
   if (!urls.length) return false;
-  if (urls.length === 1) return playUrl(urls[0], urls[0], opts);
-  const key = urls.join('|');
+  if (parts.length === 1) return playUrl(urls[0], urls[0], opts);
+  const key = parts.join('|');
   const hit = bufs.get(key);
   if (hit) return playBuffer(hit, opts);
-  const parts = await Promise.all(urls.map(u => decodeUrl(u, u)));
-  if (parts.some(p => !p)) {
-    for (const url of urls) {
-      const ok = await playUrl(url, url, opts);
+  const decoded = new Map<string, AudioBuffer | null>();
+  await Promise.all([...new Set(urls)].map(async u => decoded.set(u, await decodeUrl(u, u))));
+  if (urls.some(u => !decoded.get(u))) {
+    for (const p of parts) {
+      const ms = pauseMs(p);
+      if (ms !== null) {
+        await new Promise(r => window.setTimeout(r, ms));
+        continue;
+      }
+      const ok = await playUrl(p, p, opts);
       if (!ok) return false;
     }
     return true;
   }
-  const joined = concatAudio(parts as AudioBuffer[]);
+  const rate = decoded.get(urls[0])!.sampleRate;
+  const bufsIn = parts.map(p => {
+    const ms = pauseMs(p);
+    return ms !== null ? silence(ms, rate) : decoded.get(p)!;
+  });
+  const joined = concatAudio(bufsIn);
   remember(key, joined);
   return playBuffer(joined, opts);
 }

@@ -2,6 +2,7 @@
 """MP3 de Marlenne con Elvira (Edge, español de España). Sin clave."""
 import asyncio
 import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -36,8 +37,35 @@ def encode_mp3(ffmpeg: str, src: Path, dest: Path, af: Optional[str] = None) -> 
     return r.returncode == 0 and dest.exists() and dest.stat().st_size > 0
 
 
+def speech_bounds(path: Path, ffmpeg: str) -> Optional[tuple]:
+    """Dónde empieza y acaba la voz de verdad (silencedetect). None si no se sabe."""
+    dur = audio_sec(path, ffmpeg)
+    if dur <= 0:
+        return None
+    r = subprocess.run(
+        [ffmpeg, '-i', str(path), '-af', 'silencedetect=n=-45dB:d=0.12', '-f', 'null', '-'],
+        check=False, capture_output=True, text=True,
+    ).stderr
+    starts = [float(x) for x in re.findall(r'silence_start: ([\d.]+)', r)]
+    ends = [float(x) for x in re.findall(r'silence_end: ([\d.]+)', r)]
+    begin = 0.0
+    if starts and starts[0] <= 0.05 and ends:
+        begin = max(0.0, ends[0] - 0.04)
+    end = dur
+    if starts:
+        last = starts[-1]
+        # Silencio final: llega hasta el fin del fichero (ffmpeg cierra el silence_end en EOF, o no lo imprime).
+        last_end = ends[-1] if len(ends) >= len(starts) else None
+        if last > begin + 0.2 and (last_end is None or last_end >= dur - 0.08):
+            end = min(dur, last + 0.06)
+    if end - begin < 0.25:
+        return None
+    return begin, end
+
+
 def safari_mp3(path: Path, trim: bool = False) -> None:
-    """Edge entrega 24 kHz MPEG-2; Safari no lo decodifica. 44.1 kHz sí."""
+    """Edge entrega 24 kHz MPEG-2; Safari no lo decodifica. 44.1 kHz sí.
+    Con trim, se corta justo donde acaba la voz para que los clips se puedan coser."""
     ffmpeg = shutil.which('ffmpeg')
     if not ffmpeg:
         return
@@ -46,28 +74,18 @@ def safari_mp3(path: Path, trim: bool = False) -> None:
     try:
         if not encode_mp3(ffmpeg, path, raw):
             return
-        src = raw
-        if trim and encode_mp3(
-            ffmpeg, raw, cut,
-            'silenceremove=start_periods=1:start_threshold=-40dB:start_silence=0.02'
-            ':stop_periods=1:stop_threshold=-58dB:stop_silence=0.1',
-        ):
-            full = audio_sec(raw, ffmpeg)
-            short = audio_sec(cut, ffmpeg)
-            if short >= 0.4 and (full <= 0 or short >= full * 0.35):
-                src = cut
-        dur = audio_sec(src, ffmpeg)
-        if trim and dur > 1.3:
-            end = dur - 0.72
-            tail = Path(tempfile.mkstemp(suffix='.mp3')[1])
-            if encode_mp3(
-                ffmpeg, src, tail,
-                f'atrim=0:{end:.3f},afade=t=out:st={max(0, end - 0.05):.3f}:d=0.05',
-            ) and audio_sec(tail, ffmpeg) >= 0.4:
-                tail.replace(path)
-                return
-            tail.unlink(missing_ok=True)
-        src.replace(path)
+        if trim:
+            bounds = speech_bounds(raw, ffmpeg)
+            if bounds:
+                begin, end = bounds
+                fade = max(begin, end - 0.04)
+                if encode_mp3(
+                    ffmpeg, raw, cut,
+                    f'atrim={begin:.3f}:{end:.3f},asetpts=PTS-STARTPTS,afade=t=out:st={fade:.3f}:d=0.04',
+                ) and audio_sec(cut, ffmpeg) >= 0.25:
+                    cut.replace(path)
+                    return
+        raw.replace(path)
     finally:
         raw.unlink(missing_ok=True)
         cut.unlink(missing_ok=True)
@@ -75,7 +93,9 @@ def safari_mp3(path: Path, trim: bool = False) -> None:
 
 TRIM_IDS = {
     'la-guardo-para', 'guardo-cita-para', 'la-paso-a', 'nadie-libre-cuando',
-    'hay-hueco', 'a-las', 'a-la', 'a-que-hora-para', 'tengo', 'huecos',
+    'hay-hueco', 'a-las', 'a-la', 'a-que-hora-para', 'tengo', 'huecos', 'o',
+    'de-quince-minutos', 'de-media-hora', 'de-tres-cuartos', 'de-una-hora', 'de-hora-y-media',
+    'de-dos-horas', 'de-tres-horas', 'con-cavitacion', 'gratuita',
 }
 
 
