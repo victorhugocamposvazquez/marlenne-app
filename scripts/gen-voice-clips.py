@@ -75,7 +75,7 @@ def safari_mp3(path: Path, trim: bool = False) -> None:
 
 TRIM_IDS = {
     'la-guardo-para', 'guardo-cita-para', 'la-paso-a', 'nadie-libre-cuando',
-    'hay-hueco', 'a-las', 'a-la', 'a-que-hora-para',
+    'hay-hueco', 'a-las', 'a-la', 'a-que-hora-para', 'tengo', 'huecos',
 }
 
 

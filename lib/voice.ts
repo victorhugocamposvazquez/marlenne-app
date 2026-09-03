@@ -89,6 +89,35 @@ export function earAskTime(dayOffset: number) {
   return dayOffset === 0 ? '¿A qué hora?' : `¿A qué hora para ${spokenDay(dayOffset)}?`;
 }
 
+function spokenList(items: string[]) {
+  if (items.length <= 1) return items[0] ?? '';
+  if (items.length === 2) return `${items[0]} o ${items[1]}`;
+  return `${items.slice(0, -1).join(', ')} o ${items[items.length - 1]}`;
+}
+
+/** Horas sueltas, sin nombres. La lista va en pantalla. */
+export function earTengo(mins: number[]) {
+  const clocks = mins.slice(0, 4).map(spokenClock);
+  if (!clocks.length) return '';
+  return `Tengo ${spokenList(clocks)}.`;
+}
+
+export function earHuecos(dayOffset: number, mins: number[]) {
+  if (!mins.length) return 'No quedan huecos.';
+  const tengo = earTengo(mins);
+  if (dayOffset === 0) return tengo;
+  return `Huecos ${spokenDay(dayOffset)}. ${tengo}`;
+}
+
+export function earAskTimeHoles(dayOffset: number, mins: number[]) {
+  const ask = earAskTime(dayOffset);
+  return mins.length ? `${ask} ${earTengo(mins)}` : ask;
+}
+
+export function earHoraOcupada(mins: number[]) {
+  return mins.length ? `Esa hora no está libre. ${earTengo(mins)}` : 'Esa hora no está libre.';
+}
+
 const CITA_COUNTS = ['', 'una', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez', 'once', 'doce'] as const;
 
 /** Resumen de hoy sin nombres. La lista va en pantalla. */

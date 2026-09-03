@@ -20,7 +20,7 @@ import { voiceClipUrl } from '@/lib/voice-clips';
 import { stitchVoice } from '@/lib/voice-stitch';
 import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/hooks/voice-prefs';
 import {
-  decodeB64, decodeUrl, playB64, playUrl, stopVoicePlay, warmVoiceAudio,
+  decodeB64, decodeUrl, playB64, playUrls, stopVoicePlay, warmVoiceAudio,
 } from '@/hooks/voice-play';
 import { micBlockedSay, queryMicPerm, requestMic, watchMicPerm, type MicPerm } from '@/hooks/voice-mic';
 
@@ -96,15 +96,9 @@ async function utter(text: string, ask: boolean) {
   const parts = stitchVoice(text) ?? stitchVoice(ear);
   if (parts?.length) {
     voiceLog('tts_clip', { n: ear.length, parts: parts.length });
-    for (let i = 0; i < parts.length; i++) {
-      if (i) await wait(60);
-      const ok = await playUrl(parts[i], parts[i]);
-      if (!ok) {
-        voiceLog('tts_fail', { reason: 'clip_play' });
-        return false;
-      }
-    }
-    return true;
+    const ok = await playUrls(parts);
+    if (!ok) voiceLog('tts_fail', { reason: 'clip_play' });
+    return ok;
   }
   const ok = await playCloud(ear, ask ? 'ask' : 'say');
   if (!ok) voiceLog('tts_fail', { reason: 'cloud' });

@@ -9,8 +9,9 @@ import {
 import { CATEGORIES, catStyle } from '@/lib/categories';
 import { dateFromOffset, dayKey, dayTitle, fmt, minutesOfDay, offsetFromDay } from '@/lib/time';
 import {
-  bestNameMatches, bestServiceMatches, earAskSave, earAskTime, earHueco, earMove, earNadie,
-  earSaved, earTodayCount, matchCategory, saidServiceVariant, serviceFamily,
+  bestNameMatches, bestServiceMatches, earAskSave, earAskTimeHoles, earHoraOcupada,
+  earHueco, earHuecos, earMove, earNadie, earSaved, earTodayCount, matchCategory,
+  saidServiceVariant, serviceFamily,
 } from '@/lib/voice';
 
 export type PendingBook = {
@@ -142,12 +143,27 @@ export async function voiceSlots(
   }
 
   const lines: string[] = [];
+  const seen = new Set<number>();
   for (const p of pool) {
-    const slots = (await freeSlots(p.id, when, 60)).map(minutesOfDay).slice(0, 4);
+    const slots = (await freeSlots(p.id, when, 60)).map(minutesOfDay);
+    slots.slice(0, 4).forEach(m => seen.add(m));
     if (slots.length) lines.push(`${p.full_name.split(' ')[0]}: ${slots.map(fmt).join(', ')}`);
   }
-  if (!lines.length) return { ok: true as const, say: `No quedan huecos de una hora ${whenLbl}.`, href };
-  return { ok: true as const, say: `Huecos ${whenLbl}. ${lines.join('. ')}.`, href };
+  const mins = [...seen].sort((a, b) => a - b).slice(0, 4);
+  if (!lines.length) {
+    return {
+      ok: true as const,
+      say: `No quedan huecos de una hora ${whenLbl}.`,
+      ear: 'No quedan huecos.',
+      href,
+    };
+  }
+  return {
+    ok: true as const,
+    say: `Huecos ${whenLbl}. ${lines.join('. ')}.`,
+    ear: earHuecos(dayOffset, mins),
+    href,
+  };
 }
 
 export async function voicePreviewBook(
@@ -304,7 +320,7 @@ export async function voicePreviewBook(
       options: holes.map(fmt),
       href,
       say: `¿A qué hora le hacemos ${picked.name} a ${whoLabel}${whenBit}${withPro}?${holeBit}`,
-      ear: earAskTime(dayOffset),
+      ear: earAskTimeHoles(dayOffset, holes),
     };
   }
   const service = picked;
@@ -328,7 +344,7 @@ export async function voicePreviewBook(
         options: holes.map(fmt),
         href,
         say: `Esa hora no está libre. Tengo ${spoken(holes.map(fmt), 4)}. ¿Cuál?`,
-        ear: 'Esa hora no está libre.',
+        ear: earHoraOcupada(holes),
       };
     }
     return { ok: false as const, ready: false as const, href, say: 'No queda hueco ese día. Abro el alta.' };

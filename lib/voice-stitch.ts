@@ -63,26 +63,104 @@ function takeDayEnd(s: string) {
   return null;
 }
 
+function takeDayStart(s: string) {
+  const t = s.replace(/^el\s+/, '').trim();
+  for (const d of DAYS) {
+    if (t === d) return { rest: '', day: d };
+    if (t.startsWith(`${d} `)) return { rest: t.slice(d.length).trim(), day: d };
+  }
+  return null;
+}
+
 function cleanEar(text: string) {
   return fold(forEar(text))
     .replace(/[¿¡.!?]/g, ' ')
+    .replace(/,/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-/**
- * Frase hecha de clips (día + hora + plantilla). Null = ir a la nube.
- * El nombre no entra: va en pantalla.
- */
-export function stitchVoice(text: string): string[] | null {
-  const whole = voiceClipUrl(text) ?? voiceClipUrl(forEar(text));
-  if (whole) return [whole];
+function hourUrls(mins: number[]) {
+  const urls = mins.map(voiceClockUrl);
+  if (!urls.length || urls.some(u => !u)) return null;
+  return urls as string[];
+}
 
-  let ear = cleanEar(text);
-  if (!ear) return null;
-  const agree = /\bde acuerdo$/.test(ear);
-  if (agree) ear = ear.replace(/\bde acuerdo$/, '').trim();
+function takeHourList(s: string) {
+  let t = s.replace(/\so\s/g, ' ').replace(/\s+/g, ' ').trim();
+  const mins: number[] = [];
+  while (t) {
+    const hit = CLOCKS.find(row => t === row.text || t.startsWith(`${row.text} `));
+    if (!hit) break;
+    mins.push(hit.min);
+    t = t.slice(hit.text.length).trim();
+  }
+  return mins.length ? { rest: t, mins } : null;
+}
 
+function glueTengo(mins: number[]) {
+  const tengo = voiceClipUrl('Tengo');
+  const hours = hourUrls(mins);
+  return tengo && hours ? [tengo, ...hours] : null;
+}
+
+function stitchTengoPhrase(ear: string): string[] | null {
+  if (ear.startsWith('esa hora no esta libre')) {
+    const rest = ear.slice('esa hora no esta libre'.length).trim();
+    const head = voiceClipUrl('Esa hora no está libre.');
+    if (!head) return null;
+    if (!rest) return [head];
+    if (!rest.startsWith('tengo')) return null;
+    const hours = takeHourList(rest.slice('tengo'.length).trim());
+    const tail = hours && !hours.rest ? glueTengo(hours.mins) : null;
+    return tail ? [head, ...tail] : null;
+  }
+
+  if (ear.startsWith('a que hora para')) {
+    const rest = ear.slice('a que hora para'.length).trim();
+    const day = takeDayStart(rest);
+    const prefix = voiceClipUrl('¿A qué hora para');
+    const dia = day ? voiceDayUrl(day.day) : null;
+    if (!prefix || !day || !dia) return null;
+    if (!day.rest) return [prefix, dia];
+    if (!day.rest.startsWith('tengo')) return null;
+    const hours = takeHourList(day.rest.slice('tengo'.length).trim());
+    const tail = hours && !hours.rest ? glueTengo(hours.mins) : null;
+    return tail ? [prefix, dia, ...tail] : null;
+  }
+
+  if (ear.startsWith('a que hora')) {
+    const rest = ear.slice('a que hora'.length).trim();
+    const head = voiceClipUrl('¿A qué hora?');
+    if (!head) return null;
+    if (!rest) return [head];
+    if (!rest.startsWith('tengo')) return null;
+    const hours = takeHourList(rest.slice('tengo'.length).trim());
+    const tail = hours && !hours.rest ? glueTengo(hours.mins) : null;
+    return tail ? [head, ...tail] : null;
+  }
+
+  if (ear.startsWith('huecos')) {
+    const rest = ear.slice('huecos'.length).trim();
+    const day = takeDayStart(rest);
+    const prefix = voiceClipUrl('Huecos');
+    const dia = day ? voiceDayUrl(day.day) : null;
+    if (!prefix || !day || !dia) return null;
+    if (!day.rest.startsWith('tengo')) return null;
+    const hours = takeHourList(day.rest.slice('tengo'.length).trim());
+    const tail = hours && !hours.rest ? glueTengo(hours.mins) : null;
+    return tail ? [prefix, dia, ...tail] : null;
+  }
+
+  if (ear.startsWith('tengo')) {
+    const hours = takeHourList(ear.slice('tengo'.length).trim());
+    return hours && !hours.rest ? glueTengo(hours.mins) : null;
+  }
+
+  return null;
+}
+
+function stitchDayHour(ear: string, agree: boolean): string[] | null {
   const clock = takeClockEnd(ear);
   const afterClock = (clock?.rest ?? ear).replace(/\b(a las|a la)$/g, '').trim();
   const day = takeDayEnd(afterClock);
@@ -105,6 +183,23 @@ export function stitchVoice(text: string): string[] | null {
   const hour = voiceClockUrl(clock.min);
   if (!prefix || !dia || !las || !hour) return null;
   const urls = [prefix, dia, las, hour];
-  if ((agree || row.agree) && voiceClipUrl('¿De acuerdo?')) urls.push(voiceClipUrl('¿De acuerdo?')!);
+  const ok = voiceClipUrl('¿De acuerdo?');
+  if ((agree || row.agree) && ok) urls.push(ok);
   return urls;
+}
+
+/**
+ * Frase hecha de clips (día + hora + plantilla). Null = ir a la nube.
+ * El nombre no entra: va en pantalla.
+ */
+export function stitchVoice(text: string): string[] | null {
+  const whole = voiceClipUrl(text) ?? voiceClipUrl(forEar(text));
+  if (whole) return [whole];
+
+  let ear = cleanEar(text);
+  if (!ear) return null;
+  const agree = /\bde acuerdo$/.test(ear);
+  if (agree) ear = ear.replace(/\bde acuerdo$/, '').trim();
+
+  return stitchTengoPhrase(ear) ?? stitchDayHour(ear, agree);
 }

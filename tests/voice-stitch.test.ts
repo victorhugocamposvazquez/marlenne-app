@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { earAskSave, earAskTime, earHueco, earMove, earNadie, earSaved, earTodayCount } from '../lib/voice';
+import {
+  earAskSave, earAskTime, earAskTimeHoles, earHoraOcupada, earHueco, earHuecos,
+  earMove, earNadie, earSaved, earTengo, earTodayCount,
+} from '../lib/voice';
 import { stitchVoice } from '../lib/voice-stitch';
 
 test('plantilla sin nombre: guardo para mañana a las once', () => {
@@ -54,6 +57,47 @@ test('preguntar hora: clip entero hoy, plantilla otro día', () => {
   assert.deepEqual(stitchVoice(earAskTime(1)), [
     '/voice/a-que-hora-para.mp3',
     '/voice/dia-manana.mp3',
+  ]);
+});
+
+test('tengo horas sueltas, sin nombres', () => {
+  assert.equal(earTengo([11 * 60, 11 * 60 + 30, 12 * 60]), 'Tengo once, once y media o doce.');
+  assert.deepEqual(stitchVoice(earTengo([11 * 60, 11 * 60 + 30, 12 * 60])), [
+    '/voice/tengo.mp3',
+    '/voice/hora-660.mp3',
+    '/voice/hora-690.mp3',
+    '/voice/hora-720.mp3',
+  ]);
+  assert.deepEqual(stitchVoice(earHuecos(1, [10 * 60, 16 * 60])), [
+    '/voice/huecos.mp3',
+    '/voice/dia-manana.mp3',
+    '/voice/tengo.mp3',
+    '/voice/hora-600.mp3',
+    '/voice/hora-960.mp3',
+  ]);
+  assert.deepEqual(stitchVoice(earHuecos(0, [11 * 60])), [
+    '/voice/tengo.mp3',
+    '/voice/hora-660.mp3',
+  ]);
+});
+
+test('preguntar hora con huecos es una plantilla', () => {
+  assert.deepEqual(stitchVoice(earAskTimeHoles(0, [11 * 60, 12 * 60])), [
+    '/voice/a-que-hora.mp3',
+    '/voice/tengo.mp3',
+    '/voice/hora-660.mp3',
+    '/voice/hora-720.mp3',
+  ]);
+  assert.deepEqual(stitchVoice(earAskTimeHoles(1, [11 * 60])), [
+    '/voice/a-que-hora-para.mp3',
+    '/voice/dia-manana.mp3',
+    '/voice/tengo.mp3',
+    '/voice/hora-660.mp3',
+  ]);
+  assert.deepEqual(stitchVoice(earHoraOcupada([11 * 60 + 30])), [
+    '/voice/esa-hora-no-libre.mp3',
+    '/voice/tengo.mp3',
+    '/voice/hora-690.mp3',
   ]);
 });
 

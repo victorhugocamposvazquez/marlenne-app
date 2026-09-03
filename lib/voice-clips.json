@@ -189,5 +189,7 @@
   { "id": "hoy-hay-diez-citas", "kind": "say", "text": "Hoy hay diez citas." },
   { "id": "hoy-hay-once-citas", "kind": "say", "text": "Hoy hay once citas." },
   { "id": "hoy-hay-doce-citas", "kind": "say", "text": "Hoy hay doce citas." },
-  { "id": "hoy-hay-citas", "kind": "say", "text": "Hoy hay citas." }
+  { "id": "hoy-hay-citas", "kind": "say", "text": "Hoy hay citas." },
+  { "id": "tengo", "kind": "say", "text": "Tengo" },
+  { "id": "huecos", "kind": "say", "text": "Huecos" }
 ]

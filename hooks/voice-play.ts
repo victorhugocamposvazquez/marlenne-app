@@ -200,6 +200,39 @@ export async function playUrl(key: string, url: string, opts?: { rate?: number; 
   return playHtmlAudio(url);
 }
 
+function concatAudio(parts: AudioBuffer[]) {
+  const rate = parts[0].sampleRate;
+  const length = parts.reduce((n, b) => n + b.length, 0);
+  const out = audioCtx().createBuffer(1, length, rate);
+  const dest = out.getChannelData(0);
+  let offset = 0;
+  for (const b of parts) {
+    dest.set(b.getChannelData(0), offset);
+    offset += b.length;
+  }
+  return out;
+}
+
+/** Varios clips como una sola frase. Si uno no decodifica, se oyen en cadena. */
+export async function playUrls(urls: string[], opts?: { rate?: number; gain?: number }) {
+  if (!urls.length) return false;
+  if (urls.length === 1) return playUrl(urls[0], urls[0], opts);
+  const key = urls.join('|');
+  const hit = bufs.get(key);
+  if (hit) return playBuffer(hit, opts);
+  const parts = await Promise.all(urls.map(u => decodeUrl(u, u)));
+  if (parts.some(p => !p)) {
+    for (const url of urls) {
+      const ok = await playUrl(url, url, opts);
+      if (!ok) return false;
+    }
+    return true;
+  }
+  const joined = concatAudio(parts as AudioBuffer[]);
+  remember(key, joined);
+  return playBuffer(joined, opts);
+}
+
 export function speakLocal(text: string, ask: boolean) {
   return new Promise<void>(resolve => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
