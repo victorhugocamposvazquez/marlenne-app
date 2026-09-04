@@ -246,6 +246,11 @@ export default function VoiceFab() {
   const [micPerm, setMicPerm] = useState<MicPerm>('unknown');
   const micRef = useRef<MicPerm>('unknown');
 
+  // Con el panel abierto, el audio ya está despierto: la primera frase sale sin la espera.
+  useEffect(() => {
+    if (open) warmAudio();
+  }, [open]);
+
   const syncPrefs = (p = getVoicePrefs()) => {
     prefsRef.current = p;
     hushRef.current = !wakeWanted(p);
@@ -636,7 +641,8 @@ export default function VoiceFab() {
       const cmd = parseVoice(text);
       voiceLog('parse_kind', { kind: cmd.kind, said: text.slice(0, 80) });
       // «¿Rosa María o Rosario? ¿O es nueva?» → «no» quiere decir «ninguna», no «cancela».
-      const noMeansNew = pendingRef.current?.need === 'client' && optionsRef.current.length > 1 && /^(no|nah|que no)$/.test(said);
+      const noMeansNew = pendingRef.current?.need === 'client' && optionsRef.current.length > 1
+        && optionsRef.current.includes(NEW_CLIENT_CHIP) && /^(no|nah|que no)$/.test(said);
       if (cmd.kind === 'dismiss' && !noMeansNew) {
         dismiss();
         return;
@@ -663,8 +669,9 @@ export default function VoiceFab() {
         if (held.need === 'client') {
           const opt = pick != null ? optionsRef.current[pick] : null;
           const onlyNew = optionsRef.current.length === 1 && optionsRef.current[0] === NEW_CLIENT_CHIP;
+          const offersNew = optionsRef.current.includes(NEW_CLIENT_CHIP);
           if (opt === NEW_CLIENT_CHIP || /\b(nueva|nuevo|alta|apuntala|no esta|ninguna|de las dos no|otra)\b/.test(said)
-            || (isVoiceYes(said) && onlyNew) || (!onlyNew && /^(no|nah|que no)\b/.test(said))) {
+            || (isVoiceYes(said) && onlyNew) || (offersNew && !onlyNew && /^(no|nah|que no)\b/.test(said))) {
             await continueBook({ newClient: true, choices: null });
             return;
           }
