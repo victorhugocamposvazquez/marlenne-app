@@ -649,11 +649,12 @@ export default function VoiceFab() {
       }
       if (cmd.kind === 'chat') {
         if (cmd.stay) {
+          // La respuesta se queda en pantalla mientras escucha (overlay); si no sonó, en grande.
           setSayLoud(false);
           setPanel({ mode: 'msg', say: cmd.say });
           speak(cmd.say, heard => {
             if (!heard) setSayLoud(true);
-            startListen();
+            startListenRef.current({ overlay: true });
           });
         } else {
           finish(cmd.say);
@@ -1105,9 +1106,16 @@ export default function VoiceFab() {
             <VoiceWaves label={pending ? 'Un segundo' : hearing ? 'Escuchando' : 'Dime'} />
           )}
           {panel.mode === 'msg' && (
-            <p className={`font-semibold text-ink-2 ${sayLoud ? 'text-title leading-snug' : 'text-body'}`}>
-              {panel.say}
-            </p>
+            <div>
+              <p className={`font-semibold text-ink-2 ${sayLoud ? 'text-title leading-snug' : 'text-body'}`}>
+                {panel.say}
+              </p>
+              {(hearing || pending) && (
+                <div className="mt-2">
+                  <VoiceWaves label={pending ? 'Un segundo' : 'Escuchando'} />
+                </div>
+              )}
+            </div>
           )}
           {panel.mode === 'ask' && (
             <div>
