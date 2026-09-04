@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { parseClock, weekdayOffset } from '@/lib/voice';
 import {
   voiceAddWait, voicePreviewBook, voicePreviewCancel, voicePreviewMove,
-  voicePreviewStatus, voiceSlots, voiceToday,
+  voicePreviewStatus, voicePreviewWait, voiceSlots, voiceToday,
   type PendingBook,
 } from '@/app/actions/voice';
 import { requireSession } from '@/lib/require-session';
@@ -16,9 +16,14 @@ import { voiceLog } from '@/lib/voice-log';
 
 export type VoiceTurn = { role: 'user' | 'assistant'; content: string };
 
+/** La nube tiene 8 s; después, frase propia y a seguir con los clips. */
+const LLM_TIMEOUT_MS = 8000;
+
 export type VoiceTalkResult = {
   ok: boolean;
   fallback?: boolean;
+  /** Por qué no respondió la nube, para decirlo bien y apuntarlo. */
+  reason?: 'off' | 'rate' | 'timeout' | 'openai';
   say: string;
   ear?: string;
   href?: string;
@@ -28,11 +33,18 @@ export type VoiceTalkResult = {
   status?: 'curso' | 'noshow';
   cancel?: boolean;
   move?: boolean;
-  need?: 'service' | 'time';
+  need?: 'client' | 'service' | 'time';
   pending?: PendingBook;
   options?: string[];
   /** Cita propuesta (¿La guardo?), por si la corrigen de viva voz. */
-  book?: { who: string; startMin: number | null; serviceQ: string | null; dayOffset: number; providerQ: string | null };
+  book?: {
+    who: string; startMin: number | null; serviceQ: string | null; dayOffset: number; providerQ: string | null;
+    newClient?: boolean;
+  };
+  /** Varias clientas para la lista de espera: elegir una. */
+  wait?: boolean;
+  /** Varias citas que mover: al elegir, se repite el preview con esa. */
+  moveTo?: { who: string; startMin: number; dayOffset: number; providerQ: string | null };
 };
 
 function dayOf(label?: string | null) {
@@ -44,20 +56,35 @@ export async function voiceTalk(text: string, history: VoiceTurn[] = []): Promis
   const me = await requireSession();
   if (!voiceLlmEnabled()) {
     voiceLog('llm_skip', { reason: 'off' });
-    return { ok: false, fallback: true, say: '' };
+    return { ok: false, fallback: true, reason: 'off', say: '' };
   }
   if (!takeVoiceSlot(`llm:${me.salon_id}`, LLM_PER_HOUR, 60 * 60_000)) {
     voiceLog('llm_fail', { reason: 'rate' });
-    return { ok: false, fallback: true, say: '' };
+    return { ok: false, fallback: true, reason: 'rate', say: '' };
   }
 
   let last: VoiceTalkResult = { ok: true, say: '' };
+
+  // El historial tiene que alternar y empezar por el equipo; si no, OpenAI lo rechaza.
+  const turns = history.slice(-6);
+  while (turns.length && turns[0].role !== 'user') turns.shift();
+  const aligned: VoiceTurn[] = [];
+  for (const m of turns) {
+    if (!m.content?.trim()) continue;
+    if (aligned.length && aligned[aligned.length - 1].role === m.role) aligned.pop();
+    aligned.push(m);
+  }
+  if (aligned.length && aligned[aligned.length - 1].role === 'user') aligned.pop();
+
+  const timeout = new AbortController();
+  const timer = setTimeout(() => timeout.abort(), LLM_TIMEOUT_MS);
 
   let result;
   try {
   result = await generateText({
     model: openai('gpt-4o-mini'),
     maxSteps: 5,
+    abortSignal: timeout.signal,
     system: `Eres Marlenne, recepcionista del centro de estética. Español de España, de tú, una o dos frases.
 Cercana, clara, sin teatro ni emojis. No repitas lo que acaba de oír si sonaba mal: responde a la intención.
 Solo agenda: citas, huecos, cabina, no-show, espera. Nunca fotos, medidas, notas ni salud.
@@ -66,7 +93,7 @@ Si falta el servicio, llama a preview_cita igual (sin servicio) y pregunta cuál
 Si el equipo responde solo con el nombre del servicio, vuelve a llamar a preview_cita con ese servicio.
 Las herramientas de escribir solo PREVISUALIZAN: tú preguntas si lo hacemos. El equipo confirma en pantalla.`,
     messages: [
-      ...history.slice(-6).map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+      ...aligned.map(m => ({ role: m.role, content: m.content })),
       { role: 'user' as const, content: text },
     ],
     tools: {
@@ -116,7 +143,7 @@ Las herramientas de escribir solo PREVISUALIZAN: tú preguntas si lo hacemos. El
         description: 'Poner a alguien en lista de espera. No lo apunta aún.',
         parameters: z.object({ clienta: z.string() }),
         execute: async ({ clienta }) => {
-          last = { ok: true, say: `¿Pongo a ${clienta} en espera?`, ear: '¿Apunto en espera?', draft: { who: clienta } };
+          last = await voicePreviewWait(clienta);
           return last;
         },
       }),
@@ -152,8 +179,13 @@ Las herramientas de escribir solo PREVISUALIZAN: tú preguntas si lo hacemos. El
     },
   });
   } catch {
-    voiceLog('llm_fail', { reason: 'openai' });
-    return { ok: false, fallback: true, say: '' };
+    const timedOut = timeout.signal.aborted;
+    voiceLog('llm_fail', { reason: timedOut ? 'timeout' : 'openai' });
+    // Si una herramienta ya dejó algo útil (un preview), vale aunque la nube no rematara la frase.
+    if (last.say) return { ...last, ok: true };
+    return { ok: false, fallback: true, reason: timedOut ? 'timeout' : 'openai', say: '' };
+  } finally {
+    clearTimeout(timer);
   }
 
   const say = result.text?.trim() || last.say;

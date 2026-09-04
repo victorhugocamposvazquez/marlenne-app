@@ -55,6 +55,10 @@ export default function AjustesIndex({
       href: '/ajustes/importar',
       title: 'Importar CSV',
       hint: 'Una mudanza: servicios, clientas y citas',
+    }, {
+      href: '/ajustes/voz',
+      title: 'Voz',
+      hint: 'Lo que no entendió, últimos 30 días',
     }] : []),
   ];
 

@@ -6,9 +6,10 @@ import { Mic, Square, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import IconButton from '@/components/ui/IconButton';
 import {
+  NEW_CLIENT_CHIP,
   voiceAddWait, voiceApplyCancel, voiceApplyMove, voiceApplyStatus, voiceConfirmBook,
-  voiceMatchClient, voicePreviewBook, voicePreviewCancel, voicePreviewMove, voicePreviewStatus,
-  voiceSlots, voiceToday,
+  voiceMatchClient, voicePreviewBook, voicePreviewCancel, voicePreviewMove, voicePreviewStatus, voicePreviewWait,
+  voiceReport, voiceSlots, voiceToday,
   type PendingBook,
 } from '@/app/actions/voice';
 import { voiceTalk, type VoiceTalkResult, type VoiceTurn } from '@/app/actions/voice-talk';
@@ -23,17 +24,29 @@ import { voiceClipUrl } from '@/lib/voice-clips';
 import { stitchVoice } from '@/lib/voice-stitch';
 import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/hooks/voice-prefs';
 import {
-  decodeB64, decodeUrl, playB64, playUrls, stopVoicePlay, warmVoiceAudio,
+  decodeB64, decodeUrl, isHot, playB64, playUrls, stopVoicePlay, warmVoiceAudio,
 } from '@/hooks/voice-play';
 import { micBlockedSay, queryMicPerm, requestMic, watchMicPerm, type MicPerm } from '@/hooks/voice-mic';
 
 type Choice = { id: string; label: string };
+
+/** «No», «nah», «para», «déjalo», «así no»: cerrar lo que se estaba confirmando. */
+const VOICE_NO = /^(no+|nah|nop|que no|ahora no|mejor no|para|parate|dejalo|dejalo asi|asi no|quita|cancelar?|anula|nada|olvidalo)(\b.*)?$/;
 type Panel =
   | { mode: 'idle' }
   | { mode: 'listen'; draft: string }
   | { mode: 'msg'; say: string }
   | { mode: 'ask'; say: string; options?: string[]; href?: string }
-  | { mode: 'confirm'; say: string; status?: 'curso' | 'noshow'; pick?: 'status' | 'cancel'; run: () => Promise<{ ok: boolean; say: string; href?: string; ear?: string }>; choices?: Choice[] };
+  | {
+    mode: 'confirm';
+    say: string;
+    status?: 'curso' | 'noshow';
+    /** Qué se hace con la opción elegida cuando hay varias. */
+    pick?: 'status' | 'cancel' | 'wait' | 'move';
+    moveTo?: NonNullable<VoiceTalkResult['moveTo']>;
+    run: () => Promise<{ ok: boolean; say: string; href?: string; ear?: string }>;
+    choices?: Choice[];
+  };
 
 const ttsB64 = new Map<string, VoiceSpeakResult>();
 let speakGen = 0;
@@ -92,16 +105,18 @@ function wait(ms: number) {
   return new Promise<void>(r => window.setTimeout(r, ms));
 }
 
+/** Clip → nube → (quien llama) texto grande. */
 async function utter(text: string, ask: boolean) {
   const ear = forEar(text);
   warmVoiceAudio();
-  await wait(180);
   const parts = stitchVoice(text) ?? stitchVoice(ear);
+  // La espera es para que el AudioContext despierte; si los clips ya están calientes, sobra.
+  if (!parts || !isHot(parts)) await wait(180);
   if (parts?.length) {
     voiceLog('tts_clip', { n: ear.length, parts: parts.length });
     const ok = await playUrls(parts);
-    if (!ok) voiceLog('tts_fail', { reason: 'clip_play' });
-    return ok;
+    if (ok) return true;
+    voiceLog('tts_fail', { reason: 'clip_play' });
   }
   const ok = await playCloud(ear, ask ? 'ask' : 'say');
   if (!ok) voiceLog('tts_fail', { reason: 'cloud' });
@@ -222,6 +237,8 @@ export default function VoiceFab() {
   const startWakeRef = useRef<() => void>(() => {});
   const ignoreOutsideRef = useRef(0);
   const missesRef = useRef(0);
+  /** Temporizador del «casi final» del dictado. */
+  const settleRef = useRef<number | null>(null);
   const startListenRef = useRef<(opts?: { overlay?: boolean }) => void>(() => {});
   const wakeWaitRef = useRef(800);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -461,6 +478,42 @@ export default function VoiceFab() {
     ].slice(-8);
   };
 
+  /** Una de varias (cita o clienta), elegida con el dedo o de viva voz. */
+  const runChoice = async (panelNow: Extract<Panel, { mode: 'confirm' }>, c: Choice) => {
+    if (panelNow.pick === 'move' && panelNow.moveTo) {
+      const m = panelNow.moveTo;
+      applyTalk({ ...(await voicePreviewMove(m.who, m.startMin, m.dayOffset, m.providerQ, c.id)), move: true });
+      return;
+    }
+    if (panelNow.pick === 'wait') {
+      setPanel({ mode: 'confirm', say: `¿Apunto a ${c.label} en espera?`, run: () => voiceAddWait(c.label, c.id) });
+      speakThenListen(`¿Apunto a ${c.label} en espera?`, '¿Apunto en espera?');
+      return;
+    }
+    const r = panelNow.pick === 'cancel'
+      ? await voiceApplyCancel(c.id)
+      : await voiceApplyStatus(c.id, panelNow.status ?? 'noshow');
+    finish(r.say, r.href);
+  };
+
+  /** «La primera», «la de las once», «Pérez»: qué opción de la lista han dicho. */
+  const spokenChoice = (choices: Choice[], text: string): Choice | null => {
+    const pick = pickSpokenIndex(text, choices.length);
+    if (pick != null) return choices[pick];
+    const clock = takeTime(text).startMin;
+    if (clock !== null) {
+      const hh = `${Math.floor(clock / 60)}:${String(clock % 60).padStart(2, '0')}`;
+      const byTime = choices.filter(c => c.label.includes(` ${hh} `) || c.label.endsWith(hh) || c.label.includes(`· ${hh}`));
+      if (byTime.length === 1) return byTime[0];
+    }
+    const said = fold(text).replace(/[¿?¡!.,]/g, ' ').split(/\s+/).filter(w => w.length >= 3);
+    const byName = choices.filter(c => {
+      const label = fold(c.label.split('·')[0]);
+      return said.some(w => label.split(/\s+/).some(t => t === w || (w.length >= 4 && t.startsWith(w))));
+    });
+    return byName.length === 1 ? byName[0] : null;
+  };
+
   const applyTalk = (r: VoiceTalkResult) => {
     bookRef.current = null;
     if (r.matches && r.matches.length > 1) {
@@ -469,7 +522,8 @@ export default function VoiceFab() {
         say: r.say,
         status: r.status,
         choices: r.matches,
-        pick: r.cancel ? 'cancel' : 'status',
+        pick: r.cancel ? 'cancel' : r.wait ? 'wait' : r.moveTo ? 'move' : 'status',
+        moveTo: r.moveTo,
         run: async () => ({ ok: false, say: 'Elige una' }),
       });
       speakThenListen(r.say, r.ear);
@@ -492,7 +546,8 @@ export default function VoiceFab() {
     }
     if (r.draft && typeof r.draft.who === 'string') {
       const who = r.draft.who;
-      setPanel({ mode: 'confirm', say: r.say, run: () => voiceAddWait(who) });
+      const clientId = typeof r.draft.clientId === 'string' ? r.draft.clientId : null;
+      setPanel({ mode: 'confirm', say: r.say, run: () => voiceAddWait(who, clientId) });
       speakThenListen(r.say, r.ear);
       return;
     }
@@ -506,7 +561,7 @@ export default function VoiceFab() {
       speakThenListen(r.say, r.ear);
       return;
     }
-    if ((r.need === 'service' || r.need === 'time') && r.pending) {
+    if ((r.need === 'client' || r.need === 'service' || r.need === 'time') && r.pending) {
       pendingRef.current = r.pending;
       optionsRef.current = r.options ?? r.pending.slotMins?.map(m => {
         const h = Math.floor(m / 60);
@@ -525,8 +580,12 @@ export default function VoiceFab() {
     const p = { ...held, ...patch };
     const preview = await voicePreviewBook(
       p.who, p.startMin, p.serviceQ, p.dayOffset, p.providerQ,
-      patch.choices === null ? null : (held.choices ?? null),
-      held.asks ?? 0,
+      {
+        choices: patch.choices === null ? null : (held.choices ?? null),
+        prevNeed: held.need,
+        asks: held.asks ?? 0,
+        newClient: patch.newClient ?? held.newClient ?? false,
+      },
     );
     applyTalk(preview);
   };
@@ -534,14 +593,21 @@ export default function VoiceFab() {
   const runText = (text: string) => {
     const said = fold(text);
     const confirming = confirmRef.current;
-    if (confirming && isVoiceYes(said)) {
+    if (confirming?.choices?.length) {
+      const c = spokenChoice(confirming.choices, text);
+      if (c) {
+        startTransition(async () => { await runChoice(confirming, c); });
+        return;
+      }
+    }
+    if (confirming && !confirming.choices?.length && isVoiceYes(said)) {
       startTransition(async () => {
         const r = await confirming.run();
         finish(r.say, r.href, r.ear);
       });
       return;
     }
-    if (confirming && (/^(no|ahora no|mejor no|cancelar?)\b/.test(said) || parseVoice(text).kind === 'dismiss')) {
+    if (confirming && (VOICE_NO.test(said) || parseVoice(text).kind === 'dismiss')) {
       dismiss();
       return;
     }
@@ -559,6 +625,7 @@ export default function VoiceFab() {
             variant && book.serviceQ ? `${book.serviceQ} ${text}` : book.serviceQ,
             day ?? book.dayOffset,
             book.providerQ,
+            { newClient: book.newClient ?? false },
           ));
         });
         return;
@@ -567,8 +634,10 @@ export default function VoiceFab() {
 
     startTransition(async () => {
       const cmd = parseVoice(text);
-      voiceLog('parse_kind', { kind: cmd.kind });
-      if (cmd.kind === 'dismiss') {
+      voiceLog('parse_kind', { kind: cmd.kind, said: text.slice(0, 80) });
+      // «¿Rosa María o Rosario? ¿O es nueva?» → «no» quiere decir «ninguna», no «cancela».
+      const noMeansNew = pendingRef.current?.need === 'client' && optionsRef.current.length > 1 && /^(no|nah|que no)$/.test(said);
+      if (cmd.kind === 'dismiss' && !noMeansNew) {
         dismiss();
         return;
       }
@@ -591,6 +660,26 @@ export default function VoiceFab() {
         || cmd.kind === 'slots' || cmd.kind === 'status' || cmd.kind === 'wait' || cmd.kind === 'move';
       if (held && !abortHeld) {
         const pick = pickSpokenIndex(text, optionsRef.current.length);
+        if (held.need === 'client') {
+          const opt = pick != null ? optionsRef.current[pick] : null;
+          const onlyNew = optionsRef.current.length === 1 && optionsRef.current[0] === NEW_CLIENT_CHIP;
+          if (opt === NEW_CLIENT_CHIP || /\b(nueva|nuevo|alta|apuntala|no esta|ninguna|de las dos no|otra)\b/.test(said)
+            || (isVoiceYes(said) && onlyNew) || (!onlyNew && /^(no|nah|que no)\b/.test(said))) {
+            await continueBook({ newClient: true, choices: null });
+            return;
+          }
+          if (onlyNew && VOICE_NO.test(said)) {
+            dismiss();
+            return;
+          }
+          if (opt) {
+            await continueBook({ who: opt, choices: null });
+            return;
+          }
+          const who = cmd.kind === 'book' ? cmd.who : text.trim();
+          await continueBook({ who });
+          return;
+        }
         if (pick != null) {
           if (held.need === 'time' && held.slotMins?.[pick] != null) {
             await continueBook({ startMin: held.slotMins[pick] });
@@ -642,7 +731,10 @@ export default function VoiceFab() {
           applyTalk(talk);
           return;
         }
-        const say = 'No lo he pillado. Dime el servicio, la hora, o una cita.';
+        void voiceReport(cmd.text, talk.reason === 'off' || talk.reason === 'rate' ? 'llm_off' : talk.reason === 'timeout' ? 'llm_timeout' : 'unknown', talk.reason ?? null);
+        const say = talk.reason === 'off' || talk.reason === 'rate'
+          ? 'Sin nube ahora. Dime servicio, hora o cita.'
+          : 'No lo he pillado. Dime el servicio, la hora, o una cita.';
         setSayLoud(false);
         setPanel({ mode: 'msg', say });
         speak(say, heard => {
@@ -675,13 +767,7 @@ export default function VoiceFab() {
           finish('Lista de espera', '/agenda?wait=1');
           return;
         }
-        const who = cmd.who;
-        setPanel({
-          mode: 'confirm',
-          say: `¿Apunto a ${who} en espera?`,
-          run: () => voiceAddWait(who),
-        });
-        speakThenListen(`¿Apunto a ${who} en espera?`, '¿Apunto en espera?');
+        applyTalk({ ...(await voicePreviewWait(cmd.who)) });
         return;
       }
       if (cmd.kind === 'status') {
@@ -712,7 +798,7 @@ export default function VoiceFab() {
         return;
       }
       if (cmd.kind === 'slots') {
-        const r = await voiceSlots(cmd.dayOffset, cmd.startMin, cmd.providerQ);
+        const r = await voiceSlots(cmd.dayOffset, cmd.startMin, cmd.providerQ, cmd.part ?? null);
         finish(r.say, r.href, r.ear);
         return;
       }
@@ -744,13 +830,11 @@ export default function VoiceFab() {
       }
       if (cmd.kind === 'move') {
         const preview = await voicePreviewMove(cmd.who, cmd.startMin, cmd.dayOffset, cmd.providerQ);
-        if (!preview.ok || !preview.draft) {
+        if (!preview.ok) {
           finish(preview.say, preview.href, preview.ear);
           return;
         }
-        const draft = preview.draft;
-        setPanel({ mode: 'confirm', say: preview.say, run: () => voiceApplyMove(draft) });
-        speakThenListen(preview.say, preview.ear);
+        applyTalk({ ...preview, move: true });
       }
     });
   };
@@ -896,6 +980,10 @@ export default function VoiceFab() {
     ignoreOutsideRef.current = Date.now() + 2000;
     setOpen(true);
     if (!opts?.overlay) setPanel({ mode: 'listen', draft: '' });
+    const clearSettle = () => {
+      if (settleRef.current) window.clearTimeout(settleRef.current);
+      settleRef.current = null;
+    };
     rec.onresult = ev => {
       if (gen !== genRef.current) return;
       let text = '';
@@ -903,14 +991,25 @@ export default function VoiceFab() {
         text += ev.results[i]?.[0]?.transcript ?? '';
       }
       draftRef.current = text.trim();
+      clearSettle();
       if (ev.results[ev.results.length - 1]?.isFinal && draftRef.current) {
         commitListen();
+        return;
+      }
+      // «Casi final»: si Safari no manda el final, con 1,2 s sin cambios nos vale el borrador.
+      if (draftRef.current) {
+        settleRef.current = window.setTimeout(() => {
+          if (gen !== genRef.current || !listenRef.current) return;
+          commitListen();
+        }, 1200);
       }
     };
     rec.onerror = ev => {
       if (gen !== genRef.current) return;
-      if (ev.error === 'not-allowed') {
-        voiceLog('stt_error', { error: ev.error, wake: false });
+      clearSettle();
+      const err = ev.error ?? '';
+      if (err === 'not-allowed' || err === 'service-not-allowed') {
+        voiceLog('stt_error', { error: err, wake: false });
         applyMic('denied');
         listenRef.current = false;
         overlayRef.current = false;
@@ -918,10 +1017,26 @@ export default function VoiceFab() {
         restIdle(micBlockedSay());
         return;
       }
+      if (err === 'network' || err === 'audio-capture') {
+        voiceLog('stt_error', { error: err, wake: false });
+        void voiceReport(draftRef.current || '(sin texto)', 'stt_error', err);
+        listenRef.current = false;
+        overlayRef.current = false;
+        killRec();
+        setHearing(false);
+        const say = err === 'network' ? 'Sin red. Escríbelo abajo.' : 'No encuentro el micro. Escríbelo abajo.';
+        setOpen(true);
+        setSayLoud(false);
+        setPanel({ mode: 'msg', say });
+        speak(say, heard => { if (!heard) setSayLoud(true); });
+        return;
+      }
+      // no-speech, aborted y el resto: lo que haya en el borrador, o nada.
       commitListen();
     };
     rec.onend = () => {
       if (gen !== genRef.current) return;
+      clearSettle();
       commitListen();
     };
     try {
@@ -1008,6 +1123,10 @@ export default function VoiceFab() {
                       onClick={() => {
                         startTransition(async () => {
                           const held = pendingRef.current;
+                          if (held?.need === 'client') {
+                            await continueBook(opt === NEW_CLIENT_CHIP ? { newClient: true, choices: null } : { who: opt, choices: null });
+                            return;
+                          }
                           if (held?.need === 'time') {
                             const clock = takeTime(opt).startMin
                               ?? held.slotMins?.[panel.options?.indexOf(opt) ?? -1];
@@ -1053,12 +1172,7 @@ export default function VoiceFab() {
                     <button
                       key={c.id}
                       disabled={pending}
-                      onClick={() => startTransition(async () => {
-                        const r = panel.pick === 'cancel'
-                          ? await voiceApplyCancel(c.id)
-                          : await voiceApplyStatus(c.id, panel.status ?? 'noshow');
-                        finish(r.say, r.href);
-                      })}
+                      onClick={() => startTransition(async () => { await runChoice(panel, c); })}
                       className="rounded-chip border border-surface-line bg-v-tint px-3 py-2 text-left text-label font-bold text-v-d"
                     >
                       {c.label}

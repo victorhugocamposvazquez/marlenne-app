@@ -205,5 +205,10 @@
   { "id": "cual", "kind": "ask", "text": "¿Cuál?" },
   { "id": "cual-de-estas", "kind": "ask", "text": "No lo he pillado. ¿Cuál de estas?" },
   { "id": "toca-una", "kind": "say", "text": "No lo pillo. Toca una en pantalla." },
-  { "id": "no-pille-servicio", "kind": "ask", "text": "No he pillado el servicio. ¿Facial, corporal, láser…?" }
+  { "id": "no-pille-servicio", "kind": "ask", "text": "No he pillado el servicio. ¿Facial, corporal, láser…?" },
+  { "id": "no-la-tengo", "kind": "ask", "text": "No la tengo. ¿Es alguna de estas?" },
+  { "id": "doy-de-alta", "kind": "ask", "text": "No está en fichas. ¿La doy de alta?" },
+  { "id": "apunto-igual", "kind": "ask", "text": "No está en fichas. ¿La apunto igual?" },
+  { "id": "sin-red", "kind": "say", "text": "Sin red. Escríbelo abajo." },
+  { "id": "sin-nube", "kind": "say", "text": "Sin nube ahora. Dime servicio, hora o cita." }
 ]

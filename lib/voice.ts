@@ -1,7 +1,14 @@
 /** Comandos de voz / texto. Diccionario local: no hace falta un modelo. */
 
 import { CATEGORIES, type CategoryId } from '@/lib/categories';
-import { madridNow } from '@/lib/time';
+import { DAY_END, DAY_START, madridNow, nowMinutes } from '@/lib/time';
+
+export type DayPart = 'manana' | 'tarde';
+
+/** Franja horaria de «esta tarde» / «por la mañana». */
+export function dayPartRange(part: DayPart): { fromMin: number; toMin: number } {
+  return part === 'manana' ? { fromMin: DAY_START, toMin: 14 * 60 } : { fromMin: 15 * 60, toMin: DAY_END };
+}
 
 export type VoiceCmd =
   | { kind: 'go'; href: string; say: string }
@@ -9,7 +16,7 @@ export type VoiceCmd =
   | { kind: 'search'; q: string }
   | { kind: 'status'; status: 'curso' | 'noshow'; who: string }
   | { kind: 'book'; who: string; startMin: number | null; serviceQ: string | null; dayOffset: number; providerQ: string | null }
-  | { kind: 'slots'; dayOffset: number; startMin: number | null; providerQ: string | null }
+  | { kind: 'slots'; dayOffset: number; startMin: number | null; providerQ: string | null; part?: DayPart | null }
   | { kind: 'wait'; who: string | null }
   | { kind: 'cancel'; who: string; dayOffset: number }
   | { kind: 'move'; who: string; startMin: number; dayOffset: number; providerQ: string | null }
@@ -26,10 +33,15 @@ const HOUR_WORDS: Record<string, number> = {
 };
 
 const HOUR_TOKEN = `\\d{1,2}|${Object.keys(HOUR_WORDS).join('|')}`;
-const DAY_RE = /(?:el |este |proximo |al |para (?:el )?|para )?((?:pasado )?manana|hoy|lunes|martes|miercoles|jueves|viernes|sabado|domingo)/;
+const DAY_RE = /(?:el |este |proximo |al |para (?:el )?|para )?((?:pasado )?manana|hoy|lunes|martes|miercoles|jueves|viernes|sabado|domingo)(?: que viene)?/;
+const WEEK_NEXT_RE = /\b(?:de la |la |para la |en la )?(?:semana que viene|proxima semana|semana proxima|semana siguiente|otra semana)\b/;
 const TIME_RE = new RegExp(
-  `(?:a las |a la |las )(${HOUR_TOKEN})(?:[:.h](\\d{2})| y media| media| y cuarto| y (\\d{2}))?`,
+  `(?:a las |a la |las )(${HOUR_TOKEN})(?:[:.h](\\d{2})| y media| media| y cuarto| menos cuarto| y (\\d{2}))?`,
 );
+/** «mediodía», «a primera hora», «dentro de una hora»: horas sin número. */
+const SPECIAL_TIME_RE = /\b(?:a |al )?(?:mediodia|medio dia|(?:a )?primera hora|(?:a )?ultima hora|dentro de (?:un cuarto de hora|media hora|una hora y media|(?:una|1) hora|(?:dos|2) horas|(?:tres|3) horas|(?:\d{1,3}) minutos|un rato))\b/;
+/** «esta tarde», «por la mañana»: franja, no hora. */
+const DAY_PART_RE = /\b(?:esta|por la|de|a la|en la) (manana|tarde)(?: temprano)?\b/;
 
 export function fold(s: string) {
   return s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
@@ -233,21 +245,63 @@ function takeProvider(s: string): { text: string; providerQ: string | null } {
   return { text: s, providerQ: null };
 }
 
-/** «mejor mañana», «el jueves» → días desde hoy. Null si no nombra un día. */
+/** Días hasta el lunes de la semana que viene (1..7). */
+function nextWeekMonday() {
+  const { y, m, d } = madridNow();
+  const todayMon0 = (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
+  return 7 - todayMon0;
+}
+
+/** «mejor mañana», «el jueves», «la semana que viene» → días desde hoy. Null si no nombra un día. */
 export function saidDayOffset(text: string): number | null {
-  const m = fold(text).match(DAY_RE);
-  if (!m) return null;
-  return weekdayOffset(m[1]);
+  const t = fold(text);
+  if (!DAY_RE.test(t) && !WEEK_NEXT_RE.test(t.replace(DAY_PART_RE, ' '))) return null;
+  return takeDay(t.replace(DAY_PART_RE, ' ')).dayOffset;
+}
+
+/** «esta tarde», «por la mañana»: se quita del texto y se devuelve la franja. */
+function takeDayPart(s: string): { text: string; part: DayPart | null } {
+  const m = s.match(DAY_PART_RE);
+  if (!m) return { text: s, part: null };
+  return {
+    text: `${s.slice(0, m.index)} ${s.slice((m.index ?? 0) + m[0].length)}`.replace(/\s+/g, ' ').trim(),
+    part: m[1] as DayPart,
+  };
 }
 
 function takeDay(s: string): { text: string; dayOffset: number } {
-  const m = s.match(DAY_RE);
-  if (!m) return { text: s, dayOffset: 0 };
-  const off = weekdayOffset(m[1]);
+  const week = WEEK_NEXT_RE.test(s);
+  const t = week ? s.replace(WEEK_NEXT_RE, ' ').replace(/\s+/g, ' ').trim() : s;
+  const m = t.match(DAY_RE);
+  if (!m) return week ? { text: t, dayOffset: nextWeekMonday() } : { text: s, dayOffset: 0 };
+  const i = WEEKDAYS.indexOf(m[1] as typeof WEEKDAYS[number]);
+  const off = week && i >= 0 ? nextWeekMonday() + i : weekdayOffset(m[1]);
   return {
-    text: `${s.slice(0, m.index)} ${s.slice((m.index ?? 0) + m[0].length)}`.replace(/\s+/g, ' ').trim(),
+    text: `${t.slice(0, m.index)} ${t.slice((m.index ?? 0) + m[0].length)}`.replace(/\s+/g, ' ').trim(),
     dayOffset: off ?? 0,
   };
+}
+
+function roundUp15(min: number) {
+  return Math.ceil(min / 15) * 15;
+}
+
+/** Horas dichas sin número. Null si no hay. */
+function specialClock(t: string): number | null {
+  const m = t.match(SPECIAL_TIME_RE);
+  if (!m) return null;
+  const s = m[0];
+  if (/mediodia|medio dia/.test(s)) return 12 * 60;
+  if (/primera hora/.test(s)) return DAY_START;
+  if (/ultima hora/.test(s)) return DAY_END - 60;
+  let delta = 30;
+  if (/cuarto de hora/.test(s)) delta = 15;
+  else if (/hora y media/.test(s)) delta = 90;
+  else if (/(una|1) hora/.test(s)) delta = 60;
+  else if (/(dos|2) horas/.test(s)) delta = 120;
+  else if (/(tres|3) horas/.test(s)) delta = 180;
+  else if (/(\d{1,3}) minutos/.test(s)) delta = Number(s.match(/(\d{1,3}) minutos/)![1]);
+  return Math.min(DAY_END - 15, roundUp15(nowMinutes() + delta));
 }
 
 const BARE_TIME = new RegExp(
@@ -264,13 +318,15 @@ export function takeTime(s: string): { startMin: number | null } {
     const clock = parseClock(`${hm[1]}:${hm[2]}`);
     if (clock != null) return { startMin: clock };
   }
+  const special = specialClock(t);
+  if (special !== null) return { startMin: special };
   const bare = t.match(BARE_TIME);
   if (bare) return { startMin: clockFromMatch(bare) };
   return { startMin: null };
 }
 
 function stripTime(s: string) {
-  return s.replace(TIME_RE, ' ').replace(/\s+/g, ' ').trim();
+  return s.replace(TIME_RE, ' ').replace(SPECIAL_TIME_RE, ' ').replace(/\s+/g, ' ').trim();
 }
 
 function parseSlots(t: string): VoiceCmd | null {
@@ -278,9 +334,10 @@ function parseSlots(t: string): VoiceCmd | null {
     return null;
   }
   const p = takeProvider(t);
-  const d = takeDay(p.text);
+  const part = takeDayPart(p.text);
+  const d = takeDay(part.text);
   const time = takeTime(d.text);
-  return { kind: 'slots', dayOffset: d.dayOffset, startMin: time.startMin, providerQ: p.providerQ };
+  return { kind: 'slots', dayOffset: d.dayOffset, startMin: time.startMin, providerQ: p.providerQ, part: part.part };
 }
 
 function looksLikeService(s: string) {
@@ -311,7 +368,7 @@ function parseBook(t: string): VoiceCmd | null {
   if (/(cancela|anula|mueve|cambia|reprograma|pasa(?:le)? (?:la )?cita)/.test(t)) return null;
 
   const p = takeProvider(t);
-  const d = takeDay(p.text);
+  const d = takeDay(takeDayPart(p.text).text);
   const time = takeTime(d.text);
   let rest = stripTime(d.text)
     .replace(/^(crea(?:r|mos)?(?: me)? |hace(?:r|mos)? |haz(?:me)? )/, '')
@@ -344,7 +401,7 @@ export function parseBookLoose(text: string): Extract<VoiceCmd, { kind: 'book' }
   const t = fold(text.replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' ').trim());
   if (!t || /(hueco|libre|disponib|cancela|anula|mueve|cambia|que es|cuanto|precio)/.test(t)) return null;
   const p = takeProvider(t);
-  const d = takeDay(p.text);
+  const d = takeDay(takeDayPart(p.text).text);
   const time = takeTime(d.text);
   const rest = stripTime(d.text).replace(/^(para |a |de )/, '').trim();
   const split = takeServiceTail(rest);
@@ -365,7 +422,7 @@ function parseCancel(t: string): VoiceCmd | null {
   }
   const m = t.match(/^(?:cancela(?:r)?|anula(?:r)?|quita|borra)(?: me)?(?: (?:la |su ))?(?:cita )?(?:de |a )?(.+)$/);
   if (!m) return null;
-  const d = takeDay(m[1]);
+  const d = takeDay(takeDayPart(m[1]).text);
   const who = tidyWho(d.text.replace(/^(la )?cita( de)? /, ''));
   if (who.length < 2) return { kind: 'dismiss' };
   return { kind: 'cancel', who, dayOffset: d.dayOffset };
@@ -380,7 +437,7 @@ function parseMove(t: string): VoiceCmd | null {
     .replace(/^(?:la )?cita /, '')
     .replace(/^(?:de |a )/, '')
     .trim();
-  const d = takeDay(stripped);
+  const d = takeDay(takeDayPart(stripped).text);
   const time = takeTime(d.text);
   if (time.startMin === null) return null;
   const who = tidyWho(stripTime(d.text).replace(/ a las?$| las?$/, ''));
@@ -784,7 +841,7 @@ export function scoreName(haystack: string, needle: string) {
   return 0;
 }
 
-function editDist(a: string, b: string) {
+export function editDist(a: string, b: string) {
   if (a === b) return 0;
   const m = a.length;
   const n = b.length;

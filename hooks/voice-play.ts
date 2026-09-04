@@ -40,6 +40,12 @@ export function warmVoiceAudio() {
   try { void audioCtx().resume(); } catch { /* */ }
 }
 
+/** Todos los clips ya decodificados y el contexto despierto: se puede hablar sin esperar. */
+export function isHot(parts: string[]) {
+  if (!ctx || ctx.state !== 'running') return false;
+  return parts.every(p => p.startsWith('pause:') || bufs.has(p));
+}
+
 export function unlockSpeak() {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
   const warm = new SpeechSynthesisUtterance('.');
