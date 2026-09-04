@@ -14,7 +14,7 @@ import {
   type DayPart,
 } from '@/lib/voice';
 import { joinO, resolveService, serviceBase, variantQuestion } from '@/lib/voice-services';
-import { resolveClient, rowsByClient, shortNames } from '@/lib/voice-clients';
+import { NEW_CLIENT_CHIP, resolveClient, rowsByClient, shortNames } from '@/lib/voice-clients';
 import { reportVoiceEvent } from '@/lib/voice-events';
 
 /** Desde el iPad: lo que no se entendió. No devuelve nada; no espera. */
@@ -46,8 +46,6 @@ export type PreviewCtx = {
   asks?: number;
   newClient?: boolean;
 };
-
-export const NEW_CLIENT_CHIP = 'Es nueva';
 
 async function firstFreeMins(
   providers: { id: string }[],

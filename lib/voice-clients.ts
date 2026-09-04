@@ -7,6 +7,9 @@ import { editDist, fold } from '@/lib/voice';
 
 export type ClientLike = { full_name: string };
 
+/** Chip de pantalla/voz cuando no está en fichas. Vive aquí, no en actions: Next no deja exportar constantes de «use server». */
+export const NEW_CLIENT_CHIP = 'Es nueva';
+
 export type ClientResolution<T> =
   | { kind: 'one'; client: T }
   /** Varias con el mismo nombre: hay que preguntar cuál. */

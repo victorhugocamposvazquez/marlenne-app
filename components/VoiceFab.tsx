@@ -6,12 +6,12 @@ import { Mic, Square, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import IconButton from '@/components/ui/IconButton';
 import {
-  NEW_CLIENT_CHIP,
   voiceAddWait, voiceApplyCancel, voiceApplyMove, voiceApplyStatus, voiceConfirmBook,
   voiceMatchClient, voicePreviewBook, voicePreviewCancel, voicePreviewMove, voicePreviewStatus, voicePreviewWait,
   voiceReport, voiceSlots, voiceToday,
   type PendingBook,
 } from '@/app/actions/voice';
+import { NEW_CLIENT_CHIP } from '@/lib/voice-clients';
 import { voiceTalk, type VoiceTalkResult, type VoiceTurn } from '@/app/actions/voice-talk';
 import { voiceSpeakMp3, type VoiceSpeakResult } from '@/app/actions/voice-speak';
 import VoiceWaves from '@/components/VoiceWaves';
