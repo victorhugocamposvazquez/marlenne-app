@@ -18,7 +18,7 @@ export default function PublicHero({
         <BrandLogo
           size={56}
           alt=""
-          className="mb-5 block drop-shadow-[0_10px_18px_rgba(182,33,200,0.35)]"
+          className="mb-5 block"
         />
         <div className="text-body font-semibold tracking-[.02em] text-v">{kicker}</div>
         <h1 className="mt-1 text-display font-extrabold leading-[1.15] tracking-[-.02em]">

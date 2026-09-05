@@ -77,7 +77,6 @@ export default function SplashScreen() {
         style={{
           width: 112,
           height: 112,
-          filter: 'drop-shadow(0 12px 28px rgba(182, 33, 200, .18))',
         }}
       />
       <p

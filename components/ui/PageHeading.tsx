@@ -18,7 +18,7 @@ export default function PageHeading({
       <BrandLogo
         size={40}
         alt=""
-        className="mt-0.5 shrink-0 drop-shadow-[0_8px_14px_rgba(182,33,200,0.28)]"
+        className="mt-0.5 shrink-0"
       />
       <div className="min-w-0 flex-1">
         {kicker != null && kicker}

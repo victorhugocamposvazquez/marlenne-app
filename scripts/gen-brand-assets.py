@@ -6,7 +6,7 @@ from __future__ import annotations
 from collections import deque
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / 'brand' / 'logo-source.jpg'
@@ -39,15 +39,17 @@ def make_gradient(w: int, h: int) -> Image.Image:
     return im.resize((w, h), Image.Resampling.BICUBIC)
 
 
-def flood_white_to_transparent(im: Image.Image, threshold: int = 248) -> Image.Image:
+def _is_paper(r: int, g: int, b: int) -> bool:
+    """Blanco del JPG y el halo sucio de la compresión, no el degradado."""
+    y = 0.299 * r + 0.587 * g + 0.114 * b
+    sat = max(r, g, b) - min(r, g, b)
+    return y >= 228 and sat <= 40
+
+
+def flood_paper(im: Image.Image) -> Image.Image:
     im = im.convert('RGBA')
     w, h = im.size
     px = im.load()
-
-    def is_bg(x: int, y: int) -> bool:
-        r, g, b, a = px[x, y]
-        return a > 0 and r >= threshold and g >= threshold and b >= threshold
-
     q = deque([(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)])
     seen: set[tuple[int, int]] = set()
     while q:
@@ -55,11 +57,77 @@ def flood_white_to_transparent(im: Image.Image, threshold: int = 248) -> Image.I
         if (x, y) in seen or not (0 <= x < w and 0 <= y < h):
             continue
         seen.add((x, y))
-        if not is_bg(x, y):
+        r, g, b, a = px[x, y]
+        if a == 0 or not _is_paper(r, g, b):
             continue
         px[x, y] = (255, 255, 255, 0)
         q.extend(((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)))
     return im
+
+
+def _opaque_bbox(im: Image.Image) -> tuple[int, int, int, int]:
+    a = im.split()[-1]
+    box = a.getbbox()
+    if not box:
+        return (0, 0, im.width, im.height)
+    return box
+
+
+def _rounded_mask(size: tuple[int, int], box: tuple[int, int, int, int], radius: float, inset: int) -> Image.Image:
+    """Máscara con borde suave: se dibuja a 4× y se baja, para no dejar dientes."""
+    w, h = size
+    scale = 4
+    mask = Image.new('L', (w * scale, h * scale), 0)
+    draw = ImageDraw.Draw(mask)
+    x0, y0, x1, y1 = box
+    x0 = (x0 + inset) * scale
+    y0 = (y0 + inset) * scale
+    x1 = (x1 - inset) * scale - 1
+    y1 = (y1 - inset) * scale - 1
+    draw.rounded_rectangle((x0, y0, x1, y1), radius=int(radius * scale), fill=255)
+    return mask.resize((w, h), Image.Resampling.LANCZOS)
+
+
+def isolate_mark(im: Image.Image) -> Image.Image:
+    """Recorta el icono del JPG: quita el papel y aplica un squircle limpio."""
+    mark = flood_paper(im)
+    box = _opaque_bbox(mark)
+    side = min(box[2] - box[0], box[3] - box[1])
+    radius = side * 0.223
+    mask = _rounded_mask(mark.size, box, radius, inset=6)
+    out = mark.convert('RGBA')
+    out.putalpha(ImageChops.multiply(out.split()[-1], mask))
+    return _defringe(out)
+
+
+def _defringe(im: Image.Image) -> Image.Image:
+    """El borde AA hereda RGB sucio del JPG; se pinta con el color opaco vecino."""
+    src = im.load()
+    out = im.copy()
+    dst = out.load()
+    w, h = im.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = src[x, y]
+            if a in (0, 255):
+                continue
+            found = None
+            for rad in range(1, 6):
+                for dy in range(-rad, rad + 1):
+                    for dx in range(-rad, rad + 1):
+                        xx, yy = x + dx, y + dy
+                        if 0 <= xx < w and 0 <= yy < h:
+                            rr, gg, bb, aa = src[xx, yy]
+                            if aa == 255:
+                                found = (rr, gg, bb)
+                                break
+                    if found:
+                        break
+                if found:
+                    break
+            if found:
+                dst[x, y] = (*found, a)
+    return out
 
 
 def save_png(im: Image.Image, path: Path) -> None:
@@ -82,13 +150,6 @@ def make_splash(w: int, h: int, mark: Image.Image, font: ImageFont.FreeTypeFont 
     canvas = Image.new('RGBA', (w, h), (255, 255, 255, 255))
     side = int(min(w, h) * 0.26)
     badge = fit_square(mark, side)
-    shadow = Image.new('RGBA', (side + 48, side + 48), (0, 0, 0, 0))
-    sd = ImageDraw.Draw(shadow)
-    sd.rounded_rectangle((16, 20, side + 32, side + 36), radius=int(side * 0.22), fill=(182, 33, 200, 48))
-    shadow = shadow.filter(ImageFilter.GaussianBlur(18))
-    sx = (w - shadow.width) // 2
-    sy = int(h * 0.38) - shadow.height // 2
-    canvas.alpha_composite(shadow, (sx, sy))
     bx = (w - side) // 2
     by = int(h * 0.38) - side // 2
     canvas.alpha_composite(badge, (bx, by))
@@ -106,7 +167,7 @@ def main() -> None:
         raise SystemExit(f'Falta {SRC}')
 
     raw = Image.open(SRC)
-    mark = flood_white_to_transparent(raw)
+    mark = isolate_mark(raw)
     PUBLIC.mkdir(exist_ok=True)
 
     save_png(mark, PUBLIC / 'logo.png')
