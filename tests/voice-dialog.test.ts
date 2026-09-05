@@ -421,6 +421,24 @@ test('lo de siempre pide el nombre; vale en servicio no se come como tratamiento
   assert.equal(c.lastSaid, '¿Qué servicio?');
 });
 
+test('es láser pide el nombre y sigue la cita', () => {
+  const c = new Convo(server);
+  c.say('es láser');
+  assert.equal(c.state.hold?.kind, 'book-who');
+  assert.match(c.lastSaid, /nombre/i);
+  c.say('Marta');
+  assert.equal(c.lastCall.action, 'previewBook');
+  const args = c.lastCall.args as unknown[];
+  assert.equal(args[0], 'Marta');
+  assert.match(String(args[2]), /laser/i);
+});
+
+test('quién sigue llama a la siguiente cita', () => {
+  const c = new Convo(server);
+  c.say('quién sigue');
+  assert.equal(c.lastCall.action, 'next');
+});
+
 test('está apuntada y llega tarde preguntan el nombre', () => {
   const f = new Convo(server);
   f.say('dice que está apuntada');

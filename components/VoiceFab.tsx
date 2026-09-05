@@ -7,7 +7,7 @@ import Button from '@/components/ui/Button';
 import IconButton from '@/components/ui/IconButton';
 import {
   voiceAddWait, voiceApplyCancel, voiceApplyMove, voiceApplyStatus, voiceConfirmBook,
-  voiceFind, voiceLate, voiceMatchClient, voicePreviewBook, voicePreviewCancel, voicePreviewMove,
+  voiceFind, voiceLate, voiceMatchClient, voiceNext, voicePreviewBook, voicePreviewCancel, voicePreviewMove,
   voicePreviewStatus, voicePreviewWait, voiceReport, voiceSlots, voiceToday, voiceWaiting,
 } from '@/app/actions/voice';
 import { voiceTalk } from '@/app/actions/voice-talk';
@@ -61,7 +61,7 @@ function prefetchSpeak(text: string, kind: 'ask' | 'say') {
 
 function warmAudio() {
   warmVoiceAudio();
-  for (const t of ['¿Dime?', '¿Qué servicio?', '¿A qué hora?', 'Un segundo.', 'Ahora miro.', '¿La guardo?', 'Sin red. Escríbelo abajo.']) {
+  for (const t of ['¿Dime?', '¿Qué servicio?', '¿A qué hora?', 'Un segundo.', 'Ahora miro.', '¿La guardo?', 'Sin red. Escríbelo abajo.', 'Dime el nombre.', '¿De quién?', 'Te escucho.']) {
     const clip = voiceClipUrl(t);
     if (clip) void decodeUrl(clip, clip);
   }
@@ -484,6 +484,7 @@ export default function VoiceFab() {
       case 'late': return voiceLate(...c.args);
       case 'waiting': return voiceWaiting(...c.args);
       case 'today': return voiceToday();
+      case 'next': return voiceNext();
       case 'matchClient': return voiceMatchClient(...c.args);
       case 'talk': return voiceTalk(...c.args);
       case 'confirmBook': return voiceConfirmBook(...c.args);
@@ -563,7 +564,13 @@ export default function VoiceFab() {
   };
   dispatchRef.current = dispatch;
 
-  const runText = (text: string) => dispatch({ kind: 'heard', text });
+  const runText = (text: string) => {
+    const cmd = parseVoice(text);
+    if (cmd.kind !== 'chat' && cmd.kind !== 'unknown') {
+      void voiceReport(text.slice(0, 80), 'heard', cmd.kind);
+    }
+    dispatch({ kind: 'heard', text });
+  };
 
   const commitListen = () => {
     if (!listenRef.current) return;
@@ -905,17 +912,28 @@ export default function VoiceFab() {
           {panel.mode === 'listen' && (
             <VoiceWaves label={pending ? 'Un segundo' : hearing ? 'Escuchando' : 'Dime'} />
           )}
-          {hearing && heardDraft && (
-            <p className="mb-2 text-label font-semibold text-ink">{heardDraft}</p>
-          )}
           {hearing && (
-            <button
-              type="button"
-              onClick={() => commitRef.current()}
-              className="mb-2 min-h-[44px] w-full rounded-chip bg-v-soft px-3 text-label font-bold text-v-d"
-            >
-              Listo
-            </button>
+            <div className="mb-2">
+              <input
+                className="w-full rounded-chip border border-surface-line px-3 py-2.5 text-[16px] font-semibold leading-snug"
+                value={heardDraft}
+                onChange={e => {
+                  const v = e.target.value;
+                  draftRef.current = v;
+                  setHeardDraft(v);
+                  setTyped(v);
+                }}
+                placeholder="Lo que oye… puedes corregirlo"
+                aria-label="Lo que ha oído"
+              />
+              <button
+                type="button"
+                onClick={() => commitRef.current()}
+                className="mt-1.5 min-h-[52px] w-full rounded-chip bg-v-soft px-3 text-body font-bold text-v-d"
+              >
+                Listo
+              </button>
+            </div>
           )}
           {panel.mode === 'msg' && (
             <div>
@@ -948,7 +966,7 @@ export default function VoiceFab() {
                       key={opt}
                       disabled={pending}
                       onClick={() => dispatch({ kind: 'tap', option: opt })}
-                      className="min-h-[44px] rounded-chip bg-v-soft px-3 py-2 text-label font-bold text-v-d"
+                      className="min-h-[52px] rounded-chip bg-v-soft px-3.5 py-2.5 text-body font-bold text-v-d"
                     >
                       {opt}
                     </button>
@@ -983,7 +1001,7 @@ export default function VoiceFab() {
                       key={c.id}
                       disabled={pending}
                       onClick={() => dispatch({ kind: 'choose', choice: c })}
-                      className="rounded-chip border border-surface-line bg-v-tint px-3 py-2 text-left text-label font-bold text-v-d"
+                      className="min-h-[52px] rounded-chip border border-surface-line bg-v-tint px-3.5 py-2.5 text-left text-body font-bold text-v-d"
                     >
                       {c.label}
                     </button>
@@ -1023,6 +1041,7 @@ export default function VoiceFab() {
               </p>
             </div>
           )}
+          {!hearing && (
           <form
             className="mt-2 flex gap-2"
             onSubmit={e => {
@@ -1042,6 +1061,7 @@ export default function VoiceFab() {
             />
             <button className="rounded-chip bg-v-soft px-3 py-2 text-label font-bold text-v-d">Ir</button>
           </form>
+          )}
         </div>
       )}
       <div className="relative">

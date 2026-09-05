@@ -224,7 +224,17 @@ test('frases de mostrador ya no son charla', () => {
 
   assert.equal(parseVoice('ha llamado').kind, 'find');
   assert.equal(parseVoice('llaman por hueco').kind, 'slots');
-  assert.equal(parseVoice('quién sigue').kind, 'today');
+  assert.equal(parseVoice('quién sigue').kind, 'next');
+  assert.equal(parseVoice('está aparcando').kind, 'waiting');
+  const laser = parseVoice('es láser');
+  assert.equal(laser.kind, 'book');
+  if (laser.kind === 'book') {
+    assert.equal(laser.who, '');
+    assert.match(laser.serviceQ ?? '', /laser/);
+  }
+  const vacum = parseVoice('vacum');
+  assert.equal(vacum.kind, 'book');
+  if (vacum.kind === 'book') assert.equal(vacum.who, '');
   assert.equal(parseVoice('lo de siempre').kind, 'same');
   const same = parseVoice('lo de siempre a Marta');
   assert.equal(same.kind, 'same');

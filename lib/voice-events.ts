@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 
 /** Por qué no salió: para leerlo en Ajustes sin descifrar códigos. */
 export const VOICE_OUTCOMES: Record<string, string> = {
+  heard: 'Entendió el comando',
   unknown: 'No entendió el comando',
   llm_off: 'Sin nube y sin comando',
   no_service: 'Servicio no reconocido',

@@ -18,7 +18,24 @@ export type ClientResolution<T> =
   | { kind: 'similar'; options: T[] }
   | { kind: 'none' };
 
-const FILLER = /\b(a|de|la|el|para|con|cita|una|un|eh+|pues|mira|vale|senora|sra|dona|don|senorita|srta|clienta|es|nueva)\b/g;
+const FILLER = /\b(a|de|la|el|para|con|cita|una|un|eh+|pues|mira|senora|sra|dona|don|senorita|srta|clienta|es|nueva)\b/g;
+const SKIP_TOKEN = /^(vale|ok|okay|ya|eh+)$/;
+
+/** Cómo se dice el nombre en mostrador. */
+const NICKS: Record<string, string> = {
+  vale: 'valeria',
+  val: 'valeria',
+  mari: 'maria',
+  nuri: 'nuria',
+  patri: 'patricia',
+  cris: 'cristina',
+  kris: 'cristina',
+  loli: 'dolores',
+  conchi: 'concepcion',
+  merche: 'mercedes',
+  lupe: 'guadalupe',
+  tere: 'teresa',
+};
 
 function tokens(s: string) {
   return fold(s)
@@ -30,9 +47,11 @@ function tokens(s: string) {
 
 /** Cuánto se parece un token dicho a uno del nombre: 3 exacto, 2 inicial/prefijo, 1 con error de dictado, 0 nada. */
 function tokenScore(said: string, name: string) {
-  if (said === name) return 3;
+  const nick = NICKS[said];
+  if (said === name || (nick && nick === name)) return 3;
   if (said.length === 1 && name.startsWith(said)) return 2;
   if (said.length >= 3 && name.startsWith(said)) return 2;
+  if (nick && nick.length >= 3 && name.startsWith(nick)) return 2;
   if (said.length >= 4 && name.length >= 4) {
     const d = editDist(said, name);
     const max = said.length >= 7 ? 2 : 1;
@@ -63,12 +82,16 @@ export function scoreClient(fullName: string, said: string) {
       const s = tokenScore(t, w);
       if (s > best) { best = s; at = i; }
     });
-    if (best === 0) return 0;
+    if (best === 0) {
+      if (SKIP_TOKEN.test(t)) continue;
+      return 0;
+    }
     used.add(at);
     if (at === 0) firstHit = true;
     if (best < 3) exactAll = false;
     if (best === 1) fuzzy += 1;
   }
+  if (!used.size) return 0;
   if (fuzzy) return 50 + (firstHit ? 6 : 0) + (q.length > 1 ? 4 : 0) - fuzzy * 2;
   let score = 80 + (firstHit ? 8 : 0) + Math.min(q.length, 3) * 4;
   if (!exactAll) score -= 6;
@@ -100,6 +123,27 @@ export function resolveClient<T extends ClientLike>(
     return { kind: 'several', options: named.map(x => x.c).slice(0, 5) };
   }
   return { kind: 'similar', options: ranked.slice(0, 4).map(x => x.c) };
+}
+
+/**
+ * Equipo: mismos apodos que las clientas, y «la de láser» si el puesto encaja.
+ */
+export function resolveProvider<T extends ClientLike & { job_title?: string | null }>(
+  team: T[],
+  said: string,
+): ClientResolution<T> {
+  const q = tokens(said);
+  const named = resolveClient(team, said);
+  if (named.kind === 'one' || named.kind === 'several') return named;
+  if (!q.length) return named;
+  const byJob = team.filter(p => {
+    const job = tokens(p.job_title ?? '');
+    if (!job.length) return false;
+    return q.every(t => job.some(j => j === t || j.includes(t) || t.includes(j) || tokenScore(t, j) >= 2));
+  });
+  if (byJob.length === 1) return { kind: 'one', client: byJob[0] };
+  if (byJob.length > 1) return { kind: 'several', options: byJob.slice(0, 5) };
+  return named;
 }
 
 /**

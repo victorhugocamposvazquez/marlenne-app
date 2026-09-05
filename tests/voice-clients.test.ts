@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { resolveClient, scoreClient } from '../lib/voice-clients';
+import { resolveClient, resolveProvider, scoreClient } from '../lib/voice-clients';
 
 const C = (full_name: string) => ({ full_name });
 const BOOK = [
@@ -57,4 +57,18 @@ test('nombre que no está pero suena a otras → parecidas; nada → none', () =
 test('scoreClient no pasa por alias de servicios', () => {
   assert.ok(scoreClient('Vacum Pérez', 'vacum') >= 80);
   assert.equal(scoreClient('Lucía Pérez', 'Lucía Pérez'), 100);
+});
+
+test('Vale es Valeria; la de láser mira el puesto', () => {
+  assert.equal(resolveClient(BOOK, 'Vale').kind, 'one');
+  assert.deepEqual(names(resolveClient(BOOK, 'Vale')), ['Valeria Núñez']);
+  const team = [
+    { full_name: 'Valeria Núñez', job_title: 'Láser' },
+    { full_name: 'Ana López', job_title: 'Facial' },
+  ];
+  const byJob = resolveProvider(team, 'la de láser');
+  assert.equal(byJob.kind, 'one');
+  if (byJob.kind === 'one') assert.equal(byJob.client.full_name, 'Valeria Núñez');
+  const nick = resolveProvider(team, 'con Vale');
+  assert.equal(nick.kind, 'one');
 });

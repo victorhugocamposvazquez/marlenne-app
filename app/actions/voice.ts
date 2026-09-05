@@ -16,7 +16,7 @@ import {
   type DayPart,
 } from '@/lib/voice';
 import { joinO, resolveService, serviceBase, variantQuestion } from '@/lib/voice-services';
-import { NEW_CLIENT_CHIP, resolveClient, rowsByClient, shortNames } from '@/lib/voice-clients';
+import { NEW_CLIENT_CHIP, resolveClient, resolveProvider, rowsByClient, shortNames } from '@/lib/voice-clients';
 import { reportVoiceEvent } from '@/lib/voice-events';
 import type { PendingBook, PreviewCtx } from '@/lib/voice-types';
 
@@ -85,6 +85,34 @@ export async function voiceToday() {
   return { ok: true as const, say: bits.join(' '), ear: earTodayCount(appointments.length), href: '/hoy' };
 }
 
+/** «Quién sigue»: la próxima cita, no todo el día. */
+export async function voiceNext() {
+  const { providers } = await scope();
+  const { appointments } = await getDayAgenda(new Date(), providers.map(p => p.id));
+  const now = nowMinutes();
+  const live = appointments.filter(a => a.status === 'curso');
+  const next = appointments
+    .filter(a => a.status === 'prog' && minutesOfDay(a.starts_at) >= now - 10)
+    .sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at))[0];
+  if (!next && !live.length) {
+    return { ok: true as const, say: 'No queda nadie.', ear: 'No quedan huecos.', href: '/hoy' };
+  }
+  if (!next) {
+    return {
+      ok: true as const,
+      say: `En cabina ${live.map(a => a.client_label).join(', ')}. No hay siguiente.`,
+      href: '/hoy',
+    };
+  }
+  const cabina = live.length ? ` En cabina ${live.map(a => a.client_label).join(', ')}.` : '';
+  return {
+    ok: true as const,
+    say: `Siguiente: ${next.client_label} a las ${fmt(minutesOfDay(next.starts_at))}, ${next.service_name} con ${next.provider_name.split(' ')[0]}.${cabina}`,
+    ear: earHueco(0, minutesOfDay(next.starts_at)),
+    href: '/hoy',
+  };
+}
+
 export async function voicePreviewStatus(who: string, status: 'curso' | 'noshow') {
   const { providers } = await scope();
   const { appointments } = await getDayAgenda(new Date(), providers.map(p => p.id));
@@ -137,7 +165,7 @@ export async function voiceSlots(
   const href = `/agenda${dayOffset ? `?day=${dayOffset}` : ''}`;
   const pool = (() => {
     if (!providerQ) return providers;
-    const r = resolveClient(providers, providerQ);
+    const r = resolveProvider(providers, providerQ);
     if (r.kind === 'one') return [r.client];
     if (r.kind === 'several' || r.kind === 'similar') return r.options;
     return [];
@@ -210,7 +238,7 @@ export async function voicePreviewBook(
   const { providers: team } = await scope();
   let providers = team;
   if (providerQ) {
-    const proRes = resolveClient(team, providerQ);
+    const proRes = resolveProvider(team, providerQ);
     if (proRes.kind === 'none') {
       return {
         ok: false as const, ready: false as const,
@@ -610,7 +638,7 @@ export async function voicePreviewMove(
   const appt = hits[0];
   const dest = providerQ
     ? (() => {
-      const r = resolveClient(providers, providerQ);
+      const r = resolveProvider(providers, providerQ);
       if (r.kind === 'one') return [r.client];
       if (r.kind === 'several' || r.kind === 'similar') return r.options;
       return [];

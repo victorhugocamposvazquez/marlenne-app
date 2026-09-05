@@ -13,6 +13,7 @@ export function dayPartRange(part: DayPart): { fromMin: number; toMin: number } 
 export type VoiceCmd =
   | { kind: 'go'; href: string; say: string }
   | { kind: 'today' }
+  | { kind: 'next' }
   | { kind: 'search'; q: string }
   | { kind: 'status'; status: 'curso' | 'noshow'; who: string | null }
   | { kind: 'waiting'; who: string | null }
@@ -404,14 +405,41 @@ function parseWalkIn(t: string): VoiceCmd | null {
 }
 
 function parseWaiting(t: string): VoiceCmd | null {
-  if (/^(esta esperando|esta sentada|ha venido antes|llego pronto|llego temprano)$/.test(t)) {
+  if (/^(esta esperando|esta sentada|ha venido antes|llego pronto|llego temprano|esta aparcando|esta aparcando ya|aparca|esta bajando)$/.test(t)) {
     return { kind: 'waiting', who: null };
   }
-  const m = t.match(/^(.+?) (?:esta esperando|esta sentada|llego pronto|llego temprano)$/)
-    || t.match(/^(?:esta esperando|llego pronto)(?: de| a)? (.+)$/);
+  const m = t.match(/^(.+?) (?:esta esperando|esta sentada|llego pronto|llego temprano|esta aparcando|esta bajando)$/)
+    || t.match(/^(?:esta esperando|llego pronto|esta aparcando)(?: de| a)? (.+)$/);
   if (!m) return null;
   const who = tidyWho(m[1]);
   return who.length >= 2 ? { kind: 'waiting', who } : { kind: 'waiting', who: null };
+}
+
+function parseNext(t: string): VoiceCmd | null {
+  if (/^(quien sigue|quien es la siguiente|a quien toca|quien toca|la siguiente|la proxima|siguiente|quien es la proxima)$/.test(t)) {
+    return { kind: 'next' };
+  }
+  return null;
+}
+
+/** «Es láser», «vacum», «quiere facial»: arranca cita y luego pide el nombre. */
+function parseServiceStart(t: string): VoiceCmd | null {
+  if (/(cita para|para [a-záéíóúñ]{3,}|hueco|cancela|anula|mueve|cambia|libre|quien sigue|a las )/.test(t)) {
+    return null;
+  }
+  if (takeTime(t).startMin !== null) return null;
+  const stripped = t.replace(/^(es |viene de |quiere |un |una |solo |de |el |la )+/, '').trim();
+  if (!saidService(t) && !saidService(stripped)) return null;
+  if (stripped.split(/\s+/).length > 3) return null;
+  return {
+    kind: 'book',
+    who: '',
+    startMin: null,
+    serviceQ: stripped || t,
+    dayOffset: 0,
+    providerQ: null,
+    part: null,
+  };
 }
 
 function parseDeskStatus(t: string): VoiceCmd | null {
@@ -472,7 +500,7 @@ function looksLikeService(s: string) {
 /** Si han dicho un servicio (también «es corporal», «mejor vacum»). */
 export function saidService(text: string) {
   const t = fold(text).replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' ').trim()
-    .replace(/^(es |el |la |un |una |mejor |el de |la de )+/, '');
+    .replace(/^(es |el |la |un |una |mejor |el de |la de |quiere |viene de |solo )+/, '');
   return looksLikeService(t);
 }
 
@@ -824,6 +852,10 @@ export function parseVoice(text: string): VoiceCmd {
   if (walk) return walk;
   const desk = parseDeskStatus(t);
   if (desk) return desk;
+  const nxt = parseNext(t);
+  if (nxt) return nxt;
+  const started = parseServiceStart(t);
+  if (started) return started;
 
   const cancel = parseCancel(t);
   if (cancel && cancel.kind === 'cancel') return cancel;
@@ -851,7 +883,6 @@ export function parseVoice(text: string): VoiceCmd {
     || t.includes('quien viene hoy')
     || t.includes('ensename hoy')
     || t.includes('el resumen')
-    || /^(la proxima|siguiente|quien sigue)$/.test(t)
   ) {
     return { kind: 'today' };
   }

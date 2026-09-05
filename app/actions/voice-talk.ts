@@ -5,7 +5,7 @@ import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { parseClock, weekdayOffset } from '@/lib/voice';
 import {
-  voiceAddWait, voiceFind, voiceLate, voicePreviewBook, voicePreviewCancel, voicePreviewMove,
+  voiceAddWait, voiceFind, voiceLate, voiceNext, voicePreviewBook, voicePreviewCancel, voicePreviewMove,
   voicePreviewStatus, voicePreviewWait, voiceSlots, voiceToday,
 } from '@/app/actions/voice';
 import { requireSession } from '@/lib/require-session';
@@ -73,6 +73,11 @@ Las herramientas de escribir solo PREVISUALIZAN: tú preguntas si lo hacemos. El
         description: 'Resumen de las citas de hoy: cabina y siguientes.',
         parameters: z.object({}),
         execute: async () => { last = await voiceToday(); return last; },
+      }),
+      quien_sigue: tool({
+        description: 'La próxima cita de hoy (quién sigue), no el resumen entero.',
+        parameters: z.object({}),
+        execute: async () => { last = await voiceNext(); return last; },
       }),
       huecos: tool({
         description: 'Quién tiene hueco un día y/o hora, o a qué hora está libre una profesional.',
