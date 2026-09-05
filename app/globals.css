@@ -166,14 +166,6 @@
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
   }
-  /* En la PWA el dvh a veces no llega al borde; fill-available sí. */
-  @media (display-mode: standalone), (display-mode: fullscreen) {
-    html, body {
-      height: 100%;
-      height: -webkit-fill-available;
-      max-height: none;
-    }
-  }
   body { overscroll-behavior: none; }
   .app-shell-scroll { -webkit-overflow-scrolling: touch; }
   a { color: rgb(var(--c-brand)); }
