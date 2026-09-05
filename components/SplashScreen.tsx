@@ -7,8 +7,8 @@ const MIN_MS = 900;
 const FADE_MS = 380;
 
 /**
- * Splash de arranque (sesión). iOS standalone también usa apple-touch-startup-image.
- * Tras el primer paint de la pestaña no se vuelve a mostrar (evita el flash al entrar).
+ * Splash blanco de la pestaña (Safari). En PWA standalone no se pinta:
+ * iOS/Android ya muestran apple-touch-startup-image / background_color.
  */
 export default function SplashScreen() {
   const [phase, setPhase] = useState<'in' | 'out' | 'gone'>('in');

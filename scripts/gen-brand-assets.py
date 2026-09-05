@@ -120,10 +120,17 @@ def main() -> None:
 
     font_path = Path('/usr/share/fonts/truetype/macos/Inter-Bold.ttf')
     splashes = (
-        ('splash-1290x2796.png', 1290, 2796, 92),
-        ('splash-1179x2556.png', 1179, 2556, 84),
-        ('splash-1170x2532.png', 1170, 2532, 82),
-        ('splash-2048x2732.png', 2048, 2732, 110),
+        ('splash-w-1290x2796.png', 1290, 2796, 92),
+        ('splash-w-1284x2778.png', 1284, 2778, 90),
+        ('splash-w-1320x2868.png', 1320, 2868, 94),
+        ('splash-w-1206x2622.png', 1206, 2622, 86),
+        ('splash-w-1179x2556.png', 1179, 2556, 84),
+        ('splash-w-1170x2532.png', 1170, 2532, 82),
+        ('splash-w-1125x2436.png', 1125, 2436, 80),
+        ('splash-w-1242x2688.png', 1242, 2688, 88),
+        ('splash-w-828x1792.png', 828, 1792, 64),
+        ('splash-w-750x1334.png', 750, 1334, 56),
+        ('splash-w-2048x2732.png', 2048, 2732, 110),
     )
     for name, w, h, pt in splashes:
         font = ImageFont.truetype(str(font_path), pt) if font_path.exists() else ImageFont.load_default()
