@@ -1085,10 +1085,10 @@ export function bestServiceMatches<T>(rows: T[], needle: string, label: (row: T)
   return close.filter(x => x.score === top).map(x => x.row);
 }
 
-export const VOICE_YES = /^(si+|sip|vale+|ok|okay|confirmo|hazlo|adelante|guardo|guardala|guardar|dale|perfecto|correcto|claro|eso|venga|de acuerdo|por supuesto)(\b.*)?$/;
+export const VOICE_YES = /^(si+|sip|si si|vale+|ok|okay|confirmo|hazlo|adelante|guardo|guardala|guardar|dale|perfecto|correcto|claro|eso es|eso|venga|de acuerdo|por supuesto|hecho)(\b.*)?$/;
 
 export function isVoiceYes(text: string) {
-  const t = fold(text);
+  const t = fold(text).replace(/^(eh+|mm+|um+|uhm+|pues|bueno)\s+/, '');
   if (!t) return false;
   if (VOICE_YES.test(t)) return true;
   return /^(si|vale|ok)\b/.test(t) && /guard|confirma|hazlo|adelante|dale/.test(t);

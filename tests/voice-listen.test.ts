@@ -3,8 +3,9 @@ import { test } from 'node:test';
 import { dialogOpen, looksIncomplete, settleMs } from '../lib/voice-listen';
 
 test('una frase a medias espera más que un sí', () => {
-  assert.equal(settleMs('sí'), 2600);
-  assert.equal(settleMs('vacum'), 2600);
+  assert.equal(settleMs('sí'), 1000);
+  assert.equal(settleMs('vacum'), 1000);
+  assert.equal(settleMs('hola marlén', 'wake'), 650);
   assert.ok(settleMs('cita para Lucía Pérez vacum') > settleMs('sí'));
   assert.ok(looksIncomplete('cita para'));
   assert.ok(looksIncomplete('a las'));

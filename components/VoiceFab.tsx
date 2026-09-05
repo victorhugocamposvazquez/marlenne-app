@@ -35,6 +35,7 @@ type Panel =
 
 const ttsB64 = new Map<string, VoiceSpeakResult>();
 let speakGen = 0;
+let thinkGen = 0;
 let speaking = false;
 
 function withTime<T>(p: Promise<T>, ms: number) {
@@ -287,6 +288,7 @@ export default function VoiceFab() {
 
   const dismiss = () => {
     genRef.current += 1;
+    thinkGen += 1;
     listenRef.current = false;
     overlayRef.current = false;
     draftRef.current = '';
@@ -442,7 +444,7 @@ export default function VoiceFab() {
     if (!open) return;
     const onDown = (e: PointerEvent) => {
       if (listenRef.current || speaking) return;
-      if (dialogRef.current.pending || dialogRef.current.confirm) return;
+      if (dialogOpen(dialogRef.current)) return;
       if (Date.now() < ignoreOutsideRef.current) return;
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) dismiss();
     };
@@ -461,7 +463,7 @@ export default function VoiceFab() {
         setPanel({ mode: 'idle' });
         setOpen(false);
         startWakeRef.current();
-      }, heard ? 1400 : 4800);
+      }, heard ? 400 : 2800);
     });
   };
 
@@ -495,6 +497,7 @@ export default function VoiceFab() {
         setOpen(true);
         if (fx.panel.mode === 'ask' || fx.panel.mode === 'confirm' || fx.panel.mode === 'msg') {
           lastSayRef.current = fx.panel.say;
+          prefetchSpeak(fx.panel.say, fx.panel.mode === 'msg' ? 'say' : 'ask');
         }
         setPanel(fx.panel);
         return;
@@ -512,21 +515,34 @@ export default function VoiceFab() {
       case 'navigate':
         router.push(fx.href);
         return;
-      case 'call':
+      case 'call': {
+        const think = ++thinkGen;
+        const timer = window.setTimeout(() => {
+          if (think !== thinkGen || speaking || listenRef.current) return;
+          speaking = true;
+          void utter('Un segundo.', false).finally(() => {
+            if (think === thinkGen) speaking = false;
+          });
+        }, 750);
         startTransition(async () => {
           let result: unknown;
           try {
             result = await runCall(fx.call);
           } catch (e) {
+            thinkGen += 1;
+            window.clearTimeout(timer);
             const offline = (typeof navigator !== 'undefined' && !navigator.onLine)
               || /fetch|network|load failed/i.test(String(e));
             voiceLog('stt_error', { error: offline ? 'network' : 'action', action: fx.call.action });
             dispatch({ kind: offline ? 'offline' : 'error', call: fx.call });
             return;
           }
+          thinkGen += 1;
+          window.clearTimeout(timer);
           dispatch({ kind: 'server', call: fx.call, result });
         });
         return;
+      }
       case 'report':
         void voiceReport(fx.said, fx.outcome, fx.detail ?? null);
         return;
@@ -663,7 +679,8 @@ export default function VoiceFab() {
       const useful = wake.woke || parseVoice(spoken).kind !== 'unknown';
       if (!useful) return;
       if (settleRef.current) window.clearTimeout(settleRef.current);
-      settleRef.current = window.setTimeout(() => fireWake(heard), settleMs(heard));
+      const onlyWake = wake.woke && !wakeRestIsCommand(wake.rest);
+      settleRef.current = window.setTimeout(() => fireWake(heard), settleMs(heard, onlyWake ? 'wake' : 'listen'));
     };
     rec.onerror = ev => {
       if (gen !== genRef.current) return;

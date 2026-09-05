@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  earAskSave, earSaved, forEar, parseBookLoose, parseVoice, saidDayOffset, saidService, splitWake, takeTime,
+  earAskSave, earSaved, forEar, isVoiceYes, parseBookLoose, parseVoice, saidDayOffset, saidService, splitWake, takeTime,
   wakeRestIsCommand, weekdayOffset,
 } from '../lib/voice';
 import { takeVoiceSlot } from '../lib/voice-limits';
@@ -57,6 +57,14 @@ test('la semana que viene', () => {
     assert.equal(cmd.who, 'lucia');
   }
   assert.equal(saidDayOffset('el jueves que viene'), weekdayOffset('jueves'));
+});
+
+test('sí, vale y pues sí confirman', () => {
+  assert.equal(isVoiceYes('sí'), true);
+  assert.equal(isVoiceYes('sí sí'), true);
+  assert.equal(isVoiceYes('pues sí'), true);
+  assert.equal(isVoiceYes('vale'), true);
+  assert.equal(isVoiceYes('vacum'), false);
 });
 
 test('qué tal estás y dictado sucio son chat', () => {

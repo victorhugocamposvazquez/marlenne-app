@@ -10,12 +10,15 @@ export function looksIncomplete(text: string) {
 }
 
 /** Cuánto esperar tras un «final» de Safari antes de dar la frase por cerrada. */
-export function settleMs(text: string) {
+export function settleMs(text: string, mode: 'listen' | 'wake' = 'listen') {
   const t = text.trim();
   const words = t.split(/\s+/).filter(Boolean).length;
-  if (looksIncomplete(t) || words >= 8) return 4200;
-  if (words >= 4) return 3400;
-  return 2600;
+  if (looksIncomplete(t)) return 4200;
+  if (mode === 'wake' && words <= 3) return 650;
+  if (words >= 8) return 4200;
+  if (words >= 5) return 3400;
+  if (words <= 2) return 1000;
+  return 2000;
 }
 
 /** Hay una pregunta abierta: no volver al oído de «Hola Marlén». */
