@@ -185,7 +185,7 @@ export async function getWeekCounts(providerIds: string[], dayOffset = 0): Promi
   const sunday = dateFromOffset(mondayOff + 6);
 
   const { data } = await sb.from('appointments')
-    .select('id, starts_at, duration_min, status, client_name, service:services(name, category, color), provider:staff!appointments_provider_id_fkey(full_name), client:clients(full_name)')
+    .select('id, starts_at, duration_min, status, price_cents, client_name, service:services(name, category, color), provider:staff!appointments_provider_id_fkey(full_name), client:clients(full_name)')
     .gte('starts_at', toTimestamp(monday, 0))
     .lte('starts_at', toTimestamp(sunday, 24 * 60 - 1))
     .in('provider_id', providerIds)
@@ -205,6 +205,7 @@ export async function getWeekCounts(providerIds: string[], dayOffset = 0): Promi
         service_name: a.service?.name ?? '',
         provider_name: a.provider?.full_name ?? '',
         status: a.status,
+        price_cents: a.price_cents ?? null,
       })),
   }));
 }

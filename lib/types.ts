@@ -61,7 +61,7 @@ export type WeekDay = {
   name: string;
   num: number;
   isToday: boolean;
-  appointments: Pick<AgendaAppt, 'id' | 'starts_at' | 'duration_min' | 'category' | 'client_label' | 'service_name' | 'provider_name' | 'status' | 'service_color'>[];
+  appointments: Pick<AgendaAppt, 'id' | 'starts_at' | 'duration_min' | 'category' | 'client_label' | 'service_name' | 'provider_name' | 'status' | 'service_color' | 'price_cents'>[];
 };
 
 export type ServiceCategory = {

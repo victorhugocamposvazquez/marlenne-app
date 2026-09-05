@@ -65,7 +65,7 @@ export default async function AgendaPage({
           selectedPro={selectedPro}
         />
       ) : (
-        <WeekGrid days={weekDays} selectedPro={selectedPro} />
+        <WeekGrid days={weekDays} selectedPro={selectedPro} providerCount={providers.length} />
       )}
 
       <NewAppointmentSheetHost

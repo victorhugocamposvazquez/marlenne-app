@@ -7,7 +7,7 @@ import IconButton from '@/components/ui/IconButton';
 import PageHeading from '@/components/ui/PageHeading';
 import Segmented from '@/components/ui/Segmented';
 import { shallowSet } from '@/hooks/useShallowQuery';
-import { dayTitle, weekMondayOffset, weekTitle } from '@/lib/time';
+import { dayTitle, weekMondayOffset, weekRangeTitle, weekSubtitle } from '@/lib/time';
 import type { Provider } from '@/lib/types';
 
 export default function AgendaHeader({
@@ -40,7 +40,8 @@ export default function AgendaHeader({
     <header className="shrink-0 px-5 pb-3 pt-5">
       <PageHeading
         kicker={<div className="text-caption font-bold uppercase tracking-[.04em] text-v">{label}</div>}
-        title={mode === 'semana' ? weekTitle(day) : dayTitle(day)}
+        title={mode === 'semana' ? weekRangeTitle(day) : dayTitle(day)}
+        subtitle={mode === 'semana' ? weekSubtitle(day) : undefined}
       >
         <div className="flex gap-2">
           {((mode === 'dia' && day !== 0) || (mode === 'semana' && weekMondayOffset(day) !== weekMondayOffset(0))) && (

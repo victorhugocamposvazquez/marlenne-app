@@ -118,10 +118,46 @@ export function weekMondayOffset(dayOffset: number) {
 export function weekTitle(dayOffset: number) {
   const mon = weekMondayOffset(dayOffset);
   if (mon === weekMondayOffset(0)) return 'Esta semana';
-  const fmtDay = (off: number) => dateFromOffset(off).toLocaleDateString('es-ES', {
+  return weekRangeTitle(dayOffset);
+}
+
+/** «24 – 30 ago» o «31 ago – 6 sept» si cruza de mes. */
+export function weekRangeTitle(dayOffset: number) {
+  const mon = weekMondayOffset(dayOffset);
+  const fmt = (off: number) => dateFromOffset(off).toLocaleDateString('es-ES', {
     timeZone: TZ, day: 'numeric', month: 'short',
   });
-  return `${fmtDay(mon)} – ${fmtDay(mon + 6)}`;
+  const a = fmt(mon);
+  const b = fmt(mon + 6);
+  const monthA = a.replace(/^\d+\s*/, '');
+  const monthB = b.replace(/^\d+\s*/, '');
+  const dayA = a.replace(/\s.*$/, '');
+  const dayB = b.replace(/\s.*$/, '');
+  if (monthA === monthB) return `${dayA} – ${dayB} ${monthA}`;
+  return `${a} – ${b}`;
+}
+
+/** Semana ISO (1–53) del lunes que contiene ese offset. */
+export function isoWeekNumber(dayOffset: number) {
+  return isoWeekFromDayKey(dayKey(dateFromOffset(weekMondayOffset(dayOffset))));
+}
+
+/** Semana ISO a partir de un YYYY-MM-DD civil. */
+export function isoWeekFromDayKey(key: string) {
+  const [y, m, d] = dayKey(key).split('-').map(Number);
+  const utc = Date.UTC(y, m - 1, d);
+  const date = new Date(utc);
+  const dayNr = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNr);
+  const yearStart = Date.UTC(date.getUTCFullYear(), 0, 1);
+  return Math.ceil(((+date - yearStart) / 86_400_000 + 1) / 7);
+}
+
+/** «Semana 35 · esta semana» o «Semana 36». */
+export function weekSubtitle(dayOffset: number) {
+  const n = isoWeekNumber(dayOffset);
+  if (weekMondayOffset(dayOffset) === weekMondayOffset(0)) return `Semana ${n} · esta semana`;
+  return `Semana ${n}`;
 }
 /** «Hoy 11:30», «Mañana 9:00», «17 ago 16:00». */
 export function shortWhen(iso: string) {
