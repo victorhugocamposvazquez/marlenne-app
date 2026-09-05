@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { headers } from 'next/headers';
 import { requireSession } from '@/lib/require-session';
 import { listProviders, getDayAgenda, countWaitlist, listRecalls } from '@/lib/queries';
+import { countMyPasskeys } from '@/app/actions/webauthn';
 import { fmt, minutesOfDay, madridNow, DAY_START, DAY_END } from '@/lib/time';
 import { Bell, CalendarCheck, ChevronRight, HeartHandshake, UserRound } from 'lucide-react';
 import EmptyState from '@/components/ui/EmptyState';
@@ -8,16 +10,19 @@ import PageHeading from '@/components/ui/PageHeading';
 import LiveRefresh from '@/components/LiveRefresh';
 import HoyApptRow from '@/components/hoy/HoyApptRow';
 import RecallCard from '@/components/hoy/RecallCard';
+import PasskeySetupBanner from '@/components/PasskeySetupBanner';
 import type { AgendaAppt } from '@/lib/types';
 
 export default async function HoyPage() {
   const me = await requireSession();
   const cabin = me.role === 'provider';
-  const [all, waiting, recalls] = await Promise.all([
+  const [all, waiting, recalls, passkeyCount] = await Promise.all([
     listProviders(),
     cabin ? Promise.resolve(0) : countWaitlist(),
     cabin ? Promise.resolve([]) : listRecalls(6),
+    countMyPasskeys(),
   ]);
+  const ua = headers().get('user-agent') ?? '';
   const providers = cabin ? all.filter(p => p.id === me.id) : all;
   const { appointments } = await getDayAgenda(new Date(), providers.map(p => p.id));
 
@@ -138,6 +143,8 @@ export default async function HoyPage() {
           </div>
         </>
       )}
+
+      <PasskeySetupBanner ua={ua} hasPasskeys={passkeyCount > 0} />
 
       {live.length > 0 && (
         <>
