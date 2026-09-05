@@ -92,7 +92,7 @@ export default function AgendaHeader({
           value={mode}
           options={[
             { id: 'dia', label: 'Día' },
-            { id: 'semana', label: 'Semana' },
+            { id: 'semana', label: 'Sem' },
           ]}
           onChange={m => go(day, m)}
         />
