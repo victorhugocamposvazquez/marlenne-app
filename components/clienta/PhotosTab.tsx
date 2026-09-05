@@ -6,13 +6,17 @@ import { dateLbl } from '@/lib/time';
 import { deleteTreatmentPhoto } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/Toast';
+import { useTreatmentPhoto } from '@/hooks/useTreatmentPhoto';
+import { photoBusyKey, type PhotoKind, type PhotoTarget } from '@/lib/photos';
 import type { TreatmentPhoto, TreatmentRow } from '@/lib/types';
 import Skeleton from '@/components/ui/Skeleton';
 import { Empty } from './Tabs';
+import PhotoPick from './PhotoPick';
 import PhotoUpload from './PhotoUpload';
 
 type Group = {
   key: string;
+  treatmentId: string;
   title: string;
   zone: string | null;
   session: number | null;
@@ -22,16 +26,18 @@ type Group = {
 };
 
 function Frame({
-  photo, url, label, askId, pending, onAsk, onCancel, onDelete,
+  photo, url, label, askId, pending, uploading, onAsk, onCancel, onDelete, onAdd,
 }: {
   photo?: TreatmentPhoto;
   url?: string;
   label: string;
   askId: string | null;
   pending: boolean;
+  uploading: boolean;
   onAsk: (id: string) => void;
   onCancel: () => void;
   onDelete: (photo: TreatmentPhoto) => void;
+  onAdd?: (file: File) => void;
 }) {
   const asking = !!(photo && askId === photo.id);
 
@@ -79,8 +85,14 @@ function Frame({
       ) : photo ? (
         <Skeleton className="aspect-[3/4] w-full rounded-icon" />
       ) : (
-        <div className="grid aspect-[3/4] w-full place-items-center rounded-icon border border-dashed border-handle bg-surface-bg/50 text-caption font-semibold text-ink-2">
-          Sin foto
+        <div className="flex aspect-[3/4] w-full flex-col justify-center rounded-icon border border-dashed border-handle bg-surface-bg/50 p-2.5">
+          {uploading ? (
+            <p className="text-center text-caption font-semibold text-ink-2">Subiendo…</p>
+          ) : onAdd ? (
+            <PhotoPick label={label.toLowerCase()} disabled={pending} onFile={onAdd} />
+          ) : (
+            <p className="text-center text-caption font-semibold text-ink-2">Sin foto</p>
+          )}
         </div>
       )}
     </div>
@@ -98,6 +110,7 @@ export default function PhotosTab({
   const toast = useToast();
   const [askId, setAskId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const photo = useTreatmentPhoto(onUploaded);
   const groups = new Map<string, Group>();
 
   for (const t of treatments) {
@@ -105,6 +118,7 @@ export default function PhotosTab({
       const key = `${t.id}|${p.session_no ?? 0}|${p.zone ?? ''}`;
       const g = groups.get(key) ?? {
         key,
+        treatmentId: t.id,
         title: t.service?.name ?? 'Tratamiento',
         zone: p.zone ?? t.zone,
         session: p.session_no,
@@ -134,9 +148,25 @@ export default function PhotosTab({
     });
   };
 
+  const addTo = (g: Group, kind: PhotoKind) => (file: File) => {
+    const target: PhotoTarget = {
+      treatmentId: g.treatmentId,
+      kind,
+      zone: g.zone,
+      sessionNo: g.session ?? undefined,
+    };
+    photo.upload(file, target);
+  };
+
   return (
     <div className="flex flex-col gap-2.5">
-      <PhotoUpload treatments={treatments} onUploaded={onUploaded} />
+      <PhotoUpload
+        treatments={treatments}
+        pending={photo.pending}
+        busy={photo.busy}
+        error={photo.error}
+        onPick={photo.upload}
+      />
       {!list.length && <Empty>Todavía no hay fotos de esta clienta.</Empty>}
       {list.length > 0 && !photoConsent && (
         <p className="flex items-start gap-2 rounded-row border border-warn-line bg-warn-bg p-3 text-label font-semibold leading-snug text-warn-fg">
@@ -162,20 +192,24 @@ export default function PhotosTab({
               url={g.before && urls[g.before.storage_path]}
               label="Antes"
               askId={askId}
-              pending={pending}
+              pending={pending || photo.pending}
+              uploading={photo.pending && photo.busy === photoBusyKey({ treatmentId: g.treatmentId, kind: 'before', zone: g.zone, sessionNo: g.session }) && !g.before}
               onAsk={setAskId}
               onCancel={() => setAskId(null)}
               onDelete={remove}
+              onAdd={addTo(g, 'before')}
             />
             <Frame
               photo={g.after}
               url={g.after && urls[g.after.storage_path]}
               label="Después"
               askId={askId}
-              pending={pending}
+              pending={pending || photo.pending}
+              uploading={photo.pending && photo.busy === photoBusyKey({ treatmentId: g.treatmentId, kind: 'after', zone: g.zone, sessionNo: g.session }) && !g.after}
               onAsk={setAskId}
               onCancel={() => setAskId(null)}
               onDelete={remove}
+              onAdd={addTo(g, 'after')}
             />
           </div>
           <p className="mt-2 text-micro font-semibold text-ink-3">
