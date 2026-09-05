@@ -9,26 +9,26 @@
 :root {
   color-scheme: light;
 
-  /* Marca */
-  --c-brand: 139 92 246;        /* #8B5CF6 */
-  --c-brand-2: 168 85 247;      /* #A855F7 */
-  --c-brand-deep: 109 40 217;   /* #6D28D9 — texto violeta con contraste */
-  --c-brand-soft: 237 233 254;  /* #EDE9FE */
-  --c-brand-tint: 245 243 255;  /* #F5F3FF */
+  /* Marca — paso 1: violeta un poco más magenta y un toque de azul del logo */
+  --c-brand: 142 77 230;        /* #8E4DE6 */
+  --c-brand-2: 91 104 242;      /* #5B68F2 */
+  --c-brand-deep: 114 38 196;   /* #7226C4 — texto con contraste */
+  --c-brand-soft: 244 232 252;  /* #F4E8FC */
+  --c-brand-tint: 248 242 252;  /* #F8F2FC */
 
   /* Tinta */
-  --c-ink: 27 24 48;            /* #1B1830 */
+  --c-ink: 30 22 48;            /* #1E1630 */
   --c-ink-2: 99 94 128;         /* #635E80 */
   --c-ink-3: 148 143 178;       /* #948FB2 — subido un punto para contraste */
 
   /* Superficies */
-  --c-bg: 238 236 250;          /* #EEECFA */
+  --c-bg: 244 238 250;          /* #F4EEFA */
   --c-card: 255 255 255;
-  --c-line: 239 237 248;        /* #EFEDF8 */
-  --c-grid-h: 225 221 242;
-  --c-grid-v: 221 216 239;
-  --c-track: 228 224 245;
-  --c-handle: 214 209 235;
+  --c-line: 240 234 248;        /* #F0EAF8 */
+  --c-grid-h: 228 220 242;
+  --c-grid-v: 224 216 240;
+  --c-track: 232 224 244;
+  --c-handle: 218 208 234;
 
   /* Estados semánticos */
   --c-ok: 16 185 129;           /* #10B981 */
@@ -47,32 +47,33 @@
   /* Toast (oscuro sobre claro; se invierte en dark) */
   --c-toast-bg: 27 24 48;
   --c-toast-fg: 255 255 255;
-  --c-toast-accent: 221 214 254; /* #DDD6FE */
+  --c-toast-accent: 226 210 250; /* #E2D2FA */
 
   /* Bloqueos (rayas) */
   --c-stripe-a: 231 227 245;
   --c-stripe-b: 239 236 249;
 
   /* Blob decorativo de páginas públicas */
-  --c-blob: 221 211 255;
+  --c-blob: 232 196 236;
 
-  /* Degradado de marca */
-  --grad: linear-gradient(100deg, rgb(var(--c-brand)), rgb(var(--c-brand-2)));
-  --grad-160: linear-gradient(160deg, rgb(var(--c-brand)), rgb(var(--c-brand-2)));
+  /* Degradado de marca (sutil, 135° como el logo) y el oficial del icono */
+  --grad: linear-gradient(135deg, #C44BB0, rgb(var(--c-brand)) 52%, #4F6FF0);
+  --grad-160: linear-gradient(160deg, #C44BB0, rgb(var(--c-brand)) 52%, #4F6FF0);
+  --grad-logo: linear-gradient(135deg, #FF1F5B 0%, #B621C8 48%, #2D65FF 100%);
 
   /* Sombras (más densas en oscuro) */
   --sh-card: 0 4px 20px rgba(20, 10, 60, .07);
   --sh-lift: 0 12px 28px rgba(20, 10, 60, .14);
   --sh-toast: 0 18px 44px rgba(20, 10, 60, .22);
   --sh-drag: 0 18px 44px rgba(20, 10, 60, .30);
-  --sh-btn: 0 10px 24px rgba(139, 92, 246, .42);
-  --sh-pill: 0 8px 20px rgba(139, 92, 246, .34);
-  --sh-hero: 0 14px 34px rgba(139, 92, 246, .32);
+  --sh-btn: 0 10px 24px rgba(182, 33, 200, .34);
+  --sh-pill: 0 8px 20px rgba(142, 77, 230, .32);
+  --sh-hero: 0 14px 34px rgba(45, 101, 255, .22);
   --sh-nav: 0 -6px 24px rgba(20, 10, 60, .08);
   --sh-seg: 0 3px 10px rgba(20, 10, 60, .12);
 
   /* Estados de cita (inline styles) */
-  --st-prog-bg: #FFFFFF;   --st-prog-line: #EFEDF8;  --st-prog-edge: #8B5CF6;
+  --st-prog-bg: #FFFFFF;   --st-prog-line: #F0EAF8;  --st-prog-edge: #8E4DE6;
   --st-curso-bg: #ECFDF5;  --st-curso-line: #A7F3D0; --st-curso-edge: #10B981;
   --st-done-bg: #F7F6FB;   --st-done-line: #EFEDF8;  --st-done-edge: #C9C4DE;
   --st-noshow-bg: #FEF2F6; --st-noshow-line: #FBCFE8; --st-noshow-edge: #EC4899;
@@ -90,17 +91,17 @@
   :root {
     color-scheme: dark;
 
-    --c-brand: 167 139 250;       /* #A78BFA */
-    --c-brand-2: 192 132 252;     /* #C084FC */
-    --c-brand-deep: 196 181 253;  /* #C4B5FD */
-    --c-brand-soft: 60 48 110;    /* #3C306E */
-    --c-brand-tint: 43 35 77;     /* #2B234D */
+    --c-brand: 196 140 255;       /* #C48CFF */
+    --c-brand-2: 140 155 255;     /* #8C9BFF */
+    --c-brand-deep: 210 186 255;  /* #D2BAFF */
+    --c-brand-soft: 62 40 96;     /* #3E2860 */
+    --c-brand-tint: 44 32 72;     /* #2C2048 */
 
     --c-ink: 240 238 250;         /* #F0EEFA */
     --c-ink-2: 178 173 206;       /* #B2ADCE */
     --c-ink-3: 158 152 192;       /* subido para microcopy AA */
 
-    --c-bg: 20 17 34;             /* #141122 */
+    --c-bg: 18 16 36;             /* #121024 */
     --c-card: 30 26 48;           /* #1E1A30 */
     --c-line: 46 40 72;           /* #2E2848 */
     --c-grid-h: 42 36 66;
@@ -128,19 +129,19 @@
     --c-stripe-a: 40 34 64;
     --c-stripe-b: 33 28 54;
 
-    --c-blob: 46 37 84;
+    --c-blob: 58 32 84;
 
     --sh-card: 0 4px 24px rgba(0, 0, 0, .35);
     --sh-lift: 0 12px 32px rgba(0, 0, 0, .45);
     --sh-toast: 0 18px 44px rgba(0, 0, 0, .5);
     --sh-drag: 0 18px 44px rgba(0, 0, 0, .55);
-    --sh-btn: 0 10px 24px rgba(139, 92, 246, .38);
-    --sh-pill: 0 8px 20px rgba(139, 92, 246, .3);
+    --sh-btn: 0 10px 24px rgba(182, 33, 200, .32);
+    --sh-pill: 0 8px 20px rgba(142, 77, 230, .28);
     --sh-hero: 0 14px 34px rgba(0, 0, 0, .4);
     --sh-nav: 0 -6px 24px rgba(0, 0, 0, .35);
     --sh-seg: 0 3px 10px rgba(0, 0, 0, .35);
 
-    --st-prog-bg: #1E1A30;   --st-prog-line: #2E2848;  --st-prog-edge: #A78BFA;
+    --st-prog-bg: #1E1A30;   --st-prog-line: #2E2848;  --st-prog-edge: #C48CFF;
     --st-curso-bg: #102A21;  --st-curso-line: #1B4735; --st-curso-edge: #34D399;
     --st-done-bg: #191529;   --st-done-line: #272141;  --st-done-edge: #4A4468;
     --st-noshow-bg: #2E1622; --st-noshow-line: #5A2440; --st-noshow-edge: #F472B6;
@@ -195,4 +196,11 @@
 @layer utilities {
   /* Hueco para el micrófono; la barra inferior ya está fuera del scroll. */
   .pb-fab { padding-bottom: 5.5rem; }
+}
+
+/* Splash: visible en el HTML; se oculta si esta pestaña ya arrancó. */
+html[data-booted] #marlenne-splash { display: none !important; }
+#marlenne-splash[data-leaving='true'] {
+  opacity: 0;
+  transition: opacity .38s ease;
 }

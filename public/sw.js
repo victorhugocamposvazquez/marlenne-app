@@ -1,8 +1,12 @@
-const CACHE = 'marlenne-shell-v10';
+const CACHE = 'marlenne-shell-v11';
 const PRECACHE = [
   '/manifest.json',
+  '/logo.png',
+  '/favicon.ico',
   '/icon-192.png',
   '/icon-512.png',
+  '/icon-maskable-512.png',
+  '/apple-touch-icon.png',
   '/voice/dime.mp3',
   '/voice/te-escucho.mp3',
   '/voice/bien-aqui.mp3',
