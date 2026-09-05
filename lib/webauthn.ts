@@ -71,12 +71,12 @@ export function platformLoginTitle(ua: string): string {
 
 export function platformLoginHint(ua: string): string {
   if (isAppleMobile(ua)) {
-    return 'En el iPhone y el iPad, Face ID. Si hace falta, email y contraseña. Nadie entra eligiendo un perfil.';
+    return 'Face ID, o tu email y contraseña. Si aún no tienes cuenta, créala.';
   }
   if (/Android/i.test(ua)) {
-    return 'En el móvil, huella o cara. En el iPhone, Face ID. Si hace falta, email y contraseña. Nadie entra eligiendo un perfil.';
+    return 'Huella o cara, o tu email y contraseña. Si aún no tienes cuenta, créala.';
   }
-  return 'Face ID en el iPhone, huella o cara en Android. Si hace falta, email y contraseña. Nadie entra eligiendo un perfil.';
+  return 'Email y contraseña. En el móvil, Face ID o huella. Si aún no tienes cuenta, créala.';
 }
 
 export function platformSettingsHint(ua: string): string {
