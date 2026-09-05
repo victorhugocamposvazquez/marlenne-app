@@ -10,6 +10,7 @@
     "seed": "node scripts/seed.mjs",
     "types:gen": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > lib/database.types.ts",
     "voice:clips": "python3 scripts/gen-voice-clips.py",
+    "voice:manifest": "node scripts/gen-voice-manifest.mjs",
     "voice:clips:openai": "node scripts/gen-voice-clips.mjs --openai",
     "test": "tsx --test tests/*.test.ts",
     "brand:assets": "python3 scripts/gen-brand-assets.py"

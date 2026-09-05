@@ -5,7 +5,7 @@ import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { parseClock, weekdayOffset } from '@/lib/voice';
 import {
-  voiceAddWait, voicePreviewBook, voicePreviewCancel, voicePreviewMove,
+  voiceAddWait, voiceFind, voiceLate, voicePreviewBook, voicePreviewCancel, voicePreviewMove,
   voicePreviewStatus, voicePreviewWait, voiceSlots, voiceToday,
 } from '@/app/actions/voice';
 import { requireSession } from '@/lib/require-session';
@@ -59,7 +59,7 @@ export async function voiceTalk(text: string, history: VoiceTurn[] = []): Promis
     abortSignal: timeout.signal,
     system: `Eres Marlén, recepcionista del centro de estética. Español de España, de tú, una o dos frases.
 Cercana, clara, sin teatro ni emojis. No repitas lo que acaba de oír si sonaba mal: responde a la intención.
-Solo agenda: citas, huecos, cabina, no-show, espera. Nunca fotos, medidas, notas ni salud.
+Solo agenda: citas, huecos, cabina, no-show, espera, si está apuntada, aviso de retraso. Nunca fotos, medidas ni salud.
 Usa las herramientas. No inventes huecos ni nombres.
 Si falta el servicio, llama a preview_cita igual (sin servicio) y pregunta cuál es. No mandes a abrir el alta.
 Si el equipo responde solo con el nombre del servicio, vuelve a llamar a preview_cita con ese servicio.
@@ -80,9 +80,11 @@ Las herramientas de escribir solo PREVISUALIZAN: tú preguntas si lo hacemos. El
           dia: z.string().optional().describe('hoy, mañana, lunes…'),
           hora: z.string().optional().describe('11:30 o 11'),
           profesional: z.string().optional(),
+          franja: z.enum(['manana', 'tarde']).optional().describe('esta mañana o esta tarde, si no hay hora'),
+          minutos: z.number().optional().describe('duración del hueco en minutos: 30, 60, 90…'),
         }),
-        execute: async ({ dia, hora, profesional }) => {
-          last = await voiceSlots(dayOf(dia), hora ? parseClock(hora) : null, profesional ?? null);
+        execute: async ({ dia, hora, profesional, franja, minutos }) => {
+          last = await voiceSlots(dayOf(dia), hora ? parseClock(hora) : null, profesional ?? null, franja ?? null, minutos ?? null);
           return last;
         },
       }),
@@ -94,9 +96,13 @@ Las herramientas de escribir solo PREVISUALIZAN: tú preguntas si lo hacemos. El
           hora: z.string().optional().describe('11:30 o 11'),
           servicio: z.string().optional(),
           profesional: z.string().optional(),
+          franja: z.enum(['manana', 'tarde']).optional().describe('esta mañana o esta tarde, si no hay hora'),
         }),
-        execute: async ({ clienta, dia, hora, servicio, profesional }) => {
-          last = await voicePreviewBook(clienta, hora ? parseClock(hora) : null, servicio ?? null, dayOf(dia), profesional ?? null);
+        execute: async ({ clienta, dia, hora, servicio, profesional, franja }) => {
+          last = await voicePreviewBook(
+            clienta, hora ? parseClock(hora) : null, servicio ?? null, dayOf(dia), profesional ?? null,
+            franja ? { part: franja } : undefined,
+          );
           return last;
         },
       }),
@@ -131,20 +137,34 @@ Las herramientas de escribir solo PREVISUALIZAN: tú preguntas si lo hacemos. El
         },
       }),
       preview_mover: tool({
-        description: 'Mover una cita de ese día a otra hora o profesional. No la mueve aún.',
+        description: 'Mover una cita de ese día a otra hora o profesional. Sin hora, ofrece huecos. No la mueve aún.',
         parameters: z.object({
           clienta: z.string(),
-          hora: z.string().describe('11:30 o 12'),
+          hora: z.string().optional().describe('11:30 o 12; si falta, se piden huecos'),
           dia: z.string().optional(),
           profesional: z.string().optional(),
         }),
         execute: async ({ clienta, hora, dia, profesional }) => {
-          const start = parseClock(hora);
-          if (start === null) {
-            last = { ok: false, say: 'No he entendido la hora.' };
-            return last;
-          }
-          last = { ...(await voicePreviewMove(clienta, start, dayOf(dia), profesional ?? null)), move: true };
+          last = { ...(await voicePreviewMove(clienta, hora ? parseClock(hora) : null, dayOf(dia), profesional ?? null)), move: true };
+          return last;
+        },
+      }),
+      buscar_cita: tool({
+        description: 'Mira si una clienta está apuntada hoy, o si está en fichas.',
+        parameters: z.object({ clienta: z.string() }),
+        execute: async ({ clienta }) => {
+          last = await voiceFind(clienta);
+          return last;
+        },
+      }),
+      aviso_retraso: tool({
+        description: 'Avisa a cabina de que una clienta llega tarde. Apunta una nota en la cita de hoy.',
+        parameters: z.object({
+          clienta: z.string(),
+          minutos: z.number().optional().describe('minutos de retraso, si los ha dicho'),
+        }),
+        execute: async ({ clienta, minutos }) => {
+          last = await voiceLate(clienta, minutos ?? null);
           return last;
         },
       }),

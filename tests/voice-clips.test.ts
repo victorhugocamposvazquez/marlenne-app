@@ -10,4 +10,6 @@ test('clips fijos de Elvira', () => {
   assert.equal(voiceClipUrl('¿La guardo para'), '/voice/la-guardo-para.mp3');
   assert.equal(voiceClipUrl('Guardo la cita para'), '/voice/guardo-cita-para.mp3');
   assert.equal(voiceClipUrl('a las'), '/voice/a-las.mp3');
+  assert.equal(voiceClipUrl('¿Qué teléfono? Di «sin teléfono» si no lo tienes.'), '/voice/que-telefono.mp3');
+  assert.equal(voiceClipUrl('¿El teléfono?'), '/voice/el-telefono.mp3');
 });

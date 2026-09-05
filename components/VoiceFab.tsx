@@ -7,22 +7,23 @@ import Button from '@/components/ui/Button';
 import IconButton from '@/components/ui/IconButton';
 import {
   voiceAddWait, voiceApplyCancel, voiceApplyMove, voiceApplyStatus, voiceConfirmBook,
-  voiceMatchClient, voicePreviewBook, voicePreviewCancel, voicePreviewMove, voicePreviewStatus, voicePreviewWait,
-  voiceReport, voiceSlots, voiceToday,
+  voiceFind, voiceLate, voiceMatchClient, voicePreviewBook, voicePreviewCancel, voicePreviewMove,
+  voicePreviewStatus, voicePreviewWait, voiceReport, voiceSlots, voiceToday, voiceWaiting,
 } from '@/app/actions/voice';
 import { voiceTalk } from '@/app/actions/voice-talk';
 import { voiceSpeakMp3, type VoiceSpeakResult } from '@/app/actions/voice-speak';
 import VoiceWaves from '@/components/VoiceWaves';
 import { forEar, parseVoice, splitWake, wakeRestIsCommand } from '@/lib/voice';
 import {
-  INITIAL, step, type Call, type DialogEvent, type DialogState, type Effect, type PanelSpec,
+  INITIAL, step, stepHint, type Call, type DialogEvent, type DialogState, type Effect, type PanelSpec,
 } from '@/lib/voice-dialog';
 import { voiceLog } from '@/lib/voice-log';
+import { dialogOpen, settleMs } from '@/lib/voice-listen';
 import { voiceClipUrl } from '@/lib/voice-clips';
 import { stitchVoice } from '@/lib/voice-stitch';
 import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/hooks/voice-prefs';
 import {
-  decodeB64, decodeUrl, isHot, playB64, playUrls, stopVoicePlay, warmVoiceAudio,
+  decodeB64, decodeUrl, isHot, playB64, playUrls, speakLocal, stopVoicePlay, warmVoiceAudio,
 } from '@/hooks/voice-play';
 import { micBlockedSay, queryMicPerm, requestMic, watchMicPerm, type MicPerm } from '@/hooks/voice-mic';
 
@@ -59,8 +60,10 @@ function prefetchSpeak(text: string, kind: 'ask' | 'say') {
 
 function warmAudio() {
   warmVoiceAudio();
-  const clip = voiceClipUrl('¿Dime?');
-  if (clip) void decodeUrl(clip, clip);
+  for (const t of ['¿Dime?', '¿Qué servicio?', '¿A qué hora?', 'Sin red. Escríbelo abajo.']) {
+    const clip = voiceClipUrl(t);
+    if (clip) void decodeUrl(clip, clip);
+  }
 }
 
 function stopSpeak() {
@@ -103,15 +106,21 @@ async function utter(text: string, ask: boolean) {
     voiceLog('tts_fail', { reason: 'clip_play' });
   }
   const ok = await playCloud(ear, ask ? 'ask' : 'say');
-  if (!ok) voiceLog('tts_fail', { reason: 'cloud' });
-  return ok;
+  if (ok) return true;
+  voiceLog('tts_fail', { reason: 'cloud' });
+  void voiceReport('(tts)', 'tts_fail', 'cloud');
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
+    await speakLocal(ear, ask);
+    return true;
+  }
+  return false;
 }
 
 function afterSpeak(gen: number, onDone?: (heard: boolean) => void, heard = true) {
   window.setTimeout(() => {
     if (gen !== speakGen) return;
     onDone?.(heard);
-  }, 550);
+  }, 200);
 }
 
 function speak(text: string, onDone?: (heard: boolean) => void) {
@@ -190,9 +199,6 @@ function makeRec(): RecApi | null {
   return rec;
 }
 
-/** Safari manda «final» al primer silencio. Esperamos a que terminen la frase. */
-const SETTLE_MS = 2200;
-
 export default function VoiceFab() {
   const router = useRouter();
   const pathname = usePathname();
@@ -211,6 +217,7 @@ export default function VoiceFab() {
   const draftRef = useRef('');
   const commitRef = useRef<() => void>(() => {});
   const [hearing, setHearing] = useState(false);
+  const [heardDraft, setHeardDraft] = useState('');
   const [armed, setArmed] = useState(false);
   const [wakeOn, setWakeOn] = useState(false);
   const [sayLoud, setSayLoud] = useState(false);
@@ -226,6 +233,8 @@ export default function VoiceFab() {
   const settleRef = useRef<number | null>(null);
   const startListenRef = useRef<(opts?: { overlay?: boolean }) => void>(() => {});
   const wakeWaitRef = useRef(800);
+  const wakeDogRef = useRef<number | null>(null);
+  const lastSayRef = useRef('');
   const rootRef = useRef<HTMLDivElement>(null);
   const [hasMic, setHasMic] = useState(false);
   const [micPerm, setMicPerm] = useState<MicPerm>('unknown');
@@ -282,9 +291,12 @@ export default function VoiceFab() {
     overlayRef.current = false;
     draftRef.current = '';
     setHearing(false);
+    setHeardDraft('');
     killRec();
     stopSpeak();
-    dialogRef.current = { ...dialogRef.current, pending: null, options: [], confirm: null, book: null };
+    if (wakeDogRef.current) window.clearTimeout(wakeDogRef.current);
+    wakeDogRef.current = null;
+    dialogRef.current = { ...INITIAL };
     setTyped('');
     setPanel({ mode: 'idle' });
     setOpen(false);
@@ -410,18 +422,21 @@ export default function VoiceFab() {
   useEffect(() => {
     if (!open) return;
     if (panel.mode === 'listen') {
-      const t = window.setTimeout(() => commitRef.current(), 12000);
+      // Con texto, el settle cierra. Este tope solo evita un oído vacío eterno.
+      if (heardDraft.trim()) return;
+      const t = window.setTimeout(() => commitRef.current(), 22000);
       return () => window.clearTimeout(t);
     }
     if (panel.mode === 'ask' || panel.mode === 'confirm') return;
+    if (dialogOpen(dialogRef.current)) return;
     if (panel.mode === 'idle' && typed.trim()) return;
-    if (panel.mode !== 'idle' && panel.mode !== 'msg') return;
+    if (panel.mode !== 'idle') return;
     const t = window.setTimeout(() => {
       if (listenRef.current || speaking) return;
       dismiss();
     }, 8000);
     return () => window.clearTimeout(t);
-  }, [open, panel.mode, typed]);
+  }, [open, panel.mode, typed, heardDraft]);
 
   useEffect(() => {
     if (!open) return;
@@ -459,6 +474,9 @@ export default function VoiceFab() {
       case 'previewCancel': return voicePreviewCancel(...c.args);
       case 'previewMove': return voicePreviewMove(...c.args);
       case 'slots': return voiceSlots(...c.args);
+      case 'find': return voiceFind(...c.args);
+      case 'late': return voiceLate(...c.args);
+      case 'waiting': return voiceWaiting(...c.args);
       case 'today': return voiceToday();
       case 'matchClient': return voiceMatchClient(...c.args);
       case 'talk': return voiceTalk(...c.args);
@@ -475,6 +493,9 @@ export default function VoiceFab() {
       case 'panel':
         setSayLoud(false);
         setOpen(true);
+        if (fx.panel.mode === 'ask' || fx.panel.mode === 'confirm' || fx.panel.mode === 'msg') {
+          lastSayRef.current = fx.panel.say;
+        }
         setPanel(fx.panel);
         return;
       case 'speak':
@@ -533,6 +554,7 @@ export default function VoiceFab() {
     genRef.current += 1;
     killRec();
     setHearing(false);
+    setHeardDraft('');
     warmVoiceAudio();
     if (text) {
       missesRef.current = 0;
@@ -548,6 +570,16 @@ export default function VoiceFab() {
     }
     if (overlay) {
       setOpen(true);
+      if (dialogOpen(dialogRef.current)) {
+        missesRef.current += 1;
+        const again = () => startListenRef.current({ overlay: true });
+        if (missesRef.current % 3 === 0 && lastSayRef.current) {
+          speak(lastSayRef.current, again);
+          return;
+        }
+        again();
+        return;
+      }
       missesRef.current += 1;
       if (missesRef.current < 3) {
         startListenRef.current({ overlay: true });
@@ -567,7 +599,10 @@ export default function VoiceFab() {
     if (!wakeWanted(prefsRef.current) || hushRef.current || busyRef.current || document.hidden) return;
     if (micRef.current !== 'granted') return;
     if (listenRef.current || overlayRef.current || speaking) return;
-    if (dialogRef.current.pending || dialogRef.current.confirm) return;
+    if (dialogOpen(dialogRef.current)) {
+      startListenRef.current({ overlay: true });
+      return;
+    }
     if (wakeRef.current && recRef.current) return;
     if (!makeRec()) return;
     arm();
@@ -576,9 +611,22 @@ export default function VoiceFab() {
     const rec = makeRec();
     if (!rec) return;
     rec.interimResults = true;
+    rec.continuous = true;
     recRef.current = rec;
     wakeRef.current = true;
     setWakeOn(true);
+    if (wakeDogRef.current) window.clearTimeout(wakeDogRef.current);
+    wakeDogRef.current = window.setTimeout(() => {
+      if (gen !== genRef.current || !wakeRef.current) return;
+      wakeRef.current = false;
+      setWakeOn(false);
+      killRec();
+      startWakeRef.current();
+    }, 14000);
+    const clearDog = () => {
+      if (wakeDogRef.current) window.clearTimeout(wakeDogRef.current);
+      wakeDogRef.current = null;
+    };
     const fireWake = (heard: string) => {
       if (gen !== genRef.current) return;
       const wake = splitWake(heard);
@@ -588,6 +636,7 @@ export default function VoiceFab() {
       if (!wake.woke && !useful) return;
       if (settleRef.current) window.clearTimeout(settleRef.current);
       settleRef.current = null;
+      clearDog();
       wakeRef.current = false;
       setWakeOn(false);
       genRef.current += 1;
@@ -614,10 +663,11 @@ export default function VoiceFab() {
       const useful = wake.woke || parseVoice(spoken).kind !== 'unknown';
       if (!useful) return;
       if (settleRef.current) window.clearTimeout(settleRef.current);
-      settleRef.current = window.setTimeout(() => fireWake(heard), SETTLE_MS);
+      settleRef.current = window.setTimeout(() => fireWake(heard), settleMs(heard));
     };
     rec.onerror = ev => {
       if (gen !== genRef.current) return;
+      clearDog();
       wakeRef.current = false;
       setWakeOn(false);
       if (ev.error === 'not-allowed') {
@@ -626,16 +676,17 @@ export default function VoiceFab() {
         return;
       }
       if (ev.error === 'no-speech') {
-        wakeWaitRef.current = Math.min(4000, Math.round(wakeWaitRef.current * 1.4));
+        wakeWaitRef.current = Math.min(2000, Math.round(wakeWaitRef.current * 1.3));
         window.setTimeout(() => startWakeRef.current(), wakeWaitRef.current);
         return;
       }
       if (ev.error && ev.error !== 'aborted') voiceLog('stt_error', { error: ev.error, wake: true });
-      wakeWaitRef.current = Math.min(4000, Math.round(wakeWaitRef.current * 1.25));
-      window.setTimeout(() => startWakeRef.current(), Math.max(1200, wakeWaitRef.current));
+      wakeWaitRef.current = Math.min(2000, Math.round(wakeWaitRef.current * 1.25));
+      window.setTimeout(() => startWakeRef.current(), Math.max(700, wakeWaitRef.current));
     };
     rec.onend = () => {
       if (gen !== genRef.current) return;
+      clearDog();
       wakeRef.current = false;
       setWakeOn(false);
       if (!wakeWanted(prefsRef.current) || busyRef.current || listenRef.current || speaking || document.hidden || hushRef.current) return;
@@ -672,7 +723,7 @@ export default function VoiceFab() {
       if (!opts?.overlay) setPanel({ mode: 'msg', say: 'Este Safari no dicta. Escribe el comando abajo.' });
       return;
     }
-    rec.continuous = !!opts?.overlay;
+    rec.continuous = true;
     recRef.current = rec;
     ignoreOutsideRef.current = Date.now() + 2000;
     setOpen(true);
@@ -688,14 +739,16 @@ export default function VoiceFab() {
         text += ev.results[i]?.[0]?.transcript ?? '';
       }
       draftRef.current = text.trim();
+      setHeardDraft(draftRef.current);
       if (!opts?.overlay) setPanel({ mode: 'listen', draft: draftRef.current });
       clearSettle();
       // No commitar en el primer «final»: en iPad es el primer silencio, no el final de la frase.
       if (draftRef.current) {
+        const wait = settleMs(draftRef.current);
         settleRef.current = window.setTimeout(() => {
           if (gen !== genRef.current || !listenRef.current) return;
           commitListen();
-        }, SETTLE_MS);
+        }, wait);
       }
     };
     rec.onerror = ev => {
@@ -735,19 +788,27 @@ export default function VoiceFab() {
           settleRef.current = window.setTimeout(() => {
             if (gen !== genRef.current || !listenRef.current) return;
             commitListen();
-          }, SETTLE_MS);
+          }, settleMs(draftRef.current));
         }
         return;
       }
       clearSettle();
+      if (opts?.overlay && dialogOpen(dialogRef.current)) {
+        window.setTimeout(() => {
+          if (gen !== genRef.current || !listenRef.current) return;
+          startListenRef.current({ overlay: true });
+        }, 280);
+        return;
+      }
       commitListen();
     };
     try {
       rec.start();
     } catch {
+      listenRef.current = false;
+      overlayRef.current = false;
       if (opts?.overlay) {
-        listenRef.current = false;
-        overlayRef.current = false;
+        window.setTimeout(() => startListenRef.current({ overlay: true }), 450);
         return;
       }
       restIdle('No he podido oír. Toca el micro otra vez.');
@@ -763,6 +824,10 @@ export default function VoiceFab() {
     }
     const listen = () => {
       setOpen(true);
+      if (opts?.overlay) {
+        startListen(opts);
+        return;
+      }
       if (!opts?.overlay) setPanel({ mode: 'listen', draft: '' });
       sayDime(() => startListen(opts));
     };
@@ -788,13 +853,28 @@ export default function VoiceFab() {
     >
       {open && (
         <div className="pointer-events-auto mb-2 w-full max-w-[360px] rounded-row border border-surface-line bg-surface-card p-3 shadow-toast">
-          <div className="mb-1 flex justify-end">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <p className="text-micro font-bold uppercase tracking-wide text-ink-3">
+              {stepHint(dialogRef.current.pending?.need, panel.mode === 'confirm') ?? (hearing ? 'Oyendo' : 'Voz')}
+            </p>
             <IconButton label="Cerrar" tone="ghost" onClick={dismiss}>
               <X size={18} strokeWidth={2.4} />
             </IconButton>
           </div>
           {panel.mode === 'listen' && (
             <VoiceWaves label={pending ? 'Un segundo' : hearing ? 'Escuchando' : 'Dime'} />
+          )}
+          {hearing && heardDraft && (
+            <p className="mb-2 text-label font-semibold text-ink">{heardDraft}</p>
+          )}
+          {hearing && (
+            <button
+              type="button"
+              onClick={() => commitRef.current()}
+              className="mb-2 min-h-[44px] w-full rounded-chip bg-v-soft px-3 text-label font-bold text-v-d"
+            >
+              Listo
+            </button>
           )}
           {panel.mode === 'msg' && (
             <div>
@@ -827,7 +907,7 @@ export default function VoiceFab() {
                       key={opt}
                       disabled={pending}
                       onClick={() => dispatch({ kind: 'tap', option: opt })}
-                      className="rounded-chip bg-v-soft px-2.5 py-1.5 text-caption font-bold text-v-d"
+                      className="min-h-[44px] rounded-chip bg-v-soft px-3 py-2 text-label font-bold text-v-d"
                     >
                       {opt}
                     </button>
@@ -929,7 +1009,10 @@ export default function VoiceFab() {
           aria-label={hearing ? 'Dejar de escuchar' : 'Hablar con Marlén'}
           aria-pressed={hearing}
           onClick={() => {
-            const overlay = open && (panel.mode === 'ask' || panel.mode === 'confirm');
+            const overlay = open && (
+              panel.mode === 'ask' || panel.mode === 'confirm' || panel.mode === 'msg'
+              || dialogOpen(dialogRef.current)
+            );
             tapMic(overlay ? { overlay: true } : undefined);
           }}
           className={`pointer-events-auto grid h-14 w-14 place-items-center rounded-card text-white shadow-btn transition motion-safe:active:scale-[.96] ${

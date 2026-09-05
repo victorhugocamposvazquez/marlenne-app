@@ -5,7 +5,7 @@
 
 import type { DayPart } from '@/lib/voice';
 
-export type PendingNeed = 'client' | 'service' | 'time' | 'provider';
+export type PendingNeed = 'client' | 'service' | 'time' | 'provider' | 'phone';
 
 export type PendingBook = {
   who: string;
@@ -14,6 +14,8 @@ export type PendingBook = {
   providerQ: string | null;
   serviceQ: string | null;
   need: PendingNeed;
+  /** Alta nueva: dígitos o '' si dijeron «sin teléfono». */
+  phone?: string | null;
   /** Opciones ofrecidas para la pregunta actual (servicios o clientas). */
   choices?: string[] | null;
   slotMins?: number[];
@@ -32,6 +34,7 @@ export type PreviewCtx = {
   asks?: number;
   newClient?: boolean;
   part?: DayPart | null;
+  phone?: string | null;
 };
 
 export type BookRef = {
@@ -42,11 +45,13 @@ export type BookRef = {
   providerQ: string | null;
   newClient?: boolean;
   part?: DayPart | null;
+  phone?: string | null;
 };
 
 export type BookDraft = {
   clientId?: string;
   clientName?: string;
+  phone?: string;
   serviceId: string;
   providerId: string;
   date: string;
@@ -57,7 +62,7 @@ export type BookDraft = {
 
 export type MoveDraft = { id: string; date: string; startMin: number; providerId: string };
 
-export type MoveTo = { who: string; startMin: number; dayOffset: number; providerQ: string | null };
+export type MoveTo = { who: string; startMin: number | null; dayOffset: number; providerQ: string | null };
 
 export type Choice = { id: string; label: string };
 
@@ -87,6 +92,9 @@ export type VoiceTalkResult = {
   wait?: boolean;
   /** Varias citas que mover: al elegir, se repite el preview con esa. */
   moveTo?: MoveTo;
+  /** Mover sin hora: huecos de esa profesional. */
+  moveAsk?: { who: string; dayOffset: number; providerQ: string | null };
+  slotMins?: number[];
 };
 
 /** Resultado de una acción que ya escribió algo (guardar, mover, cancelar…). */

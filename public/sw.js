@@ -1,4 +1,4 @@
-const CACHE = 'marlenne-shell-v16';
+const CACHE = 'marlenne-shell-v18';
 const PRECACHE = [
   '/manifest.json',
   '/logo.png',
@@ -57,6 +57,8 @@ const PRECACHE = [
   '/voice/no-la-tengo.mp3',
   '/voice/doy-de-alta.mp3',
   '/voice/apunto-igual.mp3',
+  '/voice/que-telefono.mp3',
+  '/voice/el-telefono.mp3',
   '/voice/sin-red.mp3',
   '/voice/sin-nube.mp3',
 ];
@@ -71,11 +73,23 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-      .then(() => self.clients.claim()),
-  );
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
+    await self.clients.claim();
+    try {
+      const res = await fetch('/voice/manifest.json');
+      if (!res.ok) return;
+      const { clips } = await res.json();
+      const cache = await caches.open(CACHE);
+      const have = new Set((await cache.keys()).map(r => new URL(r.url).pathname));
+      const rest = (clips ?? []).filter(u => !have.has(u));
+      for (let i = 0; i < rest.length; i += 20) {
+        const batch = rest.slice(i, i + 20);
+        await Promise.all(batch.map(u => cache.add(u).catch(() => undefined)));
+      }
+    } catch { /* sin manifest, el fetch cachea bajo demanda */ }
+  })());
 });
 
 function isHashedAsset(url) {

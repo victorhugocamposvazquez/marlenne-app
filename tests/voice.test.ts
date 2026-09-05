@@ -153,3 +153,93 @@ test('quién puede mañana no toma el día por profesional', () => {
     assert.equal(cmd.dayOffset, 1);
   }
 });
+
+test('hueco de media hora no toma «una» por profesional', () => {
+  const cmd = parseVoice('quién tiene hueco de media hora esta tarde');
+  assert.equal(cmd.kind, 'slots');
+  if (cmd.kind === 'slots') {
+    assert.equal(cmd.durationMin, 30);
+    assert.equal(cmd.providerQ, null);
+    assert.equal(cmd.part, 'tarde');
+  }
+  const hora = parseVoice('hay hueco de una hora mañana');
+  assert.equal(hora.kind, 'slots');
+  if (hora.kind === 'slots') {
+    assert.equal(hora.durationMin, 60);
+    assert.equal(hora.providerQ, null);
+    assert.equal(hora.dayOffset, 1);
+  }
+});
+
+test('frases de mostrador ya no son charla', () => {
+  const hole = parseVoice('viene sin cita');
+  assert.equal(hole.kind, 'slots');
+  if (hole.kind === 'slots') assert.equal(hole.dayOffset, 0);
+
+  const urgent = parseVoice('es urgente');
+  assert.equal(urgent.kind, 'slots');
+
+  const noshow = parseVoice('no va a venir');
+  assert.equal(noshow.kind, 'status');
+  if (noshow.kind === 'status') {
+    assert.equal(noshow.status, 'noshow');
+    assert.equal(noshow.who, null);
+  }
+
+  const named = parseVoice('Marta no va a venir');
+  assert.equal(named.kind, 'status');
+  if (named.kind === 'status') assert.equal(named.who, 'marta');
+
+  const paso = parseVoice('la paso');
+  assert.equal(paso.kind, 'status');
+  if (paso.kind === 'status') assert.equal(paso.status, 'curso');
+
+  const conf = parseVoice('llama para confirmar');
+  assert.equal(conf.kind, 'find');
+
+  const wait = parseVoice('está esperando');
+  assert.equal(wait.kind, 'waiting');
+  if (wait.kind === 'waiting') assert.equal(wait.who, null);
+
+  const waitWho = parseVoice('Lucía está esperando');
+  assert.equal(waitWho.kind, 'waiting');
+  if (waitWho.kind === 'waiting') assert.equal(waitWho.who, 'lucia');
+
+  const move = parseVoice('me he equivocado de hora');
+  assert.equal(move.kind, 'move');
+});
+
+test('está apuntada y llega tarde no son charla', () => {
+  const f = parseVoice('dice que está apuntada');
+  assert.equal(f.kind, 'find');
+  if (f.kind === 'find') assert.equal(f.who, null);
+
+  const named = parseVoice('Lucía está apuntada');
+  assert.equal(named.kind, 'find');
+  if (named.kind === 'find') assert.equal(named.who, 'lucia');
+
+  const late = parseVoice('llega tarde');
+  assert.equal(late.kind, 'late');
+  if (late.kind === 'late') assert.equal(late.who, null);
+
+  const who = parseVoice('Marta llega tarde');
+  assert.equal(who.kind, 'late');
+  if (who.kind === 'late') assert.equal(who.who, 'marta');
+});
+
+test('cancela y mueve a medias no se pierden', () => {
+  const c = parseVoice('cancela');
+  assert.equal(c.kind, 'cancel');
+  if (c.kind === 'cancel') assert.equal(c.who, null);
+
+  const m = parseVoice('mueve a Lucía');
+  assert.equal(m.kind, 'move');
+  if (m.kind === 'move') {
+    assert.equal(m.who, 'lucia');
+    assert.equal(m.startMin, null);
+  }
+
+  const same = bookOf('cita para Marta lo de siempre');
+  assert.equal(same.who, 'marta');
+  assert.equal(same.serviceQ, 'same');
+});

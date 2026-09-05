@@ -14,16 +14,19 @@ export type VoiceCmd =
   | { kind: 'go'; href: string; say: string }
   | { kind: 'today' }
   | { kind: 'search'; q: string }
-  | { kind: 'status'; status: 'curso' | 'noshow'; who: string }
+  | { kind: 'status'; status: 'curso' | 'noshow'; who: string | null }
+  | { kind: 'waiting'; who: string | null }
   | {
     kind: 'book'; who: string; startMin: number | null; serviceQ: string | null; dayOffset: number; providerQ: string | null;
     /** «Esta tarde»: franja para los huecos, si no dijo hora. */
     part?: DayPart | null;
   }
-  | { kind: 'slots'; dayOffset: number; startMin: number | null; providerQ: string | null; part?: DayPart | null }
+  | { kind: 'slots'; dayOffset: number; startMin: number | null; providerQ: string | null; part?: DayPart | null; durationMin?: number | null }
+  | { kind: 'find'; who: string | null }
+  | { kind: 'late'; who: string | null; mins?: number | null }
   | { kind: 'wait'; who: string | null }
-  | { kind: 'cancel'; who: string; dayOffset: number }
-  | { kind: 'move'; who: string; startMin: number; dayOffset: number; providerQ: string | null }
+  | { kind: 'cancel'; who: string | null; dayOffset: number }
+  | { kind: 'move'; who: string | null; startMin: number | null; dayOffset: number; providerQ: string | null }
   | { kind: 'dismiss' }
   | { kind: 'help' }
   | { kind: 'chat'; say: string; stay: boolean }
@@ -236,6 +239,8 @@ const SERVICE_WORD = /terapia|cavit|vacum|vacuum|preso|radiofrec|laser|masaje|hi
 
 /** Días y muletillas: no son nombre de profesional. */
 const NOT_PROVIDER = /^(manana|hoy|tarde|noche|hueco|libre|cita|esta|lunes|martes|miercoles|jueves|viernes|sabado|domingo)$/;
+/** «hueco de una hora»: «una» no es profesional. */
+const NOT_DURATION = /^(una|un|media|dos|tres|cuarto|hora|horas|minuto|minutos|\d+)$/;
 
 function takeProvider(s: string): { text: string; providerQ: string | null } {
   const con = s.match(/ con (?!las |la |el |hoy )([a-zñ]+)/);
@@ -246,7 +251,7 @@ function takeProvider(s: string): { text: string; providerQ: string | null } {
     };
   }
   const de = s.match(/(?:huecos?|libre|libres|disponib\w*) de ([a-zñ]+)/);
-  if (de && !NOT_PROVIDER.test(de[1])) return { text: s, providerQ: de[1] };
+  if (de && !NOT_PROVIDER.test(de[1]) && !NOT_DURATION.test(de[1])) return { text: s, providerQ: de[1] };
   const puede = s.match(/(?:puede|tiene|atiende) (?!hueco|libre|cita)([a-zñ]+)/);
   if (puede && !NOT_PROVIDER.test(puede[1]) && !SERVICE_WORD.test(puede[1])) {
     return { text: s, providerQ: puede[1] };
@@ -338,6 +343,29 @@ function stripTime(s: string) {
   return s.replace(TIME_RE, ' ').replace(SPECIAL_TIME_RE, ' ').replace(/\s+/g, ' ').trim();
 }
 
+/** «de media hora», «de una hora»: duración del hueco, no la hora del reloj. */
+export function takeDuration(s: string): number | null {
+  const t = fold(s);
+  if (/hora y media|una hora y media/.test(t)) return 90;
+  if (/media hora/.test(t)) return 30;
+  if (/\b(?:dos|2) horas\b/.test(t)) return 120;
+  if (/\b(?:tres|3) horas\b/.test(t)) return 180;
+  if (/\b(?:una|1) hora\b/.test(t) || /\bde una hora\b/.test(t)) return 60;
+  if (/cuarto de hora|\b15 ?min/.test(t)) return 15;
+  return null;
+}
+
+/** Para decirlo: «de media hora», «de una hora». */
+export function durationSaid(min: number) {
+  if (min === 15) return 'de un cuarto de hora';
+  if (min === 30) return 'de media hora';
+  if (min === 60) return 'de una hora';
+  if (min === 90) return 'de hora y media';
+  if (min === 120) return 'de dos horas';
+  if (min === 180) return 'de tres horas';
+  return `de ${min} minutos`;
+}
+
 function parseSlots(t: string): VoiceCmd | null {
   if (!/(hueco|libre|disponib|cuando puede|a que hora|hay sitio|quien puede|quien esta libre|me cabe|tienes sitio)/.test(t)) {
     return null;
@@ -346,7 +374,78 @@ function parseSlots(t: string): VoiceCmd | null {
   const part = takeDayPart(p.text);
   const d = takeDay(part.text);
   const time = takeTime(d.text);
-  return { kind: 'slots', dayOffset: d.dayOffset, startMin: time.startMin, providerQ: p.providerQ, part: part.part };
+  return {
+    kind: 'slots',
+    dayOffset: d.dayOffset,
+    startMin: time.startMin,
+    providerQ: p.providerQ,
+    part: part.part,
+    durationMin: takeDuration(t),
+  };
+}
+
+function parseFind(t: string): VoiceCmd | null {
+  if (/^(dice que tenia cita|tenia cita|dice que esta apuntada|no la encuentro y dice que si|esta apuntada|miro si esta|quieren confirmar|llama para confirmar|confirma la cita|para confirmar)$/.test(t)) {
+    return { kind: 'find', who: null };
+  }
+  const m = t.match(/(?:esta apuntada|tenia cita|tiene cita|esta en la agenda|miro si esta)(?: de| a)? (.+)$/)
+    || t.match(/^(.+?) (?:esta apuntada|tenia cita|dice que (?:tiene|tenia) cita)$/);
+  if (!m) return null;
+  const who = tidyWho(m[1]);
+  return who.length >= 2 ? { kind: 'find', who } : { kind: 'find', who: null };
+}
+
+function parseWalkIn(t: string): VoiceCmd | null {
+  if (/^(viene sin cita|sin cita|ha venido sin cita|esta en la puerta|esta en recepcion|ha llegado|ha llegado ya|es urgente|urgente|viene ya|de ya|ahora mismo|esta llena|estamos llenas|no cabe nadie)$/.test(t)) {
+    return { kind: 'slots', dayOffset: 0, startMin: null, providerQ: null, part: null, durationMin: null };
+  }
+  return null;
+}
+
+function parseWaiting(t: string): VoiceCmd | null {
+  if (/^(esta esperando|esta sentada|ha venido antes|llego pronto|llego temprano)$/.test(t)) {
+    return { kind: 'waiting', who: null };
+  }
+  const m = t.match(/^(.+?) (?:esta esperando|esta sentada|llego pronto|llego temprano)$/)
+    || t.match(/^(?:esta esperando|llego pronto)(?: de| a)? (.+)$/);
+  if (!m) return null;
+  const who = tidyWho(m[1]);
+  return who.length >= 2 ? { kind: 'waiting', who } : { kind: 'waiting', who: null };
+}
+
+function parseDeskStatus(t: string): VoiceCmd | null {
+  if (/^(no va a venir|no viene|ya no viene)$/.test(t)) {
+    return { kind: 'status', status: 'noshow', who: null };
+  }
+  if (/^(la paso|la paso ya|paso a cabina)$/.test(t)) {
+    return { kind: 'status', status: 'curso', who: null };
+  }
+  const noshow = t.match(/^(.+?) (?:no va a venir|ya no viene)$/);
+  if (noshow) {
+    const who = tidyWho(noshow[1]);
+    if (who.length >= 2) return { kind: 'status', status: 'noshow', who };
+  }
+  const paso = t.match(/^la paso(?: ya)?(?: a)? (.+)$/);
+  if (paso) {
+    const who = tidyWho(paso[1]);
+    if (who.length >= 2) return { kind: 'status', status: 'curso', who };
+  }
+  return null;
+}
+
+function parseLate(t: string): VoiceCmd | null {
+  if (/^(aviso a cabina|avisa a cabina)$/.test(t)) return { kind: 'late', who: null, mins: null };
+  if (/^(llega tarde|avisa que se retrasa|se retrasa|viene tarde|llega en cinco)$/.test(t)) {
+    return { kind: 'late', who: null, mins: /cinco/.test(t) ? 5 : null };
+  }
+  if (/^(diez minutos|en diez|se retrasa diez|diez min)$/.test(t)) {
+    return { kind: 'late', who: null, mins: 10 };
+  }
+  const m = t.match(/^(.+?) (?:llega tarde|se retrasa|viene tarde|avisa que se retrasa)$/)
+    || t.match(/^(?:llega tarde|se retrasa|avisa que se retrasa)(?: de| a)? (.+)$/);
+  if (!m) return null;
+  const who = tidyWho(m[1]);
+  return who.length >= 2 ? { kind: 'late', who, mins: null } : { kind: 'late', who: null, mins: null };
 }
 
 function looksLikeService(s: string) {
@@ -376,6 +475,14 @@ function scanService(rest: string): { who: string; serviceQ: string } | null {
     }
   }
   return null;
+}
+
+/** «lo de siempre», «lo mismo», «como la última vez». */
+const SAME_RE = /\b(?:lo (?:de )?siempre|lo mismo|como (?:la )?ultima vez|repite(?: la cita)?)\b/;
+
+function takeSame(rest: string): { hit: boolean; who: string } {
+  if (!SAME_RE.test(rest)) return { hit: false, who: rest };
+  return { hit: true, who: tidyWho(rest.replace(SAME_RE, ' ')) };
 }
 
 function takeServiceTail(rest: string): { who: string; serviceQ: string | null } {
@@ -423,7 +530,8 @@ function parseBook(t: string): VoiceCmd | null {
     .replace(/\s+para$/i, '')
     .trim();
 
-  const split = takeServiceTail(rest);
+  const same = takeSame(rest);
+  const split = same.hit ? { who: same.who, serviceQ: 'same' } : takeServiceTail(rest);
   if (split.who.length < 2) return null;
   if (!saidBook && time.startMin === null) return null;
   return {
@@ -449,7 +557,8 @@ export function parseBookLoose(text: string): Extract<VoiceCmd, { kind: 'book' }
   const d = takeDay(part.text);
   const time = takeTime(d.text);
   const rest = stripTime(d.text).replace(/^(para |a |de )/, '').trim();
-  const split = takeServiceTail(rest);
+  const same = takeSame(rest);
+  const split = same.hit ? { who: same.who, serviceQ: 'same' as string | null } : takeServiceTail(rest);
   if (!split.serviceQ || split.who.length < 2 || split.who.split(' ').length > 3) return null;
   return {
     kind: 'book',
@@ -463,18 +572,24 @@ export function parseBookLoose(text: string): Extract<VoiceCmd, { kind: 'book' }
 }
 
 function parseCancel(t: string): VoiceCmd | null {
-  if (/^(cancelar?|anular?|nada|olvidalo|olvidar|cierra|cerrar|da igual|dejalo|fuera|no)$/.test(t)) {
+  if (/^(nada|olvidalo|olvidar|cierra|cerrar|da igual|dejalo|fuera|no)$/.test(t)) {
     return { kind: 'dismiss' };
+  }
+  if (/^(cancela(?:r)?|anula(?:r)?|quiere cancelar|hay que cancelar|anular cita|van a cancelar|ha cancelado ella)$/.test(t)) {
+    return { kind: 'cancel', who: null, dayOffset: 0 };
   }
   const m = t.match(/^(?:cancela(?:r)?|anula(?:r)?|quita|borra)(?: me)?(?: (?:la |su ))?(?:cita )?(?:de |a )?(.+)$/);
   if (!m) return null;
   const d = takeDay(takeDayPart(m[1]).text);
   const who = tidyWho(d.text.replace(/^(la )?cita( de)? /, ''));
-  if (who.length < 2) return { kind: 'dismiss' };
+  if (who.length < 2) return { kind: 'cancel', who: null, dayOffset: d.dayOffset };
   return { kind: 'cancel', who, dayOffset: d.dayOffset };
 }
 
 function parseMove(t: string): VoiceCmd | null {
+  if (/^(quiere cambiarla|hay que moverla|la cambiamos|reprogramar|me he equivocado de hora|hora mal|hora equivocada|me he colado de hora|quiere cambiar de profesional|otra profesional|no quiere ir con ella|cambia de cabina)$/.test(t)) {
+    return { kind: 'move', who: null, startMin: null, dayOffset: 0, providerQ: null };
+  }
   if (!/(mueve|mover|cambia|cambiar|reprograma|pasa(?:le)? (?:la )?cita)/.test(t)) return null;
   const p = takeProvider(t);
   const stripped = p.text
@@ -485,9 +600,11 @@ function parseMove(t: string): VoiceCmd | null {
     .trim();
   const d = takeDay(takeDayPart(stripped).text);
   const time = takeTime(d.text);
-  if (time.startMin === null) return null;
   const who = tidyWho(stripTime(d.text).replace(/ a las?$| las?$/, ''));
-  if (who.length < 2) return null;
+  if (who.length < 2 && time.startMin === null) {
+    return { kind: 'move', who: null, startMin: null, dayOffset: d.dayOffset, providerQ: p.providerQ };
+  }
+  if (who.length < 2) return { kind: 'move', who: null, startMin: time.startMin, dayOffset: d.dayOffset, providerQ: p.providerQ };
   return { kind: 'move', who, startMin: time.startMin, dayOffset: d.dayOffset, providerQ: p.providerQ };
 }
 
@@ -568,10 +685,6 @@ const CHAT: ChatRow[] = [
   { re: /^(es una sorpresa|es sorpresa|sorpresa)$/, say: 'Ni una palabra. ¿El nombre?' },
   { re: /^(es un regalo|un regalo|para regalar|es para regalar)$/, say: 'Bonito. ¿La apuntamos?' },
   { re: /^(primera vez|es la primera|no ha venido nunca|es nueva)$/, say: 'Alta y cita. ¿El nombre?' },
-  { re: /^(viene sin cita|sin cita|ha venido sin cita|esta en la puerta|esta en recepcion|ha llegado( ya)?)$/, say: 'Miro un hueco.' },
-  { re: /^(es urgente|urgente|viene ya|de ya|ahora mismo)$/, say: 'Miro el primer hueco.' },
-  { re: /^(me he equivocado de hora|hora mal|hora equivocada|me he colado de hora)$/, say: 'La movemos. ¿A cuál?' },
-  { re: /^(no va a venir|no viene|ya no viene|ha cancelado ella)$/, say: '¿La marco como no vino?' },
   { re: /^(esta aparcando|esta aparcando ya|aparca|esta bajando)$/, say: 'Dile que no corra.' },
   { re: /^(esta en el bano|en el aseo|en el wc)$/, say: 'Vale. Aviso cuando salga.' },
   { re: /^(viene con amiga|vienen dos|las dos|vienen las dos)$/, say: '¿Las dos? Dime nombres.' },
@@ -592,25 +705,19 @@ const CHAT: ChatRow[] = [
   { re: /^(como va eso|que hay|que pasa|que hacemos|a que estamos)$/, say: 'Bien, aquí. ¿Una cita o un hueco?' },
   { re: /^(todo ok|todo correcto|vamos bien)$/, say: 'Gracias. ¿Algo más?' },
   { re: /^(ha llamado|han llamado|hay un recado)$/, say: 'Nombre y hora, y lo vemos.' },
-  { re: /^(esta llena|estamos llenas|no cabe nadie)$/, say: 'Miro un hueco.' },
   { re: /^(la proxima|siguiente|quien sigue)$/, say: 'De esos. ¿Qué hay hoy?' },
   { re: /^(me aburro|esto esta parado)$/, say: 'Pues una cita lo anima.' },
   { re: /^(eres rapida|que rapida eres|vaya maquina)$/, say: 'Hoy sí. ¿Qué toca?' },
   { re: /^(buenas|muy buenas)$/, say: 'Te escucho.' },
   { re: /^(de nada|a ti)$/, say: 'Cuando quieras.' },
-  { re: /^(esta esperando|esta sentada|ha venido antes|llego pronto|llego temprano)$/, say: 'Que se siente. Aviso a cabina.' },
   { re: /^(lleva un rato|lleva rato esperando|esta tardando la cabina)$/, say: 'Lleva un rato. Aviso.' },
-  { re: /^(la paso|la paso ya|entro o espera|la dejo esperar)$/, say: '¿La paso a cabina o espera?' },
+  { re: /^(entro o espera|la dejo esperar)$/, say: '¿La paso a cabina o espera?' },
   { re: /^(preguntan por un hueco|buscan hueco|hay hueco por telefono|llaman por hueco)$/, say: '¿Qué día y a qué hora?' },
   { re: /^(se ha puesto enferma|falta una|falta una profesional|no viene una|esta de baja)$/, say: 'Miro huecos de las demás.' },
   { re: /^(a que hora cerramos|cuando cerramos|hasta que hora|cerramos pronto|a que hora cierra)$/, say: 'Hasta las ocho. ¿Un hueco?' },
   { re: /^(abrimos manana|a que hora abrimos|manana abrimos|cuando abrimos)$/, say: 'Mañana a las nueve. ¿Apuntamos?' },
   { re: /^(paga en efectivo|paga con tarjeta|bizum|con tarjeta|en efectivo|como paga|quiere factura)$/, say: 'Eso en caja. Yo apunto la cita.' },
   { re: /^(tiene bono|usa el bono|lleva bono|es de bono|cuanto queda del bono|le queda bono)$/, say: 'En la ficha, en Bonos.' },
-  { re: /^(quiere cambiar de profesional|otra profesional|no quiere ir con ella|cambia de cabina)$/, say: '¿Con quién la quieres?' },
-  { re: /^(dice que tenia cita|tenia cita|dice que esta apuntada|no la encuentro y dice que si)$/, say: 'Miro si está apuntada.' },
-  { re: /^(llega tarde|avisa que se retrasa|se retrasa|viene tarde|llega en cinco)$/, say: 'Aviso a cabina.' },
-  { re: /^(diez minutos|en diez|se retrasa diez|diez min)$/, say: 'Diez minutos. Aviso.' },
   { re: /^(la cabina esta ocupada|no esta lista la cabina|cabina ocupada|aun no esta lista)$/, say: 'En cuanto quede libre.' },
   { re: /^(se alarga|se esta alargando|va con retraso|el tratamiento se alarga)$/, say: 'Aviso a la siguiente.' },
   { re: /^(tiene que firmar|el consentimiento|consentimiento|hay que firmar|las normas)$/, say: 'La ficha y el consentimiento.' },
@@ -619,11 +726,8 @@ const CHAT: ChatRow[] = [
   { re: /^(no quiere sms|sin sms|que no le avise|no la avises)$/, say: 'Sin aviso. ¿La cita?' },
   { re: /^(esta embarazada|viene embarazada|es embarazo)$/, say: 'Miro qué se puede. ¿El servicio?' },
   { re: /^(viene con ninos|trae a los ninos|viene con el nino|con carrito)$/, say: 'Que se sienten. ¿La cita?' },
-  { re: /^(es la de siempre|la de siempre|la habitual|como siempre)$/, say: 'Dime el nombre.' },
-  { re: /^(esta duplicada|hay dos citas|se ha duplicado|sale dos veces)$/, say: 'Miro cuál dejamos.' },
+  { re: /^(es la de siempre|la de siempre|la habitual|como siempre|lo de siempre|lo mismo)$/, say: 'Dime el nombre.' },
   { re: /^(es festivo|estamos de puente|no se abre|cerramos el festivo|es puente)$/, say: 'Si no abrimos, no apunto.' },
-  { re: /^(quiere cancelar|hay que cancelar|anular cita|van a cancelar)$/, say: '¿De quién es la cita?' },
-  { re: /^(quiere cambiarla|hay que moverla|la cambiamos|reprogramar)$/, say: '¿A quién muevo y a qué hora?' },
   { re: /^(es laser|viene de laser|quiere laser|depilacion|quiere depilarse)$/, say: 'Láser. ¿Nombre y hora?' },
   { re: /^(es facial|viene de facial|quiere facial|un facial)$/, say: 'Facial. ¿Nombre y hora?' },
   { re: /^(es corporal|viene de corporal|quiere corporal|cavitacion|vacum)$/, say: 'Corporal. ¿Nombre y hora?' },
@@ -636,7 +740,6 @@ const CHAT: ChatRow[] = [
   { re: /^(no me deja guardar|no se guarda|falla al guardar|error al guardar)$/, say: 'Nombre y hora otra vez.' },
   { re: /^(le ha sentado mal|le duele|esta incomoda|reaccion)$/, say: 'Aviso. ¿La ficha?' },
   { re: /^(quiere fotos|las fotos|medidas|el antes y despues)$/, say: 'Las fotos no van aquí. La cita sí.' },
-  { re: /^(quieren confirmar|llama para confirmar|confirma la cita)$/, say: 'Para confirmar, el nombre.' },
   { re: /^(esta menstruando|viene con la regla|tiene la regla)$/, say: 'Aviso a cabina.' },
   { re: /^(viene de otra clinica|es de fuera|nueva de otro sitio)$/, say: 'Alta y cita. ¿El nombre?' },
   { re: /^(ha visto instagram|viene de instagram|es de redes)$/, say: 'Bonito. ¿La apuntamos?' },
@@ -683,12 +786,31 @@ export function parseVoice(text: string): VoiceCmd {
   const t = fold(raw);
   if (!t) return { kind: 'unknown', text: raw };
 
+  if (/^(ayuda|que puedes|que se puede|comandos|que sabes|que haces)/.test(t)) return { kind: 'help' };
+
+  // Antes de la charla: «cancela» / «muévela» a secas son comandos, no despedida.
+  const found = parseFind(t);
+  if (found) return found;
+  const late = parseLate(t);
+  if (late) return late;
+  const waiting = parseWaiting(t);
+  if (waiting) return waiting;
+  const walk = parseWalkIn(t);
+  if (walk) return walk;
+  const desk = parseDeskStatus(t);
+  if (desk) return desk;
+
+  const cancel = parseCancel(t);
+  if (cancel && cancel.kind === 'cancel') return cancel;
+
+  if (/^(quiere cambiarla|hay que moverla|la cambiamos|reprogramar)$/.test(t)) {
+    const moved = parseMove(t);
+    if (moved) return moved;
+  }
+
   const chat = parseChat(t);
   if (chat) return chat;
 
-  if (/^(ayuda|que puedes|que se puede|comandos|que sabes|que haces)/.test(t)) return { kind: 'help' };
-
-  const cancel = parseCancel(t);
   if (cancel) return cancel;
 
   if (
@@ -746,7 +868,7 @@ export function parseVoice(text: string): VoiceCmd {
   if (/^(el equipo|las chicas|quien trabaja|abre el equipo)$/.test(t)) {
     return { kind: 'go', href: '/ajustes/equipo', say: 'Abro el equipo.' };
   }
-  if (/^(no veo la cita|no aparece|no esta en la agenda|no la veo)$/.test(t)) {
+  if (/^(no veo la cita|no aparece|no esta en la agenda|no la veo|esta duplicada|hay dos citas|se ha duplicado|sale dos veces)$/.test(t)) {
     return { kind: 'go', href: '/agenda', say: 'Abro la agenda.' };
   }
   const booked = parseBook(t);

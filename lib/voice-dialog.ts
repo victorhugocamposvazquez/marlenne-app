@@ -8,9 +8,10 @@ import {
   VOICE_HELP, fold, isVoiceYes, parseBookLoose, parseVoice, pickSpokenIndex, saidDayOffset, saidService, takeTime,
 } from '@/lib/voice';
 import { NEW_CLIENT_CHIP } from '@/lib/voice-clients';
+import { parsePhone } from '@/lib/voice-phone';
 import { voiceLog } from '@/lib/voice-log';
 import type {
-  BookDraft, BookRef, Choice, FinalResult, MoveDraft, MoveTo, PendingBook, PreviewCtx, VoiceTalkResult, VoiceTurn,
+  BookDraft, BookRef, Choice, FinalResult, MoveDraft, MoveTo, PendingBook, PendingNeed, PreviewCtx, VoiceTalkResult, VoiceTurn,
 } from '@/lib/voice-types';
 
 /** «No», «nah», «para», «déjalo», «así no»: cerrar lo que se estaba confirmando. */
@@ -24,8 +25,11 @@ export type Call =
   | { action: 'previewWait'; args: [string] }
   | { action: 'previewStatus'; args: [string, 'curso' | 'noshow'] }
   | { action: 'previewCancel'; args: [string, number] }
-  | { action: 'previewMove'; args: [string, number, number, string | null, string | null] }
-  | { action: 'slots'; args: [number, number | null, string | null, PendingBook['part'] | null] }
+  | { action: 'previewMove'; args: [string, number | null, number, string | null, string | null] }
+  | { action: 'slots'; args: [number, number | null, string | null, PendingBook['part'] | null, number | null] }
+  | { action: 'find'; args: [string] }
+  | { action: 'late'; args: [string, number | null] }
+  | { action: 'waiting'; args: [string] }
   | { action: 'today'; args: [] }
   | { action: 'matchClient'; args: [string]; meta: { text: string; loose: ReturnType<typeof parseBookLoose> } }
   | { action: 'talk'; args: [string, VoiceTurn[]] }
@@ -46,6 +50,15 @@ export type Confirm = {
   moveTo?: MoveTo;
 };
 
+export type Hold =
+  | { kind: 'cancel-who'; dayOffset: number }
+  | { kind: 'move-who'; dayOffset: number; providerQ: string | null; startMin: number | null }
+  | { kind: 'move-time'; who: string; dayOffset: number; providerQ: string | null; slotMins?: number[] }
+  | { kind: 'find-who' }
+  | { kind: 'late-who'; mins?: number | null }
+  | { kind: 'status-who'; status: 'curso' | 'noshow' }
+  | { kind: 'waiting-who' };
+
 export type DialogState = {
   pending: PendingBook | null;
   /** Chips de la pregunta en curso (servicios, clientas u horas). */
@@ -54,9 +67,24 @@ export type DialogState = {
   /** Cita propuesta, por si la corrigen («mejor a las doce»). */
   book: BookRef | null;
   history: VoiceTurn[];
+  /** Cancelar/mover a medias: falta el nombre o la hora. */
+  hold: Hold | null;
 };
 
-export const INITIAL: DialogState = { pending: null, options: [], confirm: null, book: null, history: [] };
+export const INITIAL: DialogState = { pending: null, options: [], confirm: null, book: null, history: [], hold: null };
+
+/** Chip de paso en el panel. */
+export function stepHint(need?: PendingNeed | null, confirming?: boolean) {
+  if (confirming) return '¿La guardo?';
+  switch (need) {
+    case 'client': return 'Clienta';
+    case 'service': return 'Servicio';
+    case 'time': return 'Hora';
+    case 'provider': return 'Cabina';
+    case 'phone': return 'Teléfono';
+    default: return null;
+  }
+}
 
 export type PanelSpec =
   | { mode: 'msg'; say: string }
@@ -137,14 +165,31 @@ function sayAndListen(say: string, ear?: string): Effect[] {
   ];
 }
 
-const CLEAR = { pending: null, options: [] as string[], confirm: null, book: null };
+const CLEAR = { pending: null, options: [] as string[], confirm: null, book: null, hold: null as Hold | null };
 
 function done(state: DialogState, say: string, href?: string, ear?: string): StepResult {
-  return { state: { ...state, ...CLEAR }, effects: finishFx(say, href, ear) };
+  return { state: { ...state, ...CLEAR, history: [] }, effects: finishFx(say, href, ear) };
 }
 
 function dismissed(state: DialogState): StepResult {
-  return { state: { ...state, ...CLEAR }, effects: [{ kind: 'dismiss' }] };
+  return {
+    state: { ...INITIAL },
+    effects: [
+      { kind: 'report', said: '(dismiss)', outcome: 'dismiss' },
+      { kind: 'dismiss' },
+    ],
+  };
+}
+
+function reask(state: DialogState): StepResult {
+  const held = state.pending;
+  const say = held?.need === 'service' ? '¿Qué servicio?'
+    : held?.need === 'time' ? '¿A qué hora?'
+    : held?.need === 'provider' ? '¿Con quién?'
+    : held?.need === 'phone' ? '¿Qué teléfono? Di «sin teléfono» si no lo tienes.'
+    : held?.need === 'client' ? '¿El nombre?'
+    : '¿Lo repites?';
+  return { state, effects: sayAndListen(say) };
 }
 
 function call(state: DialogState, c: Call, patch: Partial<DialogState> = {}): StepResult {
@@ -204,6 +249,7 @@ function continueBook(state: DialogState, patch: Partial<PendingBook>): StepResu
     asks: held.asks ?? 0,
     newClient: patch.newClient ?? held.newClient ?? false,
     part: p.part ?? null,
+    phone: p.phone,
   };
   return call(state, { action: 'previewBook', args: [p.who, p.startMin, p.serviceQ, p.dayOffset, p.providerQ, ctx] });
 }
@@ -276,6 +322,46 @@ function heard(state: DialogState, text: string): StepResult {
 
   const cmd = parseVoice(text);
   voiceLog('parse_kind', { kind: cmd.kind, said: text.slice(0, 80) });
+
+  const hold = state.hold;
+  if (hold) {
+    if (VOICE_NO.test(said) || cmd.kind === 'dismiss') return dismissed(state);
+    if (hold.kind === 'cancel-who') {
+      const who = cmd.kind === 'cancel' && cmd.who ? cmd.who : (cmd.kind === 'book' ? cmd.who : text.trim());
+      if (who.length < 2) return { state, effects: sayAndListen('¿De quién es la cita?') };
+      return call({ ...state, hold: null }, { action: 'previewCancel', args: [who, hold.dayOffset] });
+    }
+    if (hold.kind === 'move-who') {
+      const who = cmd.kind === 'move' && cmd.who ? cmd.who : (cmd.kind === 'book' ? cmd.who : text.trim());
+      if (who.length < 2) return { state, effects: sayAndListen('¿A quién muevo?') };
+      const clock = takeTime(text).startMin ?? (cmd.kind === 'move' ? cmd.startMin : null) ?? hold.startMin;
+      return call({ ...state, hold: null }, { action: 'previewMove', args: [who, clock, hold.dayOffset, hold.providerQ, null] });
+    }
+    if (hold.kind === 'find-who') {
+      const who = cmd.kind === 'find' && cmd.who ? cmd.who : (cmd.kind === 'book' ? cmd.who : text.trim());
+      if (who.length < 2) return { state, effects: sayAndListen('¿De quién?') };
+      return call({ ...state, hold: null }, { action: 'find', args: [who] });
+    }
+    if (hold.kind === 'late-who') {
+      const who = cmd.kind === 'late' && cmd.who ? cmd.who : (cmd.kind === 'book' ? cmd.who : text.trim());
+      if (who.length < 2) return { state, effects: sayAndListen('¿Quién llega tarde?') };
+      return call({ ...state, hold: null }, { action: 'late', args: [who, hold.mins ?? null] });
+    }
+    if (hold.kind === 'status-who') {
+      const who = cmd.kind === 'status' && cmd.who ? cmd.who : (cmd.kind === 'book' ? cmd.who : text.trim());
+      if (who.length < 2) return { state, effects: sayAndListen(hold.status === 'curso' ? '¿A quién paso a cabina?' : '¿Quién no viene?') };
+      return call({ ...state, hold: null }, { action: 'previewStatus', args: [who, hold.status] });
+    }
+    if (hold.kind === 'waiting-who') {
+      const who = cmd.kind === 'waiting' && cmd.who ? cmd.who : (cmd.kind === 'book' ? cmd.who : text.trim());
+      if (who.length < 2) return { state, effects: sayAndListen('¿Quién está esperando?') };
+      return call({ ...state, hold: null }, { action: 'waiting', args: [who] });
+    }
+    const clock = takeTime(text).startMin ?? (cmd.kind === 'move' ? cmd.startMin : null);
+    if (clock == null) return { state, effects: sayAndListen('¿A qué hora la muevo?') };
+    return call({ ...state, hold: null }, { action: 'previewMove', args: [hold.who, clock, hold.dayOffset, hold.providerQ, null] });
+  }
+
   const held = state.pending;
   const options = state.options;
   const onlyNew = held?.need === 'client' && options.length === 1 && options[0] === NEW_CLIENT_CHIP;
@@ -290,7 +376,19 @@ function heard(state: DialogState, text: string): StepResult {
     else if (!noMeansNew) return dismissed(state);
   }
 
-  // Con una pregunta abierta, «vacum» o «no sé» son respuestas, no charla.
+  // Con una pregunta abierta, la charla no tira la reserva.
+  // «vacum» y «sin teléfono» están en CHAT, pero aquí son la respuesta.
+  const chatIsAnswer = held && (
+    (held.need === 'service' && saidService(text))
+    || (held.need === 'time' && takeTime(text).startMin !== null)
+    || (held.need === 'phone' && parsePhone(text).kind !== 'bad')
+    || (held.need === 'client' && text.trim().length >= 2 && !/^(gracias|de nada|vale|ok|perfecto)$/.test(said))
+    || (held.need === 'provider' && text.trim().length >= 2 && !/^(gracias|de nada|vale|ok)$/.test(said))
+  );
+  if (cmd.kind === 'chat' && (held || c) && !chatIsAnswer) {
+    if (c && state.book) return { state, effects: sayAndListen('¿La guardo? Di sí, o cambia hora o servicio.') };
+    if (held) return reask(state);
+  }
   if (cmd.kind === 'chat' && !held && !c) {
     if (cmd.stay) return { state, effects: sayAndListen(cmd.say) };
     return done(state, cmd.say);
@@ -298,9 +396,19 @@ function heard(state: DialogState, text: string): StepResult {
 
   const abortHeld = cmd.kind === 'today' || cmd.kind === 'go'
     || cmd.kind === 'slots' || cmd.kind === 'status' || cmd.kind === 'wait' || cmd.kind === 'move'
+    || cmd.kind === 'find' || cmd.kind === 'late' || cmd.kind === 'waiting'
     || (cmd.kind === 'cancel' && !bareNo);
   if (held && !abortHeld) {
+    if ((held.need === 'service' || held.need === 'time' || held.need === 'provider') && (bareNo || VOICE_NO.test(said))) {
+      return reask(state);
+    }
     const pick = pickSpokenIndex(text, options.length);
+    if (held.need === 'phone') {
+      const phone = parsePhone(text);
+      if (phone.kind === 'skip') return continueBook(state, { phone: '', newClient: true });
+      if (phone.kind === 'ok') return continueBook(state, { phone: phone.digits, newClient: true });
+      return { state, effects: sayAndListen('¿El teléfono? Nueve números, o di «sin teléfono».') };
+    }
     if (held.need === 'client') {
       const opt = pick != null ? options[pick] : null;
       const offersNew = options.includes(NEW_CLIENT_CHIP);
@@ -352,17 +460,50 @@ function heard(state: DialogState, text: string): StepResult {
       if (!cmd.who) return done(s, 'Lista de espera', '/agenda?wait=1');
       return call(s, { action: 'previewWait', args: [cmd.who] });
     case 'status':
+      if (!cmd.who) {
+        return {
+          state: { ...s, hold: { kind: 'status-who', status: cmd.status } },
+          effects: sayAndListen(cmd.status === 'curso' ? '¿A quién paso a cabina?' : '¿Quién no viene?'),
+        };
+      }
       return call(s, { action: 'previewStatus', args: [cmd.who, cmd.status] });
+    case 'waiting':
+      if (!cmd.who) {
+        return { state: { ...s, hold: { kind: 'waiting-who' } }, effects: sayAndListen('¿Quién está esperando?') };
+      }
+      return call(s, { action: 'waiting', args: [cmd.who] });
     case 'slots':
-      return call(s, { action: 'slots', args: [cmd.dayOffset, cmd.startMin, cmd.providerQ, cmd.part ?? null] });
+      return call(s, { action: 'slots', args: [cmd.dayOffset, cmd.startMin, cmd.providerQ, cmd.part ?? null, cmd.durationMin ?? null] });
+    case 'find':
+      if (!cmd.who) {
+        return { state: { ...s, hold: { kind: 'find-who' } }, effects: sayAndListen('¿De quién?') };
+      }
+      return call(s, { action: 'find', args: [cmd.who] });
+    case 'late':
+      if (!cmd.who) {
+        return { state: { ...s, hold: { kind: 'late-who', mins: cmd.mins ?? null } }, effects: sayAndListen('¿Quién llega tarde?') };
+      }
+      return call(s, { action: 'late', args: [cmd.who, cmd.mins ?? null] });
     case 'book':
       return call(s, {
         action: 'previewBook',
         args: [cmd.who, cmd.startMin, cmd.serviceQ, cmd.dayOffset, cmd.providerQ, cmd.part ? { part: cmd.part } : undefined],
       });
     case 'cancel':
+      if (!cmd.who) {
+        return {
+          state: { ...s, hold: { kind: 'cancel-who', dayOffset: cmd.dayOffset } },
+          effects: sayAndListen('¿De quién es la cita?'),
+        };
+      }
       return call(s, { action: 'previewCancel', args: [cmd.who, cmd.dayOffset] });
     case 'move':
+      if (!cmd.who) {
+        return {
+          state: { ...s, hold: { kind: 'move-who', dayOffset: cmd.dayOffset, providerQ: cmd.providerQ, startMin: cmd.startMin } },
+          effects: sayAndListen('¿A quién muevo?'),
+        };
+      }
       return call(s, { action: 'previewMove', args: [cmd.who, cmd.startMin, cmd.dayOffset, cmd.providerQ, null] });
     default:
       return { state: s, effects: [] };
@@ -422,11 +563,36 @@ function fromServer(state: DialogState, c: Call, result: unknown): StepResult {
       return applyTalk(state, { ...(result as VoiceTalkResult), status: c.args[1] });
     case 'previewCancel':
       return applyTalk(state, { ...(result as VoiceTalkResult), cancel: true });
-    case 'previewMove':
-      return applyTalk(state, { ...(result as VoiceTalkResult), move: true });
+    case 'previewMove': {
+      const r = result as VoiceTalkResult;
+      if (!r.ready && r.moveAsk) {
+        const options = r.options ?? r.slotMins?.map(fmtMin) ?? [];
+        return {
+          state: {
+            ...state,
+            hold: {
+              kind: 'move-time',
+              who: r.moveAsk.who,
+              dayOffset: r.moveAsk.dayOffset,
+              providerQ: r.moveAsk.providerQ,
+              slotMins: r.slotMins,
+            },
+            options,
+            confirm: null,
+          },
+          effects: [
+            { kind: 'panel', panel: { mode: 'ask', say: r.say, options } },
+            { kind: 'speak', text: r.say, ear: r.ear, then: 'listen' },
+          ],
+        };
+      }
+      return applyTalk(state, { ...r, move: true });
+    }
     case 'today':
     case 'slots':
-    case 'confirmBook':
+    case 'find':
+    case 'late':
+    case 'waiting':
     case 'applyMove':
     case 'applyCancel':
     case 'applyStatus':
@@ -434,12 +600,29 @@ function fromServer(state: DialogState, c: Call, result: unknown): StepResult {
       const r = result as FinalResult;
       return done(state, r.say, r.href, r.ear);
     }
+    case 'confirmBook': {
+      const r = result as FinalResult;
+      const report: Effect = r.ok
+        ? { kind: 'report', said: '(book)', outcome: 'book_ok' }
+        : { kind: 'report', said: '(book)', outcome: 'book_fail', detail: r.say };
+      return { state: { ...state, ...CLEAR, history: [] }, effects: [report, ...finishFx(r.say, r.href, r.ear)] };
+    }
     default:
       return { state, effects: [] };
   }
 }
 
 function tapped(state: DialogState, option: string): StepResult {
+  const hold = state.hold;
+  if (hold?.kind === 'move-time') {
+    const idx = state.options.indexOf(option);
+    const clock = takeTime(option).startMin
+      ?? (idx >= 0 && hold.slotMins?.[idx] != null ? hold.slotMins[idx] : null);
+    if (clock == null) return { state, effects: sayAndListen('¿A qué hora la muevo?') };
+    return call({ ...state, hold: null, options: [] }, {
+      action: 'previewMove', args: [hold.who, clock, hold.dayOffset, hold.providerQ, null],
+    });
+  }
   const held = state.pending;
   if (!held) return { state, effects: [] };
   if (held.need === 'client') {
@@ -447,6 +630,12 @@ function tapped(state: DialogState, option: string): StepResult {
   }
   if (held.need === 'provider') {
     return continueBook(state, { providerQ: option, choices: null });
+  }
+  if (held.need === 'phone') {
+    const phone = parsePhone(option);
+    if (phone.kind === 'skip') return continueBook(state, { phone: '', newClient: true });
+    if (phone.kind === 'ok') return continueBook(state, { phone: phone.digits, newClient: true });
+    return { state, effects: sayAndListen('¿El teléfono? Nueve números, o di «sin teléfono».') };
   }
   if (held.need === 'time') {
     const clock = takeTime(option).startMin ?? held.slotMins?.[state.options.indexOf(option)];

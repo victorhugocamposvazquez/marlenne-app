@@ -83,6 +83,7 @@ const CLIENTS = [
 function fakeBook(call: Extract<Call, { action: 'previewBook' }>): VoiceTalkResult {
   const [saidWho, startMin, serviceQ, dayOffset, providerQ, ctx] = call.args;
   const newClient = ctx?.newClient ?? false;
+  const phone = ctx?.phone;
   const within = ctx?.prevNeed === 'client' && ctx.choices?.length
     ? CLIENTS.filter(c => ctx.choices!.includes(c.full_name))
     : null;
@@ -101,18 +102,26 @@ function fakeBook(call: Extract<Call, { action: 'previewBook' }>): VoiceTalkResu
       options: [NEW_CLIENT_CHIP], pending: { ...base, need: 'client', asks: 1 },
     };
   }
+  if (newClient && phone === undefined) {
+    return {
+      ok: true, need: 'phone',
+      say: '¿Qué teléfono? Di «sin teléfono» si no lo tienes.',
+      options: ['Sin teléfono'],
+      pending: { ...base, need: 'phone', newClient: true, asks: 1 },
+    };
+  }
   const who = res.kind === 'one' ? res.client.full_name : saidWho;
   base.who = who;
   if (!serviceQ) {
     return {
       ok: true, need: 'service', say: `¿Qué le hacemos a ${who}?`, ear: '¿Qué servicio?',
-      options: ['Corporal', 'Facial'], pending: { ...base, need: 'service', asks: 1, newClient },
+      options: ['Corporal', 'Facial'], pending: { ...base, need: 'service', asks: 1, newClient, phone },
     };
   }
   if (/^vacum$/i.test(serviceQ)) {
     return {
       ok: true, need: 'service', say: '¿Vacum de media hora o de una hora?', ear: '¿De media hora o de una hora?',
-      options: VACUMS, pending: { ...base, need: 'service', choices: VACUMS, asks: 1, newClient },
+      options: VACUMS, pending: { ...base, need: 'service', choices: VACUMS, asks: 1, newClient, phone },
     };
   }
   const picked = /60|una hora/i.test(serviceQ) ? 'Vacum 60 min' : /30|media/i.test(serviceQ) ? 'Vacum 30 min' : null;
@@ -121,13 +130,13 @@ function fakeBook(call: Extract<Call, { action: 'previewBook' }>): VoiceTalkResu
     return {
       ok: true, need: 'service',
       say: asks >= 2 ? 'No lo pillo. Toca una en pantalla.' : 'No he pillado el servicio. ¿Facial, corporal, láser…?',
-      options: ['Corporal', 'Facial'], pending: { ...base, need: 'service', asks: asks + 1, newClient },
+      options: ['Corporal', 'Facial'], pending: { ...base, need: 'service', asks: asks + 1, newClient, phone },
     };
   }
   if (startMin === null) {
     return {
       ok: true, need: 'time', say: `¿A qué hora le hacemos ${picked} a ${who}? Tengo 11:00 o 12:00.`,
-      pending: { ...base, serviceQ: picked, need: 'time', slotMins: [660, 720], asks: 1, newClient },
+      pending: { ...base, serviceQ: picked, need: 'time', slotMins: [660, 720], asks: 1, newClient, phone },
     };
   }
   const h = `${Math.floor(startMin / 60)}:${String(startMin % 60).padStart(2, '0')}`;
@@ -155,6 +164,28 @@ const server: Fake = call => {
       matches: [{ id: 'a1', label: 'Lucía Pérez · 11:00 · Vacum' }, { id: 'a2', label: 'Lucía Gómez · 16:30 · Facial' }],
     };
     case 'applyCancel': return { ok: true, say: 'Cita cancelada.', href: '/hoy' };
+    case 'previewMove': {
+      const [who, startMin] = call.args;
+      if (startMin == null) {
+        return {
+          ok: true, ready: false,
+          say: `¿A qué hora muevo a ${who}? Tengo 16:00 o 17:00.`,
+          ear: '¿A qué hora?',
+          options: ['16:00', '17:00'],
+          slotMins: [16 * 60, 17 * 60],
+          moveAsk: { who, dayOffset: 0, providerQ: null },
+        };
+      }
+      return { ok: true, ready: true, say: `Paso a ${who} a las ${startMin}. ¿De acuerdo?`, draft: { id: 'm1', date: '2026-09-04', startMin, providerId: 'p1' } };
+    }
+    case 'find': return { ok: true, say: `${call.args[0]} está apuntada a las 11:00, Vacum.`, href: '/hoy' };
+    case 'late': return { ok: true, say: `Aviso a cabina: ${call.args[0]}. Llega tarde.`, href: '/hoy' };
+    case 'waiting': return { ok: true, say: `${call.args[0]} está esperando. Aviso a cabina.`, href: '/hoy' };
+    case 'slots': return { ok: true, say: 'Huecos hoy. Ana: 17:00, 18:00.', href: '/agenda' };
+    case 'previewStatus': return {
+      ok: true, say: `Pasa a cabina: ${call.args[0]}. ¿Lo marco?`, ear: '¿Lo marco?',
+      matches: [{ id: 's1', label: `${call.args[0]} · 11:00 · Vacum` }],
+    };
     default: return { ok: true, say: 'ok' };
   }
 };
@@ -217,6 +248,8 @@ test('clienta nueva: «no» cancela, «sí» sigue y confirma (nueva)', () => {
 
   const si = new Convo(server);
   si.say('cita para Rosa a las once').say('sí');
+  assert.equal(si.state.pending?.need, 'phone');
+  si.say('sin teléfono');
   assert.equal(si.lastCall.action, 'previewBook');
   assert.equal(si.lastCall.args[5]?.newClient, true);
   assert.match(si.lastSaid, /Qué le hacemos a rosa/);
@@ -303,6 +336,7 @@ test('«no» en servicio no tira la cita; vacum en ¿la guardo? corrige', () => 
   c.say('no');
   assert.ok(!c.dismissed, 'no a medias no cierra');
   assert.equal(c.state.pending?.need, 'service');
+  assert.equal(c.lastSaid, '¿Qué servicio?');
 
   const d = new Convo(server);
   d.say('cita para Marta vacum de una hora a las once');
@@ -310,4 +344,77 @@ test('«no» en servicio no tira la cita; vacum en ¿la guardo? corrige', () => 
   d.say('vacum');
   assert.notEqual(d.lastSaid, 'Corporal. ¿Nombre y hora?');
   assert.ok(d.lastCall.action === 'previewBook' || d.state.pending?.need === 'service' || d.state.confirm);
+});
+
+test('charla no pisa la pregunta; cancela pide el nombre', () => {
+  const c = new Convo(server);
+  c.say('cita para Marta a las once');
+  assert.equal(c.state.pending?.need, 'service');
+  c.say('gracias');
+  assert.equal(c.state.pending?.need, 'service');
+  assert.equal(c.lastSaid, '¿Qué servicio?');
+
+  const d = new Convo(server);
+  d.say('cancela');
+  assert.equal(d.state.hold?.kind, 'cancel-who');
+  assert.match(d.lastSaid, /quién/);
+  d.say('Marta');
+  assert.equal(d.lastCall.action, 'previewCancel');
+});
+
+test('mueve sin hora ofrece huecos', () => {
+  const c = new Convo(server);
+  c.say('mueve a Marta');
+  assert.equal(c.lastCall.action, 'previewMove');
+  assert.equal((c.lastCall.args as unknown[])[1], null);
+  assert.equal(c.state.hold?.kind, 'move-time');
+  assert.deepEqual(c.state.options, ['16:00', '17:00']);
+  c.say('a las doce');
+  assert.equal(c.lastCall.action, 'previewMove');
+  assert.equal((c.lastCall.args as unknown[])[1], 12 * 60);
+
+  const d = new Convo(server);
+  d.say('mueve a Marta').tap('16:00');
+  assert.equal(d.lastCall.action, 'previewMove');
+  assert.equal((d.lastCall.args as unknown[])[1], 16 * 60);
+});
+
+test('sin cita mira huecos; no viene y la paso preguntan quién', () => {
+  const w = new Convo(server);
+  w.say('viene sin cita');
+  assert.equal(w.lastCall.action, 'slots');
+  assert.match(w.lastSaid, /Huecos/);
+
+  const n = new Convo(server);
+  n.say('no va a venir');
+  assert.equal(n.state.hold?.kind, 'status-who');
+  n.say('Marta');
+  assert.equal(n.lastCall.action, 'previewStatus');
+  assert.equal((n.lastCall.args as unknown[])[1], 'noshow');
+
+  const p = new Convo(server);
+  p.say('la paso');
+  assert.equal(p.state.hold?.kind, 'status-who');
+  p.say('Lucía');
+  assert.equal(p.lastCall.action, 'previewStatus');
+  assert.equal((p.lastCall.args as unknown[])[1], 'curso');
+
+  const e = new Convo(server);
+  e.say('Lucía está esperando');
+  assert.equal(e.lastCall.action, 'waiting');
+  assert.match(e.lastSaid, /esperando/);
+});
+
+test('está apuntada y llega tarde preguntan el nombre', () => {
+  const f = new Convo(server);
+  f.say('dice que está apuntada');
+  assert.equal(f.state.hold?.kind, 'find-who');
+  f.say('Marta');
+  assert.equal(f.lastCall.action, 'find');
+  assert.match(f.lastSaid, /está apuntada/);
+
+  const l = new Convo(server);
+  l.say('Marta llega tarde');
+  assert.equal(l.lastCall.action, 'late');
+  assert.match(l.lastSaid, /Aviso a cabina/);
 });

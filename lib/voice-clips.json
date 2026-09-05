@@ -209,6 +209,8 @@
   { "id": "no-la-tengo", "kind": "ask", "text": "No la tengo. ¿Es alguna de estas?" },
   { "id": "doy-de-alta", "kind": "ask", "text": "No está en fichas. ¿La doy de alta?" },
   { "id": "apunto-igual", "kind": "ask", "text": "No está en fichas. ¿La apunto igual?" },
+  { "id": "que-telefono", "kind": "ask", "text": "¿Qué teléfono? Di «sin teléfono» si no lo tienes." },
+  { "id": "el-telefono", "kind": "ask", "text": "¿El teléfono?" },
   { "id": "sin-red", "kind": "say", "text": "Sin red. Escríbelo abajo." },
   { "id": "sin-nube", "kind": "say", "text": "Sin nube ahora. Dime servicio, hora o cita." }
 ]

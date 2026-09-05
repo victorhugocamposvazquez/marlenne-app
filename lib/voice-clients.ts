@@ -18,7 +18,7 @@ export type ClientResolution<T> =
   | { kind: 'similar'; options: T[] }
   | { kind: 'none' };
 
-const FILLER = /\b(a|de|la|el|para|con|cita|una|un|eh+|pues|mira|vale|senora|sra|dona|clienta|es|nueva)\b/g;
+const FILLER = /\b(a|de|la|el|para|con|cita|una|un|eh+|pues|mira|vale|senora|sra|dona|don|senorita|srta|clienta|es|nueva)\b/g;
 
 function tokens(s: string) {
   return fold(s)

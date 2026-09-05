@@ -117,6 +117,26 @@ export async function listClientOptions(): Promise<ClientOption[]> {
   return (data ?? []) as ClientOption[];
 }
 
+/** Última cita de la clienta (no cancelada): para «lo de siempre». */
+export async function lastAppointmentOf(clientId: string) {
+  const sb = createClient();
+  const { data } = await sb
+    .from('appointments')
+    .select('provider_id, service:services(name), provider:staff!appointments_provider_id_fkey(full_name)')
+    .eq('client_id', clientId)
+    .neq('status', 'cancel')
+    .order('starts_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) return null;
+  const service = data.service as { name?: string } | { name?: string }[] | null;
+  const provider = data.provider as { full_name?: string } | { full_name?: string }[] | null;
+  const serviceName = Array.isArray(service) ? service[0]?.name : service?.name;
+  const providerName = Array.isArray(provider) ? provider[0]?.full_name : provider?.full_name;
+  if (!serviceName) return null;
+  return { serviceName, providerName: providerName ?? '', providerId: data.provider_id as string };
+}
+
 export async function getAppointment(id: string): Promise<AgendaAppt | null> {
   const sb = createClient();
   let { data, error } = await sb.from('appointments').select(APPT_SELECT).eq('id', id).maybeSingle();
