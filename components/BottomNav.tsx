@@ -16,7 +16,7 @@ export default function BottomNav({ role }: { role: string }) {
   const Item = ({ href, icon: Icon, label }: { href: string; icon: typeof Home; label: string }) => (
     <Link
       href={href}
-      className="flex flex-1 flex-col items-center gap-1 py-1.5 text-caption font-bold"
+      className="flex flex-1 flex-col items-center gap-1 py-1.5 text-caption font-bold standalone:pb-0.5"
       style={{ color: on(href) ? ACTIVE : IDLE }}
     >
       <Icon size={21} strokeWidth={1.9} fill={on(href) ? 'rgb(var(--c-brand-soft))' : 'none'} />
@@ -35,8 +35,8 @@ export default function BottomNav({ role }: { role: string }) {
   };
 
   return (
-    <nav className="relative z-10 shrink-0 border-t border-surface-line bg-surface-card shadow-nav pb-[env(safe-area-inset-bottom)]">
-      <div className="flex items-center px-2.5 pb-1.5 pt-1.5">
+    <nav className="relative z-10 shrink-0 border-t border-surface-line bg-surface-card shadow-nav pb-[env(safe-area-inset-bottom)] standalone:pb-[max(6px,calc(env(safe-area-inset-bottom)-12px))]">
+      <div className="flex items-center px-2.5 pb-1.5 pt-1.5 standalone:pb-0.5">
         <Item href="/hoy" icon={Home} label="Hoy" />
         <Item href="/agenda" icon={Calendar} label="Agenda" />
         <Link

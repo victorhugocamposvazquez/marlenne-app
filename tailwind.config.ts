@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss';
+import plugin from 'tailwindcss/plugin';
 
 // Los valores viven como variables CSS en app/globals.css (claro/oscuro).
 const t = (v: string) => `rgb(var(${v}) / <alpha-value>)`;
@@ -88,4 +89,9 @@ export default {
       },
     },
   },
+  plugins: [
+    plugin(({ addVariant }) => {
+      addVariant('standalone', '@media (display-mode: standalone), (display-mode: fullscreen)');
+    }),
+  ],
 } satisfies Config;

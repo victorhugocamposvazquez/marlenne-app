@@ -1093,7 +1093,7 @@ export default function VoiceFab() {
   return (
     <div
       ref={rootRef}
-      className="pointer-events-none absolute inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-30 flex flex-col items-end px-3"
+      className="pointer-events-none absolute inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] standalone:bottom-[calc(5.25rem+max(6px,calc(env(safe-area-inset-bottom)-12px)))] z-30 flex flex-col items-end px-3"
     >
       {open && (
         <div className="pointer-events-auto mb-2 w-full max-w-[360px] rounded-row border border-surface-line bg-surface-card p-3 shadow-toast">
