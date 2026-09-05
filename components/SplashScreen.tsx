@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BRAND, BRAND_NAME, SPLASH_SEEN_KEY } from '@/lib/brand';
+import { BRAND_NAME, BRAND_UI, SPLASH_SEEN_KEY } from '@/lib/brand';
 
 const MIN_MS = 900;
 const FADE_MS = 380;
@@ -64,7 +64,7 @@ export default function SplashScreen() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: BRAND.gradient,
+        background: BRAND_UI.splashBg,
         pointerEvents: phase === 'out' ? 'none' : 'auto',
       }}
     >
@@ -77,13 +77,13 @@ export default function SplashScreen() {
         style={{
           width: 112,
           height: 112,
-          filter: 'drop-shadow(0 18px 36px rgba(20, 8, 40, .28))',
+          filter: 'drop-shadow(0 12px 28px rgba(182, 33, 200, .18))',
         }}
       />
       <p
         style={{
           margin: '22px 0 0',
-          color: '#fff',
+          color: '#1E1630',
           fontWeight: 800,
           fontSize: 22,
           letterSpacing: '-0.03em',

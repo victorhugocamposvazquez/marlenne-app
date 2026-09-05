@@ -5,7 +5,7 @@
   "start_url": "/hoy",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#B621C8",
+  "background_color": "#FFFFFF",
   "theme_color": "#B621C8",
   "shortcuts": [
     {

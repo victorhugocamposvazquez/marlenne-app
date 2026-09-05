@@ -1,4 +1,4 @@
-const CACHE = 'marlenne-shell-v12';
+const CACHE = 'marlenne-shell-v13';
 const PRECACHE = [
   '/manifest.json',
   '/logo.png',

@@ -79,13 +79,12 @@ def full_bleed_icon(mark: Image.Image, size: int) -> Image.Image:
 
 
 def make_splash(w: int, h: int, mark: Image.Image, font: ImageFont.FreeTypeFont | ImageFont.ImageFont) -> Image.Image:
-    canvas = make_gradient(w, h).convert('RGBA')
+    canvas = Image.new('RGBA', (w, h), (255, 255, 255, 255))
     side = int(min(w, h) * 0.26)
     badge = fit_square(mark, side)
-    # Sombra suave bajo el badge
     shadow = Image.new('RGBA', (side + 48, side + 48), (0, 0, 0, 0))
     sd = ImageDraw.Draw(shadow)
-    sd.rounded_rectangle((16, 20, side + 32, side + 36), radius=int(side * 0.22), fill=(20, 8, 40, 70))
+    sd.rounded_rectangle((16, 20, side + 32, side + 36), radius=int(side * 0.22), fill=(182, 33, 200, 48))
     shadow = shadow.filter(ImageFilter.GaussianBlur(18))
     sx = (w - shadow.width) // 2
     sy = int(h * 0.38) - shadow.height // 2
@@ -98,7 +97,7 @@ def make_splash(w: int, h: int, mark: Image.Image, font: ImageFont.FreeTypeFont 
     label = 'Marlenne'
     bbox = draw.textbbox((0, 0), label, font=font)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    draw.text(((w - tw) / 2, by + side + int(h * 0.028)), label, font=font, fill=(255, 255, 255, 235))
+    draw.text(((w - tw) / 2, by + side + int(h * 0.028)), label, font=font, fill=(30, 22, 48, 235))
     return canvas.convert('RGB')
 
 

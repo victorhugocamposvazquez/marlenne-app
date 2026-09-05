@@ -13,7 +13,7 @@ export const BRAND = {
 /** Chrome de PWA. El degradado oficial vive en `BRAND.gradient` y `--grad`. */
 export const BRAND_UI = {
   theme: '#B621C8',
-  splashBg: '#B621C8',
+  splashBg: '#FFFFFF',
   background: '#F4EEFA',
 } as const;
 
