@@ -6,7 +6,8 @@ import NewAppointmentSheetHost from '@/components/agenda/NewAppointmentSheetHost
 import WaitlistSheetHost from '@/components/agenda/WaitlistSheetHost';
 import BlockSheetHost from '@/components/agenda/BlockSheetHost';
 import { requireSession } from '@/lib/require-session';
-import { listProviders, getDayAgenda, getWeekCounts, countWaitlist } from '@/lib/queries';
+import { listStaff, getDayAgenda, getWeekCounts, countWaitlist } from '@/lib/queries';
+import { agendaColumns } from '@/lib/team';
 import { dateFromOffset, dayKey } from '@/lib/time';
 
 export default async function AgendaPage({
@@ -21,9 +22,18 @@ export default async function AgendaPage({
   const parsed = Number(searchParams.day ?? 0);
   const day = Number.isFinite(parsed) ? parsed : 0;
   const mode = searchParams.mode === 'semana' ? 'semana' : 'dia';
-  const [me, all] = await Promise.all([requireSession(), listProviders()]);
+  const [me, staff] = await Promise.all([requireSession(), listStaff()]);
+  const all = agendaColumns(staff);
   // Una profesional solo ve su propia columna.
-  const team = me.role === 'provider' ? all.filter(p => p.id === me.id) : all;
+  const visible = me.role === 'provider' ? all.filter(p => p.id === me.id) : all;
+  const team = visible.length > 0 ? visible : [{
+    id: me.id,
+    full_name: me.full_name,
+    initials: me.initials,
+    role: me.role,
+    job_title: me.job_title,
+    color: me.color,
+  }];
   const selectedPro = me.role === 'provider'
     ? me.id
     : (team.some(p => p.id === searchParams.pro) ? searchParams.pro : undefined);

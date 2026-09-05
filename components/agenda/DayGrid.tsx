@@ -114,7 +114,9 @@ export default function DayGrid({
     };
   };
 
+  const solo = providers.length <= 1;
   const dropCol = drag ? Math.max(0, providers.findIndex(p => p.id === drag.providerId)) : -1;
+  const colW = solo ? undefined : COL_W;
 
   const openEmpty = (providerId: string, clientY: number, el: HTMLElement) => {
     if (drag) return;
@@ -132,13 +134,17 @@ export default function DayGrid({
         className={`min-h-0 flex-1 overflow-auto pb-16 select-none [-webkit-touch-callout:none] ${drag ? 'touch-none overscroll-none' : ''}`}
         onContextMenu={e => e.preventDefault()}
       >
-        <div className="min-w-max pr-3.5">
+        <div className={solo ? 'w-full pr-3.5' : 'min-w-max pr-3.5'}>
           <div className="sticky top-0 z-[6] flex bg-[linear-gradient(180deg,rgb(var(--c-bg))_74%,rgb(var(--c-bg)/0))] pb-2.5 pt-0.5">
             <div className="sticky left-0 z-[7] w-[46px] shrink-0 bg-surface-bg" />
             {providers.map(p => {
               const count = appointments.filter(a => place(a).provider === p.id).length;
               return (
-                <div key={p.id} className="shrink-0 pr-2" style={{ width: COL_W }}>
+                <div
+                  key={p.id}
+                  className={solo ? 'min-w-0 flex-1 pr-2' : 'shrink-0 pr-2'}
+                  style={colW ? { width: colW } : undefined}
+                >
                   <div
                     className="flex items-center gap-2 rounded-pill bg-surface-card p-[7px_9px] shadow-card"
                     style={{ borderBottom: `3px solid ${p.color ?? avatarColor(p.full_name)}` }}
@@ -170,15 +176,19 @@ export default function DayGrid({
               ))}
             </div>
 
-            <div ref={gridRef} className="relative" style={{ height: gridH, width: providers.length * COL_W }}>
+            <div
+              ref={gridRef}
+              className={solo ? 'relative min-w-0 flex-1' : 'relative'}
+              style={{ height: gridH, width: solo ? undefined : providers.length * COL_W }}
+            >
               {hours.map(h => (
-                <div key={h.label} className="absolute left-0 h-px bg-grid-h" style={{ top: h.top, width: providers.length * COL_W }} />
+                <div key={h.label} className="absolute inset-x-0 h-px bg-grid-h" style={{ top: h.top }} />
               ))}
               {providers.slice(1).map((_, i) => (
                 <div key={i} className="absolute top-0 w-px bg-grid-v" style={{ left: (i + 1) * COL_W - 4, height: gridH }} />
               ))}
               {appointments.length === 0 && (
-                <p className="absolute left-2 right-2 z-[2] text-center text-body font-semibold text-ink-2" style={{ top: 48 }}>
+                <p className="absolute inset-x-4 z-[2] text-center text-body font-semibold text-ink-2" style={{ top: 48 }}>
                   No hay citas este día
                 </p>
               )}
@@ -186,14 +196,14 @@ export default function DayGrid({
               {dropCol >= 0 && (
                 <div
                   className="pointer-events-none absolute top-0 z-[3] bg-v-soft/90"
-                  style={{ left: dropCol * COL_W, width: COL_W, height: gridH }}
+                  style={{ left: solo ? 0 : dropCol * COL_W, width: solo ? '100%' : COL_W, height: gridH }}
                 />
               )}
 
               {drag && (
                 <div
                   className="pointer-events-none absolute z-[9] flex items-center"
-                  style={{ top: (drag.start - DAY_START) * pxPerMin, width: providers.length * COL_W }}
+                  style={{ top: (drag.start - DAY_START) * pxPerMin, width: solo ? '100%' : providers.length * COL_W }}
                 >
                   <span className="-ml-1 rounded-badge bg-v px-1.5 py-0.5 text-caption font-extrabold tabular-nums text-white shadow-pill">
                     {fmt(drag.start)}
@@ -205,19 +215,19 @@ export default function DayGrid({
               {dayKey(date) === dayKey(new Date()) && now >= DAY_START && now <= DAY_END && (
                 <div
                   className="pointer-events-none absolute z-[8] flex items-center"
-                  style={{ top: (now - DAY_START) * pxPerMin, width: providers.length * COL_W }}
+                  style={{ top: (now - DAY_START) * pxPerMin, width: solo ? '100%' : providers.length * COL_W }}
                 >
                   <span className="-ml-1 h-2 w-2 shrink-0 rounded-full bg-danger shadow-[0_0_0_3px_rgb(var(--c-danger)/.25)]" />
                   <span className="h-px flex-1 bg-danger" />
                 </div>
               )}
 
-              <div className="relative z-[1] flex">
+              <div className={`relative z-[1] flex ${solo ? 'h-full w-full' : ''}`}>
                 {providers.map(p => (
                   <div
                     key={p.id}
-                    className="relative shrink-0"
-                    style={{ width: COL_W, height: gridH }}
+                    className={solo ? 'relative min-w-0 flex-1' : 'relative shrink-0'}
+                    style={{ width: solo ? undefined : COL_W, height: gridH }}
                     onClick={e => {
                       if (e.target !== e.currentTarget) return;
                       openEmpty(p.id, e.clientY, e.currentTarget);
@@ -258,8 +268,8 @@ export default function DayGrid({
                     data-no-pull
                     className={`absolute flex overflow-hidden rounded-pill select-none [-webkit-touch-callout:none] ${pos.dragging ? 'touch-none' : ''}`}
                     style={{
-                      left: col * COL_W,
-                      width: COL_W - 8,
+                      left: solo ? 0 : col * COL_W,
+                      width: solo ? 'calc(100% - 8px)' : COL_W - 8,
                       top: (pos.start - DAY_START) * pxPerMin + 2,
                       height: a.duration_min * pxPerMin - 6,
                       background: st.bg,
