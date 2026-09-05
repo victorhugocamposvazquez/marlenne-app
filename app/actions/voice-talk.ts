@@ -7,45 +7,17 @@ import { parseClock, weekdayOffset } from '@/lib/voice';
 import {
   voiceAddWait, voicePreviewBook, voicePreviewCancel, voicePreviewMove,
   voicePreviewStatus, voicePreviewWait, voiceSlots, voiceToday,
-  type PendingBook,
 } from '@/app/actions/voice';
 import { requireSession } from '@/lib/require-session';
 import { voiceLlmEnabled } from '@/lib/voice-flags';
 import { LLM_PER_HOUR, takeVoiceSlot } from '@/lib/voice-limits';
 import { voiceLog } from '@/lib/voice-log';
+import type { VoiceTalkResult, VoiceTurn } from '@/lib/voice-types';
 
-export type VoiceTurn = { role: 'user' | 'assistant'; content: string };
+export type { VoiceTalkResult, VoiceTurn } from '@/lib/voice-types';
 
 /** La nube tiene 8 s; después, frase propia y a seguir con los clips. */
 const LLM_TIMEOUT_MS = 8000;
-
-export type VoiceTalkResult = {
-  ok: boolean;
-  fallback?: boolean;
-  /** Por qué no respondió la nube, para decirlo bien y apuntarlo. */
-  reason?: 'off' | 'rate' | 'timeout' | 'openai';
-  say: string;
-  ear?: string;
-  href?: string;
-  ready?: boolean;
-  draft?: Record<string, unknown>;
-  matches?: { id: string; label: string }[];
-  status?: 'curso' | 'noshow';
-  cancel?: boolean;
-  move?: boolean;
-  need?: 'client' | 'service' | 'time';
-  pending?: PendingBook;
-  options?: string[];
-  /** Cita propuesta (¿La guardo?), por si la corrigen de viva voz. */
-  book?: {
-    who: string; startMin: number | null; serviceQ: string | null; dayOffset: number; providerQ: string | null;
-    newClient?: boolean;
-  };
-  /** Varias clientas para la lista de espera: elegir una. */
-  wait?: boolean;
-  /** Varias citas que mover: al elegir, se repite el preview con esa. */
-  moveTo?: { who: string; startMin: number; dayOffset: number; providerQ: string | null };
-};
 
 function dayOf(label?: string | null) {
   if (!label) return 0;

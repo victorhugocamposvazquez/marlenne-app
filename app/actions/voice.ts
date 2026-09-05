@@ -2,6 +2,8 @@
 
 import { addToWaitlist } from '@/app/actions/clients';
 import { cancelAppointment, createAppointment, rescheduleAppointment, updateStatus } from '@/app/actions/appointments';
+import { createClientRecord } from '@/lib/client-write';
+import { createClient } from '@/lib/supabase/server';
 import { requireSession } from '@/lib/require-session';
 import {
   freeSlots, getDayAgenda, listClientOptions, listProviders, listServices,
@@ -16,6 +18,7 @@ import {
 import { joinO, resolveService, serviceBase, variantQuestion } from '@/lib/voice-services';
 import { NEW_CLIENT_CHIP, resolveClient, rowsByClient, shortNames } from '@/lib/voice-clients';
 import { reportVoiceEvent } from '@/lib/voice-events';
+import type { PendingBook, PreviewCtx } from '@/lib/voice-types';
 
 /** Desde el iPad: lo que no se entendió. No devuelve nada; no espera. */
 export async function voiceReport(said: string, outcome: string, detail?: string | null) {
@@ -23,29 +26,7 @@ export async function voiceReport(said: string, outcome: string, detail?: string
   await reportVoiceEvent(said, outcome, detail);
 }
 
-export type PendingBook = {
-  who: string;
-  startMin: number | null;
-  dayOffset: number;
-  providerQ: string | null;
-  serviceQ: string | null;
-  need: 'client' | 'service' | 'time';
-  /** Opciones ofrecidas para la pregunta actual (servicios o clientas). */
-  choices?: string[] | null;
-  slotMins?: number[];
-  /** Veces que ya se ha preguntado esto: la segunda va corta. */
-  asks?: number;
-  /** Ya han dicho que es nueva: no volver a buscarla en fichas. */
-  newClient?: boolean;
-};
-
-export type PreviewCtx = {
-  /** Opciones que se acaban de ofrecer (servicios o clientas, según `prevNeed`). */
-  choices?: string[] | null;
-  prevNeed?: PendingBook['need'];
-  asks?: number;
-  newClient?: boolean;
-};
+export type { PendingBook, PreviewCtx } from '@/lib/voice-types';
 
 async function firstFreeMins(
   providers: { id: string }[],
@@ -384,13 +365,12 @@ export async function voicePreviewBook(
     };
   }
   const service = picked;
-  let providerId: string | null = null;
+  const free: typeof providers = [];
   for (const p of providers) {
     const slots = await freeSlots(p.id, when, service.duration_min);
-    const mins = slots.map(minutesOfDay);
-    if (mins.includes(startMin)) { providerId = p.id; break; }
+    if (slots.map(minutesOfDay).includes(startMin)) free.push(p);
   }
-  if (!providerId) {
+  if (!free.length) {
     const holes = await firstFreeMins(providers, when, service.duration_min);
     if (holes.length) {
       return {
@@ -398,7 +378,7 @@ export async function voicePreviewBook(
         ready: false as const,
         need: 'time' as const,
         pending: {
-          who: whoLabel, startMin: null, dayOffset, providerQ, serviceQ: service.name, need: 'time' as const,
+          who: whoLabel, startMin: null, dayOffset, providerQ, serviceQ: service.name, part: null, need: 'time' as const,
           slotMins: holes,
           newClient: !client,
         },
@@ -410,15 +390,37 @@ export async function voicePreviewBook(
     }
     return { ok: false as const, ready: false as const, href, say: 'No queda hueco ese día. Abro el alta.' };
   }
+  if (free.length > 1 && !providerQ) {
+    const names = free.map(p => p.full_name);
+    const short = names.map(n => n.split(' ')[0]);
+    const labels = new Set(short).size === short.length ? short : names;
+    const proAsks = asksFor('provider');
+    return {
+      ok: true as const,
+      ready: false as const,
+      need: 'provider' as const,
+      pending: {
+        who: whoLabel, startMin, dayOffset, providerQ: null, serviceQ: service.name, part: null,
+        need: 'provider' as const, choices: names, asks: proAsks + 1, newClient: !client,
+      },
+      options: labels,
+      href,
+      say: proAsks >= 1 ? '¿Con quién?' : `¿Con ${spoken(labels)}?`,
+      ear: '¿Con quién la quieres?',
+    };
+  }
+  const providerId = free[0].id;
+  const proName = free[0].full_name.split(' ')[0];
+  const proBit = withPro || (free.length === 1 && providers.length > 1 ? ` con ${proName}` : '');
   const newBit = client ? '' : ' (nueva)';
   return {
     ok: true as const,
     ready: true as const,
     href,
-    say: `${whoLabel}${newBit}, ${whenLbl.toLowerCase()} a las ${fmt(startMin)}, ${service.name}${withPro}. ¿La guardo?`,
+    say: `${whoLabel}${newBit}, ${whenLbl.toLowerCase()} a las ${fmt(startMin)}, ${service.name}${proBit}. ¿La guardo?`,
     ear: earAskSave(dayOffset, startMin),
     /** Para corregir «mejor a las doce» / «la de una hora» sin rehacer el diálogo. */
-    book: { who: whoLabel, startMin, serviceQ: service.name, dayOffset, providerQ, newClient: !client },
+    book: { who: whoLabel, startMin, serviceQ: service.name, dayOffset, providerQ: providerQ ?? proName, newClient: !client },
     draft: {
       clientId: client?.id,
       clientName: client ? undefined : who,
@@ -432,6 +434,10 @@ export async function voicePreviewBook(
   };
 }
 
+function titleName(s: string) {
+  return s.replace(/\S+/g, w => w.charAt(0).toUpperCase() + w.slice(1));
+}
+
 export async function voiceConfirmBook(draft: {
   clientId?: string;
   clientName?: string;
@@ -442,7 +448,12 @@ export async function voiceConfirmBook(draft: {
   durationMin: number;
   priceCents: number;
 }) {
-  const r = await createAppointment(draft);
+  let clientId = draft.clientId;
+  if (!clientId && draft.clientName) {
+    const created = await createClientRecord(createClient(), { full_name: titleName(draft.clientName) });
+    if (created.ok && created.id) clientId = created.id;
+  }
+  const r = await createAppointment({ ...draft, clientId });
   return {
     ok: r.ok,
     say: r.ok ? 'Cita guardada.' : (r.error ?? 'No se ha podido guardar'),

@@ -10,6 +10,7 @@ export type VoiceEvent =
 
 /** Logs mínimos. En Vercel salen del server; en el iPad, de la consola. */
 export function voiceLog(event: VoiceEvent, extra?: Record<string, unknown>) {
+  if (typeof process !== 'undefined' && process.env?.NODE_TEST_CONTEXT) return;
   const row = { voice: event, ...extra, t: Date.now() };
   try {
     console.info(JSON.stringify(row));

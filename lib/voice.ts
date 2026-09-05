@@ -15,7 +15,11 @@ export type VoiceCmd =
   | { kind: 'today' }
   | { kind: 'search'; q: string }
   | { kind: 'status'; status: 'curso' | 'noshow'; who: string }
-  | { kind: 'book'; who: string; startMin: number | null; serviceQ: string | null; dayOffset: number; providerQ: string | null }
+  | {
+    kind: 'book'; who: string; startMin: number | null; serviceQ: string | null; dayOffset: number; providerQ: string | null;
+    /** «Esta tarde»: franja para los huecos, si no dijo hora. */
+    part?: DayPart | null;
+  }
   | { kind: 'slots'; dayOffset: number; startMin: number | null; providerQ: string | null; part?: DayPart | null }
   | { kind: 'wait'; who: string | null }
   | { kind: 'cancel'; who: string; dayOffset: number }
@@ -228,20 +232,25 @@ function clockFromMatch(m: RegExpMatchArray): number | null {
   return parseClock(`${m[1]}:${minutes}`);
 }
 
-const SERVICE_WORD = /terapia|cavit|vacum|vacuum|preso|radiofrec|laser|masaje|hifu|facial|criolip|microblad|onnafit|lipolaser|purifying|bloom|radiance/;
+const SERVICE_WORD = /terapia|cavit|vacum|vacuum|preso|radiofrec|laser|masaje|hifu|facial|corporal|criolip|microblad|onnafit|lipolaser|purifying|bloom|radiance|depilacion/;
+
+/** Días y muletillas: no son nombre de profesional. */
+const NOT_PROVIDER = /^(manana|hoy|tarde|noche|hueco|libre|cita|esta|lunes|martes|miercoles|jueves|viernes|sabado|domingo)$/;
 
 function takeProvider(s: string): { text: string; providerQ: string | null } {
   const con = s.match(/ con (?!las |la |el |hoy )([a-zñ]+)/);
-  if (con && !SERVICE_WORD.test(con[1])) {
+  if (con && !SERVICE_WORD.test(con[1]) && !NOT_PROVIDER.test(con[1])) {
     return {
       text: `${s.slice(0, con.index)} ${s.slice((con.index ?? 0) + con[0].length)}`.replace(/\s+/g, ' ').trim(),
       providerQ: con[1],
     };
   }
   const de = s.match(/(?:huecos?|libre|libres|disponib\w*) de ([a-zñ]+)/);
-  if (de) return { text: s, providerQ: de[1] };
+  if (de && !NOT_PROVIDER.test(de[1])) return { text: s, providerQ: de[1] };
   const puede = s.match(/(?:puede|tiene|atiende) (?!hueco|libre|cita)([a-zñ]+)/);
-  if (puede) return { text: s, providerQ: puede[1] };
+  if (puede && !NOT_PROVIDER.test(puede[1]) && !SERVICE_WORD.test(puede[1])) {
+    return { text: s, providerQ: puede[1] };
+  }
   return { text: s, providerQ: null };
 }
 
@@ -348,17 +357,50 @@ function looksLikeService(s: string) {
   return false;
 }
 
-function takeServiceTail(rest: string): { who: string; serviceQ: string | null } {
-  const de = rest.match(/ (?:de |a )(.+)$/);
-  if (de) return { who: tidyWho(rest.slice(0, de.index)), serviceQ: tidyWho(de[1]) };
+/** Si han dicho un servicio (también «es corporal», «mejor vacum»). */
+export function saidService(text: string) {
+  const t = fold(text).replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' ').trim()
+    .replace(/^(es |el |la |un |una |mejor |el de |la de )+/, '');
+  return looksLikeService(t);
+}
+
+/** «de media hora», «de una hora», «con cavitación»: variante, no servicio. */
+const VARIANT_TAIL = /^(?:media hora|un cuarto de hora|una hora(?: y media)?|hora y media|dos horas|tres horas|\d+ ?min(?:utos)?|cavitacion|con cavitacion|gratis|gratuita)\b/;
+
+/** Parte en la primera palabra que ES un servicio, no en un apellido + servicio. */
+function scanService(rest: string): { who: string; serviceQ: string } | null {
   const words = rest.split(/\s+/).filter(Boolean);
   for (let i = 1; i < words.length; i++) {
-    const tail = words.slice(i).join(' ');
-    if (looksLikeService(tail)) {
-      return { who: tidyWho(words.slice(0, i).join(' ')), serviceQ: tail };
+    if (looksLikeService(words[i])) {
+      return { who: tidyWho(words.slice(0, i).join(' ')), serviceQ: words.slice(i).join(' ') };
     }
   }
-  return { who: tidyWho(rest), serviceQ: null };
+  return null;
+}
+
+function takeServiceTail(rest: string): { who: string; serviceQ: string | null } {
+  // «vacum a Marta» / «vacum para Marta Sanz»: orden invertido, habitual en mostrador.
+  const inv = rest.match(/^(.+?) (?:para|a) (.+)$/);
+  if (inv && looksLikeService(inv[1]) && !looksLikeService(inv[2])) {
+    return { who: tidyWho(inv[2]), serviceQ: tidyWho(inv[1]) };
+  }
+  const de = rest.match(/ (?:de |a )(.+)$/);
+  if (de) {
+    // «Marta vacum de media hora»: el «de» es de la variante; el servicio va delante.
+    if (VARIANT_TAIL.test(de[1])) {
+      const head = scanService(rest.slice(0, de.index));
+      if (head) return { who: head.who, serviceQ: `${head.serviceQ} ${de[0].trim()}` };
+    }
+    // «vacum a marta» ya cubierto arriba; «lucia de facial» sí es servicio.
+    if (!looksLikeService(rest.slice(0, de.index)) && looksLikeService(de[1])) {
+      return { who: tidyWho(rest.slice(0, de.index)), serviceQ: tidyWho(de[1]) };
+    }
+    if (looksLikeService(rest.slice(0, de.index)) && !looksLikeService(de[1])) {
+      return { who: tidyWho(de[1]), serviceQ: tidyWho(rest.slice(0, de.index)) };
+    }
+    return { who: tidyWho(rest.slice(0, de.index)), serviceQ: tidyWho(de[1]) };
+  }
+  return scanService(rest) ?? { who: tidyWho(rest), serviceQ: null };
 }
 
 function parseBook(t: string): VoiceCmd | null {
@@ -368,7 +410,8 @@ function parseBook(t: string): VoiceCmd | null {
   if (/(cancela|anula|mueve|cambia|reprograma|pasa(?:le)? (?:la )?cita)/.test(t)) return null;
 
   const p = takeProvider(t);
-  const d = takeDay(takeDayPart(p.text).text);
+  const part = takeDayPart(p.text);
+  const d = takeDay(part.text);
   const time = takeTime(d.text);
   let rest = stripTime(d.text)
     .replace(/^(crea(?:r|mos)?(?: me)? |hace(?:r|mos)? |haz(?:me)? )/, '')
@@ -390,6 +433,7 @@ function parseBook(t: string): VoiceCmd | null {
     serviceQ: split.serviceQ,
     dayOffset: d.dayOffset,
     providerQ: p.providerQ,
+    part: time.startMin === null ? part.part : null,
   };
 }
 
@@ -401,7 +445,8 @@ export function parseBookLoose(text: string): Extract<VoiceCmd, { kind: 'book' }
   const t = fold(text.replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' ').trim());
   if (!t || /(hueco|libre|disponib|cancela|anula|mueve|cambia|que es|cuanto|precio)/.test(t)) return null;
   const p = takeProvider(t);
-  const d = takeDay(takeDayPart(p.text).text);
+  const part = takeDayPart(p.text);
+  const d = takeDay(part.text);
   const time = takeTime(d.text);
   const rest = stripTime(d.text).replace(/^(para |a |de )/, '').trim();
   const split = takeServiceTail(rest);
@@ -413,6 +458,7 @@ export function parseBookLoose(text: string): Extract<VoiceCmd, { kind: 'book' }
     serviceQ: split.serviceQ,
     dayOffset: d.dayOffset,
     providerQ: p.providerQ,
+    part: time.startMin === null ? part.part : null,
   };
 }
 

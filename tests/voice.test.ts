@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  earAskSave, earSaved, forEar, parseVoice, saidDayOffset, splitWake, takeTime, wakeRestIsCommand, weekdayOffset,
+  earAskSave, earSaved, forEar, parseBookLoose, parseVoice, saidDayOffset, saidService, splitWake, takeTime,
+  wakeRestIsCommand, weekdayOffset,
 } from '../lib/voice';
 import { takeVoiceSlot } from '../lib/voice-limits';
 import { DAY_END, DAY_START, nowMinutes } from '../lib/time';
@@ -106,4 +107,49 @@ test('tope de ventana', () => {
   assert.equal(takeVoiceSlot(key, 2, 60_000), true);
   assert.equal(takeVoiceSlot(key, 2, 60_000), true);
   assert.equal(takeVoiceSlot(key, 2, 60_000), false);
+});
+
+function bookOf(text: string) {
+  const cmd = parseVoice(text);
+  assert.equal(cmd.kind, 'book', text);
+  return cmd.kind === 'book' ? cmd : null!;
+}
+
+test('cita: orden invertido, apellido y sin decir cita', () => {
+  const a = bookOf('ponle vacum a Marta');
+  assert.equal(a.who, 'marta');
+  assert.match(a.serviceQ ?? '', /vacum/);
+
+  const b = bookOf('hazme vacum a marta a las once');
+  assert.equal(b.who, 'marta');
+  assert.equal(b.startMin, 11 * 60);
+  assert.match(b.serviceQ ?? '', /vacum/);
+
+  const c = bookOf('apunta vacum para Marta Sanz a las 11:30');
+  assert.equal(c.who, 'marta sanz');
+  assert.match(c.serviceQ ?? '', /vacum/);
+
+  const d = bookOf('cita para Marta Sanz vacum de media hora');
+  assert.equal(d.who, 'marta sanz');
+  assert.match(d.serviceQ ?? '', /vacum/);
+
+  const loose = parseBookLoose('marta vacum de media hora');
+  assert.ok(loose);
+  assert.equal(loose?.who, 'marta');
+  assert.match(loose?.serviceQ ?? '', /vacum/);
+
+  assert.equal(saidService('vacum'), true);
+  assert.equal(saidService('es corporal'), true);
+  assert.equal(saidService('mejor vacum'), true);
+  assert.equal(saidService('perez'), false);
+});
+
+test('quién puede mañana no toma el día por profesional', () => {
+  const cmd = parseVoice('quién puede mañana a las once');
+  assert.equal(cmd.kind, 'slots');
+  if (cmd.kind === 'slots') {
+    assert.equal(cmd.providerQ, null);
+    assert.equal(cmd.startMin, 11 * 60);
+    assert.equal(cmd.dayOffset, 1);
+  }
 });
