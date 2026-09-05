@@ -215,6 +215,15 @@ test('frases de mostrador ya no son charla', () => {
 
   const move = parseVoice('me he equivocado de hora');
   assert.equal(move.kind, 'move');
+
+  assert.equal(parseVoice('ha llamado').kind, 'find');
+  assert.equal(parseVoice('llaman por hueco').kind, 'slots');
+  assert.equal(parseVoice('quién sigue').kind, 'today');
+  assert.equal(parseVoice('lo de siempre').kind, 'same');
+  const same = parseVoice('lo de siempre a Marta');
+  assert.equal(same.kind, 'same');
+  if (same.kind === 'same') assert.equal(same.who, 'marta');
+  assert.equal(parseVoice('pues cancela').kind, 'cancel');
 });
 
 test('está apuntada y llega tarde no son charla', () => {

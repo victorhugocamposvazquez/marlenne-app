@@ -405,6 +405,22 @@ test('sin cita mira huecos; no viene y la paso preguntan quién', () => {
   assert.match(e.lastSaid, /esperando/);
 });
 
+test('lo de siempre pide el nombre; vale en servicio no se come como tratamiento', () => {
+  const s = new Convo(server);
+  s.say('lo de siempre');
+  assert.equal(s.state.hold?.kind, 'same-who');
+  s.say('Marta');
+  assert.equal(s.lastCall.action, 'previewBook');
+  assert.equal((s.lastCall.args as unknown[])[2], 'same');
+
+  const c = new Convo(server);
+  c.say('cita para Marta a las once');
+  assert.equal(c.state.pending?.need, 'service');
+  c.say('vale');
+  assert.equal(c.state.pending?.need, 'service');
+  assert.equal(c.lastSaid, '¿Qué servicio?');
+});
+
 test('está apuntada y llega tarde preguntan el nombre', () => {
   const f = new Convo(server);
   f.say('dice que está apuntada');

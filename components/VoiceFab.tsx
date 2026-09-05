@@ -18,7 +18,7 @@ import {
   INITIAL, step, stepHint, type Call, type DialogEvent, type DialogState, type Effect, type PanelSpec,
 } from '@/lib/voice-dialog';
 import { voiceLog } from '@/lib/voice-log';
-import { dialogOpen, settleMs } from '@/lib/voice-listen';
+import { dialogOpen, pickHeard, settleMs } from '@/lib/voice-listen';
 import { voiceClipUrl } from '@/lib/voice-clips';
 import { stitchVoice } from '@/lib/voice-stitch';
 import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/hooks/voice-prefs';
@@ -61,7 +61,7 @@ function prefetchSpeak(text: string, kind: 'ask' | 'say') {
 
 function warmAudio() {
   warmVoiceAudio();
-  for (const t of ['¿Dime?', '¿Qué servicio?', '¿A qué hora?', 'Sin red. Escríbelo abajo.']) {
+  for (const t of ['¿Dime?', '¿Qué servicio?', '¿A qué hora?', 'Un segundo.', 'Ahora miro.', '¿La guardo?', 'Sin red. Escríbelo abajo.']) {
     const clip = voiceClipUrl(t);
     if (clip) void decodeUrl(clip, clip);
   }
@@ -176,14 +176,17 @@ function sayDime(onDone: () => void) {
   });
 }
 
+type RecAlt = { transcript: string };
+type RecResult = ArrayLike<RecAlt> & { isFinal: boolean };
 type RecApi = {
   lang: string;
   interimResults: boolean;
   continuous: boolean;
+  maxAlternatives?: number;
   start: () => void;
   stop: () => void;
   abort?: () => void;
-  onresult: ((ev: { results: ArrayLike<{ 0: { transcript: string }; isFinal: boolean }> }) => void) | null;
+  onresult: ((ev: { results: ArrayLike<RecResult> }) => void) | null;
   onerror: ((ev: { error?: string }) => void) | null;
   onend: (() => void) | null;
 };
@@ -197,6 +200,7 @@ function makeRec(): RecApi | null {
   rec.lang = 'es-ES';
   rec.interimResults = true;
   rec.continuous = false;
+  rec.maxAlternatives = 3;
   return rec;
 }
 
@@ -668,11 +672,17 @@ export default function VoiceFab() {
     };
     rec.onresult = ev => {
       if (gen !== genRef.current) return;
-      let text = '';
-      for (let i = 0; i < ev.results.length; i++) {
-        text += ev.results[i]?.[0]?.transcript ?? '';
+      let prefix = '';
+      const last = ev.results.length - 1;
+      for (let i = 0; i < last; i++) prefix += ev.results[i]?.[0]?.transcript ?? '';
+      const tail = ev.results[last];
+      const alts: string[] = [];
+      const n = tail && typeof tail.length === 'number' ? tail.length : 1;
+      for (let j = 0; j < n; j++) {
+        const t = `${prefix}${tail?.[j]?.transcript ?? ''}`.trim();
+        if (t) alts.push(t);
       }
-      const heard = text.trim();
+      const heard = pickHeard(alts.length ? alts : [prefix.trim()]);
       if (!heard) return;
       const wake = splitWake(heard);
       const spoken = wake.woke && wake.rest ? wake.rest : heard;
@@ -751,11 +761,17 @@ export default function VoiceFab() {
     };
     rec.onresult = ev => {
       if (gen !== genRef.current) return;
-      let text = '';
-      for (let i = 0; i < ev.results.length; i++) {
-        text += ev.results[i]?.[0]?.transcript ?? '';
+      let prefix = '';
+      const last = ev.results.length - 1;
+      for (let i = 0; i < last; i++) prefix += ev.results[i]?.[0]?.transcript ?? '';
+      const tail = ev.results[last];
+      const alts: string[] = [];
+      const n = tail && typeof tail.length === 'number' ? tail.length : 1;
+      for (let j = 0; j < n; j++) {
+        const t = `${prefix}${tail?.[j]?.transcript ?? ''}`.trim();
+        if (t) alts.push(t);
       }
-      draftRef.current = text.trim();
+      draftRef.current = pickHeard(alts.length ? alts : [prefix.trim()]);
       setHeardDraft(draftRef.current);
       if (!opts?.overlay) setPanel({ mode: 'listen', draft: draftRef.current });
       clearSettle();

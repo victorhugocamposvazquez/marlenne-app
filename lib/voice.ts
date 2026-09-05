@@ -23,6 +23,7 @@ export type VoiceCmd =
   }
   | { kind: 'slots'; dayOffset: number; startMin: number | null; providerQ: string | null; part?: DayPart | null; durationMin?: number | null }
   | { kind: 'find'; who: string | null }
+  | { kind: 'same'; who: string | null }
   | { kind: 'late'; who: string | null; mins?: number | null }
   | { kind: 'wait'; who: string | null }
   | { kind: 'cancel'; who: string | null; dayOffset: number }
@@ -385,7 +386,7 @@ function parseSlots(t: string): VoiceCmd | null {
 }
 
 function parseFind(t: string): VoiceCmd | null {
-  if (/^(dice que tenia cita|tenia cita|dice que esta apuntada|no la encuentro y dice que si|esta apuntada|miro si esta|quieren confirmar|llama para confirmar|confirma la cita|para confirmar)$/.test(t)) {
+  if (/^(dice que tenia cita|tenia cita|dice que esta apuntada|no la encuentro y dice que si|esta apuntada|miro si esta|quieren confirmar|llama para confirmar|confirma la cita|para confirmar|ha llamado|han llamado|hay un recado)$/.test(t)) {
     return { kind: 'find', who: null };
   }
   const m = t.match(/(?:esta apuntada|tenia cita|tiene cita|esta en la agenda|miro si esta)(?: de| a)? (.+)$/)
@@ -396,7 +397,7 @@ function parseFind(t: string): VoiceCmd | null {
 }
 
 function parseWalkIn(t: string): VoiceCmd | null {
-  if (/^(viene sin cita|sin cita|ha venido sin cita|esta en la puerta|esta en recepcion|ha llegado|ha llegado ya|es urgente|urgente|viene ya|de ya|ahora mismo|esta llena|estamos llenas|no cabe nadie)$/.test(t)) {
+  if (/^(viene sin cita|sin cita|ha venido sin cita|esta en la puerta|esta en recepcion|ha llegado|ha llegado ya|es urgente|urgente|viene ya|de ya|ahora mismo|esta llena|estamos llenas|no cabe nadie|preguntan por un hueco|buscan hueco|hay hueco por telefono|llaman por hueco)$/.test(t)) {
     return { kind: 'slots', dayOffset: 0, startMin: null, providerQ: null, part: null, durationMin: null };
   }
   return null;
@@ -431,6 +432,18 @@ function parseDeskStatus(t: string): VoiceCmd | null {
     if (who.length >= 2) return { kind: 'status', status: 'curso', who };
   }
   return null;
+}
+
+function parseSame(t: string): VoiceCmd | null {
+  if (/^(es la de siempre|la de siempre|la habitual|como siempre|lo de siempre|lo mismo)$/.test(t)) {
+    return { kind: 'same', who: null };
+  }
+  if (/^(cita|ponle|pon |apunta|reserva|agenda|hazle|haz |creamos)/.test(t)) return null;
+  const m = t.match(/^(?:lo de siempre|lo mismo|la de siempre|como siempre)(?: de| a)? (.+)$/)
+    || t.match(/^(.+?) (?:lo de siempre|lo mismo|la de siempre)$/);
+  if (!m) return null;
+  const who = tidyWho(m[1]);
+  return who.length >= 2 ? { kind: 'same', who } : { kind: 'same', who: null };
 }
 
 function parseLate(t: string): VoiceCmd | null {
@@ -704,15 +717,12 @@ const CHAT: ChatRow[] = [
   { re: /^(no pasa nada|tranquila|tranquilo)$/, say: 'Tranquila.' },
   { re: /^(como va eso|que hay|que pasa|que hacemos|a que estamos)$/, say: 'Bien, aquí. ¿Una cita o un hueco?' },
   { re: /^(todo ok|todo correcto|vamos bien)$/, say: 'Gracias. ¿Algo más?' },
-  { re: /^(ha llamado|han llamado|hay un recado)$/, say: 'Nombre y hora, y lo vemos.' },
-  { re: /^(la proxima|siguiente|quien sigue)$/, say: 'De esos. ¿Qué hay hoy?' },
   { re: /^(me aburro|esto esta parado)$/, say: 'Pues una cita lo anima.' },
   { re: /^(eres rapida|que rapida eres|vaya maquina)$/, say: 'Hoy sí. ¿Qué toca?' },
   { re: /^(buenas|muy buenas)$/, say: 'Te escucho.' },
   { re: /^(de nada|a ti)$/, say: 'Cuando quieras.' },
   { re: /^(lleva un rato|lleva rato esperando|esta tardando la cabina)$/, say: 'Lleva un rato. Aviso.' },
   { re: /^(entro o espera|la dejo esperar)$/, say: '¿La paso a cabina o espera?' },
-  { re: /^(preguntan por un hueco|buscan hueco|hay hueco por telefono|llaman por hueco)$/, say: '¿Qué día y a qué hora?' },
   { re: /^(se ha puesto enferma|falta una|falta una profesional|no viene una|esta de baja)$/, say: 'Miro huecos de las demás.' },
   { re: /^(a que hora cerramos|cuando cerramos|hasta que hora|cerramos pronto|a que hora cierra)$/, say: 'Hasta las ocho. ¿Un hueco?' },
   { re: /^(abrimos manana|a que hora abrimos|manana abrimos|cuando abrimos)$/, say: 'Mañana a las nueve. ¿Apuntamos?' },
@@ -726,7 +736,6 @@ const CHAT: ChatRow[] = [
   { re: /^(no quiere sms|sin sms|que no le avise|no la avises)$/, say: 'Sin aviso. ¿La cita?' },
   { re: /^(esta embarazada|viene embarazada|es embarazo)$/, say: 'Miro qué se puede. ¿El servicio?' },
   { re: /^(viene con ninos|trae a los ninos|viene con el nino|con carrito)$/, say: 'Que se sienten. ¿La cita?' },
-  { re: /^(es la de siempre|la de siempre|la habitual|como siempre|lo de siempre|lo mismo)$/, say: 'Dime el nombre.' },
   { re: /^(es festivo|estamos de puente|no se abre|cerramos el festivo|es puente)$/, say: 'Si no abrimos, no apunto.' },
   { re: /^(es laser|viene de laser|quiere laser|depilacion|quiere depilarse)$/, say: 'Láser. ¿Nombre y hora?' },
   { re: /^(es facial|viene de facial|quiere facial|un facial)$/, say: 'Facial. ¿Nombre y hora?' },
@@ -783,7 +792,7 @@ function stripWakePrefix(raw: string) {
 
 export function parseVoice(text: string): VoiceCmd {
   const raw = stripWakePrefix(text.replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' ').trim());
-  const t = fold(raw);
+  let t = fold(raw).replace(/^(eh+|a ver|mira|pues|bueno|oye|vale|ok|okay)\s+/, '');
   if (!t) return { kind: 'unknown', text: raw };
 
   if (/^(ayuda|que puedes|que se puede|comandos|que sabes|que haces)/.test(t)) return { kind: 'help' };
@@ -791,6 +800,8 @@ export function parseVoice(text: string): VoiceCmd {
   // Antes de la charla: «cancela» / «muévela» a secas son comandos, no despedida.
   const found = parseFind(t);
   if (found) return found;
+  const same = parseSame(t);
+  if (same) return same;
   const late = parseLate(t);
   if (late) return late;
   const waiting = parseWaiting(t);
@@ -826,6 +837,7 @@ export function parseVoice(text: string): VoiceCmd {
     || t.includes('quien viene hoy')
     || t.includes('ensename hoy')
     || t.includes('el resumen')
+    || /^(la proxima|siguiente|quien sigue)$/.test(t)
   ) {
     return { kind: 'today' };
   }
