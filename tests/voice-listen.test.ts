@@ -5,7 +5,7 @@ import { dialogOpen, looksIncomplete, pickHeard, settleMs } from '../lib/voice-l
 test('una frase a medias espera más que un sí', () => {
   assert.equal(settleMs('sí'), 1000);
   assert.equal(settleMs('vacum'), 1000);
-  assert.equal(settleMs('hola marlén', 'wake'), 650);
+  assert.equal(settleMs('hola marlén', 'wake'), 1400);
   assert.ok(settleMs('cita para Lucía Pérez vacum') > settleMs('sí'));
   assert.ok(looksIncomplete('cita para'));
   assert.ok(looksIncomplete('a las'));

@@ -33,7 +33,7 @@ export function settleMs(text: string, mode: 'listen' | 'wake' = 'listen') {
   const t = text.trim();
   const words = t.split(/\s+/).filter(Boolean).length;
   if (looksIncomplete(t)) return 4200;
-  if (mode === 'wake' && words <= 3) return 650;
+  if (mode === 'wake' && words <= 3) return 1400;
   if (words >= 8) return 4200;
   if (words >= 5) return 3400;
   if (words <= 2) return 1000;

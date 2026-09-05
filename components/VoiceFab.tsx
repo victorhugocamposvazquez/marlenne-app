@@ -582,7 +582,9 @@ export default function VoiceFab() {
       draftRef.current = '';
       const wake = splitWake(text);
       if (wake.woke && !wakeRestIsCommand(wake.rest)) {
-        window.setTimeout(() => startListenRef.current(overlay ? { overlay: true } : undefined), 180);
+        setOpen(true);
+        if (!overlay) setPanel({ mode: 'listen', draft: '' });
+        sayDime(() => startListenRef.current(overlay ? { overlay: true } : undefined));
         return;
       }
       runText(wake.woke && wake.rest ? wake.rest : text);
@@ -662,6 +664,12 @@ export default function VoiceFab() {
       genRef.current += 1;
       killRec();
       wakeWaitRef.current = 800;
+      if (wake.woke && !wakeRestIsCommand(wake.rest)) {
+        setOpen(true);
+        setPanel({ mode: 'listen', draft: '' });
+        sayDime(() => startListenRef.current());
+        return;
+      }
       if (useful || wakeRestIsCommand(wake.rest)) {
         setOpen(true);
         setPanel({ mode: 'listen', draft: '' });

@@ -97,6 +97,12 @@ test('splitWake y resto útil', () => {
   assert.equal(wakeRestIsCommand(named.rest), true);
   const alias = splitWake('Hola Marlenne');
   assert.equal(alias.woke, true);
+  const greet = splitWake('Hola Marlenne qué tal');
+  assert.equal(greet.woke, true);
+  assert.equal(wakeRestIsCommand(greet.rest), false);
+  assert.equal(wakeRestIsCommand('quetal'), false);
+  assert.equal(parseVoice('hola marlenne').kind, 'chat');
+  assert.equal(parseVoice('hola marlenne que tal').kind, 'chat');
 });
 
 test('forEar dice las horas', () => {

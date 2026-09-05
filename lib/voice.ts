@@ -644,14 +644,26 @@ function chatSay(say: string, stay = true): VoiceCmd {
   return { kind: 'chat', say, stay };
 }
 
+const WAKE_FILLER = /^(eh+|a+|ah+|um+|uhm+|mm+|este|bueno|pues|oye|hola|dime|ya|vale|ok|okay)$/;
+
 /** Dictado típico de «qué tal estás». No pisa «qué tal el día». */
 function isHowAreYou(s: string) {
   if (/\b(el dia|citas|agenda|hueco|cabina|quien|hora)\b/.test(s)) return false;
   const c = s.replace(/[^a-z0-9ñ]/g, '');
+  if (/^(quetal|quetaleh)$/.test(c)) return true;
   if (/(quetalestas|quetalesta|quetalandas|quetalteva|comoteva|comoestas|comoesta|comoteencuentras|todobien|estasbien|quetalporahi)/.test(c)) {
     return true;
   }
   return /\b(que tal estas|que tal esta|que tal|como estas|como esta|como te va|como andas|como te encuentras|todo bien|estas bien|que hay de ti|que tal por ahi|que tal va|que tal la vida|como te sientes|que tal andas)\b/.test(s);
+}
+
+/** «qué tal», «hola»: saludo, no un comando de agenda. */
+export function isWakeGreeting(text: string) {
+  const t = fold(text.replace(/[¿?¡!.,]/g, ' ')).replace(/\s+/g, ' ').trim();
+  if (!t) return true;
+  if (WAKE_FILLER.test(t)) return true;
+  if (/^(que tal|quetal|como estas|como esta|como te va|que hay|buenas|hola|ola|hey)$/.test(t)) return true;
+  return isHowAreYou(t) || isHowAreYou(chatCore(t));
 }
 
 type ChatRow = { re: RegExp; c?: RegExp; say: string; stay?: boolean };
@@ -794,6 +806,8 @@ export function parseVoice(text: string): VoiceCmd {
   const raw = stripWakePrefix(text.replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' ').trim());
   let t = fold(raw).replace(/^(eh+|a ver|mira|pues|bueno|oye|vale|ok|okay)\s+/, '');
   if (!t) return { kind: 'unknown', text: raw };
+  const justWake = splitWake(t);
+  if (justWake.woke && !wakeRestIsCommand(justWake.rest)) return chatSay('¿Dime?');
 
   if (/^(ayuda|que puedes|que se puede|comandos|que sabes|que haces)/.test(t)) return { kind: 'help' };
 
@@ -1130,12 +1144,10 @@ function looksLikeMarlenne(word: string) {
   return t.startsWith('marl') || (t.startsWith('mal') && t.includes('n'));
 }
 
-const WAKE_FILLER = /^(eh+|a+|ah+|um+|uhm+|mm+|este|bueno|pues|oye|hola|dime|ya|vale|ok|okay)$/;
-
-/** Tras el saludo: ¿viene un comando (o un nombre) o solo «Hola Marlén»? */
+/** Tras el saludo: ¿viene un comando (o un nombre) o solo «Hola Marlén» / «qué tal»? */
 export function wakeRestIsCommand(rest: string) {
   const t = fold(rest.replace(/[¿?¡!.,]/g, ' ')).replace(/\s+/g, ' ').trim();
-  if (!t || WAKE_FILLER.test(t)) return false;
+  if (!t || isWakeGreeting(t)) return false;
   return true;
 }
 
