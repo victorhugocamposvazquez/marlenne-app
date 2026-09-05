@@ -56,24 +56,24 @@
   /* Blob decorativo de páginas públicas */
   --c-blob: 232 196 236;
 
-  /* Degradado de marca (sutil, 135° como el logo) y el oficial del icono */
-  --grad: linear-gradient(135deg, #C44BB0, rgb(var(--c-brand)) 52%, #4F6FF0);
-  --grad-160: linear-gradient(160deg, #C44BB0, rgb(var(--c-brand)) 52%, #4F6FF0);
+  /* Degradado oficial del logo: rosa → magenta → azul */
   --grad-logo: linear-gradient(135deg, #FF1F5B 0%, #B621C8 48%, #2D65FF 100%);
+  --grad: var(--grad-logo);
+  --grad-160: linear-gradient(160deg, #FF1F5B 0%, #B621C8 48%, #2D65FF 100%);
 
   /* Sombras (más densas en oscuro) */
   --sh-card: 0 4px 20px rgba(20, 10, 60, .07);
   --sh-lift: 0 12px 28px rgba(20, 10, 60, .14);
   --sh-toast: 0 18px 44px rgba(20, 10, 60, .22);
   --sh-drag: 0 18px 44px rgba(20, 10, 60, .30);
-  --sh-btn: 0 10px 24px rgba(182, 33, 200, .34);
-  --sh-pill: 0 8px 20px rgba(142, 77, 230, .32);
-  --sh-hero: 0 14px 34px rgba(45, 101, 255, .22);
+  --sh-btn: 0 10px 26px rgba(182, 33, 200, .42);
+  --sh-pill: 0 8px 20px rgba(255, 31, 91, .30);
+  --sh-hero: 0 16px 36px rgba(45, 101, 255, .28);
   --sh-nav: 0 -6px 24px rgba(20, 10, 60, .08);
   --sh-seg: 0 3px 10px rgba(20, 10, 60, .12);
 
   /* Estados de cita (inline styles) */
-  --st-prog-bg: #FFFFFF;   --st-prog-line: #F0EAF8;  --st-prog-edge: #8E4DE6;
+  --st-prog-bg: #FFFFFF;   --st-prog-line: #F0EAF8;  --st-prog-edge: #B621C8;
   --st-curso-bg: #ECFDF5;  --st-curso-line: #A7F3D0; --st-curso-edge: #10B981;
   --st-done-bg: #F7F6FB;   --st-done-line: #EFEDF8;  --st-done-edge: #C9C4DE;
   --st-noshow-bg: #FEF2F6; --st-noshow-line: #FBCFE8; --st-noshow-edge: #EC4899;
@@ -141,7 +141,7 @@
     --sh-nav: 0 -6px 24px rgba(0, 0, 0, .35);
     --sh-seg: 0 3px 10px rgba(0, 0, 0, .35);
 
-    --st-prog-bg: #1E1A30;   --st-prog-line: #2E2848;  --st-prog-edge: #C48CFF;
+    --st-prog-bg: #1E1A30;   --st-prog-line: #2E2848;  --st-prog-edge: #E14BFF;
     --st-curso-bg: #102A21;  --st-curso-line: #1B4735; --st-curso-edge: #34D399;
     --st-done-bg: #191529;   --st-done-line: #272141;  --st-done-edge: #4A4468;
     --st-noshow-bg: #2E1622; --st-noshow-line: #5A2440; --st-noshow-edge: #F472B6;

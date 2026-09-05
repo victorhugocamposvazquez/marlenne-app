@@ -8,7 +8,7 @@ describe('brand', () => {
     assert.match(BRAND.gradient, /#FF1F5B/);
     assert.match(BRAND.gradient, /#B621C8/);
     assert.match(BRAND.gradient, /#2D65FF/);
-    assert.equal(BRAND_UI.theme, '#8E4DE6');
+    assert.equal(BRAND_UI.theme, '#B621C8');
     assert.equal(SPLASH_SEEN_KEY, 'marlenne-booted');
   });
 });
