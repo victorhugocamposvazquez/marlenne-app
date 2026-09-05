@@ -20,7 +20,7 @@ export default async function ConfirmPage({ params }: { params: { token: string 
     : { ok: false as const, code: 'not_found' };
 
   return (
-    <div className="mx-auto flex min-h-[100dvh] max-w-[440px] flex-col bg-surface-bg pt-[env(safe-area-inset-top)]">
+    <div className="mx-auto flex h-full max-w-[440px] flex-col overflow-y-auto bg-surface-bg pt-[env(safe-area-inset-top)]">
       <PublicHero kicker="Marlenne" title="Tu cita" />
 
       <div className="px-6 pb-10">

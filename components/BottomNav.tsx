@@ -35,19 +35,21 @@ export default function BottomNav({ role }: { role: string }) {
   };
 
   return (
-    <nav className="relative z-10 flex shrink-0 items-center border-t border-surface-line bg-surface-card px-2.5 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 shadow-nav">
-      <Item href="/hoy" icon={Home} label="Hoy" />
-      <Item href="/agenda" icon={Calendar} label="Agenda" />
-      <Link
-        href="/agenda?new=1"
-        onClick={openNew}
-        aria-label="Nueva cita"
-        className="mx-1.5 grid h-14 w-14 shrink-0 place-items-center rounded-card bg-grad text-white shadow-btn transition motion-safe:hover:-translate-y-[3px] motion-safe:active:scale-[.96]"
-      >
-        <Plus size={26} strokeWidth={2.4} />
-      </Link>
-      {role !== 'provider' && <Item href="/clientas" icon={Users} label="Clientas" />}
-      <Item href="/ajustes" icon={Settings} label="Ajustes" />
+    <nav className="relative z-10 shrink-0 border-t border-surface-line bg-surface-card shadow-nav pb-[env(safe-area-inset-bottom)]">
+      <div className="flex items-center px-2.5 pb-1.5 pt-1.5">
+        <Item href="/hoy" icon={Home} label="Hoy" />
+        <Item href="/agenda" icon={Calendar} label="Agenda" />
+        <Link
+          href="/agenda?new=1"
+          onClick={openNew}
+          aria-label="Nueva cita"
+          className="mx-1.5 grid h-14 w-14 shrink-0 place-items-center rounded-card bg-grad text-white shadow-btn transition motion-safe:hover:-translate-y-[3px] motion-safe:active:scale-[.96]"
+        >
+          <Plus size={26} strokeWidth={2.4} />
+        </Link>
+        {role !== 'provider' && <Item href="/clientas" icon={Users} label="Clientas" />}
+        <Item href="/ajustes" icon={Settings} label="Ajustes" />
+      </div>
     </nav>
   );
 }
