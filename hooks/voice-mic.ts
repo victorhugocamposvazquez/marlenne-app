@@ -51,7 +51,7 @@ export function micBlockedSay() {
   const nav = navigator as Navigator & { standalone?: boolean };
   const pwa = window.matchMedia('(display-mode: standalone)').matches || !!nav.standalone;
   if (pwa) {
-    return 'El micro está bloqueado. En Ajustes permite el micrófono a Marlenne y toca el micro otra vez.';
+    return 'El micro está bloqueado. En Ajustes permite el micrófono a Marlén y toca el micro otra vez.';
   }
   return 'El micro está bloqueado. Permítelo en los ajustes del navegador y toca el micro otra vez.';
 }

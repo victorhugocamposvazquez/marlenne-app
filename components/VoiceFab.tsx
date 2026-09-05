@@ -1224,7 +1224,7 @@ export default function VoiceFab() {
           {panel.mode === 'idle' && (
             <div className="text-label font-medium leading-snug text-ink-2">
               <p className="font-bold text-ink">Así se usa</p>
-              <p className="mt-1">1. Toca el micro: dice «¿Dime?» y te oye. O «Hola Marlenne» y el comando. En Ajustes se apaga el oído.</p>
+              <p className="mt-1">1. Toca el micro: dice «¿Dime?» y te oye. O «Hola Marlén» y el comando. En Ajustes se apaga el oído.</p>
               <p>2. Si va a guardar, te pide confirmación. Si no dicta, escribe el comando abajo.</p>
       <p className="mt-2 text-label text-ink-2">
                 Ej.: quién tiene hueco el miércoles a las 11:30 · cita para Lucía con Valeria a las 11:30
@@ -1255,7 +1255,7 @@ export default function VoiceFab() {
       <div className="relative">
         <button
           type="button"
-          aria-label={hearing ? 'Dejar de escuchar' : 'Hablar con Marlenne'}
+          aria-label={hearing ? 'Dejar de escuchar' : 'Hablar con Marlén'}
           aria-pressed={hearing}
           onClick={() => {
             const overlay = open && (panel.mode === 'ask' || panel.mode === 'confirm');
@@ -1271,7 +1271,7 @@ export default function VoiceFab() {
           <button
             type="button"
             title={wakeOn ? 'Oído en espera. Toca para callar.' : 'Oído en pausa. Toca el micro para hablar.'}
-            aria-label="Callar oído de Hola Marlenne"
+            aria-label="Callar oído de Hola Marlén"
             onClick={e => { e.stopPropagation(); hush(); }}
             className="pointer-events-auto absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-surface-card/80 shadow"
           />

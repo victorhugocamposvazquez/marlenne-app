@@ -5,6 +5,7 @@ import ConfirmButtons, { DoneCard } from '@/components/confirm/ConfirmButtons';
 import PublicHero from '@/components/PublicHero';
 import { linkCopy, peekAppointmentLink } from '@/lib/confirm-link';
 import { createClient } from '@/lib/supabase/server';
+import { BRAND_NAME } from '@/lib/brand';
 
 const TOKEN = /^[A-Za-z0-9_-]{16,64}$/;
 
@@ -21,7 +22,7 @@ export default async function ConfirmPage({ params }: { params: { token: string 
 
   return (
     <div className="mx-auto flex h-full max-w-[440px] flex-col overflow-y-auto bg-surface-bg pt-[env(safe-area-inset-top)]">
-      <PublicHero kicker="Marlenne" title="Tu cita" />
+      <PublicHero kicker={BRAND_NAME} title="Tu cita" />
 
       <div className="px-6 pb-10">
         {!peek.ok ? (

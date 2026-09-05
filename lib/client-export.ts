@@ -29,7 +29,7 @@ export function formatClientFicha(input: {
   const photos = treatments.flatMap(t => t.treatment_photos ?? []);
   const latest = latestConsents(consents);
   const lines: string[] = [
-    'Marlenne — copia de ficha',
+    'Marlén — copia de ficha',
     `Generada: ${dateLbl(new Date().toISOString())}`,
     '',
     'Datos',

@@ -1,6 +1,6 @@
-/** Identidad visual de Marlenne. Sin DOM ni next/* — sirve si un día hay RN. */
+/** Identidad visual de Marlén. Sin DOM ni next/* — sirve si un día hay RN. */
 
-export const BRAND_NAME = 'Marlenne';
+export const BRAND_NAME = 'Marlén';
 
 /** Colores del logotipo oficial (degradado 135°). */
 export const BRAND = {

@@ -17,7 +17,7 @@
   { "id": "cuando-quieras", "kind": "say", "text": "Cuando quieras." },
   { "id": "algo-mas", "kind": "ask", "text": "¿Algo más?" },
   { "id": "otra-cosa", "kind": "ask", "text": "¿Otra cosa?" },
-  { "id": "soy-marlenne", "kind": "say", "text": "Soy Marlenne, la agenda." },
+  { "id": "soy-marlenne", "kind": "say", "text": "Soy Marlén, la agenda." },
   { "id": "citas-huecos", "kind": "say", "text": "Sí. Citas, huecos, cabina." },
   { "id": "un-segundo", "kind": "say", "text": "Un segundo." },
   { "id": "ahora-miro", "kind": "say", "text": "Ahora miro." },

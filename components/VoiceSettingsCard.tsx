@@ -53,7 +53,7 @@ export default function VoiceSettingsCard() {
           onToggle={() => setVoicePrefs({ micOnly: !prefs.micOnly })}
         />
         <Row
-          title="Oír «Hola Marlenne»"
+          title="Oír «Hola Marlén»"
           hint="Con la app abierta, la frase despierta el micro."
           on={prefs.hola && !prefs.micOnly}
           disabled={prefs.micOnly}

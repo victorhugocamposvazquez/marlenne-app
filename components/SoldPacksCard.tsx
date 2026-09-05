@@ -30,7 +30,7 @@ export default function SoldPacksCard({
         Bonos vendidos · {open.length} vivos
       </h2>
       <p className="mb-2.5 text-label font-medium text-ink-2">
-        Recargar sesiones aquí. Vender uno nuevo, en la ficha. La clienta no entra a Marlenne.
+        Recargar sesiones aquí. Vender uno nuevo, en la ficha. La clienta no entra a Marlén.
       </p>
       {packs.length === 0 ? (
         <EmptyState

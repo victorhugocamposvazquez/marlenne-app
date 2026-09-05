@@ -449,7 +449,7 @@ function chatSaid(t: string) {
   return t
     .replace(/^(hola|ola)(?:\s+|$)/, '')
     .replace(/^buenas(?! tardes| noches)\s+/, '')
-    .replace(/\b(oye|eh+|a ver|por favor|porfa|marlenne|marlene|tu|usted|nena|tia|guapa|cielo)\b/g, ' ')
+    .replace(/\b(oye|eh+|a ver|por favor|porfa|marlenne|marlene|marlen|tu|usted|nena|tia|guapa|cielo)\b/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -488,7 +488,7 @@ const CHAT: ChatRow[] = [
   { re: /^(buenas noches)$/, say: 'Buenas noches. ¿Qué hacemos?' },
   { re: /^(adios|hasta luego|chao|nos vemos|ya esta|eso es todo|nada mas|me voy|hasta manana)$/, say: 'Hasta luego.', stay: false },
   { re: /^(me oyes|estas ahi|sigues ahi|me escuchas|hola hola|seguimos)$/, say: 'Te escucho.' },
-  { re: /^(quien eres|como te llamas|que eres|presentate)$/, say: 'Soy Marlenne, la agenda.' },
+  { re: /^(quien eres|como te llamas|que eres|presentate)$/, say: 'Soy Marlén, la agenda.' },
   { re: /^(puedes ayudarme|ayudame|que sabes hacer|para que sirves|que haces tu)$/, say: 'Sí. Citas, huecos, cabina.' },
   { re: /^(perdona|perdon|lo siento|sorry|disculpa)$/, say: 'No pasa nada.' },
   { re: /^(igualmente)$/, say: 'Igualmente.' },
@@ -952,14 +952,14 @@ function looksLikeMarlenne(word: string) {
 
 const WAKE_FILLER = /^(eh+|a+|ah+|um+|uhm+|mm+|este|bueno|pues|oye|hola|dime|ya|vale|ok|okay)$/;
 
-/** Tras el saludo: ¿viene un comando (o un nombre) o solo «Hola Marlenne»? */
+/** Tras el saludo: ¿viene un comando (o un nombre) o solo «Hola Marlén»? */
 export function wakeRestIsCommand(rest: string) {
   const t = fold(rest.replace(/[¿?¡!.,]/g, ' ')).replace(/\s+/g, ' ').trim();
   if (!t || WAKE_FILLER.test(t)) return false;
   return true;
 }
 
-/** «Hola Marlenne» / «oye Marlene»… y el resto del comando, si vino en el mismo aliento. */
+/** «Hola Marlén» / «oye Marlene»… y el resto del comando, si vino en el mismo aliento. */
 export function splitWake(text: string): { woke: boolean; rest: string } {
   const t = fold(text.replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' '));
   if (!t) return { woke: false, rest: '' };

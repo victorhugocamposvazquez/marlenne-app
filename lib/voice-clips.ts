@@ -17,7 +17,7 @@ function earKey(text: string) {
 
 const byEar = new Map(VOICE_CLIPS.map(c => [earKey(c.text), `/voice/${c.id}.mp3`]));
 
-/** MP3 fijo de Marlenne, o null si la frase lleva nombres u horas. */
+/** MP3 fijo de Marlén, o null si la frase lleva nombres u horas. */
 export function voiceClipUrl(text: string): string | null {
   return byEar.get(earKey(text)) ?? null;
 }

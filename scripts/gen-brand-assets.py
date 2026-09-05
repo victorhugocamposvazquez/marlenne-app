@@ -94,7 +94,7 @@ def make_splash(w: int, h: int, mark: Image.Image, font: ImageFont.FreeTypeFont 
     canvas.alpha_composite(badge, (bx, by))
 
     draw = ImageDraw.Draw(canvas)
-    label = 'Marlenne'
+    label = 'Marlén'
     bbox = draw.textbbox((0, 0), label, font=font)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
     draw.text(((w - tw) / 2, by + side + int(h * 0.028)), label, font=font, fill=(30, 22, 48, 235))

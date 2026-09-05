@@ -80,12 +80,14 @@ test('creamos una cita abre el alta; con nombre, cita', () => {
 });
 
 test('splitWake y resto útil', () => {
-  const only = splitWake('Hola Marlenne');
+  const only = splitWake('Hola Marlén');
   assert.equal(only.woke, true);
   assert.equal(wakeRestIsCommand(only.rest), false);
-  const named = splitWake('Hola Marlenne Lucía');
+  const named = splitWake('Hola Marlén Lucía');
   assert.equal(named.woke, true);
   assert.equal(wakeRestIsCommand(named.rest), true);
+  const alias = splitWake('Hola Marlenne');
+  assert.equal(alias.woke, true);
 });
 
 test('forEar dice las horas', () => {

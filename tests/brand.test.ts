@@ -4,7 +4,7 @@ import { BRAND, BRAND_NAME, BRAND_UI, SPLASH_SEEN_KEY } from '../lib/brand';
 
 describe('brand', () => {
   it('mantiene el nombre y el degradado oficial', () => {
-    assert.equal(BRAND_NAME, 'Marlenne');
+    assert.equal(BRAND_NAME, 'Marlén');
     assert.match(BRAND.gradient, /#FF1F5B/);
     assert.match(BRAND.gradient, /#B621C8/);
     assert.match(BRAND.gradient, /#2D65FF/);
