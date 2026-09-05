@@ -4,6 +4,7 @@ import { listProviders, getDayAgenda, countWaitlist, listRecalls } from '@/lib/q
 import { fmt, minutesOfDay, madridNow, DAY_START, DAY_END } from '@/lib/time';
 import { Bell, CalendarCheck, HeartHandshake, UserRound } from 'lucide-react';
 import EmptyState from '@/components/ui/EmptyState';
+import PageHeading from '@/components/ui/PageHeading';
 import LiveRefresh from '@/components/LiveRefresh';
 import HoyApptRow from '@/components/hoy/HoyApptRow';
 import RecallCard from '@/components/hoy/RecallCard';
@@ -50,25 +51,26 @@ export default async function HoyPage() {
   return (
     <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-fab pt-5">
       <LiveRefresh tables={cabin ? ['appointments'] : ['appointments', 'waitlist']} />
-      <div className="mb-[18px] flex items-center gap-3">
-        <div className="flex-1">
-          <div className="text-body font-medium text-ink-2">
-            {cabin ? todayLbl : `Hola ${me.full_name}`}
-          </div>
-          <h1 className="text-h1 font-extrabold tracking-[-.025em]">
-            {cabin ? 'Tu día' : greeting}
-          </h1>
-        </div>
-        {!cabin && (
-          <Link
-            href="/agenda?wait=1"
-            className="relative grid h-11 w-11 place-items-center rounded-icon border border-surface-line bg-surface-card text-ink-2 shadow-card transition motion-safe:active:scale-[.96]"
-            aria-label="Lista de espera"
-          >
-            <Bell size={19} strokeWidth={2} />
-            {waiting > 0 && <span className="absolute right-2.5 top-2 h-2 w-2 rounded-full border-2 border-surface-card bg-v" />}
-          </Link>
-        )}
+      <div className="mb-[18px]">
+        <PageHeading
+          kicker={(
+            <div className="text-body font-medium text-ink-2">
+              {cabin ? todayLbl : `Hola ${me.full_name}`}
+            </div>
+          )}
+          title={cabin ? 'Tu día' : greeting}
+        >
+          {!cabin && (
+            <Link
+              href="/agenda?wait=1"
+              className="relative grid h-11 w-11 place-items-center rounded-icon border border-surface-line bg-surface-card text-ink-2 shadow-card transition motion-safe:active:scale-[.96]"
+              aria-label="Lista de espera"
+            >
+              <Bell size={19} strokeWidth={2} />
+              {waiting > 0 && <span className="absolute right-2.5 top-2 h-2 w-2 rounded-full border-2 border-surface-card bg-v" />}
+            </Link>
+          )}
+        </PageHeading>
       </div>
 
       {cabin ? (

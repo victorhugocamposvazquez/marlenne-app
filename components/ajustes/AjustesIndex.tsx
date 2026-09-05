@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import ReadyList from '@/components/ajustes/ReadyList';
+import PageHeading from '@/components/ui/PageHeading';
 import type { ReadyItem } from '@/lib/ready';
 import type { StaffRole } from '@/lib/types';
 
@@ -68,8 +69,10 @@ export default function AjustesIndex({
 
   return (
     <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-fab pt-5">
-      <h1 className="text-h1 font-extrabold tracking-[-.025em]">Ajustes</h1>
-      <p className="mt-px text-body font-medium text-ink-2">{me.full_name} · {me.job_title ?? me.role}</p>
+      <PageHeading
+        title="Ajustes"
+        subtitle={`${me.full_name} · ${me.job_title ?? me.role}`}
+      />
       <Group title="Centro" rows={centro} />
       <Group title="Cuenta" rows={cuenta} />
       {admin && <ReadyList items={ready} />}

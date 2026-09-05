@@ -8,6 +8,7 @@ import Chip from '@/components/ui/Chip';
 import EmptyState from '@/components/ui/EmptyState';
 import IconButton from '@/components/ui/IconButton';
 import Badge from '@/components/ui/Badge';
+import PageHeading from '@/components/ui/PageHeading';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 import { avatarColor, initials } from '@/lib/categories';
 import { phoneDigits, waHref, waRecallMsg } from '@/lib/phone';
@@ -57,15 +58,14 @@ export default function ClientasView({
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
       <header className="shrink-0 px-5 pb-3 pt-5">
-        <div className="flex items-start gap-3">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-h1 font-extrabold tracking-[-.025em]">Clientas</h1>
-            <p className="mt-px text-body font-medium text-ink-2">
-              {shown.length === clients.length
-                ? `${clients.length} en la base`
-                : `${shown.length} de ${clients.length}`}
-            </p>
-          </div>
+        <PageHeading
+          title="Clientas"
+          subtitle={
+            shown.length === clients.length
+              ? `${clients.length} en la base`
+              : `${shown.length} de ${clients.length}`
+          }
+        >
           <IconButton
             label="Nueva clienta"
             tone="brand"
@@ -73,7 +73,7 @@ export default function ClientasView({
           >
             <Plus size={20} strokeWidth={2.4} />
           </IconButton>
-        </div>
+        </PageHeading>
         <div className="mt-3.5 flex items-center gap-2.5 rounded-field border border-surface-line bg-surface-card px-3.5 shadow-card focus-within:border-v focus-within:ring-2 focus-within:ring-v/40">
           <Search size={17} className="text-ink-3" strokeWidth={2.2} />
           <input

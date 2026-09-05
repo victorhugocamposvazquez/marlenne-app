@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Ban, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import Chip from '@/components/ui/Chip';
 import IconButton from '@/components/ui/IconButton';
+import PageHeading from '@/components/ui/PageHeading';
 import Segmented from '@/components/ui/Segmented';
 import { shallowSet } from '@/hooks/useShallowQuery';
 import { dayTitle, weekMondayOffset, weekTitle } from '@/lib/time';
@@ -37,13 +38,10 @@ export default function AgendaHeader({
 
   return (
     <header className="shrink-0 px-5 pb-3 pt-5">
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="text-caption font-bold uppercase tracking-[.04em] text-v">{label}</div>
-          <h1 className="mt-0.5 text-h1 font-extrabold leading-[1.15] tracking-[-.025em]">
-            {mode === 'semana' ? weekTitle(day) : dayTitle(day)}
-          </h1>
-        </div>
+      <PageHeading
+        kicker={<div className="text-caption font-bold uppercase tracking-[.04em] text-v">{label}</div>}
+        title={mode === 'semana' ? weekTitle(day) : dayTitle(day)}
+      >
         <div className="flex gap-2">
           {((mode === 'dia' && day !== 0) || (mode === 'semana' && weekMondayOffset(day) !== weekMondayOffset(0))) && (
             <button
@@ -67,7 +65,7 @@ export default function AgendaHeader({
             <ChevronRight size={18} strokeWidth={2.2} />
           </IconButton>
         </div>
-      </div>
+      </PageHeading>
 
       {canFilter && providers.length > 1 && (
         <div className="mt-3 flex gap-1.5 overflow-x-auto">
