@@ -2,10 +2,17 @@
 
 import { useState, useTransition } from 'react';
 import { requestPasswordReset, signIn } from '@/app/actions/auth';
+import PasskeyLoginButton from '@/components/PasskeyLoginButton';
 import { inputCls } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
 
-export default function LoginForm({ emails }: { emails: { name: string; email: string }[] }) {
+export default function LoginForm({
+  emails,
+  ua,
+}: {
+  emails: { name: string; email: string }[];
+  ua: string;
+}) {
   const [pending, startTransition] = useTransition();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,12 +32,13 @@ export default function LoginForm({ emails }: { emails: { name: string; email: s
 
   return (
     <div className="flex flex-col gap-3 px-5 pb-8">
+      <PasskeyLoginButton ua={ua} onError={setError} />
       <label>
         <span className="mb-1.5 block text-caption font-bold uppercase tracking-[.03em] text-ink-2">Email</span>
         <input
           className={inputCls}
           type="email"
-          autoComplete="username"
+          autoComplete="username webauthn"
           inputMode="email"
           value={email}
           onChange={e => setEmail(e.target.value)}

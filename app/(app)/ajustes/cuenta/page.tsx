@@ -1,9 +1,12 @@
+import { headers } from 'next/headers';
 import { LogOut } from 'lucide-react';
 import { requireSession } from '@/lib/require-session';
 import { signOut } from '@/app/actions/auth';
+import { listMyPasskeys } from '@/app/actions/webauthn';
 import AjustesHeader from '@/components/ajustes/AjustesHeader';
 import Button from '@/components/ui/Button';
 import PasswordForm from '@/components/PasswordForm';
+import PasskeySettingsCard from '@/components/PasskeySettingsCard';
 import IosShortcutsCard from '@/components/IosShortcutsCard';
 import VoiceSettingsCard from '@/components/VoiceSettingsCard';
 
@@ -14,7 +17,7 @@ const ROADMAP = [
   { done: true, label: 'Realtime en la agenda del día' },
   { done: true, label: 'Cierre de sesión clínico al marcar Hecha' },
   { done: true, label: 'Subida de fotos a Storage' },
-  { done: true, label: 'Login por email y contraseña' },
+  { done: true, label: 'Login por email, contraseña, huella o Face ID' },
   { done: true, label: 'Consentimientos RGPD y bloqueos de agenda' },
   { done: true, label: 'Editar precios y duración del catálogo' },
   { done: true, label: 'Recuperar contraseña por email' },
@@ -28,11 +31,14 @@ const ROADMAP = [
 
 export default async function CuentaPage() {
   await requireSession();
+  const [passkeys] = await Promise.all([listMyPasskeys()]);
+  const ua = headers().get('user-agent') ?? '';
 
   return (
     <AjustesHeader title="Tu cuenta">
       <VoiceSettingsCard />
       <IosShortcutsCard />
+      <PasskeySettingsCard ua={ua} initial={passkeys} />
       <PasswordForm />
       <section className="mt-6">
         <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">En el radar</h2>
