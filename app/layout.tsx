@@ -105,6 +105,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es" className={jakarta.variable}>
       <body className="font-sans font-medium text-ink">
+        <style
+          dangerouslySetInnerHTML={{
+            __html: 'html[data-booted] #marlenne-splash{display:none!important}',
+          }}
+        />
         <script dangerouslySetInnerHTML={{ __html: SPLASH_BOOT_SCRIPT }} />
         <SplashScreen />
         {children}
