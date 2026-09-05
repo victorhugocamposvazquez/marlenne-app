@@ -17,7 +17,7 @@ const ROADMAP = [
   { done: true, label: 'Realtime en la agenda del día' },
   { done: true, label: 'Cierre de sesión clínico al marcar Hecha' },
   { done: true, label: 'Subida de fotos a Storage' },
-  { done: true, label: 'Login por email, contraseña, huella o Face ID' },
+  { done: true, label: 'Login, registro, recuperar contraseña, huella o Face ID' },
   { done: true, label: 'Consentimientos RGPD y bloqueos de agenda' },
   { done: true, label: 'Editar precios y duración del catálogo' },
   { done: true, label: 'Recuperar contraseña por email' },

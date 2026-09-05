@@ -42,24 +42,6 @@ export async function listStaff(opts?: { includeInactive?: boolean }): Promise<P
 export const listProviders = async () =>
   (await listStaff()).filter(s => s.role === 'provider');
 
-/** Emails del equipo para rellenar el login (el login no tiene sesión). */
-export async function listLoginTeam(): Promise<{ name: string; email: string }[]> {
-  try {
-    const { createAdminClient } = await import('@/lib/supabase/admin');
-    const admin = createAdminClient();
-    const [{ data: staff }, { data: users }] = await Promise.all([
-      admin.from('staff').select('id, full_name').eq('is_active', true).order('sort_order'),
-      admin.auth.admin.listUsers({ perPage: 200 }),
-    ]);
-    const emailById = new Map((users?.users ?? []).map(u => [u.id, u.email ?? '']));
-    return (staff ?? [])
-      .map(s => ({ name: s.full_name, email: emailById.get(s.id) ?? '' }))
-      .filter(s => s.email);
-  } catch {
-    return [];
-  }
-}
-
 export async function listCategories(): Promise<ServiceCategory[]> {
   try {
     const sb = createClient();
