@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { requireSession } from '@/lib/require-session';
 import { listProviders, getDayAgenda, countWaitlist, listRecalls } from '@/lib/queries';
 import { fmt, minutesOfDay, madridNow, DAY_START, DAY_END } from '@/lib/time';
-import { Bell, CalendarCheck, HeartHandshake, UserRound } from 'lucide-react';
+import { Bell, CalendarCheck, ChevronRight, HeartHandshake, UserRound } from 'lucide-react';
 import EmptyState from '@/components/ui/EmptyState';
 import PageHeading from '@/components/ui/PageHeading';
 import LiveRefresh from '@/components/LiveRefresh';
@@ -74,9 +74,13 @@ export default async function HoyPage() {
       </div>
 
       {cabin ? (
-        <div className="relative mb-5 overflow-hidden rounded-card bg-grad px-5 py-[18px] text-white shadow-hero">
+        <Link
+          href="/agenda?day=0&mode=dia"
+          aria-label="Abrir la agenda de hoy"
+          className="relative mb-5 block overflow-hidden rounded-card bg-grad px-5 py-[18px] text-white shadow-hero no-underline transition motion-safe:active:scale-[.99]"
+        >
           <div className="absolute -right-10 -top-10 h-[150px] w-[150px] rounded-full bg-white/[.13]" />
-          <div className="relative">
+          <div className="relative pr-8">
             <div className="text-body-lg font-bold leading-snug">{cabinStatus}</div>
             <div className="mt-2 text-caption font-semibold text-white/85">
               {appointments.length === 1 ? '1 cita hoy' : `${appointments.length} citas hoy`}
@@ -84,12 +88,17 @@ export default async function HoyPage() {
               {noshow > 0 ? ` · ${noshow} no vino` : ''}
             </div>
           </div>
-        </div>
+          <ChevronRight size={22} strokeWidth={2.2} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/80" aria-hidden />
+        </Link>
       ) : (
         <>
-          <div className="relative mb-3 overflow-hidden rounded-card bg-grad px-5 py-[18px] text-white shadow-hero">
+          <Link
+            href="/agenda?day=0&mode=dia"
+            aria-label="Abrir la agenda de hoy"
+            className="relative mb-3 block overflow-hidden rounded-card bg-grad px-5 py-[18px] text-white shadow-hero no-underline transition motion-safe:active:scale-[.99]"
+          >
             <div className="absolute -right-10 -top-10 h-[150px] w-[150px] rounded-full bg-white/[.13]" />
-            <div className="relative">
+            <div className="relative pr-8">
               <div className="text-caption font-semibold text-white/85">{todayLbl}</div>
               <div className="mt-1.5 flex items-end gap-2">
                 <div className="text-display font-extrabold leading-none tracking-[-.03em]">{appointments.length}</div>
@@ -103,7 +112,8 @@ export default async function HoyPage() {
                 )}
               </div>
             </div>
-          </div>
+            <ChevronRight size={22} strokeWidth={2.2} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/80" aria-hidden />
+          </Link>
 
           <div className="mb-5 flex gap-2.5">
             <div className="flex-1 rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
