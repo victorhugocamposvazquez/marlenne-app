@@ -18,7 +18,16 @@ import {
   rememberPasskeyHint,
   startRegistration,
 } from '@/hooks/platform-auth';
-import { platformDeviceName, platformRegisterLabel } from '@/lib/webauthn';
+import {
+  isAppleMobile,
+  likelyHasPlatformUnlock,
+  platformDeviceName,
+  platformRegisterLabel,
+  platformSettingsHint,
+  platformSettingsTitle,
+  platformRemovedToast,
+  platformWaitingLabel,
+} from '@/lib/webauthn';
 
 function formatDay(iso: string) {
   return new Date(iso).toLocaleDateString('es-ES', {
@@ -37,11 +46,11 @@ export default function PasskeySettingsCard({
 }) {
   const toast = useToast();
   const [rows, setRows] = useState(initial);
-  const [available, setAvailable] = useState(/Android|iPhone|iPad|iPod/i.test(ua));
+  const [available, setAvailable] = useState(likelyHasPlatformUnlock(ua));
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const label = platformRegisterLabel(ua);
-  const FaceIcon = /iPhone|iPad|iPod/i.test(ua) ? ScanFace : Fingerprint;
+  const FaceIcon = isAppleMobile(ua) ? ScanFace : Fingerprint;
 
   useEffect(() => {
     let alive = true;
@@ -88,19 +97,18 @@ export default function PasskeySettingsCard({
         return;
       }
       await refresh();
-      toast('Huella borrada');
+        toast(platformRemovedToast(ua));
     });
   };
 
   return (
     <section className="mt-6">
       <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">
-        Huella o cara
+        {platformSettingsTitle(ua)}
       </h2>
       <div className="rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
         <p className="text-label font-medium leading-snug text-ink-2">
-          En Android es la huella o el desbloqueo con cara. En el iPhone, Face ID.
-          Queda en este móvil; la contraseña sigue valiendo.
+          {platformSettingsHint(ua)}
         </p>
         {rows.length > 0 && (
           <ul className="mt-3 flex flex-col gap-2">
@@ -131,11 +139,11 @@ export default function PasskeySettingsCard({
         {available ? (
           <Button full className="mt-3" onClick={register} disabled={pending}>
             <FaceIcon size={18} strokeWidth={2.2} />
-            {pending ? 'Esperando el móvil…' : label}
+            {pending ? platformWaitingLabel(ua) : label}
           </Button>
         ) : (
           <p className="mt-3 text-label font-medium text-ink-3">
-            Este aparato no tiene huella ni cara. Prueba en el móvil o en la tablet de recepción.
+            Este aparato no tiene Face ID, huella ni cara. Prueba en el iPhone, el Android o el iPad de recepción.
           </p>
         )}
       </div>

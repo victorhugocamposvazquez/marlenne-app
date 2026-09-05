@@ -22,13 +22,14 @@ import {
   MAX_PASSKEYS,
   fromBase64Url,
   platformDeviceName,
+  platformUnavailable,
+  platformUnlockNoun,
   resolveRequestOrigin,
   rpIdFromOrigin,
   toBase64Url,
 } from '@/lib/webauthn';
 
 const COOKIE = 'marlenne_wa';
-const UNAVAILABLE = 'Aún no está activo el acceso con huella. Entra con email y contraseña.';
 
 export type PasskeyRow = {
   id: string;
@@ -50,6 +51,18 @@ function hmacSecret() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!key) throw new Error('Falta SUPABASE_SERVICE_ROLE_KEY en el servidor');
   return key;
+}
+
+function requestUa() {
+  return headers().get('user-agent') ?? '';
+}
+
+function unavailable() {
+  return platformUnavailable(requestUa());
+}
+
+function unlockName() {
+  return platformUnlockNoun(requestUa());
 }
 
 function currentOrigin() {
@@ -119,7 +132,7 @@ export async function beginPasskeyLogin(): Promise<
     return { ok: true, options };
   } catch (err) {
     const message = err instanceof Error ? err.message : '';
-    return { ok: false, error: tableMissing(message) ? UNAVAILABLE : 'No se ha podido preparar el acceso con huella.' };
+    return { ok: false, error: tableMissing(message) ? unavailable() : `No se ha podido preparar el acceso con ${unlockName()}.` };
   }
 }
 
@@ -127,14 +140,14 @@ export async function finishPasskeyLogin(response: AuthenticationResponseJSON): 
   const challenge = readChallenge();
   clearChallenge();
   if (!challenge || challenge.k !== 'a') {
-    return { ok: false, error: 'La huella ha caducado. Prueba otra vez.' };
+    return { ok: false, error: `El acceso con ${unlockName()} ha caducado. Prueba otra vez.` };
   }
 
   let admin;
   try {
     admin = createAdminClient();
   } catch {
-    return { ok: false, error: UNAVAILABLE };
+    return { ok: false, error: unavailable() };
   }
 
   const { data: row, error: lookupError } = await admin
@@ -143,9 +156,9 @@ export async function finishPasskeyLogin(response: AuthenticationResponseJSON): 
     .eq('credential_id', response.id)
     .maybeSingle();
 
-  if (lookupError && tableMissing(lookupError.message)) return { ok: false, error: UNAVAILABLE };
+  if (lookupError && tableMissing(lookupError.message)) return { ok: false, error: unavailable() };
   const passkey = row as StaffPasskey | null;
-  if (!passkey) return { ok: false, error: 'Esta huella no está registrada en Marlén.' };
+  if (!passkey) return { ok: false, error: `Este ${unlockName()} no está registrado en Marlén.` };
 
   const staff = await requireActiveStaff(passkey.user_id);
   if (!staff) return { ok: false, error: 'Esta cuenta ya no está activa.' };
@@ -165,7 +178,7 @@ export async function finishPasskeyLogin(response: AuthenticationResponseJSON): 
       },
       requireUserVerification: true,
     });
-    if (!verification.verified) return { ok: false, error: 'No se ha podido comprobar la huella.' };
+    if (!verification.verified) return { ok: false, error: `No se ha podido comprobar ${unlockName()}.` };
     await admin
       .from('staff_passkeys')
       .update({
@@ -174,7 +187,7 @@ export async function finishPasskeyLogin(response: AuthenticationResponseJSON): 
       })
       .eq('id', passkey.id);
   } catch {
-    return { ok: false, error: 'No se ha podido comprobar la huella.' };
+    return { ok: false, error: `No se ha podido comprobar ${unlockName()}.` };
   }
 
   const { data: userData, error: userError } = await admin.auth.admin.getUserById(passkey.user_id);
@@ -202,7 +215,7 @@ export async function beginPasskeyRegister(): Promise<
   try {
     admin = createAdminClient();
   } catch {
-    return { ok: false, error: UNAVAILABLE };
+    return { ok: false, error: unavailable() };
   }
 
   const { data: existing, error, count } = await admin
@@ -210,7 +223,7 @@ export async function beginPasskeyRegister(): Promise<
     .select('credential_id, transports', { count: 'exact' })
     .eq('user_id', me.id);
 
-  if (error) return { ok: false, error: tableMissing(error.message) ? UNAVAILABLE : 'No se han podido leer las huellas.' };
+  if (error) return { ok: false, error: tableMissing(error.message) ? unavailable() : `No se han podido leer los accesos con ${unlockName()}.` };
   if ((count ?? existing?.length ?? 0) >= MAX_PASSKEYS) {
     return { ok: false, error: `Como mucho ${MAX_PASSKEYS} móviles. Borra uno para añadir otro.` };
   }
@@ -231,6 +244,7 @@ export async function beginPasskeyRegister(): Promise<
         id: row.credential_id as string,
         transports: asTransports(row.transports as string[] | null),
       })),
+      preferredAuthenticatorType: 'localDevice',
       authenticatorSelection: {
         authenticatorAttachment: 'platform',
         residentKey: 'required',
@@ -269,10 +283,10 @@ export async function finishPasskeyRegister(
       requireUserVerification: true,
     });
   } catch {
-    return { ok: false, error: 'No se ha podido guardar la huella.' };
+    return { ok: false, error: `No se ha podido guardar ${unlockName()}.` };
   }
   if (!verification.verified || !verification.registrationInfo) {
-    return { ok: false, error: 'No se ha podido guardar la huella.' };
+    return { ok: false, error: `No se ha podido guardar ${unlockName()}.` };
   }
 
   const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
@@ -281,7 +295,7 @@ export async function finishPasskeyRegister(
   try {
     admin = createAdminClient();
   } catch {
-    return { ok: false, error: UNAVAILABLE };
+    return { ok: false, error: unavailable() };
   }
 
   const { error } = await admin.from('staff_passkeys').insert({
@@ -295,9 +309,9 @@ export async function finishPasskeyRegister(
     friendly_name: (friendlyName ?? '').trim() || platformDeviceName(ua),
   });
   if (error) {
-    if (tableMissing(error.message)) return { ok: false, error: UNAVAILABLE };
-    if (error.code === '23505') return { ok: false, error: 'Este móvil ya está guardado.' };
-    return { ok: false, error: 'No se ha podido guardar la huella.' };
+    if (tableMissing(error.message)) return { ok: false, error: unavailable() };
+    if (error.code === '23505') return { ok: false, error: 'Este aparato ya está guardado.' };
+    return { ok: false, error: `No se ha podido guardar ${unlockName()}.` };
   }
   return { ok: true };
 }
@@ -350,10 +364,10 @@ export async function removePasskey(id: string): Promise<{ ok: true; remaining: 
       .delete()
       .eq('id', id)
       .eq('user_id', me.id);
-    if (error) return { ok: false, error: tableMissing(error.message) ? UNAVAILABLE : 'No se ha podido borrar.' };
+    if (error) return { ok: false, error: tableMissing(error.message) ? unavailable() : 'No se ha podido borrar.' };
     const remaining = await countMyPasskeys();
     return { ok: true, remaining };
   } catch {
-    return { ok: false, error: UNAVAILABLE };
+    return { ok: false, error: unavailable() };
   }
 }
