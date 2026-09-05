@@ -31,14 +31,14 @@ const ROADMAP = [
 
 export default async function CuentaPage() {
   await requireSession();
-  const [passkeys] = await Promise.all([listMyPasskeys()]);
+  const passkeys = await listMyPasskeys();
   const ua = headers().get('user-agent') ?? '';
 
   return (
     <AjustesHeader title="Tu cuenta">
+      <PasskeySettingsCard ua={ua} initial={passkeys} />
       <VoiceSettingsCard />
       <IosShortcutsCard />
-      <PasskeySettingsCard ua={ua} initial={passkeys} />
       <PasswordForm />
       <section className="mt-6">
         <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">En el radar</h2>
