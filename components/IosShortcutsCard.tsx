@@ -31,7 +31,8 @@ export default function IosShortcutsCard() {
       <div className="rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
         <p className="text-label font-medium leading-snug text-ink-2">
           Safari → Compartir → Añadir a pantalla de inicio (así el micro no
-          pide permiso cada vez). Siri no ve la PWA:
+          pide permiso cada vez). Face ID se activa en Tu cuenta, en este
+          mismo iPhone. Siri no ve la PWA:
           crea un Atajo «Abrir URL» y añádelo a Siri. Si abre Safari en vez del
           icono, prueba la URL <span className="font-bold">webapp://</span>.
         </p>

@@ -4,9 +4,12 @@ import {
   CHALLENGE_TTL_MS,
   PASSKEY_HINT_KEY,
   fromBase64Url,
+  isAppleMobile,
   platformDeviceName,
+  platformLoginTitle,
   platformRegisterLabel,
   platformUnlockLabel,
+  platformUnlockNoun,
   resolveRequestOrigin,
   rpIdFromOrigin,
   toBase64Url,
@@ -35,12 +38,21 @@ describe('webauthn dominio', () => {
   });
 
   it('nombra el desbloqueo según el aparato', () => {
-    assert.equal(platformUnlockLabel('Mozilla/5.0 (Linux; Android 15) Chrome/130'), 'Entrar con huella o cara');
-    assert.equal(platformUnlockLabel('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0)'), 'Entrar con Face ID');
+    const iphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)';
+    const ipad = 'Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X)';
+    const android = 'Mozilla/5.0 (Linux; Android 15) Chrome/130';
+    assert.equal(isAppleMobile(iphone), true);
+    assert.equal(isAppleMobile(ipad), true);
+    assert.equal(isAppleMobile(android), false);
+    assert.equal(platformUnlockNoun(iphone), 'Face ID');
+    assert.equal(platformUnlockLabel(android), 'Entrar con huella o cara');
+    assert.equal(platformUnlockLabel(iphone), 'Entrar con Face ID');
     assert.equal(platformUnlockLabel('Mozilla/5.0 (Macintosh; Intel Mac OS X 14)'), 'Entrar con Touch ID');
-    assert.equal(platformRegisterLabel('Mozilla/5.0 (Linux; Android 15)'), 'Activar huella o cara');
-    assert.equal(platformDeviceName('Mozilla/5.0 (iPad; CPU OS 18_0)'), 'Este iPad');
-    assert.equal(platformDeviceName('Mozilla/5.0 (Linux; Android 14)'), 'Este Android');
+    assert.equal(platformRegisterLabel(iphone), 'Activar Face ID');
+    assert.equal(platformLoginTitle(iphone), 'Entra con Face ID');
+    assert.equal(platformLoginTitle(android), 'Entra en un toque');
+    assert.equal(platformDeviceName(ipad), 'Este iPad');
+    assert.equal(platformDeviceName(android), 'Este Android');
   });
 
   it('redondea bytes a base64url y de vuelta', () => {

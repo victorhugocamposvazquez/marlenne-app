@@ -11,14 +11,20 @@ import {
   rememberPasskeyHint,
   startRegistration,
 } from '@/hooks/platform-auth';
-import { platformDeviceName, platformRegisterLabel } from '@/lib/webauthn';
+import {
+  isAppleMobile,
+  platformBannerHint,
+  platformDeviceName,
+  platformRegisterLabel,
+  platformWaitingLabel,
+} from '@/lib/webauthn';
 
 export default function PasskeySetupBanner({ ua, hasPasskeys }: { ua: string; hasPasskeys: boolean }) {
   const [show, setShow] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const label = platformRegisterLabel(ua);
-  const FaceIcon = /iPhone|iPad|iPod/i.test(ua) ? ScanFace : Fingerprint;
+  const FaceIcon = isAppleMobile(ua) ? ScanFace : Fingerprint;
 
   useEffect(() => {
     if (hasPasskeys || postponedPasskeySetup()) return;
@@ -61,9 +67,11 @@ export default function PasskeySetupBanner({ ua, hasPasskeys }: { ua: string; ha
     <div className="mb-5 rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <div className="text-body font-extrabold tracking-[-.01em]">La próxima vez, un toque</div>
+          <div className="text-body font-extrabold tracking-[-.01em]">
+            {isAppleMobile(ua) ? 'La próxima vez, Face ID' : 'La próxima vez, un toque'}
+          </div>
           <p className="mt-1 text-label font-medium leading-snug text-ink-2">
-            Guarda la huella o la cara de este móvil. En Android es lo más rápido; en el iPhone, Face ID.
+            {platformBannerHint(ua)}
           </p>
         </div>
         <button
@@ -83,7 +91,7 @@ export default function PasskeySetupBanner({ ua, hasPasskeys }: { ua: string; ha
         className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-field bg-grad px-4 text-body font-extrabold text-white shadow-btn motion-safe:active:scale-[.98] disabled:opacity-40"
       >
         <FaceIcon size={18} strokeWidth={2.2} />
-        {pending ? 'Esperando el móvil…' : label}
+        {pending ? platformWaitingLabel(ua) : label}
       </button>
     </div>
   );

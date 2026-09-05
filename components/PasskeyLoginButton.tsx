@@ -11,15 +11,22 @@ import {
   rememberPasskeyHint,
   startAuthentication,
 } from '@/hooks/platform-auth';
-import { platformUnlockLabel } from '@/lib/webauthn';
+import {
+  isAppleMobile,
+  likelyHasPlatformUnlock,
+  platformLoginFailed,
+  platformMissingCredential,
+  platformUnlockLabel,
+  platformWaitingLabel,
+} from '@/lib/webauthn';
 
-function loginErrorMessage(err: unknown): string | null {
+function loginErrorMessage(err: unknown, ua: string): string | null {
   if (isPasskeyAbort(err)) return null;
   const msg = err instanceof Error ? err.message : '';
   if (/no available|not found|unknown credential|no passkey/i.test(msg)) {
-    return 'En este móvil aún no hay huella guardada. Entra con email y actívala en Ajustes → Tu cuenta.';
+    return platformMissingCredential(ua);
   }
-  return 'No se ha podido entrar con huella. Prueba email y contraseña.';
+  return platformLoginFailed(ua);
 }
 
 export default function PasskeyLoginButton({
@@ -29,12 +36,12 @@ export default function PasskeyLoginButton({
   ua: string;
   onError: (message: string | null) => void;
 }) {
-  const [available, setAvailable] = useState(/Android|iPhone|iPad|iPod/i.test(ua));
+  const [available, setAvailable] = useState(likelyHasPlatformUnlock(ua));
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
   const conditionalStarted = useRef(false);
   const label = platformUnlockLabel(ua);
-  const FaceIcon = /iPhone|iPad|iPod/i.test(ua) ? ScanFace : Fingerprint;
+  const FaceIcon = isAppleMobile(ua) ? ScanFace : Fingerprint;
 
   useEffect(() => {
     let alive = true;
@@ -60,7 +67,7 @@ export default function PasskeyLoginButton({
         if (done && !done.ok) onError(done.error);
         else rememberPasskeyHint();
       } catch (err) {
-        const message = loginErrorMessage(err);
+        const message = loginErrorMessage(err, ua);
         if (message && !autofill) onError(message);
       } finally {
         setBusy(false);
@@ -70,12 +77,13 @@ export default function PasskeyLoginButton({
 
   useEffect(() => {
     if (!available || conditionalStarted.current) return;
-    if (!browserSupportsWebAuthnAutofill()) return;
+    // En iOS el sheet de Face ID es lo fiable; el autofill condicional a menudo no abre la cara.
+    if (isAppleMobile(ua) || !browserSupportsWebAuthnAutofill()) return;
     conditionalStarted.current = true;
     run(true);
-    // Solo al montar, cuando el aparato ya puede huella/cara.
+    // Solo al montar, cuando Android ya puede huella/cara.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [available]);
+  }, [available, ua]);
 
   if (!available) return null;
 
@@ -88,7 +96,7 @@ export default function PasskeyLoginButton({
         onClick={() => run(false)}
       >
         <FaceIcon size={20} strokeWidth={2.2} />
-        {pending || busy ? 'Esperando el móvil…' : label}
+        {pending || busy ? platformWaitingLabel(ua) : label}
       </Button>
       <div className="flex items-center gap-3 pt-1">
         <span className="h-px flex-1 bg-surface-line" />
