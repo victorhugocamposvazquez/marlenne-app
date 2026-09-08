@@ -395,17 +395,19 @@ export default function AppointmentSheet({
             </button>
           ) : (
             <div className="mb-3 rounded-field border border-surface-line bg-surface-bg/40 p-3.5">
-              <NextSlotControls
-                durationMin={appt.duration_min}
-                providerId={providerId}
-                anyProviders={canMoveProvider && providers.length > 1}
-                excludeId={appt.id}
-                onPick={slot => {
-                  setDate(dayKey(slot.startsAt));
-                  setProviderId(slot.providerId);
-                  setStartMin(minutesOfDay(slot.startsAt));
-                }}
-              />
+              <div className="mb-3 flex gap-1.5 overflow-x-auto">
+                <NextSlotControls
+                  durationMin={appt.duration_min}
+                  providerId={providerId}
+                  anyProviders={canMoveProvider && providers.length > 1}
+                  excludeId={appt.id}
+                  onPick={slot => {
+                    setDate(dayKey(slot.startsAt));
+                    setProviderId(slot.providerId);
+                    setStartMin(minutesOfDay(slot.startsAt));
+                  }}
+                />
+              </div>
               <Field label="Nuevo día">
                 <input
                   type="date"

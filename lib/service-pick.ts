@@ -52,3 +52,22 @@ export function servicePickSections(
   }
   return sections;
 }
+
+/** Tira rápida: último + más pedidos, para scroll horizontal. */
+export function serviceShortcuts(
+  services: ServiceOption[],
+  opts: { lastId?: string | null; counts?: Record<string, number>; n?: number } = {},
+): ServiceOption[] {
+  const n = opts.n ?? 8;
+  const sections = servicePickSections(services, {
+    lastId: opts.lastId,
+    counts: opts.counts,
+    frequentN: n,
+  });
+  const out: ServiceOption[] = [];
+  for (const sec of sections) {
+    if (sec.key !== 'last' && sec.key !== 'frequent') continue;
+    out.push(...sec.items);
+  }
+  return out.slice(0, n);
+}

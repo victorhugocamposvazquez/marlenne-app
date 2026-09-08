@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { servicePickSections } from '../lib/service-pick';
+import { servicePickSections, serviceShortcuts } from '../lib/service-pick';
 import type { ServiceOption } from '../lib/types';
 
 const s = (id: string, name: string, category: string): ServiceOption => ({
@@ -28,6 +28,14 @@ test('los más pedidos van después del último, sin repetirlo', () => {
   assert.equal(sections[0].items[0].id, 'laser');
   assert.deepEqual(sections[1].items.map(i => i.id), ['corpo', 'facial', 'cejas']);
   assert.ok(!sections.slice(2).some(sec => sec.items.some(i => i.id === 'laser')));
+});
+
+test('la tira rápida junta último y más pedidos', () => {
+  const row = serviceShortcuts(catalog, {
+    lastId: 'laser',
+    counts: { corpo: 12, facial: 8, cejas: 3 },
+  });
+  assert.deepEqual(row.map(i => i.id), ['laser', 'corpo', 'facial', 'cejas']);
 });
 
 test('la búsqueda recorta último y más pedidos', () => {

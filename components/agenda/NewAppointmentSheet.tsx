@@ -14,6 +14,7 @@ import { createClient } from '@/lib/supabase/client';
 import { dayKey, durLbl, fmt, minutesOfDay } from '@/lib/time';
 import { bestNameMatches, fold, parseClock } from '@/lib/voice';
 import { packFitsService, packIsOpen, packLabel, packUsableBy, pickPackForService } from '@/lib/packs';
+import { serviceShortcuts } from '@/lib/service-pick';
 import { readLastServiceId, writeLastServiceId } from '@/hooks/last-service';
 import type { ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
 
@@ -56,7 +57,8 @@ export default function NewAppointmentSheet({
   const [horaAMano, setHoraAMano] = useState(() => parseClock(initialHora) != null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [lastId, setLastId] = useState<string | null>(null);
-  const closePicker = useCallback(() => setPickerOpen(false), []);
+
+  useEffect(() => { setLastId(readLastServiceId()); }, []);
 
   const service = services.find(s => s.id === serviceId) ?? null;
   const usablePacks = client && serviceId
@@ -106,10 +108,11 @@ export default function NewAppointmentSheet({
 
   const openPicker = useCallback(() => {
     setLastId(readLastServiceId());
-    setPickerOpen(true);
+    setPickerOpen(v => !v);
   }, []);
   const pickService = useCallback((id: string) => {
     writeLastServiceId(id);
+    setLastId(id);
     setServiceId(id);
     setPickerOpen(false);
   }, []);
@@ -156,6 +159,10 @@ export default function NewAppointmentSheet({
 
   const whoName = providers.find(p => p.id === providerId)?.full_name.split(' ')[0];
   const slots = starts[providerId];
+  const shortcuts = useMemo(
+    () => serviceShortcuts(services, { lastId, counts: serviceCounts }),
+    [services, lastId, serviceCounts],
+  );
 
   return (
     <div className="shrink-0 border-t border-surface-line bg-surface-card px-3 pb-2 pt-2">
@@ -220,12 +227,32 @@ export default function NewAppointmentSheet({
         onClick={openPicker}
         className={`${inputCls} mb-2 flex items-center gap-2 py-2.5 text-left`}
         aria-label="Servicio"
+        aria-expanded={pickerOpen}
       >
         <span className={`min-w-0 flex-1 truncate ${service ? 'text-ink' : 'text-ink-3'}`}>
           {service ? `${service.name} · ${durLbl(service.duration_min)}` : 'Elegir servicio…'}
         </span>
-        <ChevronDown size={18} strokeWidth={2.2} className="shrink-0 text-ink-3" />
+        <ChevronDown size={18} strokeWidth={2.2} className={`shrink-0 text-ink-3 transition ${pickerOpen ? 'rotate-180' : ''}`} />
       </button>
+
+      {!pickerOpen && shortcuts.length > 0 && (
+        <div className="mb-2 flex gap-1.5 overflow-x-auto pb-0.5">
+          {shortcuts.map(s => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => pickService(s.id)}
+              className={`shrink-0 rounded-pill px-3 py-2 text-label font-bold ${
+                s.id === serviceId
+                  ? 'bg-grad text-white shadow-pill'
+                  : 'border border-surface-line bg-surface-bg text-ink-2'
+              }`}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       <ServicePicker
         open={pickerOpen}
@@ -235,14 +262,13 @@ export default function NewAppointmentSheet({
         selectedId={serviceId}
         initialQuery={!serviceId ? initialServiceQ : ''}
         onPick={pickService}
-        onClose={closePicker}
       />
 
       {usablePacks.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-2">
-          <Chip active={!packId} onClick={() => setPackId('')}>Sin bono</Chip>
+        <div className="mb-2 flex gap-2 overflow-x-auto pb-0.5">
+          <Chip className="shrink-0" active={!packId} onClick={() => setPackId('')}>Sin bono</Chip>
           {usablePacks.map(p => (
-            <Chip key={p.id} active={packId === p.id} onClick={() => setPackId(p.id)}>
+            <Chip className="shrink-0" key={p.id} active={packId === p.id} onClick={() => setPackId(p.id)}>
               {packLabel(p)}
               {p.owner_client_id !== client?.id ? ' · amiga' : ''}
             </Chip>
@@ -251,7 +277,7 @@ export default function NewAppointmentSheet({
       )}
 
       {horaAMano && service && (
-        <div className="mb-2">
+        <div className="mb-2 flex gap-1.5 overflow-x-auto pb-0.5">
           <NextSlotControls
             durationMin={service.duration_min}
             providerId={providerId}
@@ -263,19 +289,17 @@ export default function NewAppointmentSheet({
             }}
           />
           {slots == null ? (
-            <p className="text-caption font-semibold text-ink-3">Buscando huecos…</p>
+            <p className="shrink-0 self-center text-caption font-semibold text-ink-3">Buscando…</p>
           ) : slots.length === 0 ? (
-            <p className="text-caption font-semibold text-ink-2">
-              No queda hueco de {durLbl(service.duration_min)} ese día.
+            <p className="shrink-0 self-center text-caption font-semibold text-ink-2">
+              No queda hueco de {durLbl(service.duration_min)}.
             </p>
           ) : (
-            <div className="flex flex-wrap gap-2">
-              {slots.map(m => (
-                <Chip key={m} active={m === startMin} onClick={() => setStartMin(m)}>
-                  <span className="tabular-nums">{fmt(m)}</span>
-                </Chip>
-              ))}
-            </div>
+            slots.map(m => (
+              <Chip className="shrink-0" key={m} active={m === startMin} onClick={() => setStartMin(m)}>
+                <span className="tabular-nums">{fmt(m)}</span>
+              </Chip>
+            ))
           )}
         </div>
       )}
