@@ -1,21 +1,22 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { ChevronLeft, Search, UserPlus, X } from 'lucide-react';
-import { Chip, inputCls, useCloseSheet } from '@/components/Sheet';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
+import { ChevronDown, ChevronLeft, X } from 'lucide-react';
+import { Chip, useCloseSheet } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
 import IconButton from '@/components/ui/IconButton';
 import ChipScroller from '@/components/ui/ChipScroller';
+import ClientPicker from '@/components/agenda/ClientPicker';
 import NextSlotControls from '@/components/agenda/NextSlotControls';
+import ServicePicker from '@/components/agenda/ServicePicker';
 import { usePlace, type PlacePick } from '@/components/agenda/PlaceContext';
-import { avatarColor } from '@/lib/categories';
+import { avatarColor, initials } from '@/lib/categories';
 import { createAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import { dayKey, durLbl, fmt, minutesOfDay } from '@/lib/time';
-import { bestNameMatches, fold, parseClock } from '@/lib/voice';
+import { bestNameMatches, parseClock } from '@/lib/voice';
 import { packFitsService, packIsOpen, packLabel, packUsableBy, pickPackForService } from '@/lib/packs';
 import { newAppointmentCta } from '@/lib/new-appointment-cta';
-import { serviceChipOrder } from '@/lib/service-pick';
 import { readLastServiceId, writeLastServiceId } from '@/hooks/last-service';
 import type { ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
 
@@ -58,10 +59,14 @@ export default function NewAppointmentSheet({
   const [step, setStep] = useState<'who' | 'when'>(() =>
     parseClock(initialHora) != null && guessedService.length === 1 ? 'when' : 'who',
   );
-  const [serviceQ, setServiceQ] = useState(guessedService.length === 1 ? '' : initialServiceQ);
-  const [serviceSearchOpen, setServiceSearchOpen] = useState(
-    () => guessedService.length !== 1 && !!initialServiceQ,
-  );
+  const [picker, setPicker] = useState<'client' | 'service' | null>(() => {
+    if (preselected || initialName.trim().length > 1) {
+      return guessedService.length === 1 ? null : 'service';
+    }
+    return 'client';
+  });
+  const [nudge, setNudge] = useState(false);
+  const nudgeTimer = useRef(0);
   const serviceSearchRef = useRef<HTMLInputElement>(null);
   const clientRef = useRef<HTMLInputElement>(null);
   const [orderLastId, setOrderLastId] = useState<string | null>(null);
@@ -73,15 +78,6 @@ export default function NewAppointmentSheet({
     ? packs.filter(p => packUsableBy(p, client.id) && packFitsService(p, serviceId) && packIsOpen(p))
     : [];
   const providerKey = providers.map(p => p.id).join(',');
-
-  const matches = useMemo(() => {
-    const q = fold(query);
-    const digits = query.replace(/\D/g, '');
-    if ((!q && !digits) || client) return [];
-    return clients
-      .filter(c => (q && fold(c.full_name).includes(q)) || (digits.length >= 3 && (c.phone ?? '').includes(digits)))
-      .slice(0, 5);
-  }, [query, clients, client]);
 
   useEffect(() => { setDate(day); }, [day]);
 
@@ -127,13 +123,21 @@ export default function NewAppointmentSheet({
   const pickService = useCallback((id: string) => {
     writeLastServiceId(id);
     setServiceId(id);
-    setServiceSearchOpen(false);
-    setServiceQ('');
+    setPicker(null);
   }, []);
 
-  useEffect(() => {
-    if (serviceSearchOpen) serviceSearchRef.current?.focus();
-  }, [serviceSearchOpen]);
+  const openPicker = useCallback((next: 'client' | 'service') => {
+    setPicker(next);
+    setNudge(true);
+    window.clearTimeout(nudgeTimer.current);
+    nudgeTimer.current = window.setTimeout(() => setNudge(false), 800);
+    queueMicrotask(() => {
+      if (next === 'client') clientRef.current?.focus();
+      else serviceSearchRef.current?.focus();
+    });
+  }, []);
+
+  useEffect(() => () => window.clearTimeout(nudgeTimer.current), []);
 
   useEffect(() => {
     if (serviceId) writeLastServiceId(serviceId);
@@ -181,14 +185,6 @@ export default function NewAppointmentSheet({
   };
 
   const slots = starts[providerId];
-  const chips = useMemo(() => {
-    const ordered = serviceChipOrder(services, { lastId: orderLastId, counts: serviceCounts });
-    const q = fold(serviceQ);
-    if (!q) return ordered;
-    return ordered.filter(s =>
-      fold(s.name).includes(q) || fold(s.category).includes(q) || fold(s.category_label ?? '').includes(q),
-    );
-  }, [services, orderLastId, serviceCounts, serviceQ]);
   const recap = [who || null, service?.name ?? null, startMin != null ? fmt(startMin) : null]
     .filter(Boolean)
     .join(' · ');
@@ -226,115 +222,81 @@ export default function NewAppointmentSheet({
         </IconButton>
       </div>
 
-      {step === 'who' && (client ? (
+      {step === 'who' && picker === 'client' && (
+        <ClientPicker
+          clients={clients}
+          query={query}
+          onQuery={setQuery}
+          onPick={c => {
+            setClient(c);
+            setQuery('');
+            setPicker(service ? null : 'service');
+          }}
+          inputRef={clientRef}
+          nudge={nudge && picker === 'client'}
+        />
+      )}
+
+      {step === 'who' && picker !== 'client' && (client || who.length > 1) && (
         <div className="mb-2 flex items-center gap-2 rounded-pill border border-surface-line bg-v-tint px-2.5 py-1.5">
           <span
             className="grid h-6 w-6 shrink-0 place-items-center rounded-chip text-micro font-bold text-white"
-            style={{ background: avatarColor(client.full_name) }}
+            style={{ background: avatarColor(who) }}
           >
-            {client.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+            {initials(who)}
           </span>
-          <span className="min-w-0 flex-1 truncate text-label font-bold">{client.full_name}</span>
+          <button
+            type="button"
+            onClick={() => openPicker('client')}
+            className="min-w-0 flex-1 truncate text-left text-label font-bold"
+          >
+            {who}
+          </button>
           <button
             type="button"
             aria-label="Quitar clienta"
-            onClick={() => { setClient(null); setQuery(''); }}
+            onClick={() => { setClient(null); setQuery(''); openPicker('client'); }}
             className="grid h-8 w-8 shrink-0 place-items-center text-ink-2"
           >
             <X size={14} strokeWidth={2.2} />
           </button>
         </div>
-      ) : (
-        <div className="relative mb-2">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" strokeWidth={2.2} />
-          <input
-            ref={clientRef}
-            className={`${inputCls} pl-9 py-2.5`}
-            placeholder="Elige clienta/e"
-            aria-label="Elige clienta o cliente"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-          />
-          {matches.length > 0 && (
-            <div className="absolute inset-x-0 bottom-full z-10 mb-1 overflow-hidden rounded-field border border-surface-line bg-surface-card shadow-card">
-              {matches.map(c => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setClient(c)}
-                  className="flex w-full items-center gap-2 border-b border-surface-line px-3 py-2 text-left last:border-0"
-                >
-                  <span className="block truncate text-body font-bold">{c.full_name}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          {query.trim().length > 1 && matches.length === 0 && (
-            <p className="mt-1 flex items-center gap-1 text-caption font-semibold text-ink-2">
-              <UserPlus size={14} strokeWidth={2.2} className="text-v" />
-              Se guardará como «{query.trim()}»
-            </p>
-          )}
-        </div>
-      ))}
+      )}
 
-      {step === 'who' && <div className="mb-2 flex min-w-0 items-center gap-1.5">
-        {serviceSearchOpen ? (
-          <>
-            <input
-              ref={serviceSearchRef}
-              className="h-9 w-[8.5rem] shrink-0 rounded-field border border-surface-line bg-surface-bg/40 px-2.5 text-[16px] font-semibold text-ink outline-none focus:border-v focus-visible:ring-2 focus-visible:ring-v/40"
-              placeholder="Buscar…"
-              aria-label="Buscar servicio"
-              value={serviceQ}
-              onChange={e => setServiceQ(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Escape') {
-                  setServiceSearchOpen(false);
-                  setServiceQ('');
-                }
-              }}
-            />
-            <button
-              type="button"
-              aria-label="Cerrar búsqueda"
-              onClick={() => { setServiceSearchOpen(false); setServiceQ(''); }}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-pill text-ink-2"
-            >
-              <X size={16} strokeWidth={2.2} />
-            </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            aria-label="Buscar servicio"
-            onClick={() => setServiceSearchOpen(true)}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-pill border border-surface-line bg-surface-bg text-ink-2"
-          >
-            <Search size={16} strokeWidth={2.2} />
-          </button>
-        )}
-        <ChipScroller className="min-w-0 flex-1" label="Servicios">
-          {chips.map(s => (
-            <button
-              key={s.id}
-              type="button"
-              aria-pressed={s.id === serviceId}
-              onClick={() => pickService(s.id)}
-              className={`shrink-0 rounded-pill px-3 py-2 text-label font-bold ${
-                s.id === serviceId
-                  ? 'bg-grad text-white shadow-pill'
-                  : 'border border-surface-line bg-surface-bg text-ink-2'
-              }`}
-            >
-              {s.name}
-            </button>
-          ))}
-          {chips.length === 0 && (
-            <p className="shrink-0 self-center py-2 text-caption font-semibold text-ink-3">Sin coincidencias</p>
-          )}
-        </ChipScroller>
-      </div>}
+      {step === 'who' && picker === 'service' && (
+        <ServicePicker
+          open
+          services={services}
+          lastId={orderLastId}
+          counts={serviceCounts}
+          selectedId={serviceId}
+          initialQuery={initialServiceQ}
+          onPick={pickService}
+          inputRef={serviceSearchRef}
+          nudge={nudge && picker === 'service'}
+        />
+      )}
+
+      {step === 'who' && picker !== 'service' && (service ? (
+        <button
+          type="button"
+          onClick={() => openPicker('service')}
+          className="mb-2 flex w-full items-center gap-2 rounded-pill border border-surface-line bg-surface-bg px-2.5 py-1.5 text-left"
+        >
+          <span className="min-w-0 flex-1 truncate text-label font-bold">{service.name}</span>
+          <span className="shrink-0 text-caption font-semibold text-ink-2">{durLbl(service.duration_min)}</span>
+          <span className="shrink-0 text-caption font-bold text-v">Cambiar</span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => openPicker('service')}
+          className="mb-2 flex w-full items-center justify-between rounded-field border border-dashed border-surface-line bg-surface-bg px-3 py-2.5 text-left"
+        >
+          <span className="text-label font-bold text-ink-2">Elige el servicio</span>
+          <ChevronDown size={18} strokeWidth={2.2} className="text-ink-3" />
+        </button>
+      ))}
 
       {step === 'who' && usablePacks.length > 0 && (
         <ChipScroller className="mb-2" label="Bonos">
@@ -386,11 +348,12 @@ export default function NewAppointmentSheet({
         onClick={() => {
           if (cta.kind === 'client') {
             if (step === 'when') setStep('who');
-            clientRef.current?.focus();
+            openPicker('client');
             return;
           }
           if (cta.kind === 'service') {
             if (step === 'when') setStep('who');
+            openPicker('service');
             return;
           }
           if (cta.kind === 'time') {

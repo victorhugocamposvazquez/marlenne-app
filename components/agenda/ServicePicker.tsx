@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type Ref } from 'react';
 import { Check, Search } from 'lucide-react';
 import { inputCls } from '@/components/Sheet';
 import { catStyle } from '@/lib/categories';
@@ -9,7 +9,7 @@ import { durLbl } from '@/lib/time';
 import type { ServiceOption } from '@/lib/types';
 
 export default function ServicePicker({
-  open, services, lastId, counts, selectedId, initialQuery = '', onPick,
+  open, services, lastId, counts, selectedId, initialQuery = '', onPick, inputRef, nudge,
 }: {
   open: boolean;
   services: ServiceOption[];
@@ -19,6 +19,8 @@ export default function ServicePicker({
   initialQuery?: string;
   onPick: (id: string) => void;
   onClose?: () => void;
+  inputRef?: Ref<HTMLInputElement>;
+  nudge?: boolean;
 }) {
   const [query, setQuery] = useState(initialQuery);
 
@@ -43,7 +45,9 @@ export default function ServicePicker({
 
   return (
     <div
-      className="mb-2 flex max-h-[34vh] flex-col overflow-hidden rounded-field border border-surface-line bg-surface-bg"
+      className={`mb-2 flex max-h-[34vh] flex-col overflow-hidden rounded-field border bg-surface-bg ${
+        nudge ? 'border-v ring-2 ring-v/40' : 'border-surface-line'
+      }`}
       role="listbox"
       aria-label="Elegir servicio"
     >
@@ -51,13 +55,20 @@ export default function ServicePicker({
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" strokeWidth={2.2} />
           <input
+            ref={inputRef}
+            autoFocus={open}
             className={`${inputCls} pl-9 py-2`}
-            placeholder="Buscar…"
+            placeholder="Buscar un servicio"
             aria-label="Buscar servicio"
             value={query}
             onChange={e => setQuery(e.target.value)}
           />
         </div>
+        {!query.trim() && (
+          <p className="mt-1.5 px-0.5 text-caption font-semibold text-ink-2">
+            {services.length} servicios · desliza o busca
+          </p>
+        )}
         {shortcuts.length > 0 && !query.trim() && (
           <div className="-mx-0.5 mt-2 flex gap-1.5 overflow-x-auto px-0.5 pb-0.5">
             {shortcuts.map(s => (
