@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState, useTransition } from 'react';
-import { Search, UserPlus, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
+import { CalendarDays, Search, UserPlus, X } from 'lucide-react';
 import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
 import IconButton from '@/components/ui/IconButton';
 import NextSlotControls from '@/components/agenda/NextSlotControls';
+import SlotDayPicker from '@/components/agenda/SlotDayPicker';
 import { avatarColor, catStyle } from '@/lib/categories';
 import { createAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
@@ -50,6 +51,7 @@ export default function NewAppointmentSheet({
   const [serviceQ, setServiceQ] = useState(initialServiceQ);
   const [note, setNote] = useState('');
   const [packId, setPackId] = useState('');
+  const [dayView, setDayView] = useState(false);
 
   const service = services.find(s => s.id === serviceId) ?? null;
   const usablePacks = client && serviceId
@@ -85,7 +87,14 @@ export default function NewAppointmentSheet({
   }, [client?.id, serviceId, packs]);
 
   const who = client?.full_name ?? query.trim();
+  const canPlace = !!service && who.length > 1;
   const ready = !!service && !!providerId && startMin !== null && who.length > 1 && !pending;
+
+  const onPlacePick = useCallback((p: { providerId: string; startMin: number }) => {
+    setProviderId(p.providerId);
+    setStartMin(p.startMin);
+  }, []);
+  const closeDayView = useCallback(() => setDayView(false), []);
 
   const save = () => {
     if (!ready || !service || startMin === null) return;
@@ -105,6 +114,25 @@ export default function NewAppointmentSheet({
       else setError(r.error ?? 'No se ha podido guardar la cita');
     });
   };
+
+  if (dayView && service && canPlace) {
+    return (
+      <SlotDayPicker
+        date={date}
+        onDate={setDate}
+        providers={providers}
+        durationMin={service.duration_min}
+        clientLabel={who}
+        serviceName={service.name}
+        pick={startMin != null ? { providerId, startMin } : null}
+        onPick={onPlacePick}
+        onBack={closeDayView}
+        onSave={save}
+        pending={pending}
+        error={error}
+      />
+    );
+  }
 
   return (
     <Sheet
@@ -262,6 +290,15 @@ export default function NewAppointmentSheet({
           onChange={e => setDate(e.target.value)}
         />
       </Field>
+
+      {canPlace && (
+        <div className="mb-4">
+          <Button variant="secondary" full onClick={() => setDayView(true)}>
+            <CalendarDays size={18} strokeWidth={2.2} />
+            Ver huecos en el día
+          </Button>
+        </div>
+      )}
 
       {service && (
         <NextSlotControls

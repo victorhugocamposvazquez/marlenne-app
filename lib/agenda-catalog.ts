@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { ClientOption, ClientPack, ServiceOption, WaitItem } from '@/lib/types';
+import type { AgendaAppt, AgendaBlock, ClientOption, ClientPack, ServiceOption, WaitItem } from '@/lib/types';
 import { listSalonPacks } from '@/lib/pack-write';
+import { APPT_SELECT, APPT_SELECT_CORE, mapAppt } from '@/lib/agenda-appt';
+import { toTimestamp } from '@/lib/time';
 
 export async function loadServices(sb: SupabaseClient): Promise<ServiceOption[]> {
   const { data } = await sb
@@ -38,4 +40,28 @@ export async function loadSignedPhotoUrls(sb: SupabaseClient, paths: string[]) {
     if (item.path && item.signedUrl) map[item.path] = item.signedUrl;
   }
   return map;
+}
+
+export async function loadDayAgenda(sb: SupabaseClient, date: string, providerIds: string[]) {
+  if (providerIds.length === 0) return { appointments: [] as AgendaAppt[], blocks: [] as AgendaBlock[] };
+  const from = toTimestamp(date, 0);
+  const to = toTimestamp(date, 24 * 60 - 1);
+  const load = (cols: string) => sb.from('appointments').select(cols)
+    .gte('starts_at', from).lte('starts_at', to)
+    .in('provider_id', providerIds).order('starts_at');
+  const [appts, blocks] = await Promise.all([
+    load(APPT_SELECT),
+    sb.from('time_blocks').select('id, provider_id, reason, label, starts_at, duration_min')
+      .gte('starts_at', from).lte('starts_at', to)
+      .in('provider_id', providerIds),
+  ]);
+  let rows = appts.data;
+  if (appts.error) {
+    const retry = /confirmed_at|client_pack|color/i.test(appts.error.message) ? await load(APPT_SELECT_CORE) : null;
+    rows = retry?.data ?? null;
+  }
+  return {
+    appointments: (rows ?? []).map(mapAppt),
+    blocks: (blocks.data ?? []) as AgendaBlock[],
+  };
 }
