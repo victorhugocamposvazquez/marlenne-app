@@ -18,6 +18,7 @@ import { bestNameMatches, parseClock } from '@/lib/voice';
 import { packFitsService, packIsOpen, packLabel, packUsableBy, pickPackForService } from '@/lib/packs';
 import { newAppointmentCta } from '@/lib/new-appointment-cta';
 import { readLastServiceId, writeLastServiceId } from '@/hooks/last-service';
+import { useSheetResize } from '@/hooks/useSheetResize';
 import type { ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
 
 export default function NewAppointmentSheet({
@@ -38,6 +39,7 @@ export default function NewAppointmentSheet({
 }) {
   const close = useCloseSheet();
   const { publish } = usePlace();
+  const { height, dragging, onHandleDown, ensureMid } = useSheetResize();
   const [pending, startTransition] = useTransition();
 
   const guessedService = initialServiceQ
@@ -128,6 +130,7 @@ export default function NewAppointmentSheet({
 
   const openPicker = useCallback((next: 'client' | 'service') => {
     setPicker(next);
+    ensureMid();
     setNudge(true);
     window.clearTimeout(nudgeTimer.current);
     nudgeTimer.current = window.setTimeout(() => setNudge(false), 800);
@@ -135,7 +138,7 @@ export default function NewAppointmentSheet({
       if (next === 'client') clientRef.current?.focus();
       else serviceSearchRef.current?.focus();
     });
-  }, []);
+  }, [ensureMid]);
 
   useEffect(() => () => window.clearTimeout(nudgeTimer.current), []);
 
@@ -190,8 +193,25 @@ export default function NewAppointmentSheet({
     .join(' · ');
 
   return (
-    <div className="shrink-0 border-t border-surface-line bg-surface-card px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] standalone:pb-[max(8px,calc(env(safe-area-inset-bottom)-12px))]">
-      <div className="mb-2 flex items-center gap-1">
+    <div
+      data-no-pull
+      className="relative z-[8] flex shrink-0 flex-col overflow-hidden rounded-t-sheet border-t border-surface-line bg-surface-card shadow-toast"
+      style={{
+        height,
+        transition: dragging ? 'none' : 'height .28s cubic-bezier(.2,.9,.3,1)',
+      }}
+    >
+      <button
+        type="button"
+        data-no-pull
+        aria-label="Arrastra para agrandar o encoger el formulario"
+        className="flex w-full shrink-0 touch-none items-center justify-center py-2.5 [-webkit-touch-callout:none]"
+        onPointerDown={onHandleDown}
+      >
+        <span className="h-1 w-10 rounded-full bg-handle" />
+      </button>
+
+      <div className="flex shrink-0 items-center gap-1 px-3">
         {step === 'when' && (
           <IconButton label="Volver" tone="ghost" onClick={() => setStep('who')}>
             <ChevronLeft size={20} strokeWidth={2.2} />
@@ -222,8 +242,10 @@ export default function NewAppointmentSheet({
         </IconButton>
       </div>
 
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pt-2">
       {step === 'who' && picker === 'client' && (
         <ClientPicker
+          fill
           clients={clients}
           query={query}
           onQuery={setQuery}
@@ -238,7 +260,7 @@ export default function NewAppointmentSheet({
       )}
 
       {step === 'who' && picker !== 'client' && (client || who.length > 1) && (
-        <div className="mb-2 flex items-center gap-2 rounded-pill border border-surface-line bg-v-tint px-2.5 py-1.5">
+        <div className="mb-2 flex shrink-0 items-center gap-2 rounded-pill border border-surface-line bg-v-tint px-2.5 py-1.5">
           <span
             className="grid h-6 w-6 shrink-0 place-items-center rounded-chip text-micro font-bold text-white"
             style={{ background: avatarColor(who) }}
@@ -265,6 +287,7 @@ export default function NewAppointmentSheet({
 
       {step === 'who' && picker === 'service' && (
         <ServicePicker
+          fill
           open
           services={services}
           lastId={orderLastId}
@@ -341,7 +364,9 @@ export default function NewAppointmentSheet({
       {error && (
         <p className="mb-2 rounded-chip bg-danger-bg px-3 py-2 text-label font-semibold text-danger-fg">{error}</p>
       )}
+      </div>
 
+      <div className="shrink-0 px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-1 standalone:pb-[max(8px,calc(env(safe-area-inset-bottom)-12px))]">
       <Button
         size="lg"
         full
@@ -367,6 +392,7 @@ export default function NewAppointmentSheet({
       >
         {cta.label}
       </Button>
+      </div>
     </div>
   );
 }

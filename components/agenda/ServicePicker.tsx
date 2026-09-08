@@ -9,7 +9,7 @@ import { durLbl } from '@/lib/time';
 import type { ServiceOption } from '@/lib/types';
 
 export default function ServicePicker({
-  open, services, lastId, counts, selectedId, initialQuery = '', onPick, inputRef, nudge,
+  open, services, lastId, counts, selectedId, initialQuery = '', onPick, inputRef, nudge, fill,
 }: {
   open: boolean;
   services: ServiceOption[];
@@ -21,6 +21,7 @@ export default function ServicePicker({
   onClose?: () => void;
   inputRef?: Ref<HTMLInputElement>;
   nudge?: boolean;
+  fill?: boolean;
 }) {
   const [query, setQuery] = useState(initialQuery);
 
@@ -45,9 +46,9 @@ export default function ServicePicker({
 
   return (
     <div
-      className={`mb-2 flex max-h-[34vh] flex-col overflow-hidden rounded-field border bg-surface-bg ${
-        nudge ? 'border-v ring-2 ring-v/40' : 'border-surface-line'
-      }`}
+      className={`flex flex-col overflow-hidden rounded-field border bg-surface-bg ${
+        fill ? 'min-h-0 flex-1' : 'mb-2 max-h-[34vh]'
+      } ${nudge ? 'border-v ring-2 ring-v/40' : 'border-surface-line'}`}
       role="listbox"
       aria-label="Elegir servicio"
     >

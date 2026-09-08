@@ -8,7 +8,7 @@ import { filterClientOptions } from '@/lib/client-pick';
 import type { ClientOption } from '@/lib/types';
 
 export default function ClientPicker({
-  clients, query, onQuery, onPick, inputRef, nudge,
+  clients, query, onQuery, onPick, inputRef, nudge, fill,
 }: {
   clients: ClientOption[];
   query: string;
@@ -16,15 +16,16 @@ export default function ClientPicker({
   onPick: (c: ClientOption) => void;
   inputRef?: Ref<HTMLInputElement>;
   nudge?: boolean;
+  fill?: boolean;
 }) {
   const shown = filterClientOptions(clients, query);
   const canCreate = query.trim().length > 1 && shown.length === 0;
 
   return (
     <div
-      className={`mb-2 flex max-h-[34vh] flex-col overflow-hidden rounded-field border bg-surface-bg ${
-        nudge ? 'border-v ring-2 ring-v/40' : 'border-surface-line'
-      }`}
+      className={`flex flex-col overflow-hidden rounded-field border bg-surface-bg ${
+        fill ? 'min-h-0 flex-1' : 'mb-2 max-h-[34vh]'
+      } ${nudge ? 'border-v ring-2 ring-v/40' : 'border-surface-line'}`}
       role="listbox"
       aria-label="Elegir clienta o cliente"
     >
