@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { CalendarDays, Search, UserPlus, X } from 'lucide-react';
 import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
@@ -52,6 +52,8 @@ export default function NewAppointmentSheet({
   const [note, setNote] = useState('');
   const [packId, setPackId] = useState('');
   const [dayView, setDayView] = useState(false);
+  const [horaAMano, setHoraAMano] = useState(() => parseClock(initialHora) != null);
+  const skipAutoDay = useRef(horaAMano);
 
   const service = services.find(s => s.id === serviceId) ?? null;
   const usablePacks = client && serviceId
@@ -90,11 +92,25 @@ export default function NewAppointmentSheet({
   const canPlace = !!service && who.length > 1;
   const ready = !!service && !!providerId && startMin !== null && who.length > 1 && !pending;
 
+  useEffect(() => {
+    if (!canPlace || skipAutoDay.current) return;
+    setDayView(true);
+  }, [canPlace]);
+
   const onPlacePick = useCallback((p: { providerId: string; startMin: number }) => {
     setProviderId(p.providerId);
     setStartMin(p.startMin);
   }, []);
-  const closeDayView = useCallback(() => setDayView(false), []);
+  const closeDayView = useCallback(() => {
+    skipAutoDay.current = true;
+    setHoraAMano(true);
+    setDayView(false);
+  }, []);
+  const openDayView = useCallback(() => {
+    skipAutoDay.current = false;
+    setHoraAMano(false);
+    setDayView(true);
+  }, []);
 
   const save = () => {
     if (!ready || !service || startMin === null) return;
@@ -291,45 +307,55 @@ export default function NewAppointmentSheet({
         />
       </Field>
 
-      {canPlace && (
-        <div className="mb-4">
-          <Button variant="secondary" full onClick={() => setDayView(true)}>
-            <CalendarDays size={18} strokeWidth={2.2} />
-            Ver huecos en el día
-          </Button>
-        </div>
-      )}
-
-      {service && (
-        <NextSlotControls
-          durationMin={service.duration_min}
-          providerId={providerId}
-          anyProviders={providers.length > 1}
-          onPick={slot => {
-            setDate(dayKey(slot.startsAt));
-            setProviderId(slot.providerId);
-            setStartMin(minutesOfDay(slot.startsAt));
-          }}
-        />
-      )}
-
       <Field label="Hora">
-        {!service ? (
-          <p className="text-label font-semibold text-ink-3">Elige antes el servicio.</p>
-        ) : slots === null ? (
-          <p className="text-label font-semibold text-ink-3">Buscando huecos…</p>
-        ) : slots.length === 0 ? (
-          <p className="text-label font-semibold text-ink-2">
-            No queda ningún hueco de {durLbl(service.duration_min)} ese día. Prueba el próximo hueco.
+        <Button size="lg" full disabled={!canPlace} onClick={openDayView} className="disabled:shadow-none">
+          <CalendarDays size={18} strokeWidth={2.2} />
+          Ver huecos en el día
+        </Button>
+        {!canPlace && (
+          <p className="mt-2 text-caption font-semibold text-ink-2">
+            {who.length > 1 ? 'Elige el servicio para ver el día.' : 'Escribe la clienta y el servicio para ver el día.'}
           </p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {slots.map(m => (
-              <Chip key={m} active={m === startMin} onClick={() => setStartMin(m)}>
-                <span className="tabular-nums">{fmt(m)}</span>
-              </Chip>
-            ))}
-          </div>
+        )}
+        {horaAMano && service && (
+          <>
+            <div className="mt-3">
+              <NextSlotControls
+                durationMin={service.duration_min}
+                providerId={providerId}
+                anyProviders={providers.length > 1}
+                onPick={slot => {
+                  setDate(dayKey(slot.startsAt));
+                  setProviderId(slot.providerId);
+                  setStartMin(minutesOfDay(slot.startsAt));
+                }}
+              />
+            </div>
+            {slots === null ? (
+              <p className="text-label font-semibold text-ink-3">Buscando huecos…</p>
+            ) : slots.length === 0 ? (
+              <p className="text-label font-semibold text-ink-2">
+                No queda ningún hueco de {durLbl(service.duration_min)} ese día. Prueba el próximo hueco.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {slots.map(m => (
+                  <Chip key={m} active={m === startMin} onClick={() => setStartMin(m)}>
+                    <span className="tabular-nums">{fmt(m)}</span>
+                  </Chip>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+        {canPlace && !horaAMano && (
+          <button
+            type="button"
+            onClick={() => setHoraAMano(true)}
+            className="mt-2 w-full py-2 text-center text-caption font-bold text-ink-3"
+          >
+            Hora a mano
+          </button>
         )}
       </Field>
 
