@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { Search, UserPlus, X } from 'lucide-react';
+import { ChevronLeft, Search, UserPlus, X } from 'lucide-react';
 import { Chip, inputCls, useCloseSheet } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
 import IconButton from '@/components/ui/IconButton';
@@ -54,15 +54,18 @@ export default function NewAppointmentSheet({
   const [starts, setStarts] = useState<Record<string, number[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [packId, setPackId] = useState('');
-  const [horaAMano, setHoraAMano] = useState(() => parseClock(initialHora) != null);
+  const [step, setStep] = useState<'who' | 'when'>(() =>
+    parseClock(initialHora) != null && guessedService.length === 1 ? 'when' : 'who',
+  );
   const [serviceQ, setServiceQ] = useState(guessedService.length === 1 ? '' : initialServiceQ);
   const [serviceSearchOpen, setServiceSearchOpen] = useState(
     () => guessedService.length !== 1 && !!initialServiceQ,
   );
   const serviceSearchRef = useRef<HTMLInputElement>(null);
-  const [lastId, setLastId] = useState<string | null>(null);
+  const clientRef = useRef<HTMLInputElement>(null);
+  const [orderLastId, setOrderLastId] = useState<string | null>(null);
 
-  useEffect(() => { setLastId(readLastServiceId()); }, []);
+  useEffect(() => { setOrderLastId(readLastServiceId()); }, []);
 
   const service = services.find(s => s.id === serviceId) ?? null;
   const usablePacks = client && serviceId
@@ -108,11 +111,13 @@ export default function NewAppointmentSheet({
   }, [client?.id, serviceId, packs]);
 
   const who = client?.full_name ?? query.trim();
-  const ready = !!service && !!providerId && startMin !== null && who.length > 1 && !pending;
+  const missingClient = who.length <= 1;
+  const missingService = !service;
+  const canNext = !missingClient && !missingService && !pending;
+  const ready = canNext && !!providerId && startMin !== null;
 
   const pickService = useCallback((id: string) => {
     writeLastServiceId(id);
-    setLastId(id);
     setServiceId(id);
     setServiceSearchOpen(false);
     setServiceQ('');
@@ -129,19 +134,22 @@ export default function NewAppointmentSheet({
   const onPick = useCallback((p: PlacePick) => {
     setProviderId(p.providerId);
     setStartMin(p.startMin);
-    setHoraAMano(false);
   }, []);
 
   useEffect(() => {
+    if (step !== 'when' || !service) {
+      publish(null);
+      return;
+    }
     publish({
-      durationMin: service?.duration_min ?? null,
+      durationMin: service.duration_min,
       starts,
       pick: startMin != null ? { providerId, startMin } : null,
       clientLabel: who,
-      serviceName: service?.name ?? '',
+      serviceName: service.name,
       onPick,
     });
-  }, [service, starts, startMin, providerId, who, onPick, publish]);
+  }, [step, service, starts, startMin, providerId, who, onPick, publish]);
 
   useEffect(() => () => publish(null), [publish]);
 
@@ -166,18 +174,38 @@ export default function NewAppointmentSheet({
   const whoName = providers.find(p => p.id === providerId)?.full_name.split(' ')[0];
   const slots = starts[providerId];
   const chips = useMemo(() => {
-    const ordered = serviceChipOrder(services, { lastId, counts: serviceCounts });
+    const ordered = serviceChipOrder(services, { lastId: orderLastId, counts: serviceCounts });
     const q = fold(serviceQ);
     if (!q) return ordered;
     return ordered.filter(s =>
       fold(s.name).includes(q) || fold(s.category).includes(q) || fold(s.category_label ?? '').includes(q),
     );
-  }, [services, lastId, serviceCounts, serviceQ]);
+  }, [services, orderLastId, serviceCounts, serviceQ]);
+  const recap = [who || null, service?.name ?? null, startMin != null ? fmt(startMin) : null]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <div className="shrink-0 border-t border-surface-line bg-surface-card px-3 pb-2 pt-2">
-      <div className="mb-2 flex items-center gap-2">
-        <p className="min-w-0 flex-1 text-label font-extrabold">Nueva cita</p>
+      <div className="mb-2 flex items-center gap-1">
+        {step === 'when' && (
+          <IconButton label="Volver" tone="ghost" onClick={() => setStep('who')}>
+            <ChevronLeft size={20} strokeWidth={2.2} />
+          </IconButton>
+        )}
+        {step === 'when' && recap ? (
+          <button
+            type="button"
+            onClick={() => setStep('who')}
+            className="min-w-0 flex-1 truncate text-left text-label font-extrabold"
+          >
+            {recap}
+          </button>
+        ) : (
+          <p className="min-w-0 flex-1 truncate text-label font-extrabold">
+            {recap || 'Nueva cita'}
+          </p>
+        )}
         {service && (
           <span className="shrink-0 text-caption font-semibold text-ink-2">{durLbl(service.duration_min)}</span>
         )}
@@ -186,23 +214,29 @@ export default function NewAppointmentSheet({
         </IconButton>
       </div>
 
-      {client ? (
-        <div className="mb-2 flex items-center gap-2 rounded-field border border-surface-line bg-v-tint px-3 py-2">
+      {step === 'who' && (client ? (
+        <div className="mb-2 flex items-center gap-2 rounded-pill border border-surface-line bg-v-tint px-2.5 py-1.5">
           <span
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-chip text-micro font-bold text-white"
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-chip text-micro font-bold text-white"
             style={{ background: avatarColor(client.full_name) }}
           >
             {client.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
           </span>
-          <span className="min-w-0 flex-1 truncate text-body font-bold">{client.full_name}</span>
-          <IconButton label="Quitar clienta" onClick={() => { setClient(null); setQuery(''); }}>
-            <X size={16} strokeWidth={2.2} />
-          </IconButton>
+          <span className="min-w-0 flex-1 truncate text-label font-bold">{client.full_name}</span>
+          <button
+            type="button"
+            aria-label="Quitar clienta"
+            onClick={() => { setClient(null); setQuery(''); }}
+            className="grid h-8 w-8 shrink-0 place-items-center text-ink-2"
+          >
+            <X size={14} strokeWidth={2.2} />
+          </button>
         </div>
       ) : (
         <div className="relative mb-2">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" strokeWidth={2.2} />
           <input
+            ref={clientRef}
             className={`${inputCls} pl-9 py-2.5`}
             placeholder="Clienta"
             aria-label="Clienta"
@@ -230,9 +264,9 @@ export default function NewAppointmentSheet({
             </p>
           )}
         </div>
-      )}
+      ))}
 
-      <div className="mb-2 flex min-w-0 items-center gap-1.5">
+      {step === 'who' && <div className="mb-2 flex min-w-0 items-center gap-1.5">
         {serviceSearchOpen ? (
           <>
             <input
@@ -288,9 +322,9 @@ export default function NewAppointmentSheet({
             <p className="shrink-0 self-center py-2 text-caption font-semibold text-ink-3">Sin coincidencias</p>
           )}
         </ChipScroller>
-      </div>
+      </div>}
 
-      {usablePacks.length > 0 && (
+      {step === 'who' && usablePacks.length > 0 && (
         <ChipScroller className="mb-2" label="Bonos">
           <Chip className="shrink-0" active={!packId} onClick={() => setPackId('')}>Sin bono</Chip>
           {usablePacks.map(p => (
@@ -302,7 +336,7 @@ export default function NewAppointmentSheet({
         </ChipScroller>
       )}
 
-      {horaAMano && service && (
+      {step === 'when' && service && (
         <ChipScroller className="mb-2" label="Horas">
           <NextSlotControls
             durationMin={service.duration_min}
@@ -334,24 +368,35 @@ export default function NewAppointmentSheet({
         <p className="mb-2 rounded-chip bg-danger-bg px-3 py-2 text-label font-semibold text-danger-fg">{error}</p>
       )}
 
-      <Button size="lg" full onClick={save} disabled={!ready} className="disabled:shadow-none">
-        {pending
-          ? 'Guardando…'
-          : startMin != null
-            ? `Guardar ${fmt(startMin)}${whoName ? ` · ${whoName}` : ''}`
-            : who.length > 1 && service
-              ? 'Toca un hueco en el día'
-              : 'Clienta y servicio, luego el hueco'}
-      </Button>
-
-      {!horaAMano && (
-        <button
-          type="button"
-          onClick={() => setHoraAMano(true)}
-          className="mt-1 w-full py-1.5 text-center text-caption font-bold text-ink-3"
+      {step === 'who' ? (
+        <Button
+          size="lg"
+          full
+          onClick={() => {
+            if (missingClient) {
+              clientRef.current?.focus();
+              return;
+            }
+            if (missingService) return;
+            setStep('when');
+          }}
+          disabled={pending}
+          className="disabled:shadow-none"
         >
-          Hora a mano
-        </button>
+          {missingClient ? 'Falta la clienta' : missingService ? 'Falta el servicio' : 'Continuar'}
+        </Button>
+      ) : (
+        <Button size="lg" full onClick={save} disabled={!ready} className="disabled:shadow-none">
+          {pending
+            ? 'Guardando…'
+            : missingClient
+              ? 'Falta la clienta'
+              : missingService
+                ? 'Falta el servicio'
+                : startMin != null
+                  ? `Guardar ${fmt(startMin)}${whoName ? ` · ${whoName}` : ''}`
+                  : 'Toca un hueco en el día'}
+        </Button>
       )}
     </div>
   );
