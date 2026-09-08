@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { Search, UserPlus, X } from 'lucide-react';
 import { Chip, inputCls, useCloseSheet } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
@@ -56,6 +56,10 @@ export default function NewAppointmentSheet({
   const [packId, setPackId] = useState('');
   const [horaAMano, setHoraAMano] = useState(() => parseClock(initialHora) != null);
   const [serviceQ, setServiceQ] = useState(guessedService.length === 1 ? '' : initialServiceQ);
+  const [serviceSearchOpen, setServiceSearchOpen] = useState(
+    () => guessedService.length !== 1 && !!initialServiceQ,
+  );
+  const serviceSearchRef = useRef<HTMLInputElement>(null);
   const [lastId, setLastId] = useState<string | null>(null);
 
   useEffect(() => { setLastId(readLastServiceId()); }, []);
@@ -110,7 +114,13 @@ export default function NewAppointmentSheet({
     writeLastServiceId(id);
     setLastId(id);
     setServiceId(id);
+    setServiceSearchOpen(false);
+    setServiceQ('');
   }, []);
+
+  useEffect(() => {
+    if (serviceSearchOpen) serviceSearchRef.current?.focus();
+  }, [serviceSearchOpen]);
 
   useEffect(() => {
     if (serviceId) writeLastServiceId(serviceId);
@@ -222,36 +232,63 @@ export default function NewAppointmentSheet({
         </div>
       )}
 
-      <div className="relative mb-1.5">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" strokeWidth={2.2} />
-        <input
-          className={`${inputCls} pl-9 py-2`}
-          placeholder="Servicio"
-          aria-label="Buscar servicio"
-          value={serviceQ}
-          onChange={e => setServiceQ(e.target.value)}
-        />
-      </div>
-      <ChipScroller className="mb-2" label="Servicios">
-        {chips.map(s => (
+      <div className="mb-2 flex min-w-0 items-center gap-1.5">
+        {serviceSearchOpen ? (
+          <>
+            <input
+              ref={serviceSearchRef}
+              className="h-9 w-[8.5rem] shrink-0 rounded-field border border-surface-line bg-surface-bg/40 px-2.5 text-[16px] font-semibold text-ink outline-none focus:border-v focus-visible:ring-2 focus-visible:ring-v/40"
+              placeholder="Buscar…"
+              aria-label="Buscar servicio"
+              value={serviceQ}
+              onChange={e => setServiceQ(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Escape') {
+                  setServiceSearchOpen(false);
+                  setServiceQ('');
+                }
+              }}
+            />
+            <button
+              type="button"
+              aria-label="Cerrar búsqueda"
+              onClick={() => { setServiceSearchOpen(false); setServiceQ(''); }}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-pill text-ink-2"
+            >
+              <X size={16} strokeWidth={2.2} />
+            </button>
+          </>
+        ) : (
           <button
-            key={s.id}
             type="button"
-            aria-pressed={s.id === serviceId}
-            onClick={() => pickService(s.id)}
-            className={`shrink-0 rounded-pill px-3 py-2 text-label font-bold ${
-              s.id === serviceId
-                ? 'bg-grad text-white shadow-pill'
-                : 'border border-surface-line bg-surface-bg text-ink-2'
-            }`}
+            aria-label="Buscar servicio"
+            onClick={() => setServiceSearchOpen(true)}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-pill border border-surface-line bg-surface-bg text-ink-2"
           >
-            {s.name}
+            <Search size={16} strokeWidth={2.2} />
           </button>
-        ))}
-        {chips.length === 0 && (
-          <p className="shrink-0 self-center py-2 text-caption font-semibold text-ink-3">Sin coincidencias</p>
         )}
-      </ChipScroller>
+        <ChipScroller className="min-w-0 flex-1" label="Servicios">
+          {chips.map(s => (
+            <button
+              key={s.id}
+              type="button"
+              aria-pressed={s.id === serviceId}
+              onClick={() => pickService(s.id)}
+              className={`shrink-0 rounded-pill px-3 py-2 text-label font-bold ${
+                s.id === serviceId
+                  ? 'bg-grad text-white shadow-pill'
+                  : 'border border-surface-line bg-surface-bg text-ink-2'
+              }`}
+            >
+              {s.name}
+            </button>
+          ))}
+          {chips.length === 0 && (
+            <p className="shrink-0 self-center py-2 text-caption font-semibold text-ink-3">Sin coincidencias</p>
+          )}
+        </ChipScroller>
+      </div>
 
       {usablePacks.length > 0 && (
         <ChipScroller className="mb-2" label="Bonos">
