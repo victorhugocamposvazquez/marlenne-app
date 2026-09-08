@@ -225,6 +225,10 @@ export default function NewAppointmentSheet({
           if ((e.target as HTMLElement).closest('button, a, input')) return;
           onHandleDown(e);
         }}
+        onTouchStart={e => {
+          if ((e.target as HTMLElement).closest('button, a, input')) return;
+          e.preventDefault();
+        }}
       >
         {step === 'when' && (
           <IconButton label="Volver" tone="ghost" onClick={() => setStep('who')}>
