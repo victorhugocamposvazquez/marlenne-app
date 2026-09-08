@@ -416,6 +416,31 @@ export async function listRecalls(limit = 6): Promise<RecallRow[]> {
   return rows;
 }
 
+export async function peekWaitlist() {
+  const sb = createClient();
+  const [{ count }, first] = await Promise.all([
+    sb.from('waitlist').select('id', { count: 'exact', head: true }).is('resolved_at', null),
+    sb.from('waitlist')
+      .select('preference, client_name, service:services(name), client:clients(full_name)')
+      .is('resolved_at', null)
+      .order('created_at')
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  const row = first.data as {
+    preference: string | null;
+    client_name: string | null;
+    service?: { name?: string } | null;
+    client?: { full_name?: string } | null;
+  } | null;
+  const name = (row?.client?.full_name ?? row?.client_name ?? '').split(' ')[0];
+  let hint: string | null = null;
+  if (name && row?.preference) hint = `${name} quiere ${row.preference}`;
+  else if (name && row?.service?.name) hint = `${name} · ${row.service.name}`;
+  else if (name) hint = name;
+  return { count: count ?? 0, hint };
+}
+
 export async function countWaitlist() {
   const sb = createClient();
   const { count } = await sb

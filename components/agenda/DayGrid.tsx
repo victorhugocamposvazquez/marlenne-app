@@ -145,7 +145,7 @@ export default function DayGrid({
         onContextMenu={e => e.preventDefault()}
       >
         <div className={solo ? 'w-full pr-3.5' : 'min-w-max pr-3.5'}>
-          <div className="sticky top-0 z-[6] flex bg-[linear-gradient(180deg,rgb(var(--c-bg))_74%,rgb(var(--c-bg)/0))] pb-2.5 pt-0.5">
+          <div className="sticky top-0 z-[6] flex bg-[linear-gradient(180deg,rgb(var(--c-bg))_74%,rgb(var(--c-bg)/0))] pb-1.5 pt-0.5">
             <div className="sticky left-0 z-[7] w-[46px] shrink-0 bg-surface-bg" />
             {providers.map(p => {
               const count = appointments.filter(a => place(a).provider === p.id).length;
@@ -156,20 +156,18 @@ export default function DayGrid({
                   style={colW ? { width: colW } : undefined}
                 >
                   <div
-                    className="flex items-center gap-2 rounded-pill bg-surface-card p-[7px_9px] shadow-card"
+                    className="flex items-center gap-1.5 rounded-pill bg-surface-card px-2 py-1 shadow-card"
                     style={{ borderBottom: `3px solid ${p.color ?? avatarColor(p.full_name)}` }}
                   >
                     <span
-                      className="grid h-7 w-7 shrink-0 place-items-center rounded-chip text-micro font-bold text-white"
+                      className="grid h-6 w-6 shrink-0 place-items-center rounded-chip text-micro font-bold text-white"
                       style={{ background: p.color ?? avatarColor(p.full_name) }}
                     >
                       {p.initials}
                     </span>
-                    <span className="min-w-0">
-                      <span className="block text-body font-bold leading-tight tracking-[-.01em]">{p.full_name}</span>
-                      <span className="block text-micro font-medium text-ink-3">
-                        {count === 1 ? '1 cita' : `${count} citas`}
-                      </span>
+                    <span className="min-w-0 truncate text-caption font-bold leading-tight">
+                      {p.full_name.split(' ')[0]}
+                      <span className="font-semibold text-ink-3"> · {count}</span>
                     </span>
                   </div>
                 </div>

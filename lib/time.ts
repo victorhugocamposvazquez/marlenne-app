@@ -93,6 +93,16 @@ export function dayTitle(offset: number) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+/** Fecha corta para la cabecera de agenda: "Hoy, vie 28 ago". */
+export function compactDayTitle(offset: number) {
+  const wd = dateFromOffset(offset).toLocaleDateString('es-ES', {
+    timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short',
+  }).replace('.', '');
+  if (offset === 0) return `Hoy, ${wd}`;
+  if (offset === 1) return `Mañana, ${wd}`;
+  return wd.charAt(0).toUpperCase() + wd.slice(1);
+}
+
 export function dayName(offset: number) {
   if (offset === 0) return 'Hoy';
   if (offset === 1) return 'Mañana';

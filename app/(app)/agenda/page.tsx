@@ -7,9 +7,10 @@ import NewAppointmentSheetHost from '@/components/agenda/NewAppointmentSheetHost
 import WaitlistSheetHost from '@/components/agenda/WaitlistSheetHost';
 import BlockSheetHost from '@/components/agenda/BlockSheetHost';
 import { requireSession } from '@/lib/require-session';
-import { listStaff, getDayAgenda, getWeekCounts, countWaitlist } from '@/lib/queries';
+import { listStaff, getDayAgenda, getWeekCounts, peekWaitlist } from '@/lib/queries';
 import { agendaColumns } from '@/lib/team';
 import { dateFromOffset, dayKey } from '@/lib/time';
+import { activeAppts, occPct } from '@/lib/week-view';
 
 export default async function AgendaPage({
   searchParams,
@@ -46,14 +47,17 @@ export default async function AgendaPage({
     : team;
 
   const teamIds = team.map(p => p.id);
-  const [waiting, dayAgenda, weekDays] = await Promise.all([
-    countWaitlist(),
+  const [waitingPeek, dayAgenda, weekDays] = await Promise.all([
+    peekWaitlist(),
     mode === 'dia'
       ? getDayAgenda(dateFromOffset(day), teamIds)
       : Promise.resolve({ appointments: [], blocks: [] }),
     mode === 'semana' ? getWeekCounts(providers.map(p => p.id), day) : Promise.resolve([]),
   ]);
   const dayStr = dayKey(dateFromOffset(day));
+  const live = activeAppts(dayAgenda.appointments);
+  const citas = live.length;
+  const occ = occPct(dayAgenda.appointments, team.length);
 
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
@@ -61,8 +65,10 @@ export default async function AgendaPage({
       <AgendaHeader
         day={day}
         mode={mode}
-        label={me.role === 'provider' ? 'Tu agenda' : selectedPro ? `Agenda de ${providers[0]?.full_name.split(' ')[0]}` : 'Agenda del centro'}
-        waiting={waiting}
+        waiting={waitingPeek.count}
+        waitHint={waitingPeek.hint}
+        citas={mode === 'dia' ? citas : undefined}
+        occ={mode === 'dia' ? occ : undefined}
         providers={team}
         selectedPro={selectedPro}
         canFilter={canFilter}
