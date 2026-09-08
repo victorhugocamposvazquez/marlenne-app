@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
-import { ChevronDown, ChevronLeft, X } from 'lucide-react';
+import { ChevronLeft, X } from 'lucide-react';
 import { Chip, useCloseSheet } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
 import IconButton from '@/components/ui/IconButton';
@@ -300,7 +300,7 @@ export default function NewAppointmentSheet({
         />
       )}
 
-      {step === 'who' && picker !== 'service' && (service ? (
+      {step === 'who' && picker !== 'client' && picker !== 'service' && service && (
         <button
           type="button"
           onClick={() => openPicker('service')}
@@ -310,16 +310,7 @@ export default function NewAppointmentSheet({
           <span className="shrink-0 text-caption font-semibold text-ink-2">{durLbl(service.duration_min)}</span>
           <span className="shrink-0 text-caption font-bold text-v">Cambiar</span>
         </button>
-      ) : (
-        <button
-          type="button"
-          onClick={() => openPicker('service')}
-          className="mb-2 flex w-full items-center justify-between rounded-field border border-dashed border-surface-line bg-surface-bg px-3 py-2.5 text-left"
-        >
-          <span className="text-label font-bold text-ink-2">Elige el servicio</span>
-          <ChevronDown size={18} strokeWidth={2.2} className="text-ink-3" />
-        </button>
-      ))}
+      )}
 
       {step === 'who' && usablePacks.length > 0 && (
         <ChipScroller className="mb-2" label="Bonos">

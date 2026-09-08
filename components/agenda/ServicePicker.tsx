@@ -52,26 +52,21 @@ export default function ServicePicker({
       role="listbox"
       aria-label="Elegir servicio"
     >
-      <div className="shrink-0 border-b border-surface-line p-2">
+      <div className="shrink-0 border-b border-surface-line p-1.5">
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" strokeWidth={2.2} />
           <input
             ref={inputRef}
             autoFocus={open}
             className={`${inputCls} pl-9 py-2`}
-            placeholder="Buscar un servicio"
+            placeholder={query.trim() ? 'Buscar un servicio' : `${services.length} servicios`}
             aria-label="Buscar servicio"
             value={query}
             onChange={e => setQuery(e.target.value)}
           />
         </div>
-        {!query.trim() && (
-          <p className="mt-1.5 px-0.5 text-caption font-semibold text-ink-2">
-            {services.length} servicios · desliza o busca
-          </p>
-        )}
         {shortcuts.length > 0 && !query.trim() && (
-          <div className="-mx-0.5 mt-2 flex gap-1.5 overflow-x-auto px-0.5 pb-0.5">
+          <div className="-mx-0.5 mt-1.5 flex gap-1.5 overflow-x-auto px-0.5 pb-0.5">
             {shortcuts.map(s => (
               <button
                 key={s.id}

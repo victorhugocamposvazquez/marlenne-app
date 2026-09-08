@@ -19,7 +19,7 @@ const TAP = 10;
  * Asidero tipo Instagram: arrastra para agrandar o encoger.
  * Al soltar encaja en un tope. Un toque sube un tamaño.
  */
-export function useSheetResize(initial: 'peek' | 'mid' | 'tall' = 'mid') {
+export function useSheetResize(initial: 'peek' | 'mid' | 'tall' = 'peek') {
   const [height, setHeight] = useState(320);
   const [dragging, setDragging] = useState(false);
   const live = useRef(320);
@@ -55,8 +55,8 @@ export function useSheetResize(initial: 'peek' | 'mid' | 'tall' = 'mid') {
   }, [initial]);
 
   const ensureMid = useCallback(() => {
-    const [, mid] = sheetDetents(viewH());
-    if (live.current < mid - 16) setLive(mid);
+    const [peek] = sheetDetents(viewH());
+    if (live.current < peek - 16) setLive(peek);
   }, []);
 
   const onHandleDown = useCallback((e: React.PointerEvent) => {

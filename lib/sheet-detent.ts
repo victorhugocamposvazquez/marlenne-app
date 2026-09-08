@@ -1,17 +1,24 @@
 /** Alturas del formulario de alta, como los tope de Instagram. */
 
-export const SHEET_PEEK = 0.3;
-export const SHEET_MID = 0.5;
+export const SHEET_CHROME_PX = 130;
+export const CLIENT_SEARCH_PX = 56;
+export const CLIENT_ROW_PX = 44;
+export const CLIENT_ROWS_PEEK = 3;
 export const SHEET_TALL = 0.8;
 export const SHEET_MIN_PX = 176;
 export const SHEET_FLICK = 0.45;
 
+/** Hueco para N clientas a la vista (búsqueda + filas). */
+export function sheetHeightForClientRows(rows: number): number {
+  return SHEET_CHROME_PX + CLIENT_SEARCH_PX + Math.max(0, rows) * CLIENT_ROW_PX;
+}
+
 export function sheetDetents(viewH: number): [number, number, number] {
   const h = Math.max(viewH, SHEET_MIN_PX + 96);
-  const peek = Math.max(SHEET_MIN_PX, Math.round(h * SHEET_PEEK));
-  const mid = Math.round(h * SHEET_MID);
+  const peek = Math.max(SHEET_MIN_PX, sheetHeightForClientRows(CLIENT_ROWS_PEEK));
+  const mid = Math.max(peek + 48, Math.round(h * 0.52));
   const tall = Math.round(h * SHEET_TALL);
-  return [peek, Math.max(peek + 48, mid), Math.max(mid + 48, tall)];
+  return [peek, mid, Math.max(mid + 48, tall)];
 }
 
 /** Fuera de min/max el dedo sigue, pero frena (goma). */

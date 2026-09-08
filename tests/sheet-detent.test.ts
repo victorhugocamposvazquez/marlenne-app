@@ -1,11 +1,19 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { nextSheetHeight, rubberHeight, sheetDetents, snapSheetHeight } from '../lib/sheet-detent';
+import {
+  CLIENT_ROWS_PEEK,
+  nextSheetHeight,
+  rubberHeight,
+  sheetDetents,
+  sheetHeightForClientRows,
+  snapSheetHeight,
+} from '../lib/sheet-detent';
 
-test('tres topes, el bajo no baja de 176', () => {
+test('el tope bajo deja 3 clientas a la vista', () => {
   const [peek, mid, tall] = sheetDetents(800);
-  assert.equal(peek, 240);
-  assert.equal(mid, 400);
+  assert.equal(peek, sheetHeightForClientRows(CLIENT_ROWS_PEEK));
+  assert.equal(CLIENT_ROWS_PEEK, 3);
+  assert.ok(mid > peek);
   assert.equal(tall, 640);
   assert.ok(sheetDetents(200)[0] >= 176);
 });
