@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 
 const EVT = 'marlenne-qs';
 
@@ -20,7 +20,7 @@ export function shallowSet(patch: Record<string, string | null>) {
 
 export function useShallowParam(key: string, initial?: string | null) {
   const [value, setValue] = useState<string | null>(initial ?? null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const read = () => setValue(new URLSearchParams(window.location.search).get(key));
     read();
     window.addEventListener('popstate', read);

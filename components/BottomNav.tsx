@@ -4,14 +4,16 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { MouseEvent } from 'react';
 import { Home, Calendar, Users, Settings, Plus } from 'lucide-react';
-import { shallowSet } from '@/hooks/useShallowQuery';
+import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 
 const ACTIVE = 'rgb(var(--c-brand-deep))';
 const IDLE = 'rgb(var(--c-ink-3))';
 
 export default function BottomNav({ role }: { role: string }) {
   const path = usePathname();
+  const creating = useShallowParam('new');
   const on = (p: string) => path.startsWith(p);
+  if (creating === '1') return null;
 
   const Item = ({ href, icon: Icon, label }: { href: string; icon: typeof Home; label: string }) => (
     <Link

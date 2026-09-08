@@ -186,7 +186,7 @@ export default function NewAppointmentSheet({
     .join(' · ');
 
   return (
-    <div className="shrink-0 border-t border-surface-line bg-surface-card px-3 pb-2 pt-2">
+    <div className="shrink-0 border-t border-surface-line bg-surface-card px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] standalone:pb-[max(8px,calc(env(safe-area-inset-bottom)-12px))]">
       <div className="mb-2 flex items-center gap-1">
         {step === 'when' && (
           <IconButton label="Volver" tone="ghost" onClick={() => setStep('who')}>
@@ -383,7 +383,7 @@ export default function NewAppointmentSheet({
           disabled={pending}
           className="disabled:shadow-none"
         >
-          {missingClient ? 'Falta la clienta' : missingService ? 'Falta el servicio' : 'Continuar'}
+          {missingClient ? 'Falta la clienta' : missingService ? 'Falta el servicio' : 'Elegir hora'}
         </Button>
       ) : (
         <Button size="lg" full onClick={save} disabled={!ready} className="disabled:shadow-none">
