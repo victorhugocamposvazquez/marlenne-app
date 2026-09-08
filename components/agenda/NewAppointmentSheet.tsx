@@ -14,6 +14,7 @@ import { createClient } from '@/lib/supabase/client';
 import { dayKey, durLbl, fmt, minutesOfDay } from '@/lib/time';
 import { bestNameMatches, fold, parseClock } from '@/lib/voice';
 import { packFitsService, packIsOpen, packLabel, packUsableBy, pickPackForService } from '@/lib/packs';
+import { newAppointmentCta } from '@/lib/new-appointment-cta';
 import { serviceChipOrder } from '@/lib/service-pick';
 import { readLastServiceId, writeLastServiceId } from '@/hooks/last-service';
 import type { ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
@@ -115,6 +116,13 @@ export default function NewAppointmentSheet({
   const missingService = !service;
   const canNext = !missingClient && !missingService && !pending;
   const ready = canNext && !!providerId && startMin !== null;
+  const cta = newAppointmentCta({
+    missingClient,
+    missingService,
+    hasTime: startMin != null,
+    pending,
+    step,
+  });
 
   const pickService = useCallback((id: string) => {
     writeLastServiceId(id);
@@ -372,36 +380,30 @@ export default function NewAppointmentSheet({
         <p className="mb-2 rounded-chip bg-danger-bg px-3 py-2 text-label font-semibold text-danger-fg">{error}</p>
       )}
 
-      {step === 'who' ? (
-        <Button
-          size="lg"
-          full
-          onClick={() => {
-            if (missingClient) {
-              clientRef.current?.focus();
-              return;
-            }
-            if (missingService) return;
+      <Button
+        size="lg"
+        full
+        onClick={() => {
+          if (cta.kind === 'client') {
+            if (step === 'when') setStep('who');
+            clientRef.current?.focus();
+            return;
+          }
+          if (cta.kind === 'service') {
+            if (step === 'when') setStep('who');
+            return;
+          }
+          if (cta.kind === 'time') {
             setStep('when');
-          }}
-          disabled={pending}
-          className="disabled:shadow-none"
-        >
-          {missingClient ? 'Elige clienta/e' : missingService ? 'Elige el servicio' : 'Elegir hora'}
-        </Button>
-      ) : (
-        <Button size="lg" full onClick={save} disabled={!ready} className="disabled:shadow-none">
-          {pending
-            ? 'Guardando…'
-            : missingClient
-              ? 'Elige clienta/e'
-              : missingService
-                ? 'Elige el servicio'
-                : startMin != null
-                  ? 'Guardar cita'
-                  : 'Toca un hueco del día'}
-        </Button>
-      )}
+            return;
+          }
+          if (cta.kind === 'save') save();
+        }}
+        disabled={pending || (cta.kind === 'save' && !ready) || (cta.kind === 'time' && step === 'when')}
+        className="disabled:shadow-none"
+      >
+        {cta.label}
+      </Button>
     </div>
   );
 }
