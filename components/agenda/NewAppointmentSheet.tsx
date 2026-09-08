@@ -1,12 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
-import { ChevronDown, Search, UserPlus, X } from 'lucide-react';
+import { Search, UserPlus, X } from 'lucide-react';
 import { Chip, inputCls, useCloseSheet } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
 import IconButton from '@/components/ui/IconButton';
+import ChipScroller from '@/components/ui/ChipScroller';
 import NextSlotControls from '@/components/agenda/NextSlotControls';
-import ServicePicker from '@/components/agenda/ServicePicker';
 import { usePlace, type PlacePick } from '@/components/agenda/PlaceContext';
 import { avatarColor } from '@/lib/categories';
 import { createAppointment, slotsFor } from '@/lib/agenda-write';
@@ -14,7 +14,7 @@ import { createClient } from '@/lib/supabase/client';
 import { dayKey, durLbl, fmt, minutesOfDay } from '@/lib/time';
 import { bestNameMatches, fold, parseClock } from '@/lib/voice';
 import { packFitsService, packIsOpen, packLabel, packUsableBy, pickPackForService } from '@/lib/packs';
-import { serviceShortcuts } from '@/lib/service-pick';
+import { serviceChipOrder } from '@/lib/service-pick';
 import { readLastServiceId, writeLastServiceId } from '@/hooks/last-service';
 import type { ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
 
@@ -55,7 +55,7 @@ export default function NewAppointmentSheet({
   const [error, setError] = useState<string | null>(null);
   const [packId, setPackId] = useState('');
   const [horaAMano, setHoraAMano] = useState(() => parseClock(initialHora) != null);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [serviceQ, setServiceQ] = useState(guessedService.length === 1 ? '' : initialServiceQ);
   const [lastId, setLastId] = useState<string | null>(null);
 
   useEffect(() => { setLastId(readLastServiceId()); }, []);
@@ -106,15 +106,10 @@ export default function NewAppointmentSheet({
   const who = client?.full_name ?? query.trim();
   const ready = !!service && !!providerId && startMin !== null && who.length > 1 && !pending;
 
-  const openPicker = useCallback(() => {
-    setLastId(readLastServiceId());
-    setPickerOpen(v => !v);
-  }, []);
   const pickService = useCallback((id: string) => {
     writeLastServiceId(id);
     setLastId(id);
     setServiceId(id);
-    setPickerOpen(false);
   }, []);
 
   useEffect(() => {
@@ -160,10 +155,14 @@ export default function NewAppointmentSheet({
 
   const whoName = providers.find(p => p.id === providerId)?.full_name.split(' ')[0];
   const slots = starts[providerId];
-  const shortcuts = useMemo(
-    () => serviceShortcuts(services, { lastId, counts: serviceCounts }),
-    [services, lastId, serviceCounts],
-  );
+  const chips = useMemo(() => {
+    const ordered = serviceChipOrder(services, { lastId, counts: serviceCounts });
+    const q = fold(serviceQ);
+    if (!q) return ordered;
+    return ordered.filter(s =>
+      fold(s.name).includes(q) || fold(s.category).includes(q) || fold(s.category_label ?? '').includes(q),
+    );
+  }, [services, lastId, serviceCounts, serviceQ]);
 
   return (
     <div className="shrink-0 border-t border-surface-line bg-surface-card px-3 pb-2 pt-2">
@@ -223,50 +222,39 @@ export default function NewAppointmentSheet({
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={openPicker}
-        className={`${inputCls} mb-2 flex items-center gap-2 py-2.5 text-left`}
-        aria-label="Servicio"
-        aria-expanded={pickerOpen}
-      >
-        <span className={`min-w-0 flex-1 truncate ${service ? 'text-ink' : 'text-ink-3'}`}>
-          {service ? `${service.name} · ${durLbl(service.duration_min)}` : 'Elegir servicio…'}
-        </span>
-        <ChevronDown size={18} strokeWidth={2.2} className={`shrink-0 text-ink-3 transition ${pickerOpen ? 'rotate-180' : ''}`} />
-      </button>
-
-      {!pickerOpen && shortcuts.length > 0 && (
-        <div className="mb-2 flex gap-1.5 overflow-x-auto pb-0.5">
-          {shortcuts.map(s => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => pickService(s.id)}
-              className={`shrink-0 rounded-pill px-3 py-2 text-label font-bold ${
-                s.id === serviceId
-                  ? 'bg-grad text-white shadow-pill'
-                  : 'border border-surface-line bg-surface-bg text-ink-2'
-              }`}
-            >
-              {s.name}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <ServicePicker
-        open={pickerOpen}
-        services={services}
-        lastId={lastId}
-        counts={serviceCounts}
-        selectedId={serviceId}
-        initialQuery={!serviceId ? initialServiceQ : ''}
-        onPick={pickService}
-      />
+      <div className="relative mb-1.5">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" strokeWidth={2.2} />
+        <input
+          className={`${inputCls} pl-9 py-2`}
+          placeholder="Servicio"
+          aria-label="Buscar servicio"
+          value={serviceQ}
+          onChange={e => setServiceQ(e.target.value)}
+        />
+      </div>
+      <ChipScroller className="mb-2" label="Servicios">
+        {chips.map(s => (
+          <button
+            key={s.id}
+            type="button"
+            aria-pressed={s.id === serviceId}
+            onClick={() => pickService(s.id)}
+            className={`shrink-0 rounded-pill px-3 py-2 text-label font-bold ${
+              s.id === serviceId
+                ? 'bg-grad text-white shadow-pill'
+                : 'border border-surface-line bg-surface-bg text-ink-2'
+            }`}
+          >
+            {s.name}
+          </button>
+        ))}
+        {chips.length === 0 && (
+          <p className="shrink-0 self-center py-2 text-caption font-semibold text-ink-3">Sin coincidencias</p>
+        )}
+      </ChipScroller>
 
       {usablePacks.length > 0 && (
-        <div className="mb-2 flex gap-2 overflow-x-auto pb-0.5">
+        <ChipScroller className="mb-2" label="Bonos">
           <Chip className="shrink-0" active={!packId} onClick={() => setPackId('')}>Sin bono</Chip>
           {usablePacks.map(p => (
             <Chip className="shrink-0" key={p.id} active={packId === p.id} onClick={() => setPackId(p.id)}>
@@ -274,11 +262,11 @@ export default function NewAppointmentSheet({
               {p.owner_client_id !== client?.id ? ' · amiga' : ''}
             </Chip>
           ))}
-        </div>
+        </ChipScroller>
       )}
 
       {horaAMano && service && (
-        <div className="mb-2 flex gap-1.5 overflow-x-auto pb-0.5">
+        <ChipScroller className="mb-2" label="Horas">
           <NextSlotControls
             durationMin={service.duration_min}
             providerId={providerId}
@@ -302,7 +290,7 @@ export default function NewAppointmentSheet({
               </Chip>
             ))
           )}
-        </div>
+        </ChipScroller>
       )}
 
       {error && (

@@ -71,3 +71,13 @@ export function serviceShortcuts(
   }
   return out.slice(0, n);
 }
+
+/** Todos los servicios en tira: último y más pedidos primero. */
+export function serviceChipOrder(
+  services: ServiceOption[],
+  opts: { lastId?: string | null; counts?: Record<string, number> } = {},
+): ServiceOption[] {
+  const head = serviceShortcuts(services, { ...opts, n: 8 });
+  const seen = new Set(head.map(s => s.id));
+  return [...head, ...services.filter(s => !seen.has(s.id))];
+}

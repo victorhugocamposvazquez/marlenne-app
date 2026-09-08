@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { servicePickSections, serviceShortcuts } from '../lib/service-pick';
+import { serviceChipOrder, servicePickSections, serviceShortcuts } from '../lib/service-pick';
 import type { ServiceOption } from '../lib/types';
 
 const s = (id: string, name: string, category: string): ServiceOption => ({
@@ -36,6 +36,15 @@ test('la tira rápida junta último y más pedidos', () => {
     counts: { corpo: 12, facial: 8, cejas: 3 },
   });
   assert.deepEqual(row.map(i => i.id), ['laser', 'corpo', 'facial', 'cejas']);
+});
+
+test('la tira de chips incluye el resto del catálogo', () => {
+  const extra = [...catalog, s('unas', 'Uñas', 'unas')];
+  const row = serviceChipOrder(extra, {
+    lastId: 'laser',
+    counts: { corpo: 12, facial: 8, cejas: 3 },
+  });
+  assert.deepEqual(row.map(i => i.id), ['laser', 'corpo', 'facial', 'cejas', 'unas']);
 });
 
 test('la búsqueda recorta último y más pedidos', () => {
