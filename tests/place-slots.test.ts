@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { slotGaps, snapInGap } from '../lib/place-slots';
+import { nearestStart, slotGaps, snapInGap } from '../lib/place-slots';
 
 test('un tramo libre es un hueco, no cada cuarto', () => {
   assert.deepEqual(
@@ -21,6 +21,12 @@ test('dos agujeros se quedan separados', () => {
 
 test('lista vacía', () => {
   assert.deepEqual(slotGaps([]), []);
+});
+
+test('al arrastrar cae en el hueco más cercano', () => {
+  assert.equal(nearestStart(12 * 60 + 10, [10 * 60, 16 * 60]), 10 * 60);
+  assert.equal(nearestStart(14 * 60, [10 * 60, 16 * 60]), 16 * 60);
+  assert.equal(nearestStart(11 * 60, []), 11 * 60);
 });
 
 test('el toque se queda dentro del hueco', () => {

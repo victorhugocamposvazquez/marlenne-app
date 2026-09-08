@@ -44,7 +44,7 @@ type Start = {
  * Toque corto abre la ficha. Si el dedo se mueve antes, es scroll.
  */
 export function useDragAppointment({
-  pxPerMin, snap, providerIds, scrollRef, gridRef, onDrop,
+  pxPerMin, snap, providerIds, scrollRef, gridRef, onDrop, snapStart,
 }: {
   pxPerMin: number;
   snap: number;
@@ -52,6 +52,7 @@ export function useDragAppointment({
   scrollRef: RefObject<HTMLElement | null>;
   gridRef: RefObject<HTMLElement | null>;
   onDrop: (id: string, startMin: number, providerId: string) => void;
+  snapStart?: (startMin: number, providerId: string, id: string) => number;
 }) {
   const [drag, setDrag] = useState<Drag | null>(null);
   const session = useRef<Session | null>(null);
@@ -112,6 +113,7 @@ export function useDragAppointment({
       start = Math.max(DAY_START, Math.min(DAY_END - d.duration, start));
       const col = colAt(ev.clientX);
       const nextId = ids[col] ?? d.providerId0;
+      if (snapStart) start = snapStart(start, nextId, d.id);
       if (start !== d.lastHapticStart || nextId !== d.lastHapticCol) {
         d.lastHapticStart = start;
         d.lastHapticCol = nextId;
@@ -211,7 +213,7 @@ export function useDragAppointment({
     window.addEventListener('touchmove', blockScroll, { passive: false });
     window.addEventListener('selectstart', blockSelect, { capture: true });
     window.addEventListener('contextmenu', blockSelect, { capture: true });
-  }, [pxPerMin, snap, providerIds, scrollRef, gridRef, onDrop]);
+  }, [pxPerMin, snap, providerIds, scrollRef, gridRef, onDrop, snapStart]);
 
   const onHandleDown = useCallback(
     (e: React.PointerEvent, id: string, startMin: number, providerId: string, duration: number) => {

@@ -18,3 +18,10 @@ export function snapInGap(startMin: number, gap: SlotGap, step = 15) {
   const snapped = Math.round(startMin / step) * step;
   return Math.max(gap.first, Math.min(gap.last, snapped));
 }
+
+/** Al arrastrar la cita nueva, cae en el hueco libre más cercano. */
+export function nearestStart(startMin: number, starts: number[]): number {
+  if (starts.length === 0) return startMin;
+  return starts.reduce((best, m) =>
+    Math.abs(m - startMin) < Math.abs(best - startMin) ? m : best);
+}

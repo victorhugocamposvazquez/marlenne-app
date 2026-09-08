@@ -387,7 +387,7 @@ export default function NewAppointmentSheet({
           disabled={pending}
           className="disabled:shadow-none"
         >
-          {missingClient ? 'Elige clienta/e' : missingService ? 'Falta el servicio' : 'Elegir hora'}
+          {missingClient ? 'Elige clienta/e' : missingService ? 'Elige el servicio' : 'Elegir hora'}
         </Button>
       ) : (
         <Button size="lg" full onClick={save} disabled={!ready} className="disabled:shadow-none">
@@ -396,7 +396,7 @@ export default function NewAppointmentSheet({
             : missingClient
               ? 'Elige clienta/e'
               : missingService
-                ? 'Falta el servicio'
+                ? 'Elige el servicio'
                 : startMin != null
                   ? 'Guardar cita'
                   : 'Toca un hueco del día'}

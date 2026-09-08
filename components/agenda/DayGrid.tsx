@@ -11,8 +11,10 @@ import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 import { shallowSet } from '@/hooks/useShallowQuery';
 import { useToast } from '@/components/Toast';
 import { usePlace } from '@/components/agenda/PlaceContext';
-import { slotGaps, snapInGap } from '@/lib/place-slots';
+import { nearestStart, slotGaps, snapInGap } from '@/lib/place-slots';
 import { GripVertical } from 'lucide-react';
+
+const PLACE_ID = '__place__';
 
 export default function DayGrid({
   date, providers, appointments, blocks, canMoveProvider, selectedPro,
@@ -70,7 +72,15 @@ export default function DayGrid({
     providerIds: canMoveProvider ? providers.map(p => p.id) : [providers[0]?.id],
     scrollRef,
     gridRef,
+    snapStart: (start, providerId, id) => {
+      if (id !== PLACE_ID) return start;
+      return nearestStart(start, starts[providerId] ?? []);
+    },
     onDrop: (id, start, providerId) => {
+      if (id === PLACE_ID) {
+        onPick({ providerId, startMin: start });
+        return;
+      }
       const who = providers.find(p => p.id === providerId)?.full_name.split(' ')[0] ?? null;
       const from = appointments.find(a => a.id === id);
       const prevStart = optimistic[id]?.start ?? (from ? minutesOfDay(from.starts_at) : start);
@@ -350,24 +360,45 @@ export default function DayGrid({
                   </div>
                 );
               })}
-              {placing && pick && durationMin && (() => {
-                const col = providers.findIndex(p => p.id === pick.providerId);
+              {placing && (drag?.id === PLACE_ID || pick) && durationMin && (() => {
+                const live = drag?.id === PLACE_ID
+                  ? { providerId: drag.providerId, startMin: drag.start }
+                  : pick;
+                if (!live) return null;
+                const col = providers.findIndex(p => p.id === live.providerId);
                 if (col < 0) return null;
                 const who = providers[col]?.full_name.split(' ')[0];
+                const dragging = drag?.id === PLACE_ID;
                 return (
                   <div
-                    className="pointer-events-none absolute z-[10] overflow-hidden rounded-pill bg-grad text-white shadow-drag ring-2 ring-white/90"
+                    data-no-pull
+                    className={`absolute z-[10] flex overflow-hidden rounded-pill bg-grad text-white shadow-drag ring-2 ring-white/90 select-none [-webkit-touch-callout:none] ${dragging ? 'touch-none' : ''}`}
                     style={{
                       left: solo ? 0 : col * COL_W,
                       width: solo ? 'calc(100% - 8px)' : COL_W - 8,
-                      top: (pick.startMin - DAY_START) * pxPerMin + 2,
+                      top: (live.startMin - DAY_START) * pxPerMin + 2,
                       height: durationMin * pxPerMin - 6,
+                      transform: dragging ? 'scale(1.03)' : 'none',
                     }}
+                    onPointerDown={e => onCardDown(e, PLACE_ID, live.startMin, live.providerId, durationMin)}
+                    onContextMenu={e => e.preventDefault()}
                   >
-                    <div className="px-2 py-1.5">
+                    <button
+                      type="button"
+                      data-drag-handle
+                      aria-label="Mover la hora de la cita"
+                      className="relative flex w-7 shrink-0 touch-none select-none cursor-grab items-center justify-center text-white/80 before:absolute before:-inset-y-2 before:-left-2.5 before:-right-1.5 before:content-[''] [-webkit-touch-callout:none] active:cursor-grabbing"
+                      draggable={false}
+                      onPointerDown={e => onHandleDown(e, PLACE_ID, live.startMin, live.providerId, durationMin)}
+                      onClick={e => e.stopPropagation()}
+                      onContextMenu={e => e.preventDefault()}
+                    >
+                      <GripVertical size={15} strokeWidth={2.2} />
+                    </button>
+                    <div className="min-w-0 flex-1 overflow-hidden px-1.5 py-1.5">
                       <p className="text-micro font-extrabold uppercase tracking-[.06em] text-white/85">Nueva</p>
                       <p className="text-label font-extrabold tabular-nums">
-                        {fmt(pick.startMin)} → {fmt(pick.startMin + durationMin)}
+                        {fmt(live.startMin)} → {fmt(live.startMin + durationMin)}
                       </p>
                       <p className="overflow-x-auto whitespace-nowrap text-micro font-semibold text-white/90 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                         {[clientLabel, serviceName || who].filter(Boolean).join(' · ')}
@@ -383,7 +414,9 @@ export default function DayGrid({
 
       {placing ? (
         <div className="shrink-0 px-5 pb-2.5 pt-2 text-center text-caption font-semibold text-ink-2">
-          {durationMin ? 'Toca un hueco del día o Elegir hora' : 'Elige clienta/e y servicio. El día se queda a la vista.'}
+          {durationMin
+            ? (pick ? 'Arrastra la cita o toca otro hueco' : 'Toca un hueco del día o Elegir hora')
+            : 'Elige clienta/e y el servicio. El día se queda a la vista.'}
         </div>
       ) : (
       <div className="flex shrink-0 items-center gap-3 overflow-x-auto px-5 pb-2.5 pt-2 text-caption font-semibold text-ink-2">
