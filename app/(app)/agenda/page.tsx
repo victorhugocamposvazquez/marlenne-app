@@ -1,4 +1,5 @@
 import DayGrid from '@/components/agenda/DayGrid';
+import { PlaceProvider } from '@/components/agenda/PlaceContext';
 import WeekGrid from '@/components/agenda/WeekGrid';
 import AgendaHeader from '@/components/agenda/AgendaHeader';
 import AppointmentSheetHost from '@/components/agenda/AppointmentSheetHost';
@@ -56,6 +57,7 @@ export default async function AgendaPage({
 
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
+      <PlaceProvider>
       <AgendaHeader
         day={day}
         mode={mode}
@@ -106,6 +108,7 @@ export default async function AgendaPage({
         initialBlock={searchParams.block === '1'}
         initialBloqueo={searchParams.bloqueo}
       />
+      </PlaceProvider>
     </div>
   );
 }

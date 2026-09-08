@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CATEGORIES, catStyle, STATUS, avatarColor } from '@/lib/categories';
-import { citaCambiada, fmt, minutesOfDay, nowMinutes, dayKey, DAY_START, DAY_END } from '@/lib/time';
+import { citaCambiada, fmt, minutesOfDay, nowMinutes, dayKey, DAY_START, DAY_END, durLbl } from '@/lib/time';
 import { moveAppointment } from '@/lib/move-appointment';
 import { createClient } from '@/lib/supabase/client';
 import type { AgendaAppt, AgendaBlock, Provider } from '@/lib/types';
@@ -10,6 +10,8 @@ import { useDragAppointment, COL_W } from '@/hooks/useDragAppointment';
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 import { shallowSet } from '@/hooks/useShallowQuery';
 import { useToast } from '@/components/Toast';
+import { usePlace } from '@/components/agenda/PlaceContext';
+import { slotGaps, snapInGap } from '@/lib/place-slots';
 import { GripVertical } from 'lucide-react';
 
 export default function DayGrid({
@@ -30,6 +32,7 @@ export default function DayGrid({
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
+  const { placing, durationMin, starts, pick, clientLabel, onPick } = usePlace();
   useRealtimeRefresh(['appointments', 'time_blocks']);
   useEffect(() => {
     const t = setInterval(() => setNow(nowMinutes()), 60_000);
@@ -118,8 +121,15 @@ export default function DayGrid({
   const dropCol = drag ? Math.max(0, providers.findIndex(p => p.id === drag.providerId)) : -1;
   const colW = solo ? undefined : COL_W;
 
+  const tapGap = (providerId: string, first: number, last: number, clientY: number, el: HTMLElement) => {
+    if (!durationMin) return;
+    const y = clientY - el.getBoundingClientRect().top;
+    const raw = DAY_START + y / pxPerMin;
+    onPick({ providerId, startMin: snapInGap(raw, { first, last }) });
+  };
+
   const openEmpty = (providerId: string, clientY: number, el: HTMLElement) => {
-    if (drag) return;
+    if (drag || placing) return;
     const y = clientY - el.getBoundingClientRect().top;
     const snapped = Math.round((DAY_START + y / pxPerMin) / 15) * 15;
     const start = Math.max(DAY_START, Math.min(DAY_END - 15, snapped));
@@ -131,7 +141,7 @@ export default function DayGrid({
     <div className="flex h-0 min-h-0 flex-1 flex-col">
       <div
         ref={scrollRef}
-        className={`min-h-0 flex-1 overflow-auto pb-16 select-none [-webkit-touch-callout:none] ${drag ? 'touch-none overscroll-none' : ''}`}
+        className={`min-h-0 flex-1 overflow-auto ${placing ? 'pb-4' : 'pb-16'} select-none [-webkit-touch-callout:none] ${drag ? 'touch-none overscroll-none' : ''}`}
         onContextMenu={e => e.preventDefault()}
       >
         <div className={solo ? 'w-full pr-3.5' : 'min-w-max pr-3.5'}>
@@ -233,6 +243,27 @@ export default function DayGrid({
                       openEmpty(p.id, e.clientY, e.currentTarget);
                     }}
                   >
+                    {placing && durationMin && slotGaps(starts[p.id] ?? []).map(g => {
+                      const top = (g.first - DAY_START) * pxPerMin + 2;
+                      const h = (g.last + durationMin - g.first) * pxPerMin - 6;
+                      return (
+                        <button
+                          key={`${p.id}-${g.first}`}
+                          type="button"
+                          aria-label={`Hueco ${fmt(g.first)} con ${p.full_name.split(' ')[0]}`}
+                          onClick={e => {
+                            e.stopPropagation();
+                            tapGap(p.id, g.first, g.last, e.clientY, e.currentTarget);
+                          }}
+                          className="absolute left-0.5 right-[9px] z-[3] rounded-pill border border-dashed border-v/50 bg-v-soft/80"
+                          style={{ top, height: Math.max(h, durationMin * pxPerMin - 6) }}
+                        >
+                          <span className="block px-2 pt-1 text-left text-micro font-bold tabular-nums text-ink">
+                            {fmt(g.first)} · {durLbl(durationMin)}
+                          </span>
+                        </button>
+                      );
+                    })}
                     {blocks.filter(b => b.provider_id === p.id).map(b => {
                       const start = minutesOfDay(b.starts_at);
                       return (
@@ -241,6 +272,7 @@ export default function DayGrid({
                           type="button"
                           onClick={e => {
                             e.stopPropagation();
+                            if (placing) return;
                             shallowSet({ bloqueo: b.id });
                           }}
                           className="absolute left-0.5 right-[9px] flex items-center justify-center rounded-icon border border-dashed border-handle bg-block text-caption font-bold text-ink-3"
@@ -277,10 +309,11 @@ export default function DayGrid({
                       borderLeft: `4px solid ${st.edge}`,
                       boxShadow: pos.dragging ? 'var(--sh-drag)' : 'var(--sh-card)',
                       transform: pos.dragging ? 'scale(1.03)' : 'none',
-                      opacity: a.status === 'done' ? 0.62 : 1,
+                      opacity: placing ? 0.55 : (a.status === 'done' ? 0.62 : 1),
                       zIndex: pos.dragging ? 12 : 2,
+                      pointerEvents: placing ? 'none' : undefined,
                     }}
-                    onPointerDown={canDrag ? e => onCardDown(e, a.id, pos.start, pos.provider, a.duration_min) : undefined}
+                    onPointerDown={!placing && canDrag ? e => onCardDown(e, a.id, pos.start, pos.provider, a.duration_min) : undefined}
                     onContextMenu={e => e.preventDefault()}
                   >
                     {canDrag && (
@@ -319,11 +352,41 @@ export default function DayGrid({
                   </div>
                 );
               })}
+              {placing && pick && durationMin && (() => {
+                const col = providers.findIndex(p => p.id === pick.providerId);
+                if (col < 0) return null;
+                const who = providers[col]?.full_name.split(' ')[0];
+                return (
+                  <div
+                    className="pointer-events-none absolute z-[4] overflow-hidden rounded-pill bg-grad text-white shadow-btn"
+                    style={{
+                      left: solo ? 0 : col * COL_W,
+                      width: solo ? 'calc(100% - 8px)' : COL_W - 8,
+                      top: (pick.startMin - DAY_START) * pxPerMin + 2,
+                      height: durationMin * pxPerMin - 6,
+                    }}
+                  >
+                    <div className="px-2 py-1.5">
+                      <p className="text-label font-extrabold tabular-nums">
+                        {fmt(pick.startMin)} → {fmt(pick.startMin + durationMin)}
+                      </p>
+                      <p className="truncate text-micro font-semibold text-white/90">
+                        {clientLabel || who} · {who}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
       </div>
 
+      {placing ? (
+        <div className="shrink-0 px-5 pb-2.5 pt-2 text-center text-caption font-semibold text-ink-2">
+          {durationMin ? 'Toca un hueco del día' : 'Elige clienta y servicio. El día se queda a la vista.'}
+        </div>
+      ) : (
       <div className="flex shrink-0 items-center gap-3 overflow-x-auto px-5 pb-2.5 pt-2 text-caption font-semibold text-ink-2">
         {Object.values(CATEGORIES).slice(0, 5).map(c => (
           <span key={c.label} className="flex shrink-0 items-center gap-[5px]">
@@ -333,6 +396,7 @@ export default function DayGrid({
         ))}
         <span className="ml-auto shrink-0 font-medium text-ink-2">Mantén para mover · toca para abrir</span>
       </div>
+      )}
     </div>
   );
 }
