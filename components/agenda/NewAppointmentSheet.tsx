@@ -1,22 +1,24 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
-import { Search, UserPlus, X } from 'lucide-react';
+import { ChevronDown, Search, UserPlus, X } from 'lucide-react';
 import { Chip, inputCls, useCloseSheet } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
 import IconButton from '@/components/ui/IconButton';
 import NextSlotControls from '@/components/agenda/NextSlotControls';
+import ServicePicker from '@/components/agenda/ServicePicker';
 import { usePlace, type PlacePick } from '@/components/agenda/PlaceContext';
-import { avatarColor, catStyle } from '@/lib/categories';
+import { avatarColor } from '@/lib/categories';
 import { createAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import { dayKey, durLbl, fmt, minutesOfDay } from '@/lib/time';
 import { bestNameMatches, fold, parseClock } from '@/lib/voice';
 import { packFitsService, packIsOpen, packLabel, packUsableBy, pickPackForService } from '@/lib/packs';
+import { readLastServiceId, writeLastServiceId } from '@/hooks/last-service';
 import type { ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
 
 export default function NewAppointmentSheet({
-  day, providers, services, clients, packs = [], preselected = null,
+  day, providers, services, clients, packs = [], serviceCounts = {}, preselected = null,
   initialName = '', initialHora = '', initialServiceQ = '', initialProviderId,
 }: {
   day: string;
@@ -24,6 +26,7 @@ export default function NewAppointmentSheet({
   services: ServiceOption[];
   clients: ClientOption[];
   packs?: ClientPack[];
+  serviceCounts?: Record<string, number>;
   preselected?: ClientOption | null;
   initialName?: string;
   initialHora?: string;
@@ -49,9 +52,11 @@ export default function NewAppointmentSheet({
   const [startMin, setStartMin] = useState<number | null>(parseClock(initialHora));
   const [starts, setStarts] = useState<Record<string, number[]>>({});
   const [error, setError] = useState<string | null>(null);
-  const [serviceQ, setServiceQ] = useState(initialServiceQ);
   const [packId, setPackId] = useState('');
   const [horaAMano, setHoraAMano] = useState(() => parseClock(initialHora) != null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [lastId, setLastId] = useState<string | null>(null);
+  const closePicker = useCallback(() => setPickerOpen(false), []);
 
   const service = services.find(s => s.id === serviceId) ?? null;
   const usablePacks = client && serviceId
@@ -98,6 +103,20 @@ export default function NewAppointmentSheet({
 
   const who = client?.full_name ?? query.trim();
   const ready = !!service && !!providerId && startMin !== null && who.length > 1 && !pending;
+
+  const openPicker = useCallback(() => {
+    setLastId(readLastServiceId());
+    setPickerOpen(true);
+  }, []);
+  const pickService = useCallback((id: string) => {
+    writeLastServiceId(id);
+    setServiceId(id);
+    setPickerOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (serviceId) writeLastServiceId(serviceId);
+  }, [serviceId]);
 
   const onPick = useCallback((p: PlacePick) => {
     setProviderId(p.providerId);
@@ -196,47 +215,28 @@ export default function NewAppointmentSheet({
         </div>
       )}
 
-      <div className="mb-2">
-        <input
-          className={`${inputCls} mb-1.5 py-2.5`}
-          placeholder="Buscar servicio…"
-          value={serviceQ}
-          onChange={e => setServiceQ(e.target.value)}
-          aria-label="Buscar servicio"
-        />
-        <select
-          className={`${inputCls} py-2.5`}
-          aria-label="Servicio"
-          value={serviceId}
-          onChange={e => setServiceId(e.target.value)}
-        >
-          <option value="">Elegir servicio…</option>
-          {(() => {
-            const q = fold(serviceQ);
-            const order: string[] = [];
-            const by = new Map<string, typeof services>();
-            for (const s of services) {
-              if (q && !fold(s.name).includes(q)) continue;
-              if (!by.has(s.category)) {
-                by.set(s.category, []);
-                order.push(s.category);
-              }
-              by.get(s.category)!.push(s);
-            }
-            return order.map(id => {
-              const list = by.get(id)!;
-              const label = catStyle(id, { label: list[0]?.category_label, color: list[0]?.category_color }).label;
-              return (
-                <optgroup key={id} label={label}>
-                  {list.map(s => (
-                    <option key={s.id} value={s.id}>{s.name} · {durLbl(s.duration_min)}</option>
-                  ))}
-                </optgroup>
-              );
-            });
-          })()}
-        </select>
-      </div>
+      <button
+        type="button"
+        onClick={openPicker}
+        className={`${inputCls} mb-2 flex items-center gap-2 py-2.5 text-left`}
+        aria-label="Servicio"
+      >
+        <span className={`min-w-0 flex-1 truncate ${service ? 'text-ink' : 'text-ink-3'}`}>
+          {service ? `${service.name} · ${durLbl(service.duration_min)}` : 'Elegir servicio…'}
+        </span>
+        <ChevronDown size={18} strokeWidth={2.2} className="shrink-0 text-ink-3" />
+      </button>
+
+      <ServicePicker
+        open={pickerOpen}
+        services={services}
+        lastId={lastId}
+        counts={serviceCounts}
+        selectedId={serviceId}
+        initialQuery={!serviceId ? initialServiceQ : ''}
+        onPick={pickService}
+        onClose={closePicker}
+      />
 
       {usablePacks.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-2">

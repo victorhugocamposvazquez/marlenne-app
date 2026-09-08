@@ -39,3 +39,20 @@ export async function loadSignedPhotoUrls(sb: SupabaseClient, paths: string[]) {
   }
   return map;
 }
+
+/** Cuántas veces se ha agendado cada servicio (últimas 1000 citas). */
+export async function loadServiceCounts(sb: SupabaseClient): Promise<Record<string, number>> {
+  const { data } = await sb
+    .from('appointments')
+    .select('service_id')
+    .neq('status', 'cancel')
+    .order('starts_at', { ascending: false })
+    .limit(1000);
+  const counts: Record<string, number> = {};
+  for (const row of data ?? []) {
+    const id = (row as { service_id: string | null }).service_id;
+    if (id) counts[id] = (counts[id] ?? 0) + 1;
+  }
+  return counts;
+}
+
