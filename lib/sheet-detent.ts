@@ -1,6 +1,6 @@
 /** Alturas del formulario de alta, como los tope de Instagram. */
 
-export const SHEET_CHROME_PX = 130;
+export const SHEET_CHROME_PX = 154;
 export const CLIENT_SEARCH_PX = 56;
 export const CLIENT_ROW_PX = 44;
 export const CLIENT_ROWS_PEEK = 3;

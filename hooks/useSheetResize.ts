@@ -61,7 +61,9 @@ export function useSheetResize(initial: 'peek' | 'mid' | 'tall' = 'peek') {
 
   const onHandleDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest('button, a, input')) return;
     e.preventDefault();
+    e.stopPropagation();
     cleanup.current?.();
     const pointerId = e.pointerId;
     const capture = e.currentTarget as HTMLElement;

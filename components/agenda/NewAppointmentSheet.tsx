@@ -201,17 +201,31 @@ export default function NewAppointmentSheet({
         transition: dragging ? 'none' : 'height .28s cubic-bezier(.2,.9,.3,1)',
       }}
     >
-      <button
-        type="button"
+      <div
         data-no-pull
+        data-sheet-handle
+        role="slider"
         aria-label="Arrastra para agrandar o encoger el formulario"
-        className="flex w-full shrink-0 touch-none items-center justify-center py-2.5 [-webkit-touch-callout:none]"
+        aria-valuemin={0}
+        aria-valuemax={2}
+        aria-valuetext="Tamaño del formulario"
+        className="flex min-h-12 w-full shrink-0 select-none items-center justify-center bg-surface-card [-webkit-touch-callout:none] [-webkit-user-select:none]"
+        style={{ touchAction: 'none' }}
         onPointerDown={onHandleDown}
+        onTouchStart={e => e.preventDefault()}
       >
-        <span className="h-1 w-10 rounded-full bg-handle" />
-      </button>
+        <span aria-hidden className="pointer-events-none h-1 w-10 rounded-full bg-handle" />
+      </div>
 
-      <div className="flex shrink-0 items-center gap-1 px-3">
+      <div
+        data-no-pull
+        className="flex shrink-0 select-none items-center gap-1 bg-surface-card px-3 [-webkit-user-select:none]"
+        style={{ touchAction: 'none' }}
+        onPointerDown={e => {
+          if ((e.target as HTMLElement).closest('button, a, input')) return;
+          onHandleDown(e);
+        }}
+      >
         {step === 'when' && (
           <IconButton label="Volver" tone="ghost" onClick={() => setStep('who')}>
             <ChevronLeft size={20} strokeWidth={2.2} />
