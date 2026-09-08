@@ -369,7 +369,7 @@ export default function DayGrid({
                       <p className="text-label font-extrabold tabular-nums">
                         {fmt(pick.startMin)} → {fmt(pick.startMin + durationMin)}
                       </p>
-                      <p className="truncate text-micro font-semibold text-white/90">
+                      <p className="overflow-x-auto whitespace-nowrap text-micro font-semibold text-white/90 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                         {[clientLabel, serviceName || who].filter(Boolean).join(' · ')}
                       </p>
                     </div>
@@ -383,7 +383,7 @@ export default function DayGrid({
 
       {placing ? (
         <div className="shrink-0 px-5 pb-2.5 pt-2 text-center text-caption font-semibold text-ink-2">
-          {durationMin ? 'Toca un hueco del día' : 'Elige clienta y servicio. El día se queda a la vista.'}
+          {durationMin ? 'Toca un hueco del día o Elegir hora' : 'Elige clienta/e y servicio. El día se queda a la vista.'}
         </div>
       ) : (
       <div className="flex shrink-0 items-center gap-3 overflow-x-auto px-5 pb-2.5 pt-2 text-caption font-semibold text-ink-2">

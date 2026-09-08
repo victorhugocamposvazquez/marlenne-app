@@ -134,10 +134,11 @@ export default function NewAppointmentSheet({
   const onPick = useCallback((p: PlacePick) => {
     setProviderId(p.providerId);
     setStartMin(p.startMin);
+    setStep('when');
   }, []);
 
   useEffect(() => {
-    if (step !== 'when' || !service) {
+    if (!service || missingClient) {
       publish(null);
       return;
     }
@@ -149,7 +150,7 @@ export default function NewAppointmentSheet({
       serviceName: service.name,
       onPick,
     });
-  }, [step, service, starts, startMin, providerId, who, onPick, publish]);
+  }, [service, missingClient, starts, startMin, providerId, who, onPick, publish]);
 
   useEffect(() => () => publish(null), [publish]);
 
@@ -171,7 +172,6 @@ export default function NewAppointmentSheet({
     });
   };
 
-  const whoName = providers.find(p => p.id === providerId)?.full_name.split(' ')[0];
   const slots = starts[providerId];
   const chips = useMemo(() => {
     const ordered = serviceChipOrder(services, { lastId: orderLastId, counts: serviceCounts });
@@ -193,18 +193,22 @@ export default function NewAppointmentSheet({
             <ChevronLeft size={20} strokeWidth={2.2} />
           </IconButton>
         )}
-        {step === 'when' && recap ? (
-          <button
-            type="button"
-            onClick={() => setStep('who')}
-            className="min-w-0 flex-1 truncate text-left text-label font-extrabold"
-          >
-            {recap}
-          </button>
+        {recap ? (
+          <ChipScroller className="min-w-0 flex-1" label="Resumen de la cita">
+            {step === 'when' ? (
+              <button
+                type="button"
+                onClick={() => setStep('who')}
+                className="whitespace-nowrap text-left text-label font-extrabold"
+              >
+                {recap}
+              </button>
+            ) : (
+              <p className="whitespace-nowrap text-label font-extrabold">{recap}</p>
+            )}
+          </ChipScroller>
         ) : (
-          <p className="min-w-0 flex-1 truncate text-label font-extrabold">
-            {recap || 'Nueva cita'}
-          </p>
+          <p className="min-w-0 flex-1 text-label font-extrabold">Nueva cita</p>
         )}
         {service && (
           <span className="shrink-0 text-caption font-semibold text-ink-2">{durLbl(service.duration_min)}</span>
@@ -238,8 +242,8 @@ export default function NewAppointmentSheet({
           <input
             ref={clientRef}
             className={`${inputCls} pl-9 py-2.5`}
-            placeholder="Clienta"
-            aria-label="Clienta"
+            placeholder="Elige clienta/e"
+            aria-label="Elige clienta o cliente"
             value={query}
             onChange={e => setQuery(e.target.value)}
           />
@@ -383,19 +387,19 @@ export default function NewAppointmentSheet({
           disabled={pending}
           className="disabled:shadow-none"
         >
-          {missingClient ? 'Falta la clienta' : missingService ? 'Falta el servicio' : 'Elegir hora'}
+          {missingClient ? 'Elige clienta/e' : missingService ? 'Falta el servicio' : 'Elegir hora'}
         </Button>
       ) : (
         <Button size="lg" full onClick={save} disabled={!ready} className="disabled:shadow-none">
           {pending
             ? 'Guardando…'
             : missingClient
-              ? 'Falta la clienta'
+              ? 'Elige clienta/e'
               : missingService
                 ? 'Falta el servicio'
                 : startMin != null
-                  ? `Guardar ${fmt(startMin)}${whoName ? ` · ${whoName}` : ''}`
-                  : 'Toca un hueco en el día'}
+                  ? 'Guardar cita'
+                  : 'Toca un hueco del día'}
         </Button>
       )}
     </div>
