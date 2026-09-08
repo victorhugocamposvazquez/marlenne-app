@@ -1,12 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { CalendarDays, Search, UserPlus, X } from 'lucide-react';
-import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet';
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
+import { Search, UserPlus, X } from 'lucide-react';
+import { Chip, inputCls, useCloseSheet } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
 import IconButton from '@/components/ui/IconButton';
 import NextSlotControls from '@/components/agenda/NextSlotControls';
-import SlotDayPicker from '@/components/agenda/SlotDayPicker';
+import { usePlace, type PlacePick } from '@/components/agenda/PlaceContext';
 import { avatarColor, catStyle } from '@/lib/categories';
 import { createAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
@@ -31,6 +31,7 @@ export default function NewAppointmentSheet({
   initialProviderId?: string;
 }) {
   const close = useCloseSheet();
+  const { publish } = usePlace();
   const [pending, startTransition] = useTransition();
 
   const guessedService = initialServiceQ
@@ -46,19 +47,17 @@ export default function NewAppointmentSheet({
   );
   const [date, setDate] = useState(day);
   const [startMin, setStartMin] = useState<number | null>(parseClock(initialHora));
-  const [slots, setSlots] = useState<number[] | null>(null);
+  const [starts, setStarts] = useState<Record<string, number[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [serviceQ, setServiceQ] = useState(initialServiceQ);
-  const [note, setNote] = useState('');
   const [packId, setPackId] = useState('');
-  const [dayView, setDayView] = useState(false);
   const [horaAMano, setHoraAMano] = useState(() => parseClock(initialHora) != null);
-  const skipAutoDay = useRef(horaAMano);
 
   const service = services.find(s => s.id === serviceId) ?? null;
   const usablePacks = client && serviceId
     ? packs.filter(p => packUsableBy(p, client.id) && packFitsService(p, serviceId) && packIsOpen(p))
     : [];
+  const providerKey = providers.map(p => p.id).join(',');
 
   const matches = useMemo(() => {
     const q = fold(query);
@@ -69,18 +68,27 @@ export default function NewAppointmentSheet({
       .slice(0, 5);
   }, [query, clients, client]);
 
-  // free_slots() ya descuenta jornada, citas y bloqueos: no repetimos esa lógica aquí.
-  useEffect(() => {
-    if (!service || !providerId) { setSlots(null); return; }
-    let alive = true;
-    setSlots(null);
-    void slotsFor(createClient(), providerId, date, service.duration_min).then(s => { if (alive) setSlots(s); });
-    return () => { alive = false; };
-  }, [service, providerId, date]);
+  useEffect(() => { setDate(day); }, [day]);
 
   useEffect(() => {
-    if (startMin !== null && slots && !slots.includes(startMin)) setStartMin(null);
-  }, [slots, startMin]);
+    if (!service) { setStarts({}); return; }
+    let alive = true;
+    const ids = providerKey ? providerKey.split(',') : [];
+    void Promise.all(ids.map(id => slotsFor(createClient(), id, date, service.duration_min))).then(lists => {
+      if (!alive) return;
+      const next: Record<string, number[]> = {};
+      ids.forEach((id, i) => { next[id] = lists[i]; });
+      setStarts(next);
+    });
+    return () => { alive = false; };
+  }, [service, date, providerKey]);
+
+  useEffect(() => {
+    if (startMin === null) return;
+    const list = starts[providerId];
+    if (!list) return;
+    if (!list.includes(startMin)) setStartMin(null);
+  }, [starts, startMin, providerId]);
 
   useEffect(() => {
     if (!client || !serviceId) { setPackId(''); return; }
@@ -89,28 +97,25 @@ export default function NewAppointmentSheet({
   }, [client?.id, serviceId, packs]);
 
   const who = client?.full_name ?? query.trim();
-  const canPlace = !!service && who.length > 1;
   const ready = !!service && !!providerId && startMin !== null && who.length > 1 && !pending;
 
-  useEffect(() => {
-    if (!canPlace || skipAutoDay.current) return;
-    setDayView(true);
-  }, [canPlace]);
-
-  const onPlacePick = useCallback((p: { providerId: string; startMin: number }) => {
+  const onPick = useCallback((p: PlacePick) => {
     setProviderId(p.providerId);
     setStartMin(p.startMin);
-  }, []);
-  const closeDayView = useCallback(() => {
-    skipAutoDay.current = true;
-    setHoraAMano(true);
-    setDayView(false);
-  }, []);
-  const openDayView = useCallback(() => {
-    skipAutoDay.current = false;
     setHoraAMano(false);
-    setDayView(true);
   }, []);
+
+  useEffect(() => {
+    publish({
+      durationMin: service?.duration_min ?? null,
+      starts,
+      pick: startMin != null ? { providerId, startMin } : null,
+      clientLabel: who,
+      onPick,
+    });
+  }, [service, starts, startMin, providerId, who, onPick, publish]);
+
+  useEffect(() => () => publish(null), [publish]);
 
   const save = () => {
     if (!ready || !service || startMin === null) return;
@@ -123,7 +128,6 @@ export default function NewAppointmentSheet({
         providerId,
         date,
         startMin,
-        note: note.trim() || undefined,
         clientPackId: packId || undefined,
       });
       if (r.ok) close();
@@ -131,114 +135,77 @@ export default function NewAppointmentSheet({
     });
   };
 
-  if (dayView && service && canPlace) {
-    return (
-      <SlotDayPicker
-        date={date}
-        onDate={setDate}
-        providers={providers}
-        durationMin={service.duration_min}
-        clientLabel={who}
-        serviceName={service.name}
-        pick={startMin != null ? { providerId, startMin } : null}
-        onPick={onPlacePick}
-        onBack={closeDayView}
-        onSave={save}
-        pending={pending}
-        error={error}
-      />
-    );
-  }
+  const whoName = providers.find(p => p.id === providerId)?.full_name.split(' ')[0];
+  const slots = starts[providerId];
 
   return (
-    <Sheet
-      title="Nueva cita"
-      subtitle={service
-        ? (packId
-          ? `${durLbl(service.duration_min)} · bono`
-          : `${durLbl(service.duration_min)} · ${(service.price_cents / 100).toFixed(0)} €`)
-        : 'Elige clienta, servicio y hora'}
-      footer={
-        <>
-          {error && (
-            <p className="mb-2.5 rounded-chip bg-danger-bg px-3 py-2 text-label font-semibold text-danger-fg">
-              {error}
+    <div className="shrink-0 border-t border-surface-line bg-surface-card px-3 pb-2 pt-2">
+      <div className="mb-2 flex items-center gap-2">
+        <p className="min-w-0 flex-1 text-label font-extrabold">Nueva cita</p>
+        {service && (
+          <span className="shrink-0 text-caption font-semibold text-ink-2">{durLbl(service.duration_min)}</span>
+        )}
+        <IconButton label="Cerrar" tone="ghost" onClick={close}>
+          <X size={18} strokeWidth={2.2} />
+        </IconButton>
+      </div>
+
+      {client ? (
+        <div className="mb-2 flex items-center gap-2 rounded-field border border-surface-line bg-v-tint px-3 py-2">
+          <span
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-chip text-micro font-bold text-white"
+            style={{ background: avatarColor(client.full_name) }}
+          >
+            {client.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-body font-bold">{client.full_name}</span>
+          <IconButton label="Quitar clienta" onClick={() => { setClient(null); setQuery(''); }}>
+            <X size={16} strokeWidth={2.2} />
+          </IconButton>
+        </div>
+      ) : (
+        <div className="relative mb-2">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" strokeWidth={2.2} />
+          <input
+            className={`${inputCls} pl-9 py-2.5`}
+            placeholder="Clienta"
+            aria-label="Clienta"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+          />
+          {matches.length > 0 && (
+            <div className="absolute inset-x-0 bottom-full z-10 mb-1 overflow-hidden rounded-field border border-surface-line bg-surface-card shadow-card">
+              {matches.map(c => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setClient(c)}
+                  className="flex w-full items-center gap-2 border-b border-surface-line px-3 py-2 text-left last:border-0"
+                >
+                  <span className="block truncate text-body font-bold">{c.full_name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {query.trim().length > 1 && matches.length === 0 && (
+            <p className="mt-1 flex items-center gap-1 text-caption font-semibold text-ink-2">
+              <UserPlus size={14} strokeWidth={2.2} className="text-v" />
+              Se guardará como «{query.trim()}»
             </p>
           )}
-          <Button size="lg" full onClick={save} disabled={!ready} className="disabled:shadow-none">
-            {pending ? 'Guardando…' : 'Guardar cita'}
-          </Button>
-        </>
-      }
-    >
-      <Field label="Clienta">
-        {client ? (
-          <div className="flex items-center gap-2.5 rounded-field border border-surface-line bg-v-tint px-3.5 py-3">
-            <span
-                    className="grid h-11 w-11 shrink-0 place-items-center rounded-icon text-label font-bold text-white"
-              style={{ background: avatarColor(client.full_name) }}
-            >
-              {client.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-body font-bold">{client.full_name}</span>
-              {client.phone && <span className="block text-caption font-medium text-ink-2">{client.phone}</span>}
-            </span>
-            <IconButton
-              label="Quitar clienta"
-              onClick={() => { setClient(null); setQuery(''); }}
-            >
-              <X size={16} strokeWidth={2.2} />
-            </IconButton>
-          </div>
-        ) : (
-          <>
-            <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" strokeWidth={2.2} />
-              <input
-                className={`${inputCls} pl-9`}
-                placeholder="Buscar o escribir un nombre"
-                aria-label="Clienta"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-              />
-            </div>
-            {matches.length > 0 && (
-              <div className="mt-1.5 overflow-hidden rounded-field border border-surface-line">
-                {matches.map(c => (
-                  <button
-                    key={c.id}
-                    onClick={() => setClient(c)}
-                    className="flex w-full items-center gap-2.5 border-b border-surface-line px-3 py-2.5 text-left last:border-0 hover:bg-v-tint"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-body font-bold">{c.full_name}</span>
-                      {c.phone && <span className="block text-caption font-medium text-ink-3">{c.phone}</span>}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {query.trim().length > 1 && matches.length === 0 && (
-              <p className="mt-1.5 flex items-center gap-1.5 text-caption font-semibold text-ink-2">
-                <UserPlus size={14} strokeWidth={2.2} className="text-v" />
-                Se guardará como «{query.trim()}», sin ficha
-              </p>
-            )}
-          </>
-        )}
-      </Field>
+        </div>
+      )}
 
-      <Field label="Servicio">
+      <div className="mb-2">
         <input
-          className={`${inputCls} mb-2`}
+          className={`${inputCls} mb-1.5 py-2.5`}
           placeholder="Buscar servicio…"
           value={serviceQ}
           onChange={e => setServiceQ(e.target.value)}
           aria-label="Buscar servicio"
         />
         <select
-          className={inputCls}
+          className={`${inputCls} py-2.5`}
           aria-label="Servicio"
           value={serviceId}
           onChange={e => setServiceId(e.target.value)}
@@ -269,105 +236,73 @@ export default function NewAppointmentSheet({
             });
           })()}
         </select>
-      </Field>
+      </div>
 
       {usablePacks.length > 0 && (
-        <Field label="Bono">
-          <div className="flex flex-wrap gap-2">
-            <Chip active={!packId} onClick={() => setPackId('')}>Sin bono</Chip>
-            {usablePacks.map(p => (
-              <Chip key={p.id} active={packId === p.id} onClick={() => setPackId(p.id)}>
-                {packLabel(p)}
-                {p.owner_client_id !== client?.id ? ' · amiga' : ''}
-              </Chip>
-            ))}
-          </div>
-        </Field>
+        <div className="mb-2 flex flex-wrap gap-2">
+          <Chip active={!packId} onClick={() => setPackId('')}>Sin bono</Chip>
+          {usablePacks.map(p => (
+            <Chip key={p.id} active={packId === p.id} onClick={() => setPackId(p.id)}>
+              {packLabel(p)}
+              {p.owner_client_id !== client?.id ? ' · amiga' : ''}
+            </Chip>
+          ))}
+        </div>
       )}
 
-      {providers.length > 1 && (
-        <Field label="Profesional">
-          <div className="flex flex-wrap gap-2">
-            {providers.map(p => (
-              <Chip key={p.id} active={p.id === providerId} onClick={() => setProviderId(p.id)}>
-                {p.full_name.split(' ')[0]}
-              </Chip>
-            ))}
-          </div>
-        </Field>
-      )}
-
-      <Field label="Día">
-        <input
-          type="date"
-          className={inputCls}
-          aria-label="Día"
-          value={date}
-          onChange={e => setDate(e.target.value)}
-        />
-      </Field>
-
-      <Field label="Hora">
-        <Button size="lg" full disabled={!canPlace} onClick={openDayView} className="disabled:shadow-none">
-          <CalendarDays size={18} strokeWidth={2.2} />
-          Ver huecos en el día
-        </Button>
-        {!canPlace && (
-          <p className="mt-2 text-caption font-semibold text-ink-2">
-            {who.length > 1 ? 'Elige el servicio para ver el día.' : 'Escribe la clienta y el servicio para ver el día.'}
-          </p>
-        )}
-        {horaAMano && service && (
-          <>
-            <div className="mt-3">
-              <NextSlotControls
-                durationMin={service.duration_min}
-                providerId={providerId}
-                anyProviders={providers.length > 1}
-                onPick={slot => {
-                  setDate(dayKey(slot.startsAt));
-                  setProviderId(slot.providerId);
-                  setStartMin(minutesOfDay(slot.startsAt));
-                }}
-              />
+      {horaAMano && service && (
+        <div className="mb-2">
+          <NextSlotControls
+            durationMin={service.duration_min}
+            providerId={providerId}
+            anyProviders={providers.length > 1}
+            onPick={slot => {
+              setDate(dayKey(slot.startsAt));
+              setProviderId(slot.providerId);
+              setStartMin(minutesOfDay(slot.startsAt));
+            }}
+          />
+          {slots == null ? (
+            <p className="text-caption font-semibold text-ink-3">Buscando huecos…</p>
+          ) : slots.length === 0 ? (
+            <p className="text-caption font-semibold text-ink-2">
+              No queda hueco de {durLbl(service.duration_min)} ese día.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {slots.map(m => (
+                <Chip key={m} active={m === startMin} onClick={() => setStartMin(m)}>
+                  <span className="tabular-nums">{fmt(m)}</span>
+                </Chip>
+              ))}
             </div>
-            {slots === null ? (
-              <p className="text-label font-semibold text-ink-3">Buscando huecos…</p>
-            ) : slots.length === 0 ? (
-              <p className="text-label font-semibold text-ink-2">
-                No queda ningún hueco de {durLbl(service.duration_min)} ese día. Prueba el próximo hueco.
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {slots.map(m => (
-                  <Chip key={m} active={m === startMin} onClick={() => setStartMin(m)}>
-                    <span className="tabular-nums">{fmt(m)}</span>
-                  </Chip>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-        {canPlace && !horaAMano && (
-          <button
-            type="button"
-            onClick={() => setHoraAMano(true)}
-            className="mt-2 w-full py-2 text-center text-caption font-bold text-ink-3"
-          >
-            Hora a mano
-          </button>
-        )}
-      </Field>
+          )}
+        </div>
+      )}
 
-      <Field label="Nota">
-        <input
-          className={inputCls}
-          placeholder="Opcional: confirmar, viene con…"
-          value={note}
-          onChange={e => setNote(e.target.value)}
-          aria-label="Nota de la cita"
-        />
-      </Field>
-    </Sheet>
+      {error && (
+        <p className="mb-2 rounded-chip bg-danger-bg px-3 py-2 text-label font-semibold text-danger-fg">{error}</p>
+      )}
+
+      <Button size="lg" full onClick={save} disabled={!ready} className="disabled:shadow-none">
+        {pending
+          ? 'Guardando…'
+          : startMin != null
+            ? `Guardar ${fmt(startMin)}${whoName ? ` · ${whoName}` : ''}`
+            : who.length > 1 && service
+              ? 'Toca un hueco en el día'
+              : 'Clienta y servicio, luego el hueco'}
+      </Button>
+
+      {!horaAMano && (
+        <button
+          type="button"
+          onClick={() => setHoraAMano(true)}
+          className="mt-1 w-full py-1.5 text-center text-caption font-bold text-ink-3"
+        >
+          Hora a mano
+        </button>
+      )}
+    </div>
   );
 }

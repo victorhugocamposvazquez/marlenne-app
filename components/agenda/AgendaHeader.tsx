@@ -27,6 +27,14 @@ export default function AgendaHeader({
     q.set('day', String(d));
     q.set('mode', m);
     if (selectedPro) q.set('pro', selectedPro);
+    if (typeof window !== 'undefined' && window.location.search.includes('new=1')) {
+      const live = new URLSearchParams(window.location.search);
+      q.set('new', '1');
+      for (const k of ['client', 'nombre', 'hora', 'servicio', 'con']) {
+        const v = live.get(k);
+        if (v) q.set(k, v);
+      }
+    }
     if (extra) {
       for (const [k, v] of Object.entries(extra)) {
         if (v) q.set(k, v);

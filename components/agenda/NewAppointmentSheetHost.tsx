@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import NewAppointmentSheet from '@/components/agenda/NewAppointmentSheet';
-import Sheet from '@/components/Sheet';
-import { SheetSkeleton } from '@/components/ui/Skeleton';
 import { loadClientOptions, loadSalonPacks, loadServices } from '@/lib/agenda-catalog';
 import { createClient } from '@/lib/supabase/client';
 import { useShallowParam } from '@/hooks/useShallowQuery';
@@ -53,9 +51,9 @@ export default function NewAppointmentSheetHost({
   if (open !== '1') return null;
   if (loading && services.length === 0) {
     return (
-      <Sheet title="Nueva cita">
-        <SheetSkeleton />
-      </Sheet>
+      <div className="shrink-0 border-t border-surface-line bg-surface-card px-4 py-3">
+        <p className="text-label font-semibold text-ink-3">Cargando…</p>
+      </div>
     );
   }
 
