@@ -133,6 +133,7 @@ export default function NewAppointmentSheet({
       starts,
       pick: startMin != null ? { providerId, startMin } : null,
       clientLabel: who,
+      serviceName: service?.name ?? '',
       onPick,
     });
   }, [service, starts, startMin, providerId, who, onPick, publish]);

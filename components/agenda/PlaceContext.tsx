@@ -9,6 +9,7 @@ export type PlaceSession = {
   starts: Record<string, number[]>;
   pick: PlacePick | null;
   clientLabel: string;
+  serviceName: string;
   onPick: (p: PlacePick) => void;
 };
 
@@ -18,6 +19,7 @@ type PlaceCtx = {
   starts: Record<string, number[]>;
   pick: PlacePick | null;
   clientLabel: string;
+  serviceName: string;
   onPick: (p: PlacePick) => void;
   publish: (s: PlaceSession | null) => void;
 };
@@ -32,6 +34,7 @@ const idle: PlaceCtx = {
   starts: {},
   pick: null,
   clientLabel: '',
+  serviceName: '',
   onPick: noop,
   publish: noop,
 };
@@ -45,6 +48,7 @@ export function PlaceProvider({ children }: { children: ReactNode }) {
     starts: session?.starts ?? {},
     pick: session?.pick ?? null,
     clientLabel: session?.clientLabel ?? '',
+    serviceName: session?.serviceName ?? '',
     onPick: session?.onPick ?? noop,
     publish,
   }), [session, publish]);

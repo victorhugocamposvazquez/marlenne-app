@@ -32,7 +32,7 @@ export default function DayGrid({
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
-  const { placing, durationMin, starts, pick, clientLabel, onPick } = usePlace();
+  const { placing, durationMin, starts, pick, clientLabel, serviceName, onPick } = usePlace();
   useRealtimeRefresh(['appointments', 'time_blocks']);
   useEffect(() => {
     const t = setInterval(() => setNow(nowMinutes()), 60_000);
@@ -124,7 +124,7 @@ export default function DayGrid({
   const tapGap = (providerId: string, first: number, last: number, clientY: number, el: HTMLElement) => {
     if (!durationMin) return;
     const y = clientY - el.getBoundingClientRect().top;
-    const raw = DAY_START + y / pxPerMin;
+    const raw = first + y / pxPerMin;
     onPick({ providerId, startMin: snapInGap(raw, { first, last }) });
   };
 
@@ -253,7 +253,7 @@ export default function DayGrid({
                             e.stopPropagation();
                             tapGap(p.id, g.first, g.last, e.clientY, e.currentTarget);
                           }}
-                          className="absolute left-0.5 right-[9px] z-[3] rounded-pill border border-dashed border-v/50 bg-v-soft/80"
+                          className="absolute left-0.5 right-[9px] z-[3] rounded-pill border border-dashed border-v/40 bg-v-soft/50"
                           style={{ top, height: Math.max(h, durationMin * pxPerMin - 6) }}
                         >
                           <span className="block px-2 pt-1 text-left text-micro font-bold tabular-nums text-ink">
@@ -356,7 +356,7 @@ export default function DayGrid({
                 const who = providers[col]?.full_name.split(' ')[0];
                 return (
                   <div
-                    className="pointer-events-none absolute z-[4] overflow-hidden rounded-pill bg-grad text-white shadow-btn"
+                    className="pointer-events-none absolute z-[10] overflow-hidden rounded-pill bg-grad text-white shadow-drag ring-2 ring-white/90"
                     style={{
                       left: solo ? 0 : col * COL_W,
                       width: solo ? 'calc(100% - 8px)' : COL_W - 8,
@@ -365,11 +365,12 @@ export default function DayGrid({
                     }}
                   >
                     <div className="px-2 py-1.5">
+                      <p className="text-micro font-extrabold uppercase tracking-[.06em] text-white/85">Nueva</p>
                       <p className="text-label font-extrabold tabular-nums">
                         {fmt(pick.startMin)} → {fmt(pick.startMin + durationMin)}
                       </p>
                       <p className="truncate text-micro font-semibold text-white/90">
-                        {clientLabel || who} · {who}
+                        {[clientLabel, serviceName || who].filter(Boolean).join(' · ')}
                       </p>
                     </div>
                   </div>
