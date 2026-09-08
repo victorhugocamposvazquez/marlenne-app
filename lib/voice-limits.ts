@@ -15,3 +15,4 @@ export function takeVoiceSlot(key: string, max: number, windowMs: number) {
 
 export const TTS_PER_MIN = 30;
 export const LLM_PER_HOUR = 20;
+export const STT_PER_MIN = 30;

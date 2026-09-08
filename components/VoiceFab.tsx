@@ -26,6 +26,7 @@ import {
   decodeB64, decodeUrl, isHot, playB64, playUrls, speakLocal, stopVoicePlay, warmVoiceAudio,
 } from '@/hooks/voice-play';
 import { micBlockedSay, queryMicPerm, requestMic, watchMicPerm, type MicPerm } from '@/hooks/voice-mic';
+import { makeWebRec, pickEngine, pickEngineKind, type VoiceEngine } from '@/hooks/voice-engine';
 
 /** Lo que se pinta. Lo que se decide vive en lib/voice-dialog. */
 type Panel =
@@ -98,8 +99,9 @@ async function utter(text: string, ask: boolean) {
   const ear = forEar(text);
   warmVoiceAudio();
   const parts = stitchVoice(text) ?? stitchVoice(ear);
-  // La espera es para que el AudioContext despierte; si los clips ya están calientes, sobra.
-  if (!parts || !isHot(parts)) await wait(180);
+  // En iPhone la sesión de audio tarda más en volver a salida tras grabar.
+  const pause = pickEngineKind() === 'push' ? 300 : 180;
+  if (!parts || !isHot(parts)) await wait(pause);
   if (parts?.length) {
     voiceLog('tts_clip', { n: ear.length, parts: parts.length });
     const ok = await playUrls(parts);
@@ -176,33 +178,7 @@ function sayDime(onDone: () => void) {
   });
 }
 
-type RecAlt = { transcript: string };
-type RecResult = ArrayLike<RecAlt> & { isFinal: boolean };
-type RecApi = {
-  lang: string;
-  interimResults: boolean;
-  continuous: boolean;
-  maxAlternatives?: number;
-  start: () => void;
-  stop: () => void;
-  abort?: () => void;
-  onresult: ((ev: { results: ArrayLike<RecResult> }) => void) | null;
-  onerror: ((ev: { error?: string }) => void) | null;
-  onend: (() => void) | null;
-};
-
-function makeRec(): RecApi | null {
-  const Ctor = (window as unknown as { SpeechRecognition?: new () => RecApi; webkitSpeechRecognition?: new () => RecApi })
-    .SpeechRecognition
-    ?? (window as unknown as { webkitSpeechRecognition?: new () => RecApi }).webkitSpeechRecognition;
-  if (!Ctor) return null;
-  const rec = new Ctor();
-  rec.lang = 'es-ES';
-  rec.interimResults = true;
-  rec.continuous = false;
-  rec.maxAlternatives = 3;
-  return rec;
-}
+type WebRec = NonNullable<ReturnType<typeof makeWebRec>>;
 
 export default function VoiceFab() {
   const router = useRouter();
@@ -212,7 +188,9 @@ export default function VoiceFab() {
   const [typed, setTyped] = useState('');
   const [panel, setPanel] = useState<Panel>({ mode: 'idle' });
   const [pending, startTransition] = useTransition();
-  const recRef = useRef<RecApi | null>(null);
+  const recRef = useRef<WebRec | null>(null);
+  const engineRef = useRef<VoiceEngine | null>(null);
+  const pushFromRef = useRef<{ x: number; y: number } | null>(null);
   /** Estado del diálogo (qué pregunta, qué confirma, qué cita propone). */
   const dialogRef = useRef<DialogState>(INITIAL);
   const dispatchRef = useRef<(e: DialogEvent) => void>(() => {});
@@ -222,7 +200,9 @@ export default function VoiceFab() {
   const draftRef = useRef('');
   const commitRef = useRef<() => void>(() => {});
   const [hearing, setHearing] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
   const [heardDraft, setHeardDraft] = useState('');
+  const [editDraft, setEditDraft] = useState(false);
   const [armed, setArmed] = useState(false);
   const [wakeOn, setWakeOn] = useState(false);
   const [sayLoud, setSayLoud] = useState(false);
@@ -262,6 +242,7 @@ export default function VoiceFab() {
   };
 
   const arm = () => {
+    if (pickEngineKind() !== 'stream') return;
     if (!wakeWanted(prefsRef.current)) return;
     hushRef.current = false;
     armedRef.current = true;
@@ -280,6 +261,9 @@ export default function VoiceFab() {
   };
 
   const killRec = () => {
+    const engine = engineRef.current;
+    engineRef.current = null;
+    engine?.abort();
     const rec = recRef.current;
     recRef.current = null;
     if (!rec) return;
@@ -298,6 +282,8 @@ export default function VoiceFab() {
     draftRef.current = '';
     setHearing(false);
     setHeardDraft('');
+    setEditDraft(false);
+    setTranscribing(false);
     killRec();
     stopSpeak();
     if (wakeDogRef.current) window.clearTimeout(wakeDogRef.current);
@@ -315,6 +301,7 @@ export default function VoiceFab() {
     overlayRef.current = false;
     draftRef.current = '';
     setHearing(false);
+    setTranscribing(false);
     killRec();
     setOpen(true);
     setPanel(say ? { mode: 'msg', say } : { mode: 'idle' });
@@ -336,7 +323,7 @@ export default function VoiceFab() {
   };
 
   useEffect(() => {
-    setHasMic(!!makeRec());
+    setHasMic(!!makeWebRec() || typeof MediaRecorder !== 'undefined');
     syncPrefs();
     const onFirst = () => warmAudio();
     window.addEventListener('pointerdown', onFirst, { once: true });
@@ -514,6 +501,7 @@ export default function VoiceFab() {
         missesRef.current = 0;
         speak(fx.ear ?? fx.text, heard => {
           if (!heard) setSayLoud(true);
+          if (pickEngineKind() !== 'stream') return;
           startListenRef.current({ overlay: true });
         });
         return;
@@ -572,16 +560,19 @@ export default function VoiceFab() {
     dispatch({ kind: 'heard', text });
   };
 
-  const commitListen = () => {
+  const takeHeard = (fromEngine: string) => {
     if (!listenRef.current) return;
-    const text = draftRef.current.trim() || typed.trim();
+    const push = engineRef.current?.kind === 'push' || pickEngineKind() === 'push';
+    const text = draftRef.current.trim() || fromEngine.trim() || typed.trim();
     const overlay = overlayRef.current;
     listenRef.current = false;
     overlayRef.current = false;
     genRef.current += 1;
-    killRec();
+    engineRef.current = null;
     setHearing(false);
-    setHeardDraft('');
+    setTranscribing(false);
+    setHeardDraft(fromEngine.trim());
+    if (push && fromEngine.trim()) setEditDraft(true);
     warmVoiceAudio();
     if (text) {
       missesRef.current = 0;
@@ -591,10 +582,17 @@ export default function VoiceFab() {
       if (wake.woke && !wakeRestIsCommand(wake.rest)) {
         setOpen(true);
         if (!overlay) setPanel({ mode: 'listen', draft: '' });
+        if (push) return;
         sayDime(() => startListenRef.current(overlay ? { overlay: true } : undefined));
         return;
       }
       runText(wake.woke && wake.rest ? wake.rest : text);
+      return;
+    }
+    if (push) {
+      setOpen(true);
+      if (overlay && dialogOpen(dialogRef.current)) return;
+      setPanel({ mode: 'idle' });
       return;
     }
     if (overlay) {
@@ -622,9 +620,47 @@ export default function VoiceFab() {
     setPanel({ mode: 'idle' });
     window.setTimeout(() => startWakeRef.current(), 400);
   };
+
+  const commitListen = () => {
+    const engine = engineRef.current;
+    if (engine) {
+      if (engine.kind === 'push') {
+        setTranscribing(true);
+        setHearing(false);
+      }
+      void engine.stop().catch(() => {
+        setTranscribing(false);
+        if (!listenRef.current) return;
+        listenRef.current = false;
+        overlayRef.current = false;
+        engineRef.current = null;
+        setHearing(false);
+        const say = 'Sin red. Escríbelo abajo.';
+        voiceLog('stt_error', { error: 'network', wake: false });
+        setOpen(true);
+        setSayLoud(false);
+        setPanel({ mode: 'msg', say });
+        speak(say, heard => { if (!heard) setSayLoud(true); });
+      });
+      return;
+    }
+    takeHeard(draftRef.current);
+  };
   commitRef.current = commitListen;
 
+  const abortPush = () => {
+    if (pickEngineKind() !== 'push') return;
+    listenRef.current = false;
+    overlayRef.current = false;
+    genRef.current += 1;
+    engineRef.current?.abort();
+    engineRef.current = null;
+    setHearing(false);
+    setTranscribing(false);
+  };
+
   const startWake = () => {
+    if (pickEngineKind() !== 'stream') return;
     if (!wakeWanted(prefsRef.current) || hushRef.current || busyRef.current || document.hidden) return;
     if (micRef.current !== 'granted') return;
     if (listenRef.current || overlayRef.current || speaking) return;
@@ -633,11 +669,11 @@ export default function VoiceFab() {
       return;
     }
     if (wakeRef.current && recRef.current) return;
-    if (!makeRec()) return;
+    if (!makeWebRec()) return;
     arm();
     const gen = ++genRef.current;
     killRec();
-    const rec = makeRec();
+    const rec = makeWebRec();
     if (!rec) return;
     rec.interimResults = true;
     rec.continuous = true;
@@ -744,7 +780,8 @@ export default function VoiceFab() {
   startWakeRef.current = startWake;
 
   const startListen = (opts?: { overlay?: boolean }) => {
-    if (micRef.current !== 'granted') {
+    const kind = pickEngineKind();
+    if (kind === 'stream' && micRef.current !== 'granted') {
       restIdle(micBlockedSay());
       return;
     }
@@ -755,112 +792,73 @@ export default function VoiceFab() {
     setWakeOn(false);
     const gen = ++genRef.current;
     draftRef.current = '';
+    setEditDraft(false);
     listenRef.current = true;
     overlayRef.current = !!opts?.overlay;
     setHearing(true);
+    setTranscribing(false);
     killRec();
-    const rec = makeRec();
-    if (!rec) {
+    const engine = pickEngine();
+    engineRef.current = engine;
+    engine.overlay = !!opts?.overlay;
+    engine.dialogOpen = () => dialogOpen(dialogRef.current);
+    engine.onPartial = text => {
+      if (gen !== genRef.current) return;
+      draftRef.current = text;
+      setHeardDraft(text);
+      if (!opts?.overlay) setPanel({ mode: 'listen', draft: text });
+    };
+    engine.onFinal = text => {
+      if (gen !== genRef.current) return;
+      takeHeard(text);
+    };
+    engine.onRestart = () => {
+      window.setTimeout(() => {
+        if (gen !== genRef.current || !listenRef.current) return;
+        startListenRef.current({ overlay: true });
+      }, 280);
+    };
+    engine.onDenied = () => {
+      if (gen !== genRef.current) return;
+      voiceLog('stt_error', { error: 'not-allowed', wake: false });
+      applyMic('denied');
+      listenRef.current = false;
+      overlayRef.current = false;
+      killRec();
+      restIdle(micBlockedSay());
+    };
+    engine.onCaptureFail = err => {
+      if (gen !== genRef.current) return;
+      voiceLog('stt_error', { error: err, wake: false });
+      void voiceReport(draftRef.current || '(sin texto)', 'stt_error', err);
+      listenRef.current = false;
+      overlayRef.current = false;
+      killRec();
+      setHearing(false);
+      const say = err === 'network' ? 'Sin red. Escríbelo abajo.' : 'No encuentro el micro. Escríbelo abajo.';
+      setOpen(true);
+      setSayLoud(false);
+      setPanel({ mode: 'msg', say });
+      speak(say, heard => { if (!heard) setSayLoud(true); });
+    };
+    engine.onUnavailable = () => {
       setOpen(true);
       if (!opts?.overlay) setPanel({ mode: 'msg', say: 'Este Safari no dicta. Escribe el comando abajo.' });
-      return;
-    }
-    rec.continuous = true;
-    recRef.current = rec;
+    };
     ignoreOutsideRef.current = Date.now() + 2000;
     setOpen(true);
     if (!opts?.overlay) setPanel({ mode: 'listen', draft: '' });
-    const clearSettle = () => {
-      if (settleRef.current) window.clearTimeout(settleRef.current);
-      settleRef.current = null;
-    };
-    rec.onresult = ev => {
-      if (gen !== genRef.current) return;
-      let prefix = '';
-      const last = ev.results.length - 1;
-      for (let i = 0; i < last; i++) prefix += ev.results[i]?.[0]?.transcript ?? '';
-      const tail = ev.results[last];
-      const alts: string[] = [];
-      const n = tail && typeof tail.length === 'number' ? tail.length : 1;
-      for (let j = 0; j < n; j++) {
-        const t = `${prefix}${tail?.[j]?.transcript ?? ''}`.trim();
-        if (t) alts.push(t);
-      }
-      draftRef.current = pickHeard(alts.length ? alts : [prefix.trim()]);
-      setHeardDraft(draftRef.current);
-      if (!opts?.overlay) setPanel({ mode: 'listen', draft: draftRef.current });
-      clearSettle();
-      // No commitar en el primer «final»: en iPad es el primer silencio, no el final de la frase.
-      if (draftRef.current) {
-        const wait = settleMs(draftRef.current);
-        settleRef.current = window.setTimeout(() => {
-          if (gen !== genRef.current || !listenRef.current) return;
-          commitListen();
-        }, wait);
-      }
-    };
-    rec.onerror = ev => {
-      if (gen !== genRef.current) return;
-      clearSettle();
-      const err = ev.error ?? '';
-      if (err === 'not-allowed' || err === 'service-not-allowed') {
-        voiceLog('stt_error', { error: err, wake: false });
-        applyMic('denied');
-        listenRef.current = false;
-        overlayRef.current = false;
-        killRec();
-        restIdle(micBlockedSay());
-        return;
-      }
-      if (err === 'network' || err === 'audio-capture') {
-        voiceLog('stt_error', { error: err, wake: false });
-        void voiceReport(draftRef.current || '(sin texto)', 'stt_error', err);
-        listenRef.current = false;
-        overlayRef.current = false;
-        killRec();
-        setHearing(false);
-        const say = err === 'network' ? 'Sin red. Escríbelo abajo.' : 'No encuentro el micro. Escríbelo abajo.';
-        setOpen(true);
-        setSayLoud(false);
-        setPanel({ mode: 'msg', say });
-        speak(say, heard => { if (!heard) setSayLoud(true); });
-        return;
-      }
-      // no-speech, aborted y el resto: lo que haya en el borrador, o nada.
-      commitListen();
-    };
-    rec.onend = () => {
-      if (gen !== genRef.current) return;
-      if (draftRef.current) {
-        if (!settleRef.current) {
-          settleRef.current = window.setTimeout(() => {
-            if (gen !== genRef.current || !listenRef.current) return;
-            commitListen();
-          }, settleMs(draftRef.current));
-        }
-        return;
-      }
-      clearSettle();
-      if (opts?.overlay && dialogOpen(dialogRef.current)) {
-        window.setTimeout(() => {
-          if (gen !== genRef.current || !listenRef.current) return;
-          startListenRef.current({ overlay: true });
-        }, 280);
-        return;
-      }
-      commitListen();
-    };
-    try {
-      rec.start();
-    } catch {
+    void engine.start().catch(() => {
       listenRef.current = false;
       overlayRef.current = false;
-      if (opts?.overlay) {
+      if (opts?.overlay && pickEngineKind() === 'stream') {
         window.setTimeout(() => startListenRef.current({ overlay: true }), 450);
         return;
       }
-      restIdle('No he podido oír. Toca el micro otra vez.');
-    }
+      restIdle(pickEngineKind() === 'push'
+        ? 'No he podido oír. Mantén el micro otra vez.'
+        : 'No he podido oír. Toca el micro otra vez.');
+    });
   };
   startListenRef.current = startListen;
 
@@ -900,7 +898,7 @@ export default function VoiceFab() {
       className="pointer-events-none absolute inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] standalone:bottom-[calc(5.25rem+max(6px,calc(env(safe-area-inset-bottom)-12px)))] z-30 flex flex-col items-end px-3"
     >
       {open && (
-        <div className="pointer-events-auto mb-2 w-full max-w-[360px] rounded-row border border-surface-line bg-surface-card p-3 shadow-toast">
+        <div className="pointer-events-auto mb-2 max-h-[min(68dvh,32rem)] w-full max-w-[360px] overflow-y-auto overscroll-contain rounded-row border border-surface-line bg-surface-card p-3 shadow-toast">
           <div className="mb-1 flex items-center justify-between gap-2">
             <p className="text-micro font-bold uppercase tracking-wide text-ink-3">
               {stepHint(dialogRef.current.pending?.need, panel.mode === 'confirm') ?? (hearing ? 'Oyendo' : 'Voz')}
@@ -910,22 +908,33 @@ export default function VoiceFab() {
             </IconButton>
           </div>
           {panel.mode === 'listen' && (
-            <VoiceWaves label={pending ? 'Un segundo' : hearing ? 'Escuchando' : 'Dime'} />
+            <VoiceWaves label={transcribing || pending ? 'Un segundo' : hearing ? 'Escuchando' : 'Dime'} />
           )}
-          {hearing && (
+          {hearing && pickEngineKind() !== 'push' && (
             <div className="mb-2">
-              <input
-                className="w-full rounded-chip border border-surface-line px-3 py-2.5 text-[16px] font-semibold leading-snug"
-                value={heardDraft}
-                onChange={e => {
-                  const v = e.target.value;
-                  draftRef.current = v;
-                  setHeardDraft(v);
-                  setTyped(v);
-                }}
-                placeholder="Lo que oye… puedes corregirlo"
-                aria-label="Lo que ha oído"
-              />
+              {editDraft ? (
+                <input
+                  className="w-full rounded-chip border border-surface-line px-3 py-2.5 text-[16px] font-semibold leading-snug"
+                  value={heardDraft}
+                  autoFocus
+                  onChange={e => {
+                    const v = e.target.value;
+                    draftRef.current = v;
+                    setHeardDraft(v);
+                    setTyped(v);
+                  }}
+                  placeholder="Corrige y pulsa Listo"
+                  aria-label="Lo que ha oído"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setEditDraft(true)}
+                  className="w-full rounded-chip bg-surface-bg px-3 py-2.5 text-left text-[16px] font-semibold leading-snug text-ink"
+                >
+                  {heardDraft || 'Hablando… toca para corregir'}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => commitRef.current()}
@@ -940,9 +949,9 @@ export default function VoiceFab() {
               <p className={`font-semibold text-ink-2 ${sayLoud ? 'text-title leading-snug' : 'text-body'}`}>
                 {panel.say}
               </p>
-              {(hearing || pending) && (
+              {(hearing || pending || transcribing) && (
                 <div className="mt-2">
-                  <VoiceWaves label={pending ? 'Un segundo' : 'Escuchando'} />
+                  <VoiceWaves label={transcribing || pending ? 'Un segundo' : 'Escuchando'} />
                 </div>
               )}
             </div>
@@ -950,13 +959,13 @@ export default function VoiceFab() {
           {panel.mode === 'ask' && (
             <div>
               <p className="text-body font-semibold text-ink-2">{panel.say}</p>
-              {hearing || pending ? (
+              {hearing || pending || transcribing ? (
                 <div className="mt-2">
-                  <VoiceWaves label={pending ? 'Un segundo' : dialogRef.current.pending?.need === 'time' ? 'Dilo o toca una hora' : 'Escuchando'} />
+                  <VoiceWaves label={transcribing || pending ? 'Un segundo' : dialogRef.current.pending?.need === 'time' ? 'Dilo o toca una hora' : 'Escuchando'} />
                 </div>
               ) : (
                 <p className="mt-1 text-label font-semibold text-v-d">
-                  Toca el micro y dilo, o elige abajo.
+                  {pickEngineKind() === 'push' ? 'Mantén el micro y dilo, o elige abajo.' : 'Toca el micro y dilo, o elige abajo.'}
                 </p>
               )}
               {panel.options && panel.options.length > 0 && (
@@ -987,12 +996,14 @@ export default function VoiceFab() {
           {panel.mode === 'confirm' && (
             <div>
               <p className="text-body font-semibold text-ink-2">{panel.say}</p>
-              {hearing || pending ? (
+              {hearing || pending || transcribing ? (
                 <div className="mt-2">
-                  <VoiceWaves label={pending ? 'Un segundo' : 'Di sí o no'} />
+                  <VoiceWaves label={transcribing || pending ? 'Un segundo' : 'Di sí o no'} />
                 </div>
               ) : (
-                <p className="mt-1 text-label font-semibold text-v-d">Di sí, o toca Sí.</p>
+                <p className="mt-1 text-label font-semibold text-v-d">
+                  {pickEngineKind() === 'push' ? 'Mantén el micro y di sí, o toca Sí.' : 'Di sí, o toca Sí.'}
+                </p>
               )}
               {panel.choices && (
                 <div className="mt-2 flex flex-col gap-1.5">
@@ -1033,15 +1044,21 @@ export default function VoiceFab() {
           )}
           {panel.mode === 'idle' && (
             <div className="text-label font-medium leading-snug text-ink-2">
-              <p className="font-bold text-ink">Así se usa</p>
-              <p className="mt-1">1. Toca el micro: dice «¿Dime?» y te oye. O «Hola Marlén» y el comando. En Ajustes se apaga el oído.</p>
-              <p>2. Si va a guardar, te pide confirmación. Si no dicta, escribe el comando abajo.</p>
-      <p className="mt-2 text-label text-ink-2">
-                Ej.: quién tiene hueco el miércoles a las 11:30 · cita para Lucía con Valeria a las 11:30
-              </p>
+              {pickEngineKind() === 'push' ? (
+                <>
+                  <p className="font-bold text-ink">Mantén el micro y habla</p>
+                  <p className="mt-1">Suelta al terminar. En el iPhone no espera «Hola Marlén». Si no pilla, escribe abajo.</p>
+                </>
+              ) : (
+                <>
+                  <p className="font-bold text-ink">Toca el micro y habla</p>
+                  <p className="mt-1">En el iPhone no espera «Hola Marlén»: cada vez, el botón. Si no dicta, escribe abajo.</p>
+                </>
+              )}
+              <p className="mt-2">Ej.: quién sigue · es láser · cita para Lucía a las once</p>
             </div>
           )}
-          {!hearing && (
+          {!hearing && !transcribing && (
           <form
             className="mt-2 flex gap-2"
             onSubmit={e => {
@@ -1067,9 +1084,51 @@ export default function VoiceFab() {
       <div className="relative">
         <button
           type="button"
-          aria-label={hearing ? 'Dejar de escuchar' : 'Hablar con Marlén'}
+          aria-label={
+            pickEngineKind() === 'push'
+              ? (hearing ? 'Suelta para enviar' : 'Mantén para hablar')
+              : (hearing ? 'Dejar de escuchar' : 'Hablar con Marlén')
+          }
           aria-pressed={hearing}
+          onPointerDown={e => {
+            if (pickEngineKind() !== 'push') return;
+            if (e.button !== 0) return;
+            e.preventDefault();
+            try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* */ }
+            if (transcribing || listenRef.current) return;
+            pushFromRef.current = { x: e.clientX, y: e.clientY };
+            navigator.vibrate?.(10);
+            const overlay = open && (
+              panel.mode === 'ask' || panel.mode === 'confirm' || panel.mode === 'msg'
+              || dialogOpen(dialogRef.current)
+            );
+            startListen(overlay ? { overlay: true } : undefined);
+          }}
+          onPointerMove={e => {
+            if (pickEngineKind() !== 'push') return;
+            const from = pushFromRef.current;
+            if (!from || !listenRef.current) return;
+            if (Math.abs(e.clientY - from.y) < 28 && Math.abs(e.clientX - from.x) < 28) return;
+            pushFromRef.current = null;
+            try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* */ }
+            abortPush();
+          }}
+          onPointerUp={() => {
+            if (pickEngineKind() !== 'push') return;
+            pushFromRef.current = null;
+            if (!listenRef.current) return;
+            commitListen();
+          }}
+          onPointerCancel={() => {
+            if (pickEngineKind() !== 'push') return;
+            pushFromRef.current = null;
+            abortPush();
+          }}
+          onContextMenu={e => {
+            if (pickEngineKind() === 'push') e.preventDefault();
+          }}
           onClick={() => {
+            if (pickEngineKind() === 'push') return;
             const overlay = open && (
               panel.mode === 'ask' || panel.mode === 'confirm' || panel.mode === 'msg'
               || dialogOpen(dialogRef.current)
@@ -1077,6 +1136,8 @@ export default function VoiceFab() {
             tapMic(overlay ? { overlay: true } : undefined);
           }}
           className={`pointer-events-auto grid h-14 w-14 place-items-center rounded-card text-white shadow-btn transition motion-safe:active:scale-[.96] ${
+            pickEngineKind() === 'push' ? 'touch-none select-none' : ''
+          } ${
             hearing ? 'bg-danger' : 'bg-grad'
           }`}
         >

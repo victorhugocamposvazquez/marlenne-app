@@ -9,3 +9,7 @@ export function voiceLlmEnabled() {
     && process.env.NEXT_PUBLIC_VOICE_LLM !== '0'
     && !!process.env.OPENAI_API_KEY;
 }
+
+export function voiceSttEnabled() {
+  return process.env.VOICE_STT !== '0' && !!process.env.GROQ_API_KEY;
+}

@@ -6,7 +6,8 @@ export type VoiceEvent =
   | 'tts_fail'
   | 'llm_used'
   | 'llm_fail'
-  | 'llm_skip';
+  | 'llm_skip'
+  | 'stt_record';
 
 /** Logs mínimos. En Vercel salen del server; en el iPad, de la consola. */
 export function voiceLog(event: VoiceEvent, extra?: Record<string, unknown>) {

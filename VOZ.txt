@@ -1,0 +1,361 @@
+Marlén — operativa del sistema de voz
+=====================================
+
+Cómo se usa la voz en mostrador, qué entiende, qué pregunta y qué no hace.
+Fecha: 7 de septiembre de 2026.
+
+
+1. PARA QUÉ SIRVE
+-----------------
+
+Marlén es la agenda hablada. Apunta citas, mira huecos, pasa a cabina,
+cancela, mueve y avisa. No es ficha clínica: no sube fotos, no anota
+medidas y no cobra.
+
+Todo lo que guarda (cita, cancelar, mover, no vino, espera) se confirma
+en pantalla o con un «sí» claro. Si no está segura, pregunta.
+
+
+2. CÓMO SE ENCIENDE
+-------------------
+
+Botón redondo del micrófono, abajo a la derecha.
+
+  Tocar el micro
+    Dice «¿Dime?» y te oye. Habla. Si el dictado se corta, pulsa Listo.
+    Si el texto sale mal, toca lo que oyó, corrige y Listo.
+    Si Safari no dicta, escribe el comando abajo y dale a Ir.
+
+  iPhone
+    Siempre toca el micro. No espera «Hola Marlén»: Safari corta el oído
+    al bloquear o cambiar de app.
+    Mejor: Safari → Compartir → Añadir a pantalla de inicio
+    (el permiso del micro se pide una vez).
+
+  iPad (app abierta)
+    Se puede dejar el oído de fondo: «Hola Marlén» (o Marlene, Marlenne)
+    y el comando en el mismo aliento, o solo el saludo y luego habla.
+    «Hola Marlén qué tal» → responde «¿Dime?» y se queda oyendo.
+    El puntito del micro calla el oído de fondo.
+
+  Cerrar
+    La X, Cancelar, «déjalo», «nada», «olvídalo», o tocar fuera
+    cuando no hay pregunta abierta.
+
+
+3. AJUSTES (Tu cuenta → Voz)
+----------------------------
+
+  Solo al tocar el micro
+    Nada de oído de fondo. En iPhone da igual: ya va así.
+
+  Oír «Hola Marlén»
+    En iPad, con la app abierta. En iPhone no se usa.
+
+  Responder en voz
+    Lee las confirmaciones. Si va apagado, solo se ve el texto.
+
+  Frases nuevas en la nube
+    Nombres y horas con la misma voz (Elvira). Los clips fijos no gastan.
+    Hace falta red. Se puede apagar aquí o en el servidor.
+
+
+4. CÓMO HABLAR
+--------------
+
+Español de mostrador, de tú. No hace falta frase perfecta.
+
+  Días
+    hoy, mañana, pasado mañana, el lunes, el jueves,
+    el martes de la semana que viene, esta tarde, esta mañana,
+    por la tarde.
+
+  Horas
+    a las once, a las 11:30, once y media, y cuarto, menos cuarto,
+    mediodía, a primera hora, a última hora,
+    dentro de una hora, dentro de media hora.
+    Encaja en cuartos de hora.
+
+  Duración (huecos)
+    de un cuarto de hora, de media hora, de una hora,
+    de hora y media, de dos horas, de tres horas.
+
+  Nombres
+    Lucía, Lucía Pérez, Lucía P, la Pérez.
+    Apodos: Vale → Valeria, Mari → María, Nuri, Patri, Cris,
+    Loli, Conchi, Merche, Lupe, Tere.
+    «Con Vale», «con la de láser» (si el puesto del equipo encaja).
+    Homónimas: pregunta cuál. Dictado sucio: ofrece parecidas.
+
+  Servicios
+    Como se dicen: vacum, láser, facial, corporal, masaje,
+    micro, cejas, valoración, cavitación, familia + duración
+    («vacum de una hora»).
+
+  Confirmar
+    sí, sí sí, vale, ok, pues sí, de acuerdo, adelante, hazlo, hecho.
+    no, nah, déjalo, cancela, olvídalo (cierra lo que se estaba haciendo).
+    En una lista: «la primera», «la dos», la hora dicha, o tocar el chip.
+
+  Mientras pregunta
+    «vale» / «ok» sueltos no se comen como servicio: vuelve a preguntar.
+    «Gracias» no tira la cita. «No» en servicio u hora pide otra cosa,
+    no cancela (salvo en «¿la doy de alta?»).
+
+  Pausas
+    Safari corta al primer silencio. Ella espera más si la frase va
+    larga o acaba en «para», «a las», «con»…
+    En una pregunta abierta, si hay silencio, sigue oyendo.
+    A la tercera pausa repite la pregunta.
+
+
+5. ALTA DE UNA CITA (PASO A PASO)
+---------------------------------
+
+Puede entrar por cualquiera de estos caminos:
+
+  Frase completa
+    «Cita para Lucía Pérez vacum de una hora mañana a las once con Vale»
+
+  Orden de mostrador
+    «Ponle vacum a Marta esta tarde»
+    «Lucía vacum una hora» (sin decir «cita», si la clienta existe)
+
+  Solo el servicio
+    «Es láser» / «vacum» / «quiere facial» / «un masaje» / «micro»
+    → «Dime el nombre.» y sigue.
+
+  Lo de siempre
+    «Lo de siempre» → «¿De quién?»
+    «Lo de siempre a Marta» / «Marta lo de siempre»
+    Precarga el último servicio y cabina. Si es la primera vez:
+    «Es su primera vez. ¿Qué le hacemos?»
+
+  Nombre suelto
+    Si no entiende otra cosa y el nombre está en fichas, empieza cita.
+
+Luego pregunta lo que falte, en este orden:
+
+  1. Clienta
+     Una ficha → sigue.
+     Varias Lucías → «¿Lucía Pérez o Lucía Gómez?»
+     No está → «¿La doy de alta?»
+       sí → pide teléfono (nueve números, o «seis uno dos…»,
+            o «sin teléfono»).
+       no → cierra.
+
+  2. Servicio
+     «¿Qué servicio?» Chips en pantalla.
+     Familias (vacum, láser…): «¿De media hora o de una hora?»
+
+  3. Hora
+     Ofrece huecos reales de ese día (hoy no ofrece horas ya pasadas).
+     «Esta tarde» filtra la franja (desde las 15:00).
+     Se puede tocar una hora o decirla.
+
+  4. Cabina
+     Si hay varias libres: «¿Con Vale o con Ana?»
+
+  5. «¿La guardo?»
+     sí → guarda y cierra.
+     no / déjalo → no guarda.
+     Se puede corregir ahí: otra hora, otro servicio («mejor vacum»).
+
+Si el servidor tarda, dice «Un segundo.»
+Al guardar, cierra y vuelve a oír (iPad) o espera el micro (iPhone).
+
+
+6. HUECOS
+---------
+
+Qué decir
+  «Quién tiene hueco mañana a las 11:30»
+  «A qué hora puede Valeria»
+  «Hay hueco de media hora esta tarde»
+  «Quién está libre»
+  «Me cabe» / «tienes sitio»
+
+Walk-in (huecos de hoy, sin más)
+  «Viene sin cita», «está en la puerta», «es urgente»,
+  «llaman por hueco», «preguntan por un hueco»,
+  «estamos llenas», «no cabe nadie».
+
+Responde con horas reales. Duración: si no se dice, 60 minutos.
+Hoy no suelta horas que ya pasaron.
+
+
+7. EL DÍA
+---------
+
+  Resumen
+    «Qué hay hoy», «quién viene», «en cabina», «el día»,
+    «cuántas quedan», «lista de hoy».
+    Dice cuántas citas, quién está en cabina y las siguientes.
+    Abre Hoy.
+
+  Quién sigue
+    «Quién sigue», «la siguiente», «a quién toca».
+    Solo la próxima cita (nombre, hora, servicio, cabina),
+    no el resumen entero.
+
+
+8. CAMBIAR Y CANCELAR
+---------------------
+
+  Cancelar
+    «Cancela», «quiere cancelar», «van a cancelar»
+      → «¿De quién es la cita?»
+    «Cancela la de Lucía» / «anula la cita de Marta»
+    Si hay varias, pregunta cuál (o la hora).
+    Confirma y borra.
+
+  Mover
+    «Mueve a Lucía a las doce»
+    «Mueve a Marta» (sin hora) → ofrece huecos de esa cabina
+    «Me he equivocado de hora», «hora mal», «reprogramar»,
+    «quiere cambiar de profesional», «cambia de cabina»
+    Confirma y mueve.
+
+
+9. MOSTRADOR (ESTADOS Y AVISOS)
+-------------------------------
+
+Estas frases hacen algo en la agenda (nota o estado), no son charla.
+
+  Pasa a cabina
+    «La paso», «paso a cabina», «pasa a Lucía»,
+    «ha llegado Lucía», «Lucía en cabina», «entra / atiende a…»
+    Confirma: «¿Lo marco?»
+
+  No vino
+    «No va a venir», «no viene», «Marta no va a venir»,
+    «Lucía no vino», «no show»
+    Confirma y marca no-show.
+
+  Está apuntada / ha llamado
+    «Dice que está apuntada», «tenía cita», «llama para confirmar»,
+    «ha llamado», «hay un recado», «Lucía está apuntada»
+    Mira la agenda de hoy; si no, las fichas.
+
+  Llega tarde
+    «Llega tarde», «aviso a cabina», «se retrasa»,
+    «diez minutos», «Marta llega tarde»
+    Nota en la cita de hoy y «Aviso a cabina».
+
+  Esperando
+    «Está esperando», «está sentada», «llegó pronto»,
+    «está aparcando», «está bajando», «Lucía está esperando»
+    Nota «Está esperando» y aviso a cabina.
+
+  Lista de espera
+    «Lista de espera», «quién espera» → abre la lista.
+    «Apunta a Lucía en espera», «espera a Marta»
+    Pregunta si la apunta (también si no está en fichas).
+
+
+10. IR A PANTALLAS
+------------------
+
+  «Nueva cita» / «una cita» / «apuntar»     → alta
+  «Agenda» / «calendario»                   → agenda
+  «Clientas» / «fichas»                     → listado
+  «Ficha de Lucía» / «busca a Lucía»        → búsqueda
+  «Bonos» / «packs»                         → bonos
+  «Servicios» / «tarifas»                   → catálogo
+  «El equipo» / «quién trabaja»             → equipo
+  «Ajustes»                                 → ajustes
+  «Está duplicada» / «no la veo»            → abre la agenda
+  «Ayuda» / «qué puedes» / «comandos»       → lista de ejemplos
+
+
+11. CHARLA (NO GUARDA NADA)
+---------------------------
+
+Saluda y responde, y se queda oyendo (salvo despedida).
+
+  «Hola», «qué tal», «cómo estás»     → «¿Dime?» o «Bien, aquí…»
+  «Buenos días / tardes / noches»
+  «Gracias» → «De nada.»
+  «¿Me oyes?» → «Te escucho.»
+  «¿Quién eres?» → «Soy Marlén, la agenda.»
+  «Adiós», «hasta luego», «eso es todo», «me voy», «a casa»
+      → «Hasta luego.» y cierra.
+  «¿Qué hora es?» → la hora de Madrid.
+
+Otras (solo hablan; no cambian la agenda):
+  precios → «Los precios están en Servicios.»
+  bono de una clienta → «En la ficha, en Bonos.»
+  pago / Bizum / factura → «Eso en caja. Yo apunto la cita.»
+  fotos o medidas → «Las fotos no van aquí. La cita sí.»
+  consentimiento, menor, embarazada, cabina ocupada,
+  se alarga el tratamiento, horario (cierra a las ocho,
+  abre a las nueve), festivo, wifi, iPad colgado…
+
+«Qué tal el día» no es charla: es el resumen de hoy.
+
+
+12. PREGUNTAS ABIERTAS (PANTALLA)
+---------------------------------
+
+Arriba del panel sale el paso:
+  1 · Clienta    2 · Servicio    3 · Hora    4 · Cabina    5 · ¿La guardo?
+  Teléfono, si es alta nueva.
+
+Chips gordos para tocar (horas, nombres, Sí / No).
+Mientras oye, se ve el dictado. Tócalo para corregir; Listo envía.
+Si no suena la voz, el texto se pone grande para leerlo.
+
+
+13. SI NO ENTIENDE
+------------------
+
+  1. Diccionario local (gratis, inmediato).
+  2. Si parece un nombre, busca en fichas y arranca cita.
+  3. Si hay modelo (OpenAI) y no está apagado: la nube,
+     con las mismas herramientas (cita, huecos, cancelar…).
+     Límite por hora y por centro. 8 segundos; si no llega,
+     frase propia y se sigue con clips.
+  4. Si tampoco: «No lo he pillado. Dime el servicio, la hora, o una cita.»
+     Sin nube: «Sin nube ahora…»
+
+Sin red: no guarda. «Sin red. Escríbelo abajo.»
+
+Dirección ve en Ajustes → Voz (30 días) las frases que fallaron:
+servicios no pillados, nombres no encontrados, desconocidas,
+citas guardadas o cerradas a mitad, fallos de audio.
+
+
+14. QUÉ NO HACE LA VOZ
+----------------------
+
+  Fotos, medidas, notas clínicas, consentimientos.
+  Cobrar (tarjeta, Bizum, caja).
+  Mandar SMS (solo anota «sin teléfono» / «sin SMS» de palabra).
+  WhatsApp automático (eso es el enlace de la cita, a mano).
+  Siri (los atajos de iPhone solo abren una URL).
+  Guardar citas sin internet.
+  Oír en segundo plano en el iPhone.
+
+
+15. FRASES QUE FUNCIONAN BIEN (PARA ENSAYAR)
+--------------------------------------------
+
+  Hola Marlén qué tal
+  Quién sigue
+  Qué hay hoy
+  Quién tiene hueco esta tarde
+  Hay hueco de media hora mañana
+  Es láser                    (pide el nombre)
+  Cita para Lucía a las once
+  Ponle vacum a Marta esta tarde
+  Lo de siempre a Marta
+  Cita para Lucía con Vale
+  Cancela la de Lucía
+  Mueve a Marta
+  La paso
+  Marta no va a venir
+  Dice que está apuntada
+  Lucía llega tarde
+  Está aparcando
+  Apunta a Lucía en espera
+  Nueva cita

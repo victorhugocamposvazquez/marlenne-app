@@ -1,0 +1,277 @@
+Marlén — funcionalidades actuales de la app
+===========================================
+
+Documento de lo que la app hace hoy (PWA, Next.js + Supabase).
+No incluye lo previsto (tiendas nativas, SMS en producción, Siri, offline).
+Fecha: 7 de septiembre de 2026.
+
+
+QUÉ ES
+------
+
+Agenda del centro de estética para recepción, dirección y cabina.
+Se usa en el móvil, en el iPad de mostrador o en el navegador.
+Pantalla estrecha (tipo teléfono), se puede instalar en la pantalla de inicio.
+
+
+QUIÉN ENTRA Y QUÉ VE
+--------------------
+
+Cada persona del equipo entra con su email y su contraseña.
+Hay tres roles:
+
+  Dirección
+    Ve y hace de todo: agenda, clientas, equipo, servicios, bonos,
+    importar CSV, log de voz, checklist de puesta en marcha.
+
+  Recepción
+    Agenda completa, clientas, bonos vendidos, voz para apuntar.
+    No edita el catálogo de servicios ni importa CSV ni ve el log de voz.
+
+  Cabina
+    Solo su columna de agenda y su día.
+    No ve el listado de clientas (sí puede abrir una ficha si llega
+    desde una cita). Ficha en solo lectura.
+
+Login: email + contraseña. Se puede recuperar la contraseña por email.
+Cada una cambia la suya en Ajustes → Tu cuenta.
+Cerrar sesión, ahí mismo.
+
+La app pide sesión para todo salvo la página pública de confirmar cita.
+
+
+HOY
+---
+
+Pantalla de arranque.
+
+Recepción y dirección ven:
+  - Saludo y fecha.
+  - Número de citas de hoy, euros previstos, ocupación y no-shows.
+  - Caja hasta ahora: lo cobrado (citas marcadas Hecha) frente a lo previsto.
+  - Hechas: cuántas ya se han cerrado.
+  - En cabina ahora, con «Terminar».
+  - Sin llegar: citas con más de 10 minutos de retraso.
+    Acciones: pasar a cabina, marcar no vino, llamar, WhatsApp.
+  - Siguientes (hasta seis).
+  - Por volver: clientas de hace 3–17 semanas sin cita.
+    WhatsApp de recall o dar hueco.
+  - Campana a la lista de espera.
+  - Se actualiza sola si cambia la agenda o la espera.
+
+Cabina ve:
+  - «Tu día»: en cabina / retraso / siguiente / libre.
+  - Sus citas, sin caja ni «Por volver».
+
+
+AGENDA
+------
+
+Vista día
+  Columnas por profesional, hora actual, bloqueos.
+  Dirección y recepción pueden filtrar por profesional.
+  Cabina solo se ve a sí misma.
+
+Vista semana
+  Citas, ocupación y caja de la semana.
+  Tocar un día abre esa jornada.
+
+Nueva cita (botón + o desde Clientas / Hoy)
+  Clienta (buscar o alta al vuelo), servicio, profesional, día,
+  huecos libres, nota, bono si aplica.
+  «Próximo hueco» en los siguientes 7 días.
+
+Detalle de una cita
+  Cambiar estado, nota, reprogramar, cancelar, ficha, llamar,
+  WhatsApp de confirmación (enlace sí/no).
+
+Mover
+  Arrastrar en la rejilla (pulsación larga; encaja en cuartos de hora).
+  O reprogramar con fecha, cabina y hora.
+  Las citas hechas no se arrastran.
+  Si el hueco está ocupado, la base de datos lo rechaza y avisa.
+
+Cancelar
+  Pide confirmación.
+  Si hay gente en espera para ese hueco, ofrece avisarlas.
+
+Estados de una cita
+  Agendada → En cabina → Hecha
+  o No vino.
+
+Al marcar Hecha (si el servicio abre tratamiento):
+  parámetros de máquina, medidas (cintura, cadera, peso) y nota.
+  Eso alimenta la ficha clínica.
+
+Bloquear huecos
+  Comida, descanso, cabina ocupada, personal, vacaciones.
+  Duración, etiqueta, repetir laborables 4 semanas.
+  Tocar un bloqueo para quitarlo.
+
+Lista de espera
+  Ver, añadir (nombre, servicio, preferencia), quitar,
+  WhatsApp, dar cita.
+  Desde Hoy (campana), Agenda o voz.
+
+La agenda del día se actualiza en vivo entre iPads y móviles.
+
+
+CLIENTAS
+--------
+
+Listado (dirección y recepción)
+  Buscar por nombre o teléfono.
+  Filtros: Todas, Con cita, Sin próxima, Por volver, En curso, Con bono, VIP.
+  Llamar, WhatsApp, nueva cita.
+  Alta: nombre, teléfono, email, VIP, consentimientos al crear.
+  Avisa si parece duplicada.
+
+Ficha
+  Próxima cita, última visita, teléfono, WhatsApp, email.
+  Notas rápidas (editable en mostrador).
+  Consentimientos: fotos, datos de salud, tratamiento (registro en persona).
+  Aviso si hay fotos sin consentimiento o caducado.
+  Bonos: vender desde plantilla, pack amigo, recargar sesiones.
+  Pestañas:
+    Tratamientos (sesiones, zona, notas, parámetros).
+    Medidas (histórico).
+    Fotos antes/después (comprimidas, privadas; se pueden borrar).
+    Historial de citas.
+  Exportar ficha en texto.
+  Cabina: solo lectura.
+
+
+AJUSTES
+-------
+
+Equipo
+  Dirección: altas (email, rol, color, cargo; contraseña temporal una vez),
+  editar, desactivar.
+  El resto: solo consulta.
+
+Servicios (solo dirección)
+  Categorías (color, si abre tratamiento).
+  Servicios: nombre, duración, precio, activo o no.
+
+Bonos
+  Dirección: plantillas (sesiones, precio, validez, servicio).
+  Dirección y recepción: vendidos, recargar, asignar amigo.
+
+Importar CSV (solo dirección)
+  Plantillas de servicios, clientas y citas.
+  Vista previa con solapes; luego aplicar.
+
+Voz — registro (solo dirección)
+  Lo que no entendió en 30 días: servicios, nombres, frases,
+  citas guardadas o abandonadas a mitad.
+
+Tu cuenta (todo el mundo)
+  Preferencias de voz, atajos de iPhone, cambiar contraseña,
+  qué viene más adelante, cerrar sesión.
+
+Checklist de puesta en marcha (dirección)
+  Semáforo para no dejar cuentas de demo ni emails de prueba.
+
+
+VOZ (Marlén)
+------------
+
+Botón del micrófono, abajo a la derecha.
+Se puede escribir el comando si el dictado falla.
+
+En el iPhone: hay que tocar el micro cada vez.
+No espera «Hola Marlén» (Safari corta el oído al bloquear).
+Mejor instalada en la pantalla de inicio.
+
+En el iPad: se puede dejar el oído de «Hola Marlén» (se apaga en Ajustes).
+
+Responde con clips de voz; si no hay clip, nube; si falla, la voz del propio Safari.
+
+Lo que hace de verdad (tras confirmar en pantalla cuando toca guardar):
+
+  Citas
+    «Cita para Lucía el miércoles a las once con Valeria»
+    «Lucía vacum una hora»
+    «Es láser» / «vacum» / «quiere facial» → pide el nombre y sigue
+    «Lo de siempre» / «como la última vez de Marta»
+    Alta de clienta nueva, con teléfono o «sin teléfono»
+    «Con Vale» o «la de láser» (puesto del equipo)
+
+  Huecos
+    «Quién tiene hueco mañana a las 11:30»
+    «A qué hora puede Valeria»
+    «Hay hueco de media hora esta tarde»
+    «Viene sin cita» / «llaman por hueco»
+
+  Día
+    «Qué hay hoy» / «quién viene» / «en cabina»
+    «Quién sigue» / «la siguiente» (la próxima cita, no todo el día)
+
+  Cambiar
+    «Cancela la de Lucía» (o «cancela» y pregunta de quién)
+    «Mueve a Marta» (si no hay hora, ofrece huecos)
+    «Me he equivocado de hora»
+
+  Mostrador
+    «Pasa a cabina» / «ha llegado» / «la paso»
+    «No vino» / «no va a venir»
+    «Dice que está apuntada» / «ha llamado» / «para confirmar»
+    «Llega tarde» / «aviso a cabina» (nota en la cita)
+    «Está esperando» / «está aparcando»
+    «Apunta a Lucía en espera»
+
+  Ir a pantallas
+    Nueva cita, agenda, clientas, ficha de alguien, bonos, servicios, equipo, ajustes.
+
+  Confirmar
+    «Sí», «vale», «pues sí», «no», «déjalo».
+    «La primera», una hora de la lista, o tocar el chip.
+
+Si no pilla el comando y hay modelo, pregunta a la nube (solo agenda, nunca ficha clínica).
+Sin red no guarda citas: dice que lo escribas.
+
+
+CONFIRMAR CITA (LA CLIENTA)
+---------------------------
+
+Enlace público /c/… que se manda por WhatsApp desde la cita.
+Sin login.
+
+  «Sí, voy» → queda confirmada.
+  «No puedo» → se borra la cita y se libera el hueco.
+
+Si el enlace está caducado, la cita ya no existe o ya respondió, lo dice.
+
+
+CAJA Y COBROS
+-------------
+
+No hay TPV ni Bizum en la app.
+«Caja» es la suma de los precios de las citas del día:
+  previsto = todas; cobrado = las Hechas.
+Si la cita va con bono, se ve el distintivo.
+WhatsApp es el enlace wa.me (no hay API de WhatsApp).
+
+
+TÉCNICA QUE SE NOTA EN EL DÍA A DÍA
+-----------------------------------
+
+  Zona horaria Europe/Madrid.
+  No se solapan citas ni bloqueos (lo impide la base de datos).
+  Fotos en almacén privado, comprimidas en el móvil.
+  Consentimientos digitales (no firma en PDF).
+  La app se actualiza sola en Hoy y Agenda si otra persona cambia algo.
+  Pull to refresh en las pantallas con sesión.
+
+
+QUÉ NO HACE (AÚN)
+-----------------
+
+  Recordatorios SMS: el cron existe, pero no manda nada sin proveedor configurado.
+  Agenda usable sin internet (el icono abre, las citas no se guardan offline).
+  Siri nativo (solo atajos que abren una URL).
+  Notificaciones push.
+  Cobro con tarjeta o Bizum.
+  App de App Store / Play Store (hoy es esta misma PWA).
+  Fotos, medidas o historial clínico por voz.
+  Web comercial ni consola multi-centro (el gancho de centro ya está en datos).
