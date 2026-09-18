@@ -1,25 +1,67 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
-import { ChevronLeft, X } from 'lucide-react';
-import { Chip, useCloseSheet } from '@/components/Sheet';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { Check, ChevronLeft, Search, UserPlus, X } from 'lucide-react';
+import { inputCls, useCloseSheet } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
 import IconButton from '@/components/ui/IconButton';
-import ChipScroller from '@/components/ui/ChipScroller';
-import ClientPicker from '@/components/agenda/ClientPicker';
+import Chip from '@/components/ui/Chip';
+import WeekStrip from '@/components/agenda/WeekStrip';
 import NextSlotControls from '@/components/agenda/NextSlotControls';
-import ServicePicker from '@/components/agenda/ServicePicker';
-import { usePlace, type PlacePick } from '@/components/agenda/PlaceContext';
-import { avatarColor, initials } from '@/lib/categories';
+import { avatarColor, catStyle, initials } from '@/lib/categories';
 import { createAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
-import { dayKey, durLbl, fmt, minutesOfDay } from '@/lib/time';
-import { bestNameMatches, parseClock } from '@/lib/voice';
+import { dateFromOffset, dayKey, durLbl, fmt, minutesOfDay, offsetFromDay } from '@/lib/time';
+import { bestNameMatches, fold, parseClock } from '@/lib/voice';
 import { packFitsService, packIsOpen, packLabel, packUsableBy, pickPackForService } from '@/lib/packs';
-import { newAppointmentCta } from '@/lib/new-appointment-cta';
+import { servicePickSections } from '@/lib/service-pick';
 import { readLastServiceId, writeLastServiceId } from '@/hooks/last-service';
-import { useSheetResize } from '@/hooks/useSheetResize';
+import { AFTERNOON_START, eurosLbl } from '@/lib/week-view';
 import type { ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
+
+function StepTitle({ n, children }: { n: number; children: string }) {
+  return (
+    <h2 className="mb-2.5 flex items-center gap-2.5 text-body-lg font-extrabold">
+      <span className="grid h-8 w-8 place-items-center rounded-pill bg-v-soft text-label font-extrabold text-v-d">
+        {n}
+      </span>
+      {children}
+    </h2>
+  );
+}
+
+function HourGroup({
+  title, slots, selected, onPick,
+}: {
+  title: string;
+  slots: number[];
+  selected: number | null;
+  onPick: (m: number) => void;
+}) {
+  return (
+    <div className="mb-3">
+      <p className="mb-1.5 text-caption font-bold uppercase tracking-[.04em] text-ink-2">{title}</p>
+      <div className="grid grid-cols-4 gap-2">
+        {slots.map(m => {
+          const on = m === selected;
+          return (
+            <button
+              key={m}
+              type="button"
+              aria-pressed={on}
+              onClick={() => onPick(m)}
+              className={`min-h-[48px] rounded-field text-label font-extrabold tabular-nums ${
+                on ? 'bg-grad text-white shadow-pill' : 'border border-surface-line bg-surface-card text-ink'
+              }`}
+            >
+              {fmt(m)}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function NewAppointmentSheet({
   day, providers, services, clients, packs = [], serviceCounts = {}, preselected = null,
@@ -38,8 +80,6 @@ export default function NewAppointmentSheet({
   initialProviderId?: string;
 }) {
   const close = useCloseSheet();
-  const { publish } = usePlace();
-  const { height, dragging, onHandleDown, ensureMid } = useSheetResize();
   const [pending, startTransition] = useTransition();
 
   const guessedService = initialServiceQ
@@ -48,6 +88,7 @@ export default function NewAppointmentSheet({
   const [query, setQuery] = useState(preselected ? '' : initialName);
   const [client, setClient] = useState<ClientOption | null>(preselected);
   const [serviceId, setServiceId] = useState(guessedService.length === 1 ? guessedService[0].id : '');
+  const [serviceQ, setServiceQ] = useState(guessedService.length === 1 ? '' : initialServiceQ);
   const [providerId, setProviderId] = useState(
     initialProviderId && providers.some(p => p.id === initialProviderId)
       ? initialProviderId
@@ -58,22 +99,15 @@ export default function NewAppointmentSheet({
   const [starts, setStarts] = useState<Record<string, number[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [packId, setPackId] = useState('');
-  const [step, setStep] = useState<'who' | 'when'>(() =>
-    parseClock(initialHora) != null && guessedService.length === 1 ? 'when' : 'who',
-  );
-  const [picker, setPicker] = useState<'client' | 'service' | null>(() => {
-    if (preselected || initialName.trim().length > 1) {
-      return guessedService.length === 1 ? null : 'service';
-    }
-    return 'client';
-  });
-  const [nudge, setNudge] = useState(false);
-  const nudgeTimer = useRef(0);
-  const serviceSearchRef = useRef<HTMLInputElement>(null);
-  const clientRef = useRef<HTMLInputElement>(null);
-  const [orderLastId, setOrderLastId] = useState<string | null>(null);
+  const [lastId, setLastId] = useState<string | null>(null);
 
-  useEffect(() => { setOrderLastId(readLastServiceId()); }, []);
+  const clientRef = useRef<HTMLInputElement>(null);
+  const whoRef = useRef<HTMLDivElement>(null);
+  const svcRef = useRef<HTMLDivElement>(null);
+  const whenRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setLastId(readLastServiceId()); }, []);
+  useEffect(() => { setDate(day); }, [day]);
 
   const service = services.find(s => s.id === serviceId) ?? null;
   const usablePacks = client && serviceId
@@ -81,7 +115,19 @@ export default function NewAppointmentSheet({
     : [];
   const providerKey = providers.map(p => p.id).join(',');
 
-  useEffect(() => { setDate(day); }, [day]);
+  const matches = useMemo(() => {
+    const q = fold(query);
+    const digits = query.replace(/\D/g, '');
+    if ((!q && !digits) || client) return [];
+    return clients
+      .filter(c => (q && fold(c.full_name).includes(q)) || (digits.length >= 3 && (c.phone ?? '').includes(digits)))
+      .slice(0, 12);
+  }, [query, clients, client]);
+
+  const catalog = useMemo(
+    () => servicePickSections(services, { lastId, counts: serviceCounts, query: serviceQ }),
+    [services, lastId, serviceCounts, serviceQ],
+  );
 
   useEffect(() => {
     if (!service) { setStarts({}); return; }
@@ -112,62 +158,13 @@ export default function NewAppointmentSheet({
   const who = client?.full_name ?? query.trim();
   const missingClient = who.length <= 1;
   const missingService = !service;
-  const canNext = !missingClient && !missingService && !pending;
-  const ready = canNext && !!providerId && startMin !== null;
-  const cta = newAppointmentCta({
-    missingClient,
-    missingService,
-    hasTime: startMin != null,
-    pending,
-    step,
-  });
+  const missingHour = startMin === null;
+  const ready = !missingClient && !missingService && !!providerId && !missingHour && !pending;
 
   const pickService = useCallback((id: string) => {
     writeLastServiceId(id);
     setServiceId(id);
-    setPicker(null);
   }, []);
-
-  const openPicker = useCallback((next: 'client' | 'service') => {
-    setPicker(next);
-    ensureMid();
-    setNudge(true);
-    window.clearTimeout(nudgeTimer.current);
-    nudgeTimer.current = window.setTimeout(() => setNudge(false), 800);
-    queueMicrotask(() => {
-      if (next === 'client') clientRef.current?.focus();
-      else serviceSearchRef.current?.focus();
-    });
-  }, [ensureMid]);
-
-  useEffect(() => () => window.clearTimeout(nudgeTimer.current), []);
-
-  useEffect(() => {
-    if (serviceId) writeLastServiceId(serviceId);
-  }, [serviceId]);
-
-  const onPick = useCallback((p: PlacePick) => {
-    setProviderId(p.providerId);
-    setStartMin(p.startMin);
-    setStep('when');
-  }, []);
-
-  useEffect(() => {
-    if (!service || missingClient) {
-      publish(null);
-      return;
-    }
-    publish({
-      durationMin: service.duration_min,
-      starts,
-      pick: startMin != null ? { providerId, startMin } : null,
-      clientLabel: who,
-      serviceName: service.name,
-      onPick,
-    });
-  }, [service, missingClient, starts, startMin, providerId, who, onPick, publish]);
-
-  useEffect(() => () => publish(null), [publish]);
 
   const save = () => {
     if (!ready || !service || startMin === null) return;
@@ -187,220 +184,274 @@ export default function NewAppointmentSheet({
     });
   };
 
+  const goToMissing = () => {
+    if (missingClient) {
+      whoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      clientRef.current?.focus();
+      return;
+    }
+    if (missingService) {
+      svcRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    if (missingHour) {
+      whenRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    save();
+  };
+
+  const whoName = providers.find(p => p.id === providerId)?.full_name.split(' ')[0];
   const slots = starts[providerId];
   const recap = [who || null, service?.name ?? null, startMin != null ? fmt(startMin) : null]
     .filter(Boolean)
     .join(' · ');
+  const morning = (slots ?? []).filter(m => m < AFTERNOON_START);
+  const afternoon = (slots ?? []).filter(m => m >= AFTERNOON_START);
+  const dayOffset = offsetFromDay(date);
+
+  const cta = pending
+    ? 'Guardando…'
+    : missingClient
+      ? 'Falta la clienta'
+      : missingService
+        ? 'Falta el servicio'
+        : missingHour
+          ? 'Falta la hora'
+          : `Guardar ${fmt(startMin!)}${whoName ? ` · ${whoName}` : ''}`;
 
   return (
-    <div
-      data-no-pull
-      className="relative z-[8] flex shrink-0 flex-col overflow-hidden rounded-t-sheet border-t border-surface-line bg-surface-card shadow-toast"
-      style={{
-        height,
-        transition: dragging ? 'none' : 'height .28s cubic-bezier(.2,.9,.3,1)',
-      }}
-    >
-      <div
-        data-no-pull
-        data-sheet-handle
-        role="slider"
-        aria-label="Arrastra para agrandar o encoger el formulario"
-        aria-valuemin={0}
-        aria-valuemax={2}
-        aria-valuetext="Tamaño del formulario"
-        className="flex min-h-12 w-full shrink-0 select-none items-center justify-center bg-surface-card [-webkit-touch-callout:none] [-webkit-user-select:none]"
-        style={{ touchAction: 'none' }}
-        onPointerDown={onHandleDown}
-        onTouchStart={e => e.preventDefault()}
-      >
-        <span aria-hidden className="pointer-events-none h-1 w-10 rounded-full bg-handle" />
-      </div>
-
-      <div
-        data-no-pull
-        className="flex shrink-0 select-none items-center gap-1 bg-surface-card px-3 [-webkit-user-select:none]"
-        style={{ touchAction: 'none' }}
-        onPointerDown={e => {
-          if ((e.target as HTMLElement).closest('button, a, input')) return;
-          onHandleDown(e);
-        }}
-        onTouchStart={e => {
-          if ((e.target as HTMLElement).closest('button, a, input')) return;
-          e.preventDefault();
-        }}
-      >
-        {step === 'when' && (
-          <IconButton label="Volver" tone="ghost" onClick={() => setStep('who')}>
-            <ChevronLeft size={20} strokeWidth={2.2} />
+    <div className="absolute inset-0 z-40 flex flex-col bg-surface-bg">
+      <header className="shrink-0 border-b border-surface-line bg-surface-card px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <IconButton label="Volver a la agenda" tone="card" onClick={close}>
+            <ChevronLeft size={22} strokeWidth={2.4} />
           </IconButton>
-        )}
-        {recap ? (
-          <ChipScroller className="min-w-0 flex-1" label="Resumen de la cita">
-            {step === 'when' ? (
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-title font-extrabold leading-tight">Nueva cita</h1>
+            <p className="truncate text-caption font-semibold text-ink-2">
+              {recap || 'Clienta, servicio y hora'}
+            </p>
+          </div>
+          <IconButton label="Cerrar" tone="ghost" onClick={close}>
+            <X size={18} strokeWidth={2.2} />
+          </IconButton>
+        </div>
+      </header>
+
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4">
+        <div ref={whoRef} className="mb-8 scroll-mt-3">
+          <StepTitle n={1}>Clienta</StepTitle>
+          {client ? (
+            <div className="flex items-center gap-3 rounded-field border border-v/30 bg-v-tint px-3 py-3">
+              <span
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-chip text-label font-bold text-white"
+                style={{ background: avatarColor(client.full_name) }}
+              >
+                {initials(client.full_name)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-body font-extrabold">{client.full_name}</p>
+                {client.phone && (
+                  <p className="truncate text-caption font-semibold text-ink-2">{client.phone}</p>
+                )}
+              </div>
               <button
                 type="button"
-                onClick={() => setStep('who')}
-                className="whitespace-nowrap text-left text-label font-extrabold"
+                aria-label="Cambiar clienta"
+                onClick={() => { setClient(null); setQuery(''); }}
+                className="grid h-11 w-11 shrink-0 place-items-center text-ink-2"
               >
-                {recap}
+                <X size={18} strokeWidth={2.2} />
               </button>
-            ) : (
-              <p className="whitespace-nowrap text-label font-extrabold">{recap}</p>
-            )}
-          </ChipScroller>
-        ) : (
-          <p className="min-w-0 flex-1 text-label font-extrabold">Nueva cita</p>
-        )}
-        {service && (
-          <span className="shrink-0 text-caption font-semibold text-ink-2">{durLbl(service.duration_min)}</span>
-        )}
-        <IconButton label="Cerrar" tone="ghost" onClick={close}>
-          <X size={18} strokeWidth={2.2} />
-        </IconButton>
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pt-2">
-      {step === 'who' && picker === 'client' && (
-        <ClientPicker
-          fill
-          clients={clients}
-          query={query}
-          onQuery={setQuery}
-          onPick={c => {
-            setClient(c);
-            setQuery('');
-            setPicker(service ? null : 'service');
-          }}
-          inputRef={clientRef}
-          nudge={nudge && picker === 'client'}
-        />
-      )}
-
-      {step === 'who' && picker !== 'client' && (client || who.length > 1) && (
-        <div className="mb-2 flex shrink-0 items-center gap-2 rounded-pill border border-surface-line bg-v-tint px-2.5 py-1.5">
-          <span
-            className="grid h-6 w-6 shrink-0 place-items-center rounded-chip text-micro font-bold text-white"
-            style={{ background: avatarColor(who) }}
-          >
-            {initials(who)}
-          </span>
-          <button
-            type="button"
-            onClick={() => openPicker('client')}
-            className="min-w-0 flex-1 truncate text-left text-label font-bold"
-          >
-            {who}
-          </button>
-          <button
-            type="button"
-            aria-label="Quitar clienta"
-            onClick={() => { setClient(null); setQuery(''); openPicker('client'); }}
-            className="grid h-8 w-8 shrink-0 place-items-center text-ink-2"
-          >
-            <X size={14} strokeWidth={2.2} />
-          </button>
+            </div>
+          ) : (
+            <>
+              <div className="relative">
+                <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-3" strokeWidth={2.2} />
+                <input
+                  ref={clientRef}
+                  className={`${inputCls} pl-10`}
+                  placeholder="Nombre o teléfono"
+                  aria-label="Buscar clienta"
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                />
+              </div>
+              {matches.length > 0 && (
+                <ul className="mt-2 overflow-hidden rounded-field border border-surface-line bg-surface-card">
+                  {matches.map(c => (
+                    <li key={c.id} className="border-b border-surface-line last:border-0">
+                      <button
+                        type="button"
+                        onClick={() => setClient(c)}
+                        className="flex w-full min-h-[52px] items-center gap-3 px-3 py-2.5 text-left"
+                      >
+                        <span
+                          className="grid h-10 w-10 shrink-0 place-items-center rounded-chip text-micro font-bold text-white"
+                          style={{ background: avatarColor(c.full_name) }}
+                        >
+                          {initials(c.full_name)}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-body font-bold">{c.full_name}</span>
+                          {c.phone && (
+                            <span className="block truncate text-caption font-semibold text-ink-2">{c.phone}</span>
+                          )}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {query.trim().length > 1 && matches.length === 0 && (
+                <p className="mt-2 flex items-center gap-2 rounded-field bg-v-tint px-3 py-2.5 text-label font-semibold text-v-d">
+                  <UserPlus size={16} strokeWidth={2.2} />
+                  Se guardará como clienta nueva: «{query.trim()}»
+                </p>
+              )}
+            </>
+          )}
         </div>
-      )}
 
-      {step === 'who' && picker === 'service' && (
-        <ServicePicker
-          fill
-          open
-          services={services}
-          lastId={orderLastId}
-          counts={serviceCounts}
-          selectedId={serviceId}
-          initialQuery={initialServiceQ}
-          onPick={pickService}
-          inputRef={serviceSearchRef}
-          nudge={nudge && picker === 'service'}
-        />
-      )}
-
-      {step === 'who' && picker !== 'client' && picker !== 'service' && service && (
-        <button
-          type="button"
-          onClick={() => openPicker('service')}
-          className="mb-2 flex w-full items-center gap-2 rounded-pill border border-surface-line bg-surface-bg px-2.5 py-1.5 text-left"
-        >
-          <span className="min-w-0 flex-1 truncate text-label font-bold">{service.name}</span>
-          <span className="shrink-0 text-caption font-semibold text-ink-2">{durLbl(service.duration_min)}</span>
-          <span className="shrink-0 text-caption font-bold text-v">Cambiar</span>
-        </button>
-      )}
-
-      {step === 'who' && usablePacks.length > 0 && (
-        <ChipScroller className="mb-2" label="Bonos">
-          <Chip className="shrink-0" active={!packId} onClick={() => setPackId('')}>Sin bono</Chip>
-          {usablePacks.map(p => (
-            <Chip className="shrink-0" key={p.id} active={packId === p.id} onClick={() => setPackId(p.id)}>
-              {packLabel(p)}
-              {p.owner_client_id !== client?.id ? ' · amiga' : ''}
-            </Chip>
+        <div ref={svcRef} className="mb-8 scroll-mt-3">
+          <StepTitle n={2}>Servicio</StepTitle>
+          <div className="relative mb-3">
+            <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-3" strokeWidth={2.2} />
+            <input
+              className={`${inputCls} pl-10`}
+              placeholder="Buscar servicio"
+              aria-label="Buscar servicio"
+              value={serviceQ}
+              onChange={e => setServiceQ(e.target.value)}
+            />
+          </div>
+          {catalog.length === 0 ? (
+            <p className="rounded-field border border-dashed border-handle px-3 py-6 text-center text-label font-semibold text-ink-2">
+              No hay ningún servicio con «{serviceQ.trim()}».
+            </p>
+          ) : catalog.map(sec => (
+            <section key={sec.key} className="mb-3">
+              <h3 className="mb-1 px-0.5 text-caption font-bold uppercase tracking-[.04em] text-ink-2">
+                {sec.title}
+              </h3>
+              <div className="overflow-hidden rounded-field border border-surface-line bg-surface-card">
+                {sec.items.map(s => {
+                  const cat = catStyle(s.category, { label: s.category_label, color: s.category_color });
+                  const on = s.id === serviceId;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => pickService(s.id)}
+                      className={`flex w-full min-h-[56px] items-center gap-3 border-b border-surface-line px-3 py-2.5 text-left last:border-0 ${
+                        on ? 'bg-v-tint' : ''
+                      }`}
+                    >
+                      <span className="h-3 w-3 shrink-0 rounded-sm" style={{ background: cat.color }} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-body font-bold">{s.name}</span>
+                        <span className="block text-caption font-semibold text-ink-2">
+                          {durLbl(s.duration_min)}
+                          {s.price_cents ? ` · ${eurosLbl(s.price_cents / 100)}` : ''}
+                        </span>
+                      </span>
+                      {on && <Check size={18} strokeWidth={2.4} className="shrink-0 text-v" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
           ))}
-        </ChipScroller>
-      )}
 
-      {step === 'when' && service && (
-        <ChipScroller className="mb-2" label="Horas">
-          <NextSlotControls
-            durationMin={service.duration_min}
-            providerId={providerId}
-            anyProviders={providers.length > 1}
-            onPick={slot => {
-              setDate(dayKey(slot.startsAt));
-              setProviderId(slot.providerId);
-              setStartMin(minutesOfDay(slot.startsAt));
+          {usablePacks.length > 0 && (
+            <div className="mt-3">
+              <p className="mb-1.5 text-caption font-bold uppercase tracking-[.04em] text-ink-2">Bono</p>
+              <div className="flex flex-wrap gap-2">
+                <Chip active={!packId} onClick={() => setPackId('')}>Sin bono</Chip>
+                {usablePacks.map(p => (
+                  <Chip key={p.id} active={packId === p.id} onClick={() => setPackId(p.id)}>
+                    {packLabel(p)}
+                    {p.owner_client_id !== client?.id ? ' · amiga' : ''}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div ref={whenRef} className="mb-4 scroll-mt-3">
+          <StepTitle n={3}>Día y hora</StepTitle>
+          <WeekStrip
+            selectedOffset={dayOffset}
+            onSelect={off => {
+              setDate(dayKey(dateFromOffset(off)));
+              setStartMin(null);
             }}
           />
-          {slots == null ? (
-            <p className="shrink-0 self-center text-caption font-semibold text-ink-3">Buscando…</p>
-          ) : slots.length === 0 ? (
-            <p className="shrink-0 self-center text-caption font-semibold text-ink-2">
-              No queda hueco de {durLbl(service.duration_min)}.
+
+          {providers.length > 1 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {providers.map(p => (
+                <Chip
+                  key={p.id}
+                  active={providerId === p.id}
+                  onClick={() => { setProviderId(p.id); setStartMin(null); }}
+                >
+                  {p.full_name.split(' ')[0]}
+                </Chip>
+              ))}
+            </div>
+          )}
+
+          {!service ? (
+            <p className="mt-4 rounded-field border border-dashed border-handle px-3 py-5 text-center text-label font-semibold text-ink-2">
+              Elige el servicio para ver los huecos libres.
             </p>
           ) : (
-            slots.map(m => (
-              <Chip className="shrink-0" key={m} active={m === startMin} onClick={() => setStartMin(m)}>
-                <span className="tabular-nums">{fmt(m)}</span>
-              </Chip>
-            ))
+            <div className="mt-4">
+              <div className="mb-3 flex flex-wrap gap-2">
+                <NextSlotControls
+                  durationMin={service.duration_min}
+                  providerId={providerId}
+                  anyProviders={providers.length > 1}
+                  onPick={slot => {
+                    setDate(dayKey(slot.startsAt));
+                    setProviderId(slot.providerId);
+                    setStartMin(minutesOfDay(slot.startsAt));
+                  }}
+                />
+              </div>
+              {slots == null ? (
+                <p className="text-label font-semibold text-ink-3">Buscando huecos…</p>
+              ) : slots.length === 0 ? (
+                <p className="rounded-field bg-danger-bg px-3 py-3 text-label font-semibold text-danger-fg">
+                  No queda hueco de {durLbl(service.duration_min)} este día. Prueba otro día arriba.
+                </p>
+              ) : (
+                <>
+                  {morning.length > 0 && (
+                    <HourGroup title="Mañana" slots={morning} selected={startMin} onPick={setStartMin} />
+                  )}
+                  {afternoon.length > 0 && (
+                    <HourGroup title="Tarde" slots={afternoon} selected={startMin} onPick={setStartMin} />
+                  )}
+                </>
+              )}
+            </div>
           )}
-        </ChipScroller>
-      )}
-
-      {error && (
-        <p className="mb-2 rounded-chip bg-danger-bg px-3 py-2 text-label font-semibold text-danger-fg">{error}</p>
-      )}
+        </div>
       </div>
 
-      <div className="shrink-0 px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-1 standalone:pb-[max(8px,calc(env(safe-area-inset-bottom)-12px))]">
-      <Button
-        size="lg"
-        full
-        onClick={() => {
-          if (cta.kind === 'client') {
-            if (step === 'when') setStep('who');
-            openPicker('client');
-            return;
-          }
-          if (cta.kind === 'service') {
-            if (step === 'when') setStep('who');
-            openPicker('service');
-            return;
-          }
-          if (cta.kind === 'time') {
-            setStep('when');
-            return;
-          }
-          if (cta.kind === 'save') save();
-        }}
-        disabled={pending || (cta.kind === 'save' && !ready) || (cta.kind === 'time' && step === 'when')}
-        className="disabled:shadow-none"
-      >
-        {cta.label}
-      </Button>
+      {error && (
+        <p className="shrink-0 px-4 pb-2 text-label font-semibold text-danger-fg">{error}</p>
+      )}
+
+      <div className="shrink-0 border-t border-surface-line bg-surface-card px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] standalone:pb-[max(12px,calc(env(safe-area-inset-bottom)-12px))]">
+        <Button size="lg" full onClick={goToMissing} disabled={pending} className="disabled:shadow-none">
+          {cta}
+        </Button>
       </div>
     </div>
   );

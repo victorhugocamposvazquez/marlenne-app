@@ -124,6 +124,29 @@ export function weekMondayOffset(dayOffset: number) {
   return dayOffset - dow;
 }
 
+export type WeekStripDay = {
+  offset: number;
+  dow: string;
+  num: number;
+  isToday: boolean;
+};
+
+/** Los 7 días (lun–dom) de la semana que contiene ese offset. */
+export function weekStripDays(selectedOffset: number): WeekStripDay[] {
+  const mon = weekMondayOffset(selectedOffset);
+  return Array.from({ length: 7 }, (_, i) => {
+    const offset = mon + i;
+    const d = dateFromOffset(offset);
+    const dow = d.toLocaleDateString('es-ES', {
+      timeZone: TZ, weekday: 'short',
+    }).replace('.', '');
+    const num = Number(d.toLocaleDateString('es-ES', {
+      timeZone: TZ, day: 'numeric',
+    }));
+    return { offset, dow, num, isToday: offset === 0 };
+  });
+}
+
 /** «Esta semana» o «17 ago – 23 ago». */
 export function weekTitle(dayOffset: number) {
   const mon = weekMondayOffset(dayOffset);

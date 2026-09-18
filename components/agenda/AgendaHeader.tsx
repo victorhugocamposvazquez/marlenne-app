@@ -1,12 +1,13 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Ban, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
-import Chip from '@/components/ui/Chip';
+import { Ban, Clock } from 'lucide-react';
 import Segmented from '@/components/ui/Segmented';
 import BrandLogo from '@/components/BrandLogo';
+import WeekStrip from '@/components/agenda/WeekStrip';
+import Chip from '@/components/ui/Chip';
 import { shallowSet } from '@/hooks/useShallowQuery';
-import { compactDayTitle, weekMondayOffset, weekRangeTitle, weekSubtitle } from '@/lib/time';
+import { dayTitle, weekRangeTitle, weekSubtitle } from '@/lib/time';
 import type { Provider } from '@/lib/types';
 
 export default function AgendaHeader({
@@ -45,7 +46,7 @@ export default function AgendaHeader({
     router.push(`/agenda?${q.toString()}`);
   };
 
-  const title = mode === 'semana' ? weekRangeTitle(day) : compactDayTitle(day);
+  const title = mode === 'semana' ? weekRangeTitle(day) : dayTitle(day);
   const subtitle = mode === 'semana'
     ? weekSubtitle(day)
     : (citas != null && occ != null
@@ -53,63 +54,40 @@ export default function AgendaHeader({
       : null);
 
   return (
-    <header className="shrink-0 px-4 pb-2 pt-2">
-      <div className="flex items-center gap-2">
-        <BrandLogo size={36} alt="" className="shrink-0" />
+    <header className="shrink-0 px-3 pb-2.5 pt-2">
+      <div className="mb-2.5 flex items-center gap-2">
+        <BrandLogo size={40} alt="" className="shrink-0" />
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-body-lg font-extrabold leading-tight tracking-[-.02em]">{title}</h1>
+          <h1 className="truncate text-title font-extrabold leading-tight tracking-[-.02em]">{title}</h1>
           {subtitle && (
             <p className="truncate text-caption font-semibold text-ink-2">{subtitle}</p>
           )}
         </div>
-        {((mode === 'dia' && day !== 0) || (mode === 'semana' && weekMondayOffset(day) !== weekMondayOffset(0))) && (
+        {day !== 0 && (
           <button
             type="button"
-            onClick={() => go(0, mode)}
-            className="shrink-0 rounded-icon px-2 text-caption font-bold text-v-d"
+            onClick={() => go(0, mode === 'semana' ? 'semana' : 'dia')}
+            className="shrink-0 rounded-pill bg-v-tint px-3 py-2 text-label font-extrabold text-v-d"
           >
             Hoy
           </button>
         )}
-        <button
-          type="button"
-          aria-label="Anterior"
-          onClick={() => go(mode === 'semana' ? weekMondayOffset(day) - 7 : day - 1, mode)}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-icon text-ink-2"
-        >
-          <ChevronLeft size={18} strokeWidth={2.2} />
-        </button>
-        <button
-          type="button"
-          aria-label="Siguiente"
-          onClick={() => go(mode === 'semana' ? weekMondayOffset(day) + 7 : day + 1, mode)}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-icon text-ink-2"
-        >
-          <ChevronRight size={18} strokeWidth={2.2} />
-        </button>
         <Segmented
-          size="sm"
           ariaLabel="Vista de agenda"
           value={mode}
           options={[
             { id: 'dia', label: 'Día' },
-            { id: 'semana', label: 'Sem' },
+            { id: 'semana', label: 'Semana' },
           ]}
           onChange={m => go(day, m)}
         />
-        {waiting === 0 && (
-          <button
-            type="button"
-            aria-label="Bloquear hueco"
-            onClick={() => shallowSet({
-              block: '1', wait: null, new: null, appt: null, close: null, bloqueo: null,
-            })}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-icon text-ink-2"
-          >
-            <Ban size={15} strokeWidth={2.2} />
-          </button>
-        )}
       </div>
+
+      <WeekStrip
+        selectedOffset={day}
+        onSelect={offset => go(offset, 'dia')}
+        onShiftWeek={delta => go(day + delta, mode)}
+      />
 
       {mode === 'semana' && canFilter && providers.length > 1 && (
         <div className="mt-2 flex gap-1.5 overflow-x-auto">
@@ -130,14 +108,14 @@ export default function AgendaHeader({
       )}
 
       {waiting > 0 ? (
-        <div className="mt-2 flex items-center gap-2 rounded-field bg-v-soft/80 px-3 py-2">
-          <Clock size={15} className="shrink-0 text-v-d" strokeWidth={2.2} />
+        <div className="mt-2.5 flex items-center gap-2 rounded-field bg-v-soft/80 px-3 py-2.5">
+          <Clock size={18} className="shrink-0 text-v-d" strokeWidth={2.2} />
           <button
             type="button"
             onClick={() => shallowSet({
               wait: '1', new: null, block: null, bloqueo: null, appt: null, close: null,
             })}
-            className="min-w-0 flex-1 truncate text-left text-caption font-bold text-v-d"
+            className="min-w-0 flex-1 truncate text-left text-label font-bold text-v-d"
           >
             {waiting} en espera{waitHint ? ` · ${waitHint}` : ''}
           </button>
@@ -146,22 +124,23 @@ export default function AgendaHeader({
             onClick={() => shallowSet({
               wait: '1', new: null, block: null, bloqueo: null, appt: null, close: null,
             })}
-            className="shrink-0 text-caption font-extrabold text-v-d"
+            className="shrink-0 text-label font-extrabold text-v-d"
           >
             Encajar
           </button>
-          <button
-            type="button"
-            aria-label="Bloquear hueco"
-            onClick={() => shallowSet({
-              block: '1', wait: null, new: null, appt: null, close: null, bloqueo: null,
-            })}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-icon text-ink-2"
-          >
-            <Ban size={15} strokeWidth={2.2} />
-          </button>
         </div>
-      ) : null}
+      ) : (
+        <button
+          type="button"
+          onClick={() => shallowSet({
+            block: '1', wait: null, new: null, appt: null, close: null, bloqueo: null,
+          })}
+          className="mt-2 flex items-center gap-1.5 text-caption font-bold text-ink-3"
+        >
+          <Ban size={14} strokeWidth={2.2} />
+          Bloquear un hueco
+        </button>
+      )}
     </header>
   );
 }

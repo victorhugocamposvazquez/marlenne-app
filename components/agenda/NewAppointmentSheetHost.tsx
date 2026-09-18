@@ -55,8 +55,8 @@ export default function NewAppointmentSheetHost({
   if (open !== '1') return null;
   if (loading && services.length === 0) {
     return (
-      <div className="shrink-0 border-t border-surface-line bg-surface-card px-4 py-3">
-        <p className="text-label font-semibold text-ink-3">Cargando…</p>
+      <div className="absolute inset-0 z-40 grid place-items-center bg-surface-bg">
+        <p className="text-body font-semibold text-ink-2">Cargando…</p>
       </div>
     );
   }

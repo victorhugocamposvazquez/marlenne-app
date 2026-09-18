@@ -60,7 +60,7 @@ export default async function AgendaPage({
   const occ = occPct(dayAgenda.appointments, team.length);
 
   return (
-    <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="relative flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
       <PlaceProvider>
       <AgendaHeader
         day={day}
