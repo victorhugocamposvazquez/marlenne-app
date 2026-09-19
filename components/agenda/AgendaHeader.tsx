@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, ChevronDown, X } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronRight, X } from 'lucide-react';
 import DayStrip from '@/components/agenda/DayStrip';
 import MonthCalendar from '@/components/agenda/MonthCalendar';
 import { avatarColor, initials } from '@/lib/categories';
@@ -94,20 +94,29 @@ export default function AgendaHeader({
         </div>
       )}
 
-      {waiting > 0 && (
-        <button
-          type="button"
-          onClick={() => shallowSet({ wait: '1', new: null, appt: null })}
-          className="mt-3 text-[13px] font-bold text-v-d"
-        >
-          {waiting} en espera
-        </button>
-      )}
-
-      {mode === 'dia' && citas != null && !forClient && (
-        <p className="mt-3 px-1 text-label text-ink-3">
-          {citas === 0 ? 'Sin citas' : `${citas} ${citas === 1 ? 'cita' : 'citas'}`}
-        </p>
+      {(waiting > 0 || (mode === 'dia' && citas != null && !forClient)) && (
+        <div className="mt-3 flex items-center gap-2.5 px-1">
+          {mode === 'dia' && citas != null && !forClient && (
+            <span className="text-label text-ink-3">
+              {citas === 0 ? 'Sin citas' : `${citas} ${citas === 1 ? 'cita' : 'citas'}`}
+            </span>
+          )}
+          {waiting > 0 && (
+            <>
+              {mode === 'dia' && citas != null && !forClient && (
+                <span className="text-label text-ink-3/40" aria-hidden>·</span>
+              )}
+              <button
+                type="button"
+                onClick={() => shallowSet({ wait: '1', new: null, appt: null })}
+                className="inline-flex items-center gap-0.5 text-[13px] font-bold text-v-d"
+              >
+                {waiting} en espera
+                <ChevronRight size={13} strokeWidth={2.6} className="opacity-50" aria-hidden />
+              </button>
+            </>
+          )}
+        </div>
       )}
 
       {cal && (
