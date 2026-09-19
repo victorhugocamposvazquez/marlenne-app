@@ -4,7 +4,7 @@ export const CAT_COLORS = ['#8B5CF6', '#EC4899', '#0EA5E9', '#F59E0B', '#10B981'
 
 export type CategoryLook = { label: string; color: string; bg: string; fg: string };
 
-// bg/fg apuntan a variables CSS (claro/oscuro) definidas en app/globals.css.
+// bg/fg apuntan a variables CSS definidas en app/globals.css.
 // `color` es el acento saturado, legible en ambos modos.
 export const CATEGORIES: Record<string, CategoryLook> = {
   corporal:   { label: 'Corporal',           color: '#8B5CF6', bg: 'var(--cat-corporal-bg)',   fg: 'var(--cat-corporal-fg)' },
