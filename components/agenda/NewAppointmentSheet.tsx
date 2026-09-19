@@ -11,6 +11,7 @@ import { avatarColor, catStyle, initials } from '@/lib/categories';
 import { createAppointment, updateAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import { alignStripStart, DAY_END, dateFromOffset, dayKey, durLbl, fmt, minutesOfDay, offsetFromDay, skipSunday, toTimestamp } from '@/lib/time';
+import { filterClientOptions } from '@/lib/client-pick';
 import { bestNameMatches, fold, parseClock } from '@/lib/voice';
 import { packFitsService, packIsOpen, packUsableBy, pickPackForService } from '@/lib/packs';
 import { servicePickSections } from '@/lib/service-pick';
@@ -85,11 +86,9 @@ export default function NewAppointmentSheet({
   const [lastId, setLastId] = useState<string | null>(null);
   const [fits, setFits] = useState<Record<string, boolean>>({});
   const [mounted, setMounted] = useState(false);
-  const searchRef = useRef<HTMLInputElement>(null);
   const whenSnap = useRef({ dayOff: 0, startMin: null as number | null, providerId: '' });
 
   useEffect(() => { setMounted(true); setLastId(readLastServiceId()); }, []);
-  useEffect(() => { if (step === 'client') searchRef.current?.focus(); }, [step]);
 
   const service = services.find(s => s.id === serviceId) ?? null;
   const who = client?.full_name ?? query.trim();
@@ -99,14 +98,10 @@ export default function NewAppointmentSheet({
     weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid',
   }).replace('.', '');
 
-  const matches = useMemo(() => {
-    const q = fold(query);
-    const digits = query.replace(/\D/g, '');
-    const list = (!q && digits.length < 3)
-      ? clients
-      : clients.filter(c => (q && fold(c.full_name).includes(q)) || (digits.length >= 3 && (c.phone ?? '').includes(digits)));
-    return list.slice(0, 6);
-  }, [query, clients]);
+  const matches = useMemo(
+    () => filterClientOptions(clients, query),
+    [query, clients],
+  );
 
   const catalog = useMemo(
     () => servicePickSections(services, { lastId, counts: serviceCounts, query: serviceQ }),
@@ -316,10 +311,9 @@ export default function NewAppointmentSheet({
             <div className="mx-6 mt-4 flex h-14 shrink-0 items-center gap-2.5 rounded-field bg-surface-soft px-4">
               <Search size={18} className="text-ink-3" strokeWidth={2.2} />
               <input
-                ref={searchRef}
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder="Nombre o teléfono"
+                placeholder={query.trim() ? 'Nombre o teléfono' : `${clients.length} en la agenda`}
                 className="min-w-0 flex-1 bg-transparent text-[17px] outline-none placeholder:text-ink-3"
               />
             </div>

@@ -44,7 +44,7 @@ type Start = {
  * Toque corto abre la ficha. Si el dedo se mueve antes, es scroll.
  */
 export function useDragAppointment({
-  pxPerMin, snap, providerIds, scrollRef, gridRef, onDrop, snapStart,
+  pxPerMin, snap, providerIds, scrollRef, gridRef, onDrop, snapStart, colW = COL_W,
 }: {
   pxPerMin: number;
   snap: number;
@@ -53,7 +53,10 @@ export function useDragAppointment({
   gridRef: RefObject<HTMLElement | null>;
   onDrop: (id: string, startMin: number, providerId: string) => void;
   snapStart?: (startMin: number, providerId: string, id: string) => number;
+  colW?: number;
 }) {
+  const colWRef = useRef(colW);
+  colWRef.current = colW;
   const [drag, setDrag] = useState<Drag | null>(null);
   const session = useRef<Session | null>(null);
   const raf = useRef(0);
@@ -102,7 +105,7 @@ export function useDragAppointment({
       if (ids.length <= 1) return 0;
       const grid = gridRef.current;
       if (!grid) return 0;
-      const col = Math.floor((clientX - grid.getBoundingClientRect().left) / COL_W);
+      const col = Math.floor((clientX - grid.getBoundingClientRect().left) / colWRef.current);
       return Math.min(Math.max(col, 0), ids.length - 1);
     };
 

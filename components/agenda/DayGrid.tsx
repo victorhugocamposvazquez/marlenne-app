@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { catStyle, STATUS, avatarColor } from '@/lib/categories';
 import { citaCambiada, fmt, minutesOfDay, nowMinutes, dayKey, DAY_START, DAY_END, durLbl } from '@/lib/time';
 import { moveAppointment } from '@/lib/move-appointment';
@@ -15,6 +15,8 @@ import { nearestStart, slotGaps, snapInGap } from '@/lib/place-slots';
 import { GripVertical } from 'lucide-react';
 
 const PLACE_ID = '__place__';
+const HOUR_W = 46;
+const COL_INSET = 4;
 
 export default function DayGrid({
   date, providers, appointments, blocks, canMoveProvider, selectedPro, bookMode = false,
@@ -34,6 +36,7 @@ export default function DayGrid({
   const [now, setNow] = useState(nowMinutes);
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const [colW, setColW] = useState(COL_W);
   const toast = useToast();
   const { placing, durationMin, starts, pick, clientLabel, serviceName, onPick } = usePlace();
   useRealtimeRefresh(['appointments', 'time_blocks']);
@@ -56,12 +59,26 @@ export default function DayGrid({
       return changed ? next : prev;
     });
   }, [appointments]);
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const sync = () => {
+      const available = el.clientWidth - HOUR_W - 4;
+      const per = Math.floor(available / Math.max(providers.length, 1));
+      setColW(Math.max(COL_W, per));
+    };
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [providers.length]);
+
   useEffect(() => {
     if (!selectedPro || !scrollRef.current) return;
     const i = providers.findIndex(p => p.id === selectedPro);
     if (i <= 0) return;
-    scrollRef.current.scrollLeft = i * COL_W;
-  }, [selectedPro, providers]);
+    scrollRef.current.scrollLeft = i * colW;
+  }, [selectedPro, providers, colW]);
 
   const openAppt = useCallback((id: string) => {
     shallowSet({ appt: id });
@@ -73,6 +90,7 @@ export default function DayGrid({
     providerIds: canMoveProvider ? providers.map(p => p.id) : [providers[0]?.id],
     scrollRef,
     gridRef,
+    colW,
     snapStart: (start, providerId, id) => {
       if (id !== PLACE_ID) return start;
       return nearestStart(start, starts[providerId] ?? []);
@@ -130,7 +148,7 @@ export default function DayGrid({
 
   const solo = providers.length <= 1;
   const dropCol = drag ? Math.max(0, providers.findIndex(p => p.id === drag.providerId)) : -1;
-  const colW = solo ? undefined : COL_W;
+  const cardW = solo ? `calc(100% - ${COL_INSET}px)` : colW - COL_INSET;
 
   const tapGap = (providerId: string, first: number, last: number, clientY: number, el: HTMLElement) => {
     if (!durationMin) return;
@@ -155,16 +173,16 @@ export default function DayGrid({
         className={`min-h-0 flex-1 overflow-auto ${placing ? 'pb-4' : 'pb-16'} select-none [-webkit-touch-callout:none] ${drag ? 'touch-none overscroll-none' : ''}`}
         onContextMenu={e => e.preventDefault()}
       >
-        <div className={solo ? 'w-full pr-3.5' : 'min-w-max pr-3.5'}>
+        <div className={solo ? 'w-full pr-1' : 'min-w-max pr-1'}>
           <div className="sticky top-0 z-[6] flex bg-[linear-gradient(180deg,rgb(var(--c-bg))_74%,rgb(var(--c-bg)/0))] pb-1.5 pt-0.5">
-            <div className="sticky left-0 z-[7] w-[46px] shrink-0 bg-surface-bg" />
+            <div className="sticky left-0 z-[7] shrink-0 bg-surface-bg" style={{ width: HOUR_W }} />
             {providers.map(p => {
               const count = appointments.filter(a => place(a).provider === p.id).length;
               return (
                 <div
                   key={p.id}
-                  className={solo ? 'min-w-0 flex-1 pr-2' : 'shrink-0 pr-2'}
-                  style={colW ? { width: colW } : undefined}
+                  className={solo ? 'min-w-0 flex-1' : 'shrink-0'}
+                  style={solo ? undefined : { width: colW }}
                 >
                   <div
                     className="flex items-center gap-2 px-1 pb-2.5"
@@ -187,7 +205,7 @@ export default function DayGrid({
           </div>
 
           <div className="flex">
-            <div className="sticky left-0 z-[5] w-[46px] shrink-0 bg-surface-bg" style={{ height: gridH }}>
+            <div className="sticky left-0 z-[5] shrink-0 bg-surface-bg" style={{ width: HOUR_W, height: gridH }}>
               {hours.map(h => (
                 <div key={h.label} className="absolute right-2 -translate-y-1.5 text-micro font-semibold tabular-nums text-ink-3" style={{ top: h.top }}>
                   {h.label}
@@ -198,13 +216,13 @@ export default function DayGrid({
             <div
               ref={gridRef}
               className={solo ? 'relative min-w-0 flex-1' : 'relative'}
-              style={{ height: gridH, width: solo ? undefined : providers.length * COL_W }}
+              style={{ height: gridH, width: solo ? undefined : providers.length * colW }}
             >
               {hours.map(h => (
                 <div key={h.label} className="absolute inset-x-0 h-px bg-grid-h" style={{ top: h.top }} />
               ))}
               {providers.slice(1).map((_, i) => (
-                <div key={i} className="absolute top-0 w-px bg-grid-v" style={{ left: (i + 1) * COL_W - 4, height: gridH }} />
+                <div key={i} className="absolute top-0 w-px bg-grid-v" style={{ left: (i + 1) * colW - 4, height: gridH }} />
               ))}
               {appointments.length === 0 && (
                 <p className="absolute inset-x-4 z-[2] text-center text-body font-semibold text-ink-2" style={{ top: 48 }}>
@@ -215,14 +233,14 @@ export default function DayGrid({
               {dropCol >= 0 && (
                 <div
                   className="pointer-events-none absolute top-0 z-[3] bg-v-soft/90"
-                  style={{ left: solo ? 0 : dropCol * COL_W, width: solo ? '100%' : COL_W, height: gridH }}
+                  style={{ left: solo ? 0 : dropCol * colW, width: solo ? '100%' : colW, height: gridH }}
                 />
               )}
 
               {drag && (
                 <div
                   className="pointer-events-none absolute z-[9] flex items-center"
-                  style={{ top: (drag.start - DAY_START) * pxPerMin, width: solo ? '100%' : providers.length * COL_W }}
+                  style={{ top: (drag.start - DAY_START) * pxPerMin, width: solo ? '100%' : providers.length * colW }}
                 >
                   <span className="-ml-1 rounded-badge bg-v px-1.5 py-0.5 text-caption font-extrabold tabular-nums text-white shadow-pill">
                     {fmt(drag.start)}
@@ -234,7 +252,7 @@ export default function DayGrid({
               {dayKey(date) === dayKey(new Date()) && now >= DAY_START && now <= DAY_END && (
                 <div
                   className="pointer-events-none absolute z-[8] flex items-center"
-                  style={{ top: (now - DAY_START) * pxPerMin, width: solo ? '100%' : providers.length * COL_W }}
+                  style={{ top: (now - DAY_START) * pxPerMin, width: solo ? '100%' : providers.length * colW }}
                 >
                   <span className="-ml-1 grid h-5 w-10 shrink-0 place-items-center rounded-pill bg-ink text-[11px] font-bold text-white">
                     {fmt(now)}
@@ -248,7 +266,7 @@ export default function DayGrid({
                   <div
                     key={p.id}
                     className={solo ? 'relative min-w-0 flex-1' : 'relative shrink-0'}
-                    style={{ width: solo ? undefined : COL_W, height: gridH }}
+                    style={{ width: solo ? undefined : colW, height: gridH }}
                     onClick={e => {
                       if (e.target !== e.currentTarget) return;
                       openEmpty(p.id, e.clientY, e.currentTarget);
@@ -292,7 +310,7 @@ export default function DayGrid({
                             e.stopPropagation();
                             tapGap(p.id, g.first, g.last, e.clientY, e.currentTarget);
                           }}
-                          className="absolute left-0.5 right-[9px] z-[3] rounded-pill border border-dashed border-v/40 bg-v-soft/50"
+                          className="absolute left-0.5 right-1 z-[3] rounded-pill border border-dashed border-v/40 bg-v-soft/50"
                           style={{ top, height: Math.max(h, durationMin * pxPerMin - 6) }}
                         >
                           <span className="block px-2 pt-1 text-left text-micro font-bold tabular-nums text-ink">
@@ -312,7 +330,7 @@ export default function DayGrid({
                             if (placing) return;
                             shallowSet({ bloqueo: b.id });
                           }}
-                          className="absolute left-0.5 right-[9px] flex items-center justify-center rounded-icon border border-dashed border-handle bg-block text-caption font-bold text-ink-3"
+                          className="absolute left-0.5 right-1 flex items-center justify-center rounded-icon border border-dashed border-handle bg-block text-caption font-bold text-ink-3"
                           style={{ top: (start - DAY_START) * pxPerMin + 2, height: b.duration_min * pxPerMin - 6 }}
                         >
                           {b.label ?? b.reason}
@@ -337,8 +355,8 @@ export default function DayGrid({
                     data-no-pull
                     className={`absolute flex overflow-hidden rounded-[12px] select-none [-webkit-touch-callout:none] ${pos.dragging ? 'touch-none' : ''}`}
                     style={{
-                      left: solo ? 0 : col * COL_W,
-                      width: solo ? 'calc(100% - 8px)' : COL_W - 8,
+                      left: solo ? 0 : col * colW,
+                      width: cardW,
                       top: (pos.start - DAY_START) * pxPerMin + 1,
                       height: a.duration_min * pxPerMin - 3,
                       background: a.status === 'done' ? '#F7F7FA' : st.bg,
@@ -402,8 +420,8 @@ export default function DayGrid({
                     data-no-pull
                     className={`absolute z-[10] flex overflow-hidden rounded-pill bg-grad text-white shadow-drag ring-2 ring-white/90 select-none [-webkit-touch-callout:none] ${dragging ? 'touch-none' : ''}`}
                     style={{
-                      left: solo ? 0 : col * COL_W,
-                      width: solo ? 'calc(100% - 8px)' : COL_W - 8,
+                      left: solo ? 0 : col * colW,
+                      width: cardW,
                       top: (live.startMin - DAY_START) * pxPerMin + 2,
                       height: durationMin * pxPerMin - 6,
                       transform: dragging ? 'scale(1.03)' : 'none',
