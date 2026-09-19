@@ -78,6 +78,7 @@ export default function NewAppointmentSheet({
     return 'client';
   });
   const [whenFrom, setWhenFrom] = useState<Step>('service');
+  const [returnTo, setReturnTo] = useState<Step | null>(null);
   const [cal, setCal] = useState(false);
   const [hours, setHours] = useState<number[] | null>(null);
   const [wa, setWa] = useState(true);
@@ -135,9 +136,16 @@ export default function NewAppointmentSheet({
     return () => { alive = false; };
   }, [step, service, providerId, bookDay, editing?.id]);
 
+  const backToConfirm = returnTo === 'confirm' || !!editing;
+
   const pickClient = (c: ClientOption | null, name?: string) => {
     setClient(c);
     if (name && !c) setQuery(name);
+    if (backToConfirm) {
+      setReturnTo(null);
+      setStep('confirm');
+      return;
+    }
     setServiceId('');
     setStep('service');
   };
@@ -151,11 +159,17 @@ export default function NewAppointmentSheet({
     }
     writeLastServiceId(s.id);
     setServiceId(s.id);
-    if (startMin == null) {
-      openWhen('service');
+    if (backToConfirm || startMin != null) {
+      setReturnTo(null);
+      setStep('confirm');
       return;
     }
-    setStep('confirm');
+    openWhen('service');
+  };
+
+  const changeField = (next: Step) => {
+    setReturnTo('confirm');
+    setStep(next);
   };
 
   const openWhen = (from: Step) => {
@@ -238,7 +252,7 @@ export default function NewAppointmentSheet({
   };
 
   const idx = step === 'client' ? 1 : step === 'service' ? 2 : 3;
-  const canBack = step !== 'client' && !(preselected && step === 'service' && !editing) && !(editing && step === 'confirm');
+  const canBack = step !== 'confirm' && (step !== 'client' || returnTo === 'confirm') && !(preselected && step === 'service' && !editing && returnTo !== 'confirm');
   const question = step === 'client'
     ? '¿Para quién es?'
     : step === 'service'
@@ -247,6 +261,11 @@ export default function NewAppointmentSheet({
         ? '¿Cuándo?'
         : '¿Todo correcto?';
   const goBack = () => {
+    if (returnTo === 'confirm' && (step === 'client' || step === 'service')) {
+      setReturnTo(null);
+      setStep('confirm');
+      return;
+    }
     if (step === 'when') {
       setDayOff(whenSnap.current.dayOff);
       setStartMin(whenSnap.current.startMin);
@@ -390,8 +409,8 @@ export default function NewAppointmentSheet({
           <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-4">
             <div className="mb-3 flex items-center justify-between">
               <p className="text-label font-semibold text-ink-2">Día</p>
-              <button type="button" onClick={() => setCal(true)} className="grid h-10 w-10 place-items-center rounded-pill bg-track" aria-label="Calendario">
-                <Calendar size={18} strokeWidth={2.2} />
+              <button type="button" onClick={() => setCal(true)} className="grid h-12 w-12 place-items-center rounded-pill bg-ink text-white" aria-label="Calendario">
+                <Calendar size={24} strokeWidth={2.2} />
               </button>
             </div>
             <DayStrip
@@ -463,8 +482,8 @@ export default function NewAppointmentSheet({
           <>
             <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4">
               <div className="rounded-card bg-surface-soft px-[18px]">
-                <Row label="Clienta" value={who} onChange={() => setStep('client')} />
-                <Row label="Tratamiento" value={service ? `${service.name} · ${durLbl(service.duration_min)}` : '—'} onChange={() => setStep('service')} />
+                <Row label="Clienta" value={who} onChange={() => changeField('client')} />
+                <Row label="Tratamiento" value={service ? `${service.name} · ${durLbl(service.duration_min)}` : '—'} onChange={() => changeField('service')} />
                 <Row
                   label="Cuándo"
                   value={startMin != null && service ? `${ctxDate}, ${fmt(startMin)}–${fmt(startMin + service.duration_min)}` : ctxDate}

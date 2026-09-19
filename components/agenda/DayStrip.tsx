@@ -1,9 +1,12 @@
 'use client';
 
+import { useRef, type PointerEvent } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { dayStripWindow, skipSunday } from '@/lib/time';
 
-/** Tira de 5 días: se toca el día. Las flechas saltan la ventana. */
+const SWIPE = 48;
+
+/** Tira de 5 días: se toca el día, o se desliza la ventana. */
 export default function DayStrip({
   selectedOffset,
   startOffset,
@@ -19,9 +22,33 @@ export default function DayStrip({
 }) {
   const days = dayStripWindow(startOffset, 5);
   const busy = new Set(busyOffsets);
+  const originX = useRef<number | null>(null);
+  const swiped = useRef(false);
+
+  const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    originX.current = e.clientX;
+    swiped.current = false;
+  };
+  const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (originX.current == null) return;
+    if (Math.abs(e.clientX - originX.current) > 16) swiped.current = true;
+  };
+  const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (originX.current == null) return;
+    const dx = e.clientX - originX.current;
+    originX.current = null;
+    if (dx > SWIPE) onShift(-5);
+    else if (dx < -SWIPE) onShift(5);
+  };
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div
+      className="flex touch-pan-y items-center gap-1.5"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={() => { originX.current = null; }}
+    >
       <button
         type="button"
         aria-label="Días anteriores"
@@ -41,7 +68,13 @@ export default function DayStrip({
               disabled={d.isSunday}
               aria-current={on ? 'date' : undefined}
               aria-label={`${short} ${d.num}${d.isToday ? ', hoy' : ''}`}
-              onClick={() => !d.isSunday && onSelect(skipSunday(d.offset, 1))}
+              onClick={e => {
+                if (swiped.current) {
+                  e.preventDefault();
+                  return;
+                }
+                if (!d.isSunday) onSelect(skipSunday(d.offset, 1));
+              }}
               className="flex h-14 min-w-0 flex-1 flex-col items-center justify-center rounded-[14px] disabled:cursor-default"
               style={{
                 background: on ? 'rgb(var(--c-ink))' : 'transparent',

@@ -49,8 +49,8 @@ export default function AgendaHeader({
             <span className="text-title font-bold tracking-[-.02em]">{monthTitleFromOffset(day)}</span>
             <ChevronDown size={16} strokeWidth={2.8} />
           </span>
-          <span className="grid h-11 w-11 place-items-center rounded-pill bg-ink text-white">
-            <Calendar size={20} strokeWidth={2.2} />
+          <span className="grid h-12 w-12 place-items-center rounded-pill bg-ink text-white">
+            <Calendar size={24} strokeWidth={2.2} />
           </span>
         </button>
         <div className="flex items-center gap-3">
