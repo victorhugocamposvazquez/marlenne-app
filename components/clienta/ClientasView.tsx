@@ -28,6 +28,20 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'vip', label: 'VIP' },
 ];
 
+function clientListMeta(c: ClientListRow) {
+  const phone = c.phone?.trim() || 'Sin teléfono';
+  const ctx = c.next_at
+    ? `Próxima ${shortWhen(c.next_at)}`
+    : c.open_packs?.length
+      ? c.open_packs[0]
+      : c.last_at
+        ? `Última ${shortWhen(c.last_at)}`
+        : c.open_treatments?.length
+          ? c.open_treatments.join(' · ')
+          : 'Nunca ha venido';
+  return { phone, ctx, hasPhone: !!c.phone?.trim() };
+}
+
 export default function ClientasView({
   clients, initialAlta,
 }: {
@@ -86,7 +100,12 @@ export default function ClientasView({
         </div>
         <div className="mt-3 flex gap-1.5 overflow-x-auto">
           {FILTERS.map(f => (
-            <Chip key={f.id} className="shrink-0" active={filter === f.id} onClick={() => setFilter(f.id)}>
+            <Chip
+              key={f.id}
+              className="shrink-0"
+              active={filter === f.id}
+              onClick={() => setFilter(prev => (prev === f.id ? 'todas' : f.id))}
+            >
               {f.label}
             </Chip>
           ))}
@@ -105,7 +124,9 @@ export default function ClientasView({
             hint={clients.length === 0 ? 'El alta está arriba, a la derecha.' : undefined}
           />
         )}
-        {shown.map(c => (
+        {shown.map(c => {
+          const { phone, ctx, hasPhone } = clientListMeta(c);
+          return (
             <div
               key={c.id}
               className="flex items-center gap-3 border-b border-surface-line py-3.5"
@@ -124,16 +145,11 @@ export default function ClientasView({
                       <Badge tone="brand">VIP</Badge>
                     )}
                   </span>
-                  <span className="block truncate text-label text-ink-2">
-                    {c.next_at
-                      ? `Próxima ${shortWhen(c.next_at)}`
-                      : c.open_packs?.length
-                        ? c.open_packs[0]
-                        : c.last_at
-                          ? `Última ${shortWhen(c.last_at)}`
-                          : c.open_treatments?.length
-                            ? c.open_treatments.join(' · ')
-                            : (c.phone || 'Nunca ha venido')}
+                  <span className="block truncate text-label">
+                    <span className={hasPhone ? 'font-semibold text-ink' : 'font-medium text-ink-2'}>
+                      {phone}
+                    </span>
+                    <span className="text-ink-3"> · {ctx}</span>
                   </span>
                 </span>
               </Link>
@@ -145,7 +161,8 @@ export default function ClientasView({
                 Dar cita
               </Link>
             </div>
-        ))}
+          );
+        })}
       </div>
       {alta === '1' && (
         <NewClientSheet existing={clients.map(c => ({ id: c.id, full_name: c.full_name, phone: c.phone }))} />
