@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CATEGORIES, catStyle, STATUS, avatarColor } from '@/lib/categories';
+import { catStyle, STATUS, avatarColor } from '@/lib/categories';
 import { citaCambiada, fmt, minutesOfDay, nowMinutes, dayKey, DAY_START, DAY_END, durLbl } from '@/lib/time';
 import { moveAppointment } from '@/lib/move-appointment';
 import { createClient } from '@/lib/supabase/client';
@@ -440,22 +440,12 @@ export default function DayGrid({
         </div>
       </div>
 
-      {placing ? (
+      {placing && (
         <div className="shrink-0 px-5 pb-2.5 pt-2 text-center text-caption font-semibold text-ink-2">
           {durationMin
             ? (pick ? 'Arrastra la cita o toca otro hueco' : 'Toca un hueco del día o Elegir hora')
             : 'Elige clienta/e y el servicio. El día se queda a la vista.'}
         </div>
-      ) : (
-      <div className="flex shrink-0 items-center gap-3 overflow-x-auto px-5 pb-2.5 pt-2 text-caption font-semibold text-ink-2">
-        {Object.values(CATEGORIES).slice(0, 5).map(c => (
-          <span key={c.label} className="flex shrink-0 items-center gap-[5px]">
-            <span className="inline-block h-2 w-2 rounded-sm" style={{ background: c.color }} />
-            {c.label}
-          </span>
-        ))}
-        <span className="ml-auto shrink-0 font-medium text-ink-2">Mantén para mover · toca para abrir</span>
-      </div>
       )}
     </div>
   );

@@ -2,13 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronLeft, Plus, Search, X } from 'lucide-react';
+import { Calendar, Check, ChevronLeft, Plus, Search, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import DayStrip from '@/components/agenda/DayStrip';
+import MonthCalendar from '@/components/agenda/MonthCalendar';
 import { useCloseSheet } from '@/components/Sheet';
 import { avatarColor, catStyle, initials } from '@/lib/categories';
 import { createAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
-import { DAY_END, dateFromOffset, durLbl, fmt, offsetFromDay, toTimestamp } from '@/lib/time';
+import { alignStripStart, DAY_END, dateFromOffset, dayKey, durLbl, fmt, offsetFromDay, skipSunday, toTimestamp } from '@/lib/time';
 import { bestNameMatches, fold, parseClock } from '@/lib/voice';
 import { packFitsService, packIsOpen, packUsableBy, pickPackForService } from '@/lib/packs';
 import { servicePickSections } from '@/lib/service-pick';
@@ -19,7 +21,7 @@ import { confirmPageUrl, waConfirmMsg, waHref } from '@/lib/phone';
 import { issueAppointmentLink } from '@/lib/confirm-link';
 import type { ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
 
-type Step = 'client' | 'service' | 'confirm';
+type Step = 'client' | 'service' | 'when' | 'confirm';
 
 export default function NewAppointmentSheet({
   day, providers, services, clients, packs = [], serviceCounts = {}, preselected = null,
@@ -45,22 +47,31 @@ export default function NewAppointmentSheet({
   const [serviceQ, setServiceQ] = useState(guessed.length === 1 ? '' : initialServiceQ);
   const [client, setClient] = useState<ClientOption | null>(preselected);
   const [serviceId, setServiceId] = useState(guessed.length === 1 ? guessed[0].id : '');
-  const [providerId] = useState(
+  const [providerId, setProviderId] = useState(
     initialProviderId && providers.some(p => p.id === initialProviderId)
       ? initialProviderId
       : (providers[0]?.id ?? ''),
   );
-  const [startMin] = useState<number | null>(parseClock(initialHora));
+  const [startMin, setStartMin] = useState<number | null>(parseClock(initialHora));
+  const [dayOff, setDayOff] = useState(() => skipSunday(offsetFromDay(day), 1));
+  const [stripStart, setStripStart] = useState(() => {
+    const off = skipSunday(offsetFromDay(day), 1);
+    return alignStripStart(off, off, 5);
+  });
   const [step, setStep] = useState<Step>(() => {
     if (preselected && guessed.length === 1 && parseClock(initialHora) != null) return 'confirm';
     if (preselected) return 'service';
     return 'client';
   });
+  const [whenFrom, setWhenFrom] = useState<Step>('service');
+  const [cal, setCal] = useState(false);
+  const [hours, setHours] = useState<number[] | null>(null);
   const [wa, setWa] = useState(true);
   const [lastId, setLastId] = useState<string | null>(null);
   const [fits, setFits] = useState<Record<string, boolean>>({});
   const [mounted, setMounted] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const whenSnap = useRef({ dayOff: 0, startMin: null as number | null, providerId: '' });
 
   useEffect(() => { setMounted(true); setLastId(readLastServiceId()); }, []);
   useEffect(() => { if (step === 'client') searchRef.current?.focus(); }, [step]);
@@ -68,7 +79,7 @@ export default function NewAppointmentSheet({
   const service = services.find(s => s.id === serviceId) ?? null;
   const who = client?.full_name ?? query.trim();
   const provider = providers.find(p => p.id === providerId);
-  const dayOff = offsetFromDay(day);
+  const bookDay = dayKey(dateFromOffset(dayOff));
   const ctxDate = dateFromOffset(dayOff).toLocaleDateString('es-ES', {
     weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid',
   }).replace('.', '');
@@ -91,14 +102,24 @@ export default function NewAppointmentSheet({
     if (step !== 'service' || startMin == null || !providerId) { setFits({}); return; }
     let alive = true;
     void Promise.all(services.map(async s => {
-      const slots = await slotsFor(createClient(), providerId, day, s.duration_min);
+      const slots = await slotsFor(createClient(), providerId, bookDay, s.duration_min);
       return [s.id, slots.includes(startMin)] as const;
     })).then(rows => {
       if (!alive) return;
       setFits(Object.fromEntries(rows));
     });
     return () => { alive = false; };
-  }, [step, startMin, providerId, day, services]);
+  }, [step, startMin, providerId, bookDay, services]);
+
+  useEffect(() => {
+    if (step !== 'when' || !service || !providerId) { setHours(null); return; }
+    let alive = true;
+    setHours(null);
+    void slotsFor(createClient(), providerId, bookDay, service.duration_min).then(list => {
+      if (alive) setHours(list);
+    });
+    return () => { alive = false; };
+  }, [step, service, providerId, bookDay]);
 
   const pickClient = (c: ClientOption | null, name?: string) => {
     setClient(c);
@@ -117,14 +138,27 @@ export default function NewAppointmentSheet({
     writeLastServiceId(s.id);
     setServiceId(s.id);
     if (startMin == null) {
-      shallowSet({
-        new: null, hora: null, con: null, servicio: s.name,
-        para: client?.id ?? 'new',
-        client: client?.id ?? null,
-        nombre: client?.full_name ?? who,
-      });
+      openWhen('service');
       return;
     }
+    setStep('confirm');
+  };
+
+  const openWhen = (from: Step) => {
+    whenSnap.current = { dayOff, startMin, providerId };
+    setWhenFrom(from);
+    setStep('when');
+  };
+
+  const pickDay = (offset: number, extra?: { strip?: number }) => {
+    const next = skipSunday(offset, 1);
+    setDayOff(next);
+    setStripStart(alignStripStart(next, extra?.strip ?? stripStart, 5));
+    setStartMin(null);
+  };
+
+  const pickHour = (min: number) => {
+    setStartMin(min);
     setStep('confirm');
   };
 
@@ -140,7 +174,7 @@ export default function NewAppointmentSheet({
         clientName: client ? undefined : who,
         serviceId: service.id,
         providerId,
-        date: day,
+        date: bookDay,
         startMin,
         clientPackId: pack?.id,
       });
@@ -150,7 +184,7 @@ export default function NewAppointmentSheet({
         const href = waHref(client.phone, waConfirmMsg({
           clientLabel: who,
           service: service.name,
-          startsAt: toTimestamp(day, startMin),
+          startsAt: toTimestamp(bookDay, startMin),
           confirmUrl: token ? confirmPageUrl(token) : null,
         }));
         if (href) window.open(href, '_blank');
@@ -163,7 +197,24 @@ export default function NewAppointmentSheet({
 
   const idx = step === 'client' ? 1 : step === 'service' ? 2 : 3;
   const canBack = step !== 'client' && !(preselected && step === 'service');
-  const question = step === 'client' ? '¿Para quién es?' : step === 'service' ? '¿Qué tratamiento?' : '¿Todo correcto?';
+  const question = step === 'client'
+    ? '¿Para quién es?'
+    : step === 'service'
+      ? '¿Qué tratamiento?'
+      : step === 'when'
+        ? '¿Cuándo?'
+        : '¿Todo correcto?';
+  const goBack = () => {
+    if (step === 'when') {
+      setDayOff(whenSnap.current.dayOff);
+      setStartMin(whenSnap.current.startMin);
+      setProviderId(whenSnap.current.providerId);
+      setStep(whenFrom);
+      return;
+    }
+    if (step === 'confirm') setStep('service');
+    else setStep('client');
+  };
   const ctx = startMin != null
     ? `${ctxDate} · ${fmt(startMin)}${provider ? ` · ${provider.full_name.split(' ')[0]}` : ''}`
     : ctxDate;
@@ -177,7 +228,7 @@ export default function NewAppointmentSheet({
         <div className="flex justify-center pt-3"><div className="h-[5px] w-10 rounded-full bg-handle" /></div>
         <div className="flex items-center gap-2.5 px-6 pt-3.5">
           {canBack && (
-            <button type="button" aria-label="Atrás" onClick={() => setStep(step === 'confirm' ? 'service' : 'client')} className="grid h-10 w-10 place-items-center rounded-pill bg-track">
+            <button type="button" aria-label="Atrás" onClick={goBack} className="grid h-10 w-10 place-items-center rounded-pill bg-track">
               <ChevronLeft size={16} strokeWidth={2.4} />
             </button>
           )}
@@ -293,6 +344,79 @@ export default function NewAppointmentSheet({
           </>
         )}
 
+        {step === 'when' && (
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-4">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-label font-semibold text-ink-2">Día</p>
+              <button type="button" onClick={() => setCal(true)} className="grid h-10 w-10 place-items-center rounded-pill bg-track" aria-label="Calendario">
+                <Calendar size={18} strokeWidth={2.2} />
+              </button>
+            </div>
+            <DayStrip
+              selectedOffset={dayOff}
+              startOffset={alignStripStart(dayOff, stripStart, 5)}
+              onSelect={offset => pickDay(offset)}
+              onShift={delta => {
+                const next = stripStart + delta;
+                pickDay(skipSunday(next, 1), { strip: next });
+              }}
+            />
+            {providers.length > 1 && (
+              <div className="mt-4 flex gap-2 overflow-x-auto">
+                {providers.map(p => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => { setProviderId(p.id); setStartMin(null); }}
+                    className="shrink-0 rounded-pill px-3.5 py-2 text-label font-semibold"
+                    style={{
+                      background: p.id === providerId ? 'rgb(var(--c-ink))' : 'rgb(var(--c-soft))',
+                      color: p.id === providerId ? '#fff' : 'rgb(var(--c-ink))',
+                    }}
+                  >
+                    {p.full_name.split(' ')[0]}
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className="mb-2 mt-5 text-label font-semibold text-ink-2">Hora</p>
+            {hours == null && <p className="py-6 text-body text-ink-2">Buscando huecos…</p>}
+            {hours && hours.length === 0 && (
+              <p className="rounded-row bg-surface-soft px-4 py-5 text-body text-ink-2">
+                No hay huecos este día{service ? ` para ${durLbl(service.duration_min)}` : ''}. Prueba otro.
+              </p>
+            )}
+            {hours && hours.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {hours.map(min => {
+                  const on = startMin === min;
+                  return (
+                    <button
+                      key={min}
+                      type="button"
+                      onClick={() => pickHour(min)}
+                      className="h-[50px] rounded-row text-[16px] font-semibold tabular-nums"
+                      style={{
+                        background: on ? 'var(--grad)' : 'rgb(var(--c-soft))',
+                        color: on ? '#fff' : 'rgb(var(--c-ink))',
+                      }}
+                    >
+                      {fmt(min)}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {cal && (
+              <MonthCalendar
+                selectedOffset={dayOff}
+                onClose={() => setCal(false)}
+                onSelect={offset => pickDay(offset, { strip: offset })}
+              />
+            )}
+          </div>
+        )}
+
         {step === 'confirm' && (
           <>
             <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4">
@@ -303,7 +427,7 @@ export default function NewAppointmentSheet({
                   label="Cuándo"
                   value={startMin != null && service ? `${ctxDate}, ${fmt(startMin)}–${fmt(startMin + service.duration_min)}` : ctxDate}
                   hint={provider ? `Con ${provider.full_name.split(' ')[0]}` : undefined}
-                  onChange={closeAll}
+                  onChange={() => openWhen('confirm')}
                   last
                 />
               </div>

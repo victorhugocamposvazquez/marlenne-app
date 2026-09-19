@@ -59,13 +59,6 @@ export default function AgendaHeader({
               Hoy
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => go(day, { mode: mode === 'semana' ? 'dia' : 'semana' })}
-            className="text-[13px] font-semibold text-ink-3"
-          >
-            {mode === 'semana' ? 'Día' : 'Semana'}
-          </button>
         </div>
       </div>
 

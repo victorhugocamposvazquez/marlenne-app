@@ -44,7 +44,7 @@ export default function MonthCalendar({
   };
 
   return (
-    <div className="fixed inset-0 z-[55] flex items-end justify-center">
+    <div className="fixed inset-0 z-[70] flex items-end justify-center">
       <button type="button" aria-label="Cerrar calendario" className="absolute inset-0 bg-[rgba(15,14,26,.35)]" onClick={onClose} />
       <div className="relative z-10 w-full max-w-[440px] rounded-t-sheet bg-white px-6 pb-8 pt-3 shadow-[0_-20px_60px_rgba(15,14,26,.18)]">
         <div className="mx-auto mb-4 h-[5px] w-10 rounded-full bg-handle" />
