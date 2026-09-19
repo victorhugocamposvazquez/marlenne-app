@@ -259,7 +259,7 @@ export default function NewAppointmentSheet({
       ? '¿Qué tratamiento?'
       : step === 'when'
         ? '¿Cuándo?'
-        : '¿Todo correcto?';
+        : '¿Algún cambio?';
   const goBack = () => {
     if (returnTo === 'confirm' && (step === 'client' || step === 'service')) {
       setReturnTo(null);
@@ -417,10 +417,6 @@ export default function NewAppointmentSheet({
               selectedOffset={dayOff}
               startOffset={alignStripStart(dayOff, stripStart, 5)}
               onSelect={offset => pickDay(offset)}
-              onShift={delta => {
-                const next = stripStart + delta;
-                pickDay(skipSunday(next, 1), { strip: next });
-              }}
             />
             {providers.length > 1 && (
               <div className="mt-4 flex gap-2 overflow-x-auto">

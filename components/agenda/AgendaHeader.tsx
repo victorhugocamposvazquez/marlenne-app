@@ -68,10 +68,6 @@ export default function AgendaHeader({
           startOffset={start}
           busyOffsets={busyOffsets}
           onSelect={offset => go(skipSunday(offset, 1))}
-          onShift={delta => {
-            const next = start + delta;
-            go(skipSunday(next, 1), { strip: next });
-          }}
         />
       )}
 

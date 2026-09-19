@@ -1,82 +1,86 @@
 'use client';
 
-import { useRef, type PointerEvent } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { dayStripWindow, skipSunday } from '@/lib/time';
 
-const SWIPE = 48;
+const VISIBLE = 5;
+const PAST = 90;
+const FUTURE = 180;
 
-/** Tira de 5 días: se toca el día, o se desliza la ventana. */
+/** Tira de días: se deslizan bajo el dedo; las flechas recorren de 5 en 5. */
 export default function DayStrip({
   selectedOffset,
   startOffset,
   busyOffsets = [],
   onSelect,
-  onShift,
 }: {
   selectedOffset: number;
   startOffset: number;
   busyOffsets?: number[];
   onSelect: (offset: number) => void;
-  onShift: (delta: -5 | 5) => void;
 }) {
-  const days = dayStripWindow(startOffset, 5);
-  const busy = new Set(busyOffsets);
-  const originX = useRef<number | null>(null);
-  const swiped = useRef(false);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const busy = useMemo(() => new Set(busyOffsets), [busyOffsets]);
+  const from = Math.min(startOffset, selectedOffset) - PAST;
+  const days = useMemo(
+    () => dayStripWindow(from, FUTURE + PAST + Math.abs(selectedOffset - startOffset) + 1),
+    [from, selectedOffset, startOffset],
+  );
 
-  const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
-    originX.current = e.clientX;
-    swiped.current = false;
-  };
-  const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
-    if (originX.current == null) return;
-    if (Math.abs(e.clientX - originX.current) > 16) swiped.current = true;
-  };
-  const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
-    if (originX.current == null) return;
-    const dx = e.clientX - originX.current;
-    originX.current = null;
-    if (dx > SWIPE) onShift(-5);
-    else if (dx < -SWIPE) onShift(5);
+  useLayoutEffect(() => {
+    const box = scrollerRef.current;
+    if (!box) return;
+    const size = () => box.style.setProperty('--day-cell', `${box.clientWidth / VISIBLE}px`);
+    size();
+    const ro = new ResizeObserver(size);
+    ro.observe(box);
+    return () => ro.disconnect();
+  }, []);
+
+  useLayoutEffect(() => {
+    const box = scrollerRef.current;
+    const cell = box?.querySelector<HTMLElement>(`[data-off="${startOffset}"]`);
+    if (!box || !cell) return;
+    box.scrollTo({ left: cell.offsetLeft });
+  }, [startOffset]);
+
+  const scrollByDays = (n: number) => {
+    const box = scrollerRef.current;
+    if (!box) return;
+    box.scrollBy({ left: n * (box.clientWidth / VISIBLE), behavior: 'smooth' });
   };
 
   return (
-    <div
-      className="flex touch-pan-y items-center gap-1.5"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={() => { originX.current = null; }}
-    >
+    <div className="flex items-center gap-1.5">
       <button
         type="button"
         aria-label="Días anteriores"
-        onClick={() => onShift(-5)}
+        onClick={() => scrollByDays(-VISIBLE)}
         className="grid h-14 w-[34px] shrink-0 place-items-center text-ink"
       >
         <ChevronLeft size={18} strokeWidth={3} />
       </button>
-      <div className="flex min-w-0 flex-1 gap-1">
+      <div
+        ref={scrollerRef}
+        className="relative flex min-w-0 flex-1 snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden"
+      >
         {days.map(d => {
           const on = d.offset === selectedOffset;
           const short = d.dow.replace('.', '').slice(0, 3).toUpperCase();
           return (
             <button
               key={d.offset}
+              data-off={d.offset}
               type="button"
               disabled={d.isSunday}
               aria-current={on ? 'date' : undefined}
               aria-label={`${short} ${d.num}${d.isToday ? ', hoy' : ''}`}
-              onClick={e => {
-                if (swiped.current) {
-                  e.preventDefault();
-                  return;
-                }
-                if (!d.isSunday) onSelect(skipSunday(d.offset, 1));
-              }}
-              className="flex h-14 min-w-0 flex-1 flex-col items-center justify-center rounded-[14px] disabled:cursor-default"
+              onClick={() => { if (!d.isSunday) onSelect(skipSunday(d.offset, 1)); }}
+              className="flex h-14 shrink-0 snap-start flex-col items-center justify-center rounded-[14px] disabled:cursor-default"
               style={{
+                width: 'var(--day-cell)',
+                flex: '0 0 var(--day-cell)',
                 background: on ? 'rgb(var(--c-ink))' : 'transparent',
                 color: on ? '#FFFFFF' : d.isSunday ? 'rgb(var(--c-ink-3))' : 'rgb(var(--c-ink))',
               }}
@@ -103,7 +107,7 @@ export default function DayStrip({
       <button
         type="button"
         aria-label="Días siguientes"
-        onClick={() => onShift(5)}
+        onClick={() => scrollByDays(VISIBLE)}
         className="grid h-14 w-[34px] shrink-0 place-items-center text-ink"
       >
         <ChevronRight size={18} strokeWidth={3} />

@@ -58,7 +58,7 @@ export default async function AgendaPage({
       ? getWeekCounts(providers.map(p => p.id), day)
       : Promise.resolve([]),
     mode === 'dia'
-      ? getBusyOffsets(providers.map(p => p.id), stripStart, 5)
+      ? getBusyOffsets(providers.map(p => p.id), stripStart - 90, 270)
       : Promise.resolve([]),
   ]);
   const dayStr = dayKey(dateFromOffset(day));
