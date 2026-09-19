@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, Check, ChevronLeft, Plus, Search, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import ChipScroller from '@/components/ui/ChipScroller';
 import DayStrip from '@/components/agenda/DayStrip';
 import MonthCalendar from '@/components/agenda/MonthCalendar';
 import { useCloseSheet } from '@/components/Sheet';
@@ -19,7 +18,7 @@ import { servicePickSections } from '@/lib/service-pick';
 import { readLastServiceId, writeLastServiceId } from '@/hooks/last-service';
 import { shallowSet } from '@/hooks/useShallowQuery';
 import { useToast } from '@/components/Toast';
-import { confirmPageUrl, waConfirmMsg, waHref } from '@/lib/phone';
+import { confirmPageUrl, firstName, waConfirmMsg, waHref } from '@/lib/phone';
 import { goWhatsApp, reserveWhatsAppWindow } from '@/hooks/open-whatsapp';
 import { issueAppointmentLink } from '@/lib/confirm-link';
 import type { AgendaAppt, ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
@@ -249,12 +248,15 @@ export default function NewAppointmentSheet({
 
   const idx = step === 'client' ? 1 : step === 'service' ? 2 : 3;
   const canBack = step !== 'confirm' && (step !== 'client' || returnTo === 'confirm') && !(preselected && step === 'service' && !editing && returnTo !== 'confirm');
+  const first = who.length >= 2 ? firstName(who) : '';
   const question = step === 'client'
     ? '¿Para quién es?'
     : step === 'service'
-      ? '¿Qué tratamiento?'
+      ? (first ? `¿Qué tratamiento para ${first}?` : '¿Qué tratamiento?')
       : step === 'when'
-        ? '¿Cuándo?'
+        ? (first && service
+          ? `¿Cuándo le hacemos ${service.name} a ${first}?`
+          : first ? `¿Cuándo para ${first}?` : '¿Cuándo?')
         : '¿Algún cambio?';
   const goBack = () => {
     if (returnTo === 'confirm' && (step === 'client' || step === 'service')) {
@@ -275,13 +277,6 @@ export default function NewAppointmentSheet({
   const ctx = startMin != null
     ? `${ctxDate} · ${fmt(startMin)}${provider ? ` · ${provider.full_name.split(' ')[0]}` : ''}`
     : ctxDate;
-
-  const editStep = (next: Step) => {
-    if (returnTo === 'confirm' || editing) changeField(next);
-    else setStep(next);
-  };
-
-  const trailPill = 'shrink-0 rounded-pill border border-surface-line bg-surface-soft px-2.5 py-1 text-[13px] font-semibold text-ink whitespace-nowrap motion-safe:active:scale-[.98]';
 
   if (!mounted) return null;
 
@@ -312,18 +307,6 @@ export default function NewAppointmentSheet({
             />
           ))}
         </div>
-        {step !== 'client' && step !== 'confirm' && who.length >= 2 && (
-          <ChipScroller className="mx-6 mt-4 shrink-0" label="Datos elegidos">
-            <button type="button" onClick={() => editStep('client')} className={trailPill}>
-              {who}
-            </button>
-            {service && step === 'when' && (
-              <button type="button" onClick={() => editStep('service')} className={trailPill}>
-                {service.name}
-              </button>
-            )}
-          </ChipScroller>
-        )}
         <h2 className="mx-6 mt-6 shrink-0 text-display font-bold tracking-[-.03em]">{question}</h2>
 
         {step === 'client' && (
