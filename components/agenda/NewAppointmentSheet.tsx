@@ -422,7 +422,7 @@ export default function NewAppointmentSheet({
         )}
 
         {step === 'when' && (
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-2">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-[1.2rem]">
             <div className="mb-6 flex items-center gap-3">
               <div className="min-w-0 flex-1">
                 <DayStrip
