@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Plus, Search } from 'lucide-react';
 import NewClientSheet from '@/components/clienta/NewClientSheet';
 import Chip from '@/components/ui/Chip';
-import ChipScroller from '@/components/ui/ChipScroller';
 import EmptyState from '@/components/ui/EmptyState';
 import IconButton from '@/components/ui/IconButton';
 import Badge from '@/components/ui/Badge';
@@ -132,32 +131,26 @@ export default function ClientasView({
               key={c.id}
               className="flex items-center gap-3 border-b border-surface-line py-3.5"
             >
-              <div className="flex min-w-0 flex-1 items-center gap-3">
-                <Link
-                  href={`/clientas/${c.id}`}
+              <Link href={`/clientas/${c.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+                <span
                   className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[14px] font-bold text-white"
                   style={{ background: avatarColor(c.full_name) }}
-                  aria-label={c.full_name}
                 >
                   {initials(c.full_name)}
-                </Link>
-                <div className="min-w-0 flex-1">
-                  <Link href={`/clientas/${c.id}`} className="flex min-w-0 items-center gap-1.5">
-                    <span className="line-clamp-2 text-body-lg font-semibold leading-snug">{c.full_name}</span>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1.5">
+                    <span className="truncate text-body-lg font-semibold">{c.full_name}</span>
                     {c.tags?.includes('VIP') && (
                       <Badge tone="brand" className="shrink-0">VIP</Badge>
                     )}
-                  </Link>
-                  <ChipScroller className="mt-0.5" label={`${c.full_name}: teléfono y contexto`}>
-                    <span className="whitespace-nowrap text-label">
-                      <span className={hasPhone ? 'font-semibold text-ink' : 'font-medium text-ink-2'}>
-                        {phone}
-                      </span>
-                      <span className="text-ink-3"> · {ctx}</span>
-                    </span>
-                  </ChipScroller>
-                </div>
-              </div>
+                  </span>
+                  <span className={`block text-label ${hasPhone ? 'font-semibold text-ink' : 'font-medium text-ink-2'}`}>
+                    {phone}
+                  </span>
+                  <span className="block truncate text-label text-ink-3">{ctx}</span>
+                </span>
+              </Link>
               <Link
                 href={`/agenda?new=1&client=${c.id}`}
                 aria-label={`Dar cita a ${c.full_name}`}
