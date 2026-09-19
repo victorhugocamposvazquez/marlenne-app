@@ -311,24 +311,23 @@ export default function NewAppointmentSheet({
         </div>
         <h2 className="mx-6 mt-6 shrink-0 text-display font-bold tracking-[-.03em]">{question}</h2>
         {showTrail && (
-          <p className="mx-6 mt-1.5 flex min-w-0 shrink-0 items-center text-label text-ink-2">
-            <button type="button" onClick={() => editStep('client')} className="shrink-0 font-semibold text-ink">
-              {who}
+          <div className="mx-6 mt-1.5 shrink-0 text-label leading-snug">
+            <button type="button" onClick={() => editStep('client')} className="flex w-full min-w-0 text-left">
+              <span className="shrink-0 text-ink-3">Para: </span>
+              <span className="min-w-0 truncate font-semibold text-ink">{who}</span>
             </button>
             {service && step === 'when' && (
-              <>
-                <span className="shrink-0 px-1.5 text-ink-3" aria-hidden>·</span>
-                <button type="button" onClick={() => editStep('service')} className="min-w-0 truncate text-left">
-                  {service.name}
-                </button>
-              </>
+              <button type="button" onClick={() => editStep('service')} className="flex w-full min-w-0 text-left">
+                <span className="shrink-0 text-ink-3">Servicio: </span>
+                <span className="min-w-0 truncate font-semibold text-ink">{service.name}</span>
+              </button>
             )}
-          </p>
+          </div>
         )}
 
         {step === 'client' && (
           <>
-            <div className="mx-6 mt-4 flex h-14 shrink-0 items-center gap-2.5 rounded-field bg-surface-soft px-4">
+            <div className="mx-6 mt-3.5 flex h-12 shrink-0 items-center gap-2.5 rounded-field bg-surface-soft px-4">
               <Search size={18} className="text-ink-3" strokeWidth={2.2} />
               <input
                 value={query}
@@ -368,7 +367,7 @@ export default function NewAppointmentSheet({
 
         {step === 'service' && (
           <>
-            <div className="mx-6 mt-4 flex h-14 shrink-0 items-center gap-2.5 rounded-field bg-surface-soft px-4">
+            <div className="mx-6 mt-3.5 flex h-12 shrink-0 items-center gap-2.5 rounded-field bg-surface-soft px-4">
               <Search size={18} className="text-ink-3" strokeWidth={2.2} />
               <input
                 value={serviceQ}
@@ -377,11 +376,11 @@ export default function NewAppointmentSheet({
                 className="min-w-0 flex-1 bg-transparent text-[17px] outline-none placeholder:text-ink-3"
               />
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-4">
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-3">
               {catalog.map(sec => (
-                <div key={sec.key} className="mb-4 last:mb-0">
-                  <p className="mb-2 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">{sec.title}</p>
-                  <div className="flex flex-col gap-2.5">
+                <div key={sec.key} className="mb-3.5 last:mb-0">
+                  <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">{sec.title}</p>
+                  <div className="flex flex-col gap-2">
                     {sec.items.map(s => {
                       const cat = catStyle(s.category, { color: s.category_color });
                       const ok = startMin == null || fits[s.id] !== false;
@@ -393,14 +392,14 @@ export default function NewAppointmentSheet({
                           key={s.id}
                           type="button"
                           onClick={() => pickService(s)}
-                          className="flex w-full items-center gap-3.5 rounded-row px-4 py-3.5 text-left"
+                          className="flex w-full items-center gap-3.5 rounded-row px-4 py-2.5 text-left"
                           style={{
                             background: habitual ? '#fff' : 'rgb(var(--c-soft))',
                             boxShadow: habitual ? 'inset 0 0 0 1.5px rgb(var(--c-ink))' : undefined,
                             opacity: ok ? 1 : 0.45,
                           }}
                         >
-                          <span className="h-10 w-2 shrink-0 rounded-pill" style={{ background: cat.color }} />
+                          <span className="h-9 w-2 shrink-0 rounded-pill" style={{ background: cat.color }} />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-body-lg font-semibold">{s.name}</span>
                             <span className={`block text-label ${ok ? (habitual ? 'text-v-d' : 'text-ink-2') : 'text-danger-fg'}`}>
