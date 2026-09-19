@@ -2,15 +2,16 @@
 
 import type { ButtonHTMLAttributes } from 'react';
 
-type Tone = 'card' | 'soft' | 'ok' | 'danger' | 'ghost' | 'brand';
+type Tone = 'card' | 'soft' | 'ok' | 'danger' | 'ghost' | 'brand' | 'ink';
 
 const TONES: Record<Tone, string> = {
-  card: 'border border-surface-line bg-surface-card text-ink-2 shadow-card',
-  soft: 'bg-v-soft text-v-d',
+  card: 'bg-track text-ink',
+  soft: 'bg-surface-soft text-ink',
   ok: 'bg-ok-bg text-ok-fg',
   danger: 'bg-danger-bg text-danger-fg',
   ghost: 'text-ink-2',
   brand: 'bg-grad text-white shadow-btn',
+  ink: 'bg-ink text-white',
 };
 
 /** Botón de icono con área táctil mínima de 44×44. `label` es obligatorio (aria-label). */

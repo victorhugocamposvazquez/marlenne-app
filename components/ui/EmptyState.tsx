@@ -15,9 +15,9 @@ export default function EmptyState({
   className?: string;
 }) {
   return (
-    <div className={`flex flex-col items-center gap-2 rounded-row border border-dashed border-handle bg-surface-card/60 px-4 py-8 text-center ${className}`}>
+    <div className={`flex flex-col items-center gap-2 rounded-row bg-surface-soft px-4 py-10 text-center ${className}`}>
       {Icon && (
-        <span className="grid h-11 w-11 place-items-center rounded-icon bg-v-soft text-v-d">
+        <span className="grid h-11 w-11 place-items-center rounded-pill bg-track text-ink">
           <Icon size={20} strokeWidth={2} />
         </span>
       )}

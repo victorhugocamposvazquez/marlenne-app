@@ -14,7 +14,7 @@ function PhraseList({ title, rows }: { title: string; rows: [string, number][] }
       <p className="text-caption font-bold text-ink-2">{title}</p>
       <div className="mt-1.5 flex flex-wrap gap-1.5">
         {rows.map(([said, n]) => (
-          <span key={said} className="rounded-chip bg-surface-card px-2.5 py-1 text-caption font-semibold text-ink">
+          <span key={said} className="rounded-chip bg-surface-soft px-2.5 py-1 text-caption font-semibold text-ink">
             «{said}»{n > 1 ? ` · ${n}` : ''}
           </span>
         ))}
@@ -65,9 +65,9 @@ export default async function VozPage() {
       {rows.length === 0 ? (
         <p className="mt-4 text-body font-semibold text-ink-2">Nada apuntado. O todo va bien, o nadie usa la voz.</p>
       ) : (
-        <div className="mt-3 overflow-hidden rounded-row border border-surface-line bg-surface-card shadow-card">
+        <div className="mt-3">
           {rows.map(r => (
-            <div key={r.id} className="border-b border-surface-line px-3.5 py-2.5 last:border-0">
+            <div key={r.id} className="border-b border-surface-line py-3 last:border-0">
               <p className="text-body font-bold">«{r.said}»</p>
               <p className="text-caption font-medium text-ink-2">
                 {VOICE_OUTCOMES[r.outcome] ?? r.outcome}

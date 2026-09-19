@@ -11,17 +11,17 @@ function Group({ title, rows }: { title: string; rows: Destino[] }) {
   if (!rows.length) return null;
   return (
     <section className="mt-5">
-      <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">{title}</h2>
-      <div className="overflow-hidden rounded-row border border-surface-line bg-surface-card shadow-card">
+      <h2 className="mb-2 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">{title}</h2>
+      <div>
         {rows.map(row => (
           <Link
             key={row.href}
             href={row.href}
-            className="flex min-h-[44px] items-center gap-3 border-b border-surface-line px-3.5 py-3 last:border-0 motion-safe:active:bg-v-tint"
+            className="flex min-h-[44px] items-center gap-3 border-b border-surface-line py-3.5 last:border-0"
           >
             <span className="min-w-0 flex-1">
-              <span className="block text-body font-bold">{row.title}</span>
-              <span className="block text-caption font-medium leading-snug text-ink-2">{row.hint}</span>
+              <span className="block text-body-lg font-semibold">{row.title}</span>
+              <span className="block text-label leading-snug text-ink-2">{row.hint}</span>
             </span>
             <ChevronRight size={18} strokeWidth={2.2} className="shrink-0 text-ink-3" aria-hidden />
           </Link>
@@ -68,7 +68,7 @@ export default function AjustesIndex({
   ];
 
   return (
-    <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-fab pt-5">
+    <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-6 pb-fab pt-5">
       <PageHeading
         title="Ajustes"
         subtitle={`${me.full_name} · ${me.job_title ?? me.role}`}

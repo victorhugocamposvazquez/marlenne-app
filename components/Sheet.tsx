@@ -10,6 +10,7 @@ import { shallowSet } from '@/hooks/useShallowQuery';
 /** Los sheets viven en la URL, así el botón atrás del móvil también los cierra. */
 const SHEET_PARAMS = ['new', 'appt', 'client', 'wait', 'alta', 'close', 'editar', 'block', 'bloqueo', 'nombre', 'hora', 'servicio', 'con'];
 const SHALLOW_SHEET = new Set(['appt', 'close', 'new', 'wait', 'block', 'bloqueo', 'client', 'nombre', 'hora', 'servicio', 'con', 'alta', 'editar']);
+// `para` no se cierra con la hoja: deja el banner "Cita para…" para elegir hueco.
 const DISMISS_PX = 90;
 
 /** Cierra el sheet quitando sus parámetros y conservando el día y la vista. */
@@ -60,13 +61,13 @@ export default function Sheet({
 
   return createPortal(
     <div className="fixed inset-0 z-[60] flex items-end justify-center">
-      <button aria-label="Cerrar" tabIndex={-1} onClick={close} className="absolute inset-0 bg-ink/40" />
+      <button aria-label="Cerrar" tabIndex={-1} onClick={close} className="absolute inset-0 bg-[rgba(15,14,26,.35)]" />
 
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative z-10 flex max-h-[88dvh] w-full max-w-[440px] animate-sheetUp flex-col rounded-t-sheet bg-surface-card shadow-toast"
+        className="relative z-10 flex max-h-[88dvh] w-full max-w-[440px] animate-sheetUp flex-col rounded-t-sheet bg-white shadow-[0_-20px_60px_rgba(15,14,26,.18)]"
         style={{ transform: dy ? `translateY(${dy}px)` : undefined, transition: dy ? 'none' : 'transform .2s' }}
       >
         <div
@@ -76,10 +77,10 @@ export default function Sheet({
           onPointerMove={e => { if (from.current !== null) setDy(Math.max(0, e.clientY - from.current)); }}
           onPointerUp={() => { if (dy > DISMISS_PX) close(); else setDy(0); from.current = null; }}
         >
-          <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-handle" />
+          <div className="mx-auto mb-3 h-[5px] w-10 rounded-full bg-handle" />
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
-              <h2 className="text-title font-extrabold leading-tight tracking-[-.02em]">{title}</h2>
+              <h2 className="text-title font-bold leading-tight tracking-[-.02em]">{title}</h2>
               {subtitle && <p className="mt-0.5 text-label font-medium text-ink-2">{subtitle}</p>}
             </div>
             <IconButton label="Cerrar" onClick={close}>
@@ -93,7 +94,7 @@ export default function Sheet({
         </div>
 
         {footer && (
-          <div className="shrink-0 border-t border-surface-line px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-3">
+          <div className="shrink-0 px-6 pb-[max(16px,env(safe-area-inset-bottom))] pt-3">
             {footer}
           </div>
         )}
@@ -114,6 +115,6 @@ export function Field({ label, children }: { label: string; children: React.Reac
 }
 
 export const inputCls =
-  'w-full rounded-field border border-surface-line bg-surface-bg/40 px-3.5 py-3 text-[16px] font-semibold leading-snug text-ink outline-none focus:border-v focus:bg-surface-card focus-visible:ring-2 focus-visible:ring-v/40';
+  'w-full rounded-field bg-surface-soft px-4 py-3.5 text-[16px] font-medium leading-snug text-ink outline-none placeholder:text-ink-3 focus-visible:ring-2 focus-visible:ring-v/30';
 
 export { default as Chip } from '@/components/ui/Chip';

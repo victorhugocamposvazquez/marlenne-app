@@ -97,7 +97,7 @@ export default function ClientaFicha({
             </IconButton>
           )}
           <Link
-            href={`/agenda?new=1&client=${client.id}`}
+            href={`/agenda?para=${client.id}&nombre=${encodeURIComponent(client.full_name)}`}
             aria-label="Nueva cita para esta clienta"
             className="grid h-11 w-11 place-items-center rounded-icon bg-grad text-white shadow-btn transition motion-safe:active:scale-[.96]"
           >
@@ -127,7 +127,7 @@ export default function ClientaFicha({
       {nextAppt && (
         <Link
           href={`/agenda?day=${offsetFromDay(nextAppt.starts_at)}&appt=${nextAppt.id}`}
-          className="mt-2.5 flex items-center justify-between gap-2 rounded-row border border-v/25 bg-v-tint px-3.5 py-3"
+          className="mt-2.5 flex items-center justify-between gap-2 rounded-row bg-v-tint px-4 py-3.5"
         >
           <span className="min-w-0">
             <span className="block text-micro font-bold uppercase tracking-[.03em] text-v-d">Próxima cita</span>
@@ -148,7 +148,7 @@ export default function ClientaFicha({
         {client.phone && (
           <a
             href={`tel:${client.phone}`}
-            className="flex min-h-[44px] items-center gap-1.5 rounded-chip border border-surface-line bg-surface-card px-3 text-label font-bold shadow-card transition motion-safe:active:scale-[.97]"
+            className="flex min-h-[44px] items-center gap-1.5 rounded-pill bg-surface-soft px-3.5 text-label font-semibold transition motion-safe:active:scale-[.97]"
           >
             <Phone size={13} strokeWidth={2.4} className="text-v" />
             {client.phone}
@@ -159,7 +159,7 @@ export default function ClientaFicha({
             href={wa}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex min-h-[44px] items-center gap-1.5 rounded-chip border border-ok-line bg-ok-bg px-3 text-label font-bold text-ok-strong shadow-card transition motion-safe:active:scale-[.97]"
+            className="flex min-h-[44px] items-center gap-1.5 rounded-pill bg-ok-bg px-3.5 text-label font-semibold text-ok-strong transition motion-safe:active:scale-[.97]"
           >
             <MessageCircle size={13} strokeWidth={2.4} />
             WhatsApp
@@ -168,7 +168,7 @@ export default function ClientaFicha({
         {client.email && (
           <a
             href={`mailto:${client.email}`}
-            className="flex min-h-[44px] min-w-0 items-center gap-1.5 rounded-chip border border-surface-line bg-surface-card px-3 text-label font-bold shadow-card transition motion-safe:active:scale-[.97]"
+            className="flex min-h-[44px] min-w-0 items-center gap-1.5 rounded-pill bg-surface-soft px-3.5 text-label font-semibold transition motion-safe:active:scale-[.97]"
           >
             <Mail size={13} strokeWidth={2.4} className="text-v" />
             <span className="truncate">{client.email}</span>

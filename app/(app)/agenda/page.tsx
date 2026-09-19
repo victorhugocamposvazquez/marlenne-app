@@ -7,10 +7,10 @@ import NewAppointmentSheetHost from '@/components/agenda/NewAppointmentSheetHost
 import WaitlistSheetHost from '@/components/agenda/WaitlistSheetHost';
 import BlockSheetHost from '@/components/agenda/BlockSheetHost';
 import { requireSession } from '@/lib/require-session';
-import { listStaff, getDayAgenda, getWeekCounts, peekWaitlist } from '@/lib/queries';
+import { listStaff, getDayAgenda, getWeekCounts, getBusyOffsets, peekWaitlist } from '@/lib/queries';
 import { agendaColumns } from '@/lib/team';
-import { dateFromOffset, dayKey } from '@/lib/time';
-import { activeAppts, occPct } from '@/lib/week-view';
+import { alignStripStart, dateFromOffset, dayKey } from '@/lib/time';
+import { activeAppts } from '@/lib/week-view';
 
 export default async function AgendaPage({
   searchParams,
@@ -18,11 +18,13 @@ export default async function AgendaPage({
   searchParams: {
     day?: string; mode?: string; new?: string; appt?: string; client?: string;
     wait?: string; close?: string; block?: string; bloqueo?: string; pro?: string;
-    nombre?: string; hora?: string; servicio?: string; con?: string;
+    nombre?: string; hora?: string; servicio?: string; con?: string; para?: string; strip?: string;
   };
 }) {
   const parsed = Number(searchParams.day ?? 0);
   const day = Number.isFinite(parsed) ? parsed : 0;
+  const stripParsed = Number(searchParams.strip ?? day);
+  const strip = Number.isFinite(stripParsed) ? stripParsed : day;
   const mode = searchParams.mode === 'semana' ? 'semana' : 'dia';
   const [me, staff] = await Promise.all([requireSession(), listStaff()]);
   const all = agendaColumns(staff);
@@ -41,37 +43,44 @@ export default async function AgendaPage({
     : (team.some(p => p.id === searchParams.pro) ? searchParams.pro : undefined);
   const providers = selectedPro ? team.filter(p => p.id === selectedPro) : team;
   const canMoveProvider = me.role !== 'provider';
-  const canFilter = me.role !== 'provider';
   const sheetProviders = selectedPro
     ? [team.find(p => p.id === selectedPro)!, ...team.filter(p => p.id !== selectedPro)]
     : team;
 
   const teamIds = team.map(p => p.id);
-  const [waitingPeek, dayAgenda, weekDays] = await Promise.all([
+  const stripStart = alignStripStart(day, strip, 5);
+  const [waitingPeek, dayAgenda, weekDays, stripBusy] = await Promise.all([
     peekWaitlist(),
     mode === 'dia'
       ? getDayAgenda(dateFromOffset(day), teamIds)
       : Promise.resolve({ appointments: [], blocks: [] }),
-    mode === 'semana' ? getWeekCounts(providers.map(p => p.id), day) : Promise.resolve([]),
+    mode === 'semana'
+      ? getWeekCounts(providers.map(p => p.id), day)
+      : Promise.resolve([]),
+    mode === 'dia'
+      ? getBusyOffsets(providers.map(p => p.id), stripStart, 5)
+      : Promise.resolve([]),
   ]);
   const dayStr = dayKey(dateFromOffset(day));
   const live = activeAppts(dayAgenda.appointments);
   const citas = live.length;
-  const occ = occPct(dayAgenda.appointments, team.length);
 
   return (
     <div className="relative flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
       <PlaceProvider>
       <AgendaHeader
         day={day}
+        strip={strip}
         mode={mode}
         waiting={waitingPeek.count}
-        waitHint={waitingPeek.hint}
         citas={mode === 'dia' ? citas : undefined}
-        occ={mode === 'dia' ? occ : undefined}
-        providers={team}
-        selectedPro={selectedPro}
-        canFilter={canFilter}
+        busyOffsets={stripBusy}
+        forClient={searchParams.para
+          ? { id: searchParams.para, full_name: searchParams.nombre || 'Clienta', phone: null }
+          : null}
+        forHint={searchParams.servicio
+          ? `${searchParams.servicio} · toca un hueco con +`
+          : undefined}
       />
       {mode === 'dia' ? (
         <DayGrid
@@ -81,6 +90,7 @@ export default async function AgendaPage({
           blocks={dayAgenda.blocks}
           canMoveProvider={canMoveProvider}
           selectedPro={selectedPro}
+          bookMode={!!searchParams.para}
         />
       ) : (
         <WeekGrid days={weekDays} selectedPro={selectedPro} providerCount={providers.length} />
@@ -90,7 +100,7 @@ export default async function AgendaPage({
         day={dayStr}
         providers={sheetProviders}
         initialOpen={searchParams.new === '1'}
-        initialClient={searchParams.client}
+        initialClient={searchParams.client ?? searchParams.para}
         initialNombre={searchParams.nombre}
         initialHora={searchParams.hora}
         initialServicio={searchParams.servicio}

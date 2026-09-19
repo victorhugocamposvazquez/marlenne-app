@@ -6,9 +6,6 @@ import type { MouseEvent } from 'react';
 import { Home, Calendar, Users, Settings, Plus } from 'lucide-react';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 
-const ACTIVE = 'rgb(var(--c-brand-deep))';
-const IDLE = 'rgb(var(--c-ink-3))';
-
 export default function BottomNav({ role }: { role: string }) {
   const path = usePathname();
   const creating = useShallowParam('new');
@@ -18,10 +15,10 @@ export default function BottomNav({ role }: { role: string }) {
   const Item = ({ href, icon: Icon, label }: { href: string; icon: typeof Home; label: string }) => (
     <Link
       href={href}
-      className="flex flex-1 flex-col items-center gap-1 py-1.5 text-caption font-bold standalone:pb-0.5"
-      style={{ color: on(href) ? ACTIVE : IDLE }}
+      className="flex flex-1 flex-col items-center gap-1 py-1 text-[12px] font-bold"
+      style={{ color: on(href) ? 'rgb(var(--c-ink))' : 'rgb(var(--c-ink-3))' }}
     >
-      <Icon size={21} strokeWidth={1.9} fill={on(href) ? 'rgb(var(--c-brand-soft))' : 'none'} />
+      <Icon size={22} strokeWidth={2.2} />
       {label}
     </Link>
   );
@@ -37,17 +34,17 @@ export default function BottomNav({ role }: { role: string }) {
   };
 
   return (
-    <nav className="relative z-10 shrink-0 border-t border-surface-line bg-surface-card shadow-nav pb-[env(safe-area-inset-bottom)] standalone:pb-[max(6px,calc(env(safe-area-inset-bottom)-12px))]">
-      <div className="flex items-center px-2.5 pb-1.5 pt-1.5 standalone:pb-0.5">
+    <nav className="relative z-10 shrink-0 border-t border-surface-line bg-white pb-[env(safe-area-inset-bottom)] standalone:pb-[max(6px,calc(env(safe-area-inset-bottom)-12px))]">
+      <div className="flex items-start px-2 pb-2 pt-3">
         <Item href="/hoy" icon={Home} label="Hoy" />
         <Item href="/agenda" icon={Calendar} label="Agenda" />
         <Link
           href="/agenda?new=1"
           onClick={openNew}
           aria-label="Nueva cita"
-          className="mx-1.5 grid h-14 w-14 shrink-0 place-items-center rounded-card bg-grad text-white shadow-btn transition motion-safe:hover:-translate-y-[3px] motion-safe:active:scale-[.96]"
+          className="mx-1.5 grid h-12 w-12 shrink-0 place-items-center rounded-pill bg-grad text-white shadow-btn"
         >
-          <Plus size={26} strokeWidth={2.4} />
+          <Plus size={22} strokeWidth={2.6} />
         </Link>
         {role !== 'provider' && <Item href="/clientas" icon={Users} label="Clientas" />}
         <Item href="/ajustes" icon={Settings} label="Ajustes" />

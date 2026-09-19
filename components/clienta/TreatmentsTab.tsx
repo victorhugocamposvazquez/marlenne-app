@@ -68,7 +68,7 @@ function TreatmentCard({ t, clientId }: { t: TreatmentRow; clientId: string }) {
   };
 
   return (
-    <article className="rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
+    <article className="rounded-row bg-surface-soft p-4">
       <div className="flex items-start gap-2.5">
         <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: cat.color }} />
         <div className="min-w-0 flex-1">

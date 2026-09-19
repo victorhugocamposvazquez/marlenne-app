@@ -23,7 +23,7 @@ export default function ConsentsCard({
   const latest = latestConsents(consents);
 
   return (
-    <section className="mt-3 rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
+    <section className="mt-3 rounded-row bg-surface-soft p-4">
       <div className="mb-2.5 flex items-center gap-2 text-body font-bold">
         <ShieldCheck size={16} strokeWidth={2.2} className="text-v" />
         Consentimientos

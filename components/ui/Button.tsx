@@ -2,20 +2,21 @@
 
 import type { ButtonHTMLAttributes } from 'react';
 
-type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
+type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'ink';
 type Size = 'lg' | 'md' | 'sm';
 
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-grad text-white shadow-btn',
-  secondary: 'border border-surface-line bg-surface-card text-ink shadow-card',
+  primary: 'bg-grad text-white shadow-btn disabled:bg-none disabled:bg-surface-line disabled:text-ink-3 disabled:shadow-none',
+  secondary: 'bg-surface-soft text-ink',
+  ink: 'bg-ink text-white',
   danger: 'bg-danger text-white',
   ghost: 'text-v-d',
 };
 
 const SIZES: Record<Size, string> = {
-  lg: 'min-h-[48px] px-4 py-3.5 text-body-lg',
-  md: 'min-h-[44px] px-4 py-3 text-body',
-  sm: 'min-h-[40px] px-3.5 py-2.5 text-label',
+  lg: 'min-h-[58px] px-5 text-[17px]',
+  md: 'min-h-[50px] px-4 text-body-lg',
+  sm: 'min-h-[38px] px-3.5 text-label',
 };
 
 export function buttonClass({
@@ -29,7 +30,7 @@ export function buttonClass({
   full?: boolean;
   className?: string;
 } = {}) {
-  return `inline-flex items-center justify-center gap-2 rounded-field font-extrabold transition motion-safe:active:scale-[.98] disabled:opacity-40 ${VARIANTS[variant]} ${SIZES[size]} ${full ? 'w-full' : ''} ${className}`;
+  return `inline-flex items-center justify-center gap-2 rounded-pill font-bold transition motion-safe:active:scale-[.98] disabled:opacity-100 ${VARIANTS[variant]} ${SIZES[size]} ${full ? 'w-full' : ''} ${className}`;
 }
 
 export default function Button({

@@ -52,7 +52,7 @@ export default function MeasurementsTab({ treatments }: { treatments: TreatmentR
         const delta = nums.length > 1 ? last - first : null;
 
         return (
-          <article key={metric} className="rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
+          <article key={metric} className="rounded-row bg-surface-soft p-4">
             <div className="flex items-baseline gap-2">
               <h3 className="flex-1 text-body font-bold uppercase tracking-[.02em] text-ink-2">{metric}</h3>
               {nums.length > 0 && (

@@ -32,7 +32,7 @@ export default function PhotoUpload({
   const pick = (kind: PhotoKind) => (file: File) => onPick(file, target(kind));
 
   return (
-    <div className="mb-3 rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
+    <div className="mb-3 rounded-row bg-surface-soft p-4">
       <div className="mb-2.5 flex items-center gap-2 text-body font-bold">
         <Camera size={16} strokeWidth={2.2} className="text-v" />
         Añadir foto

@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { toTimestamp, dateFromOffset, dayKey, weekMondayOffset, isRecallDue } from '@/lib/time';
+import { toTimestamp, dateFromOffset, dayKey, offsetFromDay, weekMondayOffset, isRecallDue } from '@/lib/time';
 import { APPT_SELECT, APPT_SELECT_CORE, mapAppt } from '@/lib/agenda-appt';
 import { packExpired, packRemaining } from '@/lib/packs';
 import { listClientPacks, listPackTemplates, listSalonPacks } from '@/lib/pack-write';
@@ -210,6 +210,25 @@ export async function getWeekCounts(providerIds: string[], dayOffset = 0): Promi
         price_cents: a.price_cents ?? null,
       })),
   }));
+}
+
+/** Días de la tira (o un rango) que tienen al menos una cita. */
+export async function getBusyOffsets(providerIds: string[], startOffset: number, n = 5): Promise<number[]> {
+  if (providerIds.length === 0) return [];
+  const sb = createClient();
+  const from = dateFromOffset(startOffset);
+  const to = dateFromOffset(startOffset + n - 1);
+  const { data } = await sb.from('appointments')
+    .select('starts_at')
+    .gte('starts_at', toTimestamp(from, 0))
+    .lte('starts_at', toTimestamp(to, 24 * 60 - 1))
+    .in('provider_id', providerIds);
+  const busy = new Set<number>();
+  for (const row of data ?? []) {
+    const off = offsetFromDay(row.starts_at);
+    if (off >= startOffset && off < startOffset + n) busy.add(off);
+  }
+  return [...busy];
 }
 
 export async function listClients(): Promise<ClientListRow[]> {

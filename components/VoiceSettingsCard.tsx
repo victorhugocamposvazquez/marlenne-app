@@ -45,7 +45,7 @@ export default function VoiceSettingsCard() {
       <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">
         Voz
       </h2>
-      <div className="rounded-row border border-surface-line bg-surface-card px-3.5 shadow-card">
+      <div className="px-0">
         <Row
           title="Solo al tocar el micro"
           hint="Nada de oído de fondo. Tú pulsas y hablas."

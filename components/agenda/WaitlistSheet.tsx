@@ -105,7 +105,7 @@ export default function WaitlistSheet({
             `Hola ${firstName(name)}, ¿sigues esperando ${w.service?.name ?? 'cita'}? Tenemos un hueco.`,
           );
           return (
-            <div key={w.id} className="rounded-row border border-surface-line bg-surface-card p-3 shadow-card">
+            <div key={w.id} className="rounded-row bg-surface-soft p-3.5">
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-body font-bold">{name}</div>

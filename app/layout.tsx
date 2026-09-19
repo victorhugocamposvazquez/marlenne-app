@@ -1,13 +1,13 @@
 import type { Metadata, Viewport } from 'next';
-import { Plus_Jakarta_Sans } from 'next/font/google';
+import { Sora } from 'next/font/google';
 import './globals.css';
 import SplashScreen from '@/components/SplashScreen';
 import { BRAND_NAME, BRAND_UI, SPLASH_SEEN_KEY } from '@/lib/brand';
 
-const jakarta = Plus_Jakarta_Sans({
+const sora = Sora({
   subsets: ['latin'],
-  weight: ['500', '600', '700', '800'],
-  variable: '--font-jakarta',
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-sora',
   display: 'swap',
 });
 
@@ -96,15 +96,15 @@ export const viewport: Viewport = {
   userScalable: false,
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: BRAND_UI.theme },
+    { media: '(prefers-color-scheme: light)', color: '#FFFFFF' },
     { media: '(prefers-color-scheme: dark)', color: '#121024' },
   ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={jakarta.variable}>
-      <body className="font-sans font-medium text-ink">
+    <html lang="es" className={sora.variable}>
+      <body className="font-sans font-normal text-ink">
         <style
           dangerouslySetInnerHTML={{
             __html: 'html[data-booted] #marlenne-splash{display:none!important}',

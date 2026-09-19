@@ -41,10 +41,10 @@ export default async function CuentaPage() {
       <IosShortcutsCard />
       <PasswordForm />
       <section className="mt-6">
-        <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">En el radar</h2>
-        <ul className="rounded-row border border-surface-line bg-surface-card px-3.5 py-2 shadow-card">
+        <h2 className="mb-2 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">En el radar</h2>
+        <ul>
           {ROADMAP.map(item => (
-            <li key={item.label} className="flex items-start gap-2.5 border-b border-surface-line py-2.5 last:border-0">
+            <li key={item.label} className="flex items-start gap-2.5 border-b border-surface-line py-3 last:border-0">
               <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${item.done ? 'bg-ok' : 'bg-handle'}`} />
               <span className={`text-body font-semibold ${item.done ? 'text-ink-2' : 'text-ink'}`}>{item.label}</span>
             </li>

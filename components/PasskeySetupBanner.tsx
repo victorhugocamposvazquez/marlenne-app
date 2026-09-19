@@ -64,7 +64,7 @@ export default function PasskeySetupBanner({ ua, hasPasskeys }: { ua: string; ha
   };
 
   return (
-    <div className="mb-5 rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
+    <div className="mb-5 rounded-row bg-surface-soft p-4">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <div className="text-body font-extrabold tracking-[-.01em]">

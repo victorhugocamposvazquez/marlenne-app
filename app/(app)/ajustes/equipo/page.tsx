@@ -15,7 +15,7 @@ export default async function EquipoPage() {
       ) : (
         <div className="flex flex-col gap-2">
           {team.map(p => (
-            <div key={p.id} className="flex items-center gap-3 rounded-row border border-surface-line bg-surface-card p-3 shadow-card">
+            <div key={p.id} className="flex items-center gap-3 border-b border-surface-line py-3.5">
               <span
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-icon text-label font-bold text-white"
                 style={{ background: p.color ?? avatarColor(p.full_name) }}

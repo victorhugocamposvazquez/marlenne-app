@@ -12,9 +12,9 @@ export const BRAND = {
 
 /** Chrome de PWA. El degradado oficial vive en `BRAND.gradient` y `--grad`. */
 export const BRAND_UI = {
-  theme: '#B621C8',
+  theme: '#FFFFFF',
   splashBg: '#FFFFFF',
-  background: '#F4EEFA',
+  background: '#FFFFFF',
 } as const;
 
 export const SPLASH_SEEN_KEY = 'marlenne-booted';

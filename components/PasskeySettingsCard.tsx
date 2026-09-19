@@ -106,7 +106,7 @@ export default function PasskeySettingsCard({
       <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">
         {platformSettingsTitle(ua)}
       </h2>
-      <div className="rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
+      <div className="rounded-row bg-surface-soft p-4">
         <p className="text-label font-medium leading-snug text-ink-2">
           {platformSettingsHint(ua)}
         </p>

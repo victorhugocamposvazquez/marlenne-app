@@ -136,7 +136,7 @@ export default function CatalogEditor({
                 />
               )}
 
-              <div className="overflow-hidden rounded-row border border-surface-line bg-surface-card shadow-card">
+              <div className="overflow-hidden rounded-row bg-surface-soft">
                 {list.length === 0 && (
                   <p className="px-3.5 py-3 text-label font-medium text-ink-2">Todavía no hay servicios aquí.</p>
                 )}
@@ -225,7 +225,7 @@ function CategoryForm({
   const [opens, setOpens] = useState(initial?.opens_treatment !== false);
 
   return (
-    <div className="mb-4 rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
+    <div className="mb-4 rounded-row bg-surface-soft p-4">
       <label className="block">
         <span className="mb-1 block text-caption font-bold uppercase text-ink-2">Nombre</span>
         <input className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="Manicura" />
@@ -294,7 +294,7 @@ function ServiceForm({
   return (
     <div className={service
       ? 'border-t border-surface-line bg-v-tint/40 px-3.5 py-3'
-      : 'mb-2 rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card'}>
+      : 'mb-2 rounded-row bg-surface-soft p-4'}>
       <label className="block">
         <span className="mb-1 block text-caption font-bold uppercase text-ink-2">Nombre</span>
         <input className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="Radiofrecuencia" />

@@ -110,7 +110,7 @@ function PackRow({
   };
 
   return (
-    <article className={`rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card ${muted ? 'opacity-70' : ''}`}>
+    <article className={`rounded-row bg-surface-soft p-4 ${muted ? 'opacity-70' : ''}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="truncate text-body font-bold">{pack.name}</h3>

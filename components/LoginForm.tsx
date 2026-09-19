@@ -25,7 +25,7 @@ export default function LoginForm({ ua }: { ua: string }) {
   };
 
   return (
-    <div className="flex flex-col gap-3 px-5 pb-8">
+    <div className="flex flex-col gap-3 px-6 pb-8">
       <PasskeyLoginButton ua={ua} onError={setError} />
       <label>
         <span className="mb-1.5 block text-caption font-bold uppercase tracking-[.03em] text-ink-2">Email</span>

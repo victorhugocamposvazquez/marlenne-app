@@ -15,23 +15,23 @@ export default function SubpageHeader({
 }) {
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="shrink-0 border-b border-surface-line bg-surface-bg px-3 py-2.5">
+      <header className="shrink-0 bg-surface-bg px-4 pb-2 pt-4">
         <div className="flex items-center gap-2.5">
           <Link
             href={href}
             aria-label={back}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-field bg-surface-card text-v-d shadow-card motion-safe:active:scale-[.96]"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-pill bg-track text-ink motion-safe:active:scale-[.96]"
           >
-            <ChevronLeft size={26} strokeWidth={2.4} aria-hidden />
+            <ChevronLeft size={22} strokeWidth={2.4} aria-hidden />
           </Link>
           {leading}
-          <h1 className="min-w-0 flex-1 truncate text-title font-extrabold leading-tight tracking-[-.02em]">
+          <h1 className="min-w-0 flex-1 truncate text-title font-bold leading-tight tracking-[-.02em]">
             {title}
           </h1>
           {extra}
         </div>
       </header>
-      <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-fab pt-4">
+      <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-6 pb-fab pt-4">
         {children}
       </div>
     </div>

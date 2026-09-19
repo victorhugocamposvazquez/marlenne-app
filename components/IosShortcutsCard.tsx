@@ -28,7 +28,7 @@ export default function IosShortcutsCard() {
       <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">
         iPhone · Siri y atajos
       </h2>
-      <div className="rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
+      <div className="rounded-row bg-surface-soft p-4">
         <p className="text-label font-medium leading-snug text-ink-2">
           Safari → Compartir → Añadir a pantalla de inicio (así el micro no
           pide permiso cada vez). Face ID se activa en Tu cuenta, en este

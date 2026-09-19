@@ -133,7 +133,7 @@ export default function AppointmentSheet({
               }))
               : null;
             return (
-              <div key={w.id} className="rounded-row border border-surface-line bg-surface-card p-3 shadow-card">
+              <div key={w.id} className="rounded-row bg-surface-soft p-3.5">
                 <div className="truncate text-body font-bold">{w.name}</div>
                 <p className="text-caption font-medium text-ink-3">
                   {[w.service, w.preference].filter(Boolean).join(' · ') || 'Cualquier servicio'}

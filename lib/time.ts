@@ -147,6 +147,47 @@ export function weekStripDays(selectedOffset: number): WeekStripDay[] {
   });
 }
 
+export type DayStripItem = WeekStripDay & { isSunday: boolean };
+
+/** Ventana de 5 días a partir de `startOffset` (cabecera 6b). */
+export function dayStripWindow(startOffset: number, n = 5): DayStripItem[] {
+  return Array.from({ length: n }, (_, i) => {
+    const offset = startOffset + i;
+    const d = dateFromOffset(offset);
+    const dow = d.toLocaleDateString('es-ES', {
+      timeZone: TZ, weekday: 'short',
+    }).replace('.', '');
+    const num = Number(d.toLocaleDateString('es-ES', {
+      timeZone: TZ, day: 'numeric',
+    }));
+    return {
+      offset,
+      dow,
+      num,
+      isToday: offset === 0,
+      isSunday: d.getUTCDay() === 0,
+    };
+  });
+}
+
+export function alignStripStart(selected: number, start: number, n = 5) {
+  if (selected < start || selected > start + n - 1) return selected;
+  return start;
+}
+
+export function skipSunday(offset: number, dir: 1 | -1) {
+  const d = dateFromOffset(offset);
+  if (d.getUTCDay() === 0) return offset + dir;
+  return offset;
+}
+
+export function monthTitleFromOffset(offset: number) {
+  const s = dateFromOffset(offset).toLocaleDateString('es-ES', {
+    timeZone: TZ, month: 'long', year: 'numeric',
+  });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 /** «Esta semana» o «17 ago – 23 ago». */
 export function weekTitle(dayOffset: number) {
   const mon = weekMondayOffset(dayOffset);

@@ -42,7 +42,7 @@ export default function PackTemplatesEditor({
         </p>
       )}
       {templates.map(t => (
-        <div key={t.id} className="overflow-hidden rounded-row border border-surface-line bg-surface-card">
+        <div key={t.id} className="overflow-hidden rounded-row bg-surface-soft">
           <button
             type="button"
             onClick={() => { setCreating(false); setOpen(o => o === t.id ? null : t.id); }}

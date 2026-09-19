@@ -67,7 +67,7 @@ export default function TeamEditor({
 
       <div className="flex flex-col gap-2">
         {team.map(p => (
-          <div key={p.id} className="rounded-row border border-surface-line bg-surface-card shadow-card">
+          <div key={p.id} className="rounded-row bg-surface-soft">
             <button
               type="button"
               onClick={() => setOpen(o => o === p.id ? null : p.id)}
@@ -122,7 +122,7 @@ function AddForm({
   const [role, setRole] = useState<StaffRole>('provider');
 
   return (
-    <div className="mb-3 rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
+    <div className="mb-3 rounded-row bg-surface-soft p-4">
       <Field label="Nombre">
         <input className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="Nombre y apellidos" />
       </Field>

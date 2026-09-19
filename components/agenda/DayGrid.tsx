@@ -17,7 +17,7 @@ import { GripVertical } from 'lucide-react';
 const PLACE_ID = '__place__';
 
 export default function DayGrid({
-  date, providers, appointments, blocks, canMoveProvider, selectedPro,
+  date, providers, appointments, blocks, canMoveProvider, selectedPro, bookMode = false,
 }: {
   date: string;
   providers: Provider[];
@@ -25,8 +25,9 @@ export default function DayGrid({
   blocks: AgendaBlock[];
   canMoveProvider: boolean;
   selectedPro?: string | null;
+  bookMode?: boolean;
 }) {
-  const HOUR_H = 70;
+  const HOUR_H = 96;
   const pxPerMin = HOUR_H / 60;
   const gridH = (DAY_END - DAY_START) * pxPerMin;
   const [optimistic, setOptimistic] = useState<Record<string, { start: number; provider: string }>>({});
@@ -166,18 +167,18 @@ export default function DayGrid({
                   style={colW ? { width: colW } : undefined}
                 >
                   <div
-                    className="flex items-center gap-1.5 rounded-pill bg-surface-card px-2 py-1 shadow-card"
-                    style={{ borderBottom: `3px solid ${p.color ?? avatarColor(p.full_name)}` }}
+                    className="flex items-center gap-2 px-1 pb-2.5"
+                    style={{ borderBottom: `2px solid ${p.color ?? avatarColor(p.full_name)}` }}
                   >
                     <span
-                      className="grid h-6 w-6 shrink-0 place-items-center rounded-chip text-micro font-bold text-white"
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold text-white"
                       style={{ background: p.color ?? avatarColor(p.full_name) }}
                     >
                       {p.initials}
                     </span>
-                    <span className="min-w-0 truncate text-caption font-bold leading-tight">
-                      {p.full_name.split(' ')[0]}
-                      <span className="font-semibold text-ink-3"> · {count}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-[14px] font-semibold">{p.full_name.split(' ')[0]}</span>
+                      <span className="block text-[12px] text-ink-3">{count ? `${count} ${count === 1 ? 'cita' : 'citas'}` : 'libre'}</span>
                     </span>
                   </div>
                 </div>
@@ -235,8 +236,10 @@ export default function DayGrid({
                   className="pointer-events-none absolute z-[8] flex items-center"
                   style={{ top: (now - DAY_START) * pxPerMin, width: solo ? '100%' : providers.length * COL_W }}
                 >
-                  <span className="-ml-1 h-2 w-2 shrink-0 rounded-full bg-danger shadow-[0_0_0_3px_rgb(var(--c-danger)/.25)]" />
-                  <span className="h-px flex-1 bg-danger" />
+                  <span className="-ml-1 grid h-5 w-10 shrink-0 place-items-center rounded-pill bg-ink text-[11px] font-bold text-white">
+                    {fmt(now)}
+                  </span>
+                  <span className="h-0.5 flex-1 bg-ink" />
                 </div>
               )}
 
@@ -251,6 +254,32 @@ export default function DayGrid({
                       openEmpty(p.id, e.clientY, e.currentTarget);
                     }}
                   >
+                    {bookMode && Array.from({ length: Math.floor((DAY_END - DAY_START) / 30) }, (_, i) => {
+                      const start = DAY_START + i * 30;
+                      const taken = appointments.some(a => {
+                        const pos = place(a);
+                        return pos.provider === p.id && pos.start < start + 30 && pos.start + a.duration_min > start;
+                      }) || blocks.some(b => {
+                        const s = minutesOfDay(b.starts_at);
+                        return b.provider_id === p.id && s < start + 30 && s + b.duration_min > start;
+                      });
+                      if (taken) return null;
+                      return (
+                        <button
+                          key={`plus-${p.id}-${start}`}
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation();
+                            const hora = `${String(Math.floor(start / 60)).padStart(2, '0')}:${String(start % 60).padStart(2, '0')}`;
+                            shallowSet({ new: '1', con: p.id, hora, appt: null, wait: null, block: null, bloqueo: null });
+                          }}
+                          className="absolute left-1 right-1 z-[2] flex items-center justify-center rounded-[10px] bg-[rgba(208,0,168,.08)]"
+                          style={{ top: (start - DAY_START) * pxPerMin + 1, height: 46 }}
+                        >
+                          <span className="bg-grad bg-clip-text text-[16px] font-bold text-transparent">+</span>
+                        </button>
+                      );
+                    })}
                     {placing && durationMin && slotGaps(starts[p.id] ?? []).map(g => {
                       const top = (g.first - DAY_START) * pxPerMin + 2;
                       const h = (g.last + durationMin - g.first) * pxPerMin - 6;
@@ -306,16 +335,15 @@ export default function DayGrid({
                     key={a.id}
                     data-id={a.id}
                     data-no-pull
-                    className={`absolute flex overflow-hidden rounded-pill select-none [-webkit-touch-callout:none] ${pos.dragging ? 'touch-none' : ''}`}
+                    className={`absolute flex overflow-hidden rounded-[12px] select-none [-webkit-touch-callout:none] ${pos.dragging ? 'touch-none' : ''}`}
                     style={{
                       left: solo ? 0 : col * COL_W,
                       width: solo ? 'calc(100% - 8px)' : COL_W - 8,
-                      top: (pos.start - DAY_START) * pxPerMin + 2,
-                      height: a.duration_min * pxPerMin - 6,
-                      background: st.bg,
-                      border: `1px solid ${st.border}`,
-                      borderLeft: `4px solid ${st.edge}`,
-                      boxShadow: pos.dragging ? 'var(--sh-drag)' : 'var(--sh-card)',
+                      top: (pos.start - DAY_START) * pxPerMin + 1,
+                      height: a.duration_min * pxPerMin - 3,
+                      background: a.status === 'done' ? '#F7F7FA' : st.bg,
+                      borderLeft: `4px solid ${cat.color}`,
+                      boxShadow: pos.dragging ? 'var(--sh-drag)' : undefined,
                       transform: pos.dragging ? 'scale(1.03)' : 'none',
                       opacity: placing ? 0.55 : (a.status === 'done' ? 0.62 : 1),
                       zIndex: pos.dragging ? 12 : 2,

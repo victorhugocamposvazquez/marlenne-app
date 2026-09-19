@@ -177,7 +177,7 @@ export default function PhotosTab({
       )}
 
       {list.map(g => (
-        <article key={g.key} className="rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
+        <article key={g.key} className="rounded-row bg-surface-soft p-4">
           <div className="mb-2.5 flex items-baseline gap-2">
             <h3 className="min-w-0 flex-1 truncate text-body font-bold tracking-[-.01em]">{g.title}</h3>
             {g.session !== null && (

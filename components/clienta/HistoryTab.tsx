@@ -34,11 +34,11 @@ export default function HistoryTab({
   return (
     <>
       <div className="mb-2.5 flex gap-2.5">
-        <div className="flex-1 rounded-row border border-surface-line bg-surface-card p-3 shadow-card">
+        <div className="flex-1 rounded-row bg-surface-soft p-3.5">
           <div className="text-caption font-bold uppercase tracking-[.03em] text-ink-2">Citas</div>
           <div className="mt-0.5 text-title font-extrabold tabular-nums">{appointments.length}</div>
         </div>
-        <div className="flex-1 rounded-row border border-surface-line bg-surface-card p-3 shadow-card">
+        <div className="flex-1 rounded-row bg-surface-soft p-3.5">
           <div className="text-caption font-bold uppercase tracking-[.03em] text-ink-2">Gastado</div>
           <div className="mt-0.5 text-title font-extrabold tabular-nums">{spent} €</div>
         </div>
@@ -52,7 +52,7 @@ export default function HistoryTab({
             <Link
               key={a.id}
               href={`/agenda?day=${offsetFromDay(a.starts_at)}&appt=${a.id}`}
-              className="flex items-center gap-3 rounded-row border border-surface-line bg-surface-card p-3 shadow-card transition hover:border-v/40"
+              className="flex items-center gap-3 rounded-row bg-surface-soft p-3.5"
             >
               <span className="w-[62px] shrink-0 text-center">
                 <span className="block text-caption font-bold leading-tight tabular-nums text-ink-2">

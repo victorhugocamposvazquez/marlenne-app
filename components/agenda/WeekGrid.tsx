@@ -48,7 +48,7 @@ export default function WeekGrid({
     <div className="h-0 min-h-0 flex-1 overflow-auto px-4 pb-16">
       <LiveRefresh tables={['appointments']} />
 
-      <section className="mb-2.5 rounded-card border border-surface-line bg-surface-card px-4 py-3.5 shadow-card">
+      <section className="mb-3 rounded-card bg-surface-soft px-4 py-4">
         <div className="grid grid-cols-3 gap-2">
           <Kpi label="Citas" value={String(totals.citas)} />
           <Kpi label="Ocupación" value={`${totals.occ} %`} />
@@ -60,7 +60,7 @@ export default function WeekGrid({
         <button
           type="button"
           onClick={() => router.push(href(insight.dayOffset))}
-          className="mb-3 flex w-full items-center gap-2.5 rounded-row border border-v/20 bg-v-tint px-3.5 py-3 text-left shadow-card motion-safe:active:scale-[.99]"
+          className="mb-3 flex w-full items-center gap-2.5 rounded-row bg-v-tint px-4 py-3.5 text-left motion-safe:active:scale-[.99]"
         >
           <BarChart3 size={16} strokeWidth={2.2} className="shrink-0 text-v" aria-hidden />
           <span className="min-w-0 flex-1 text-caption font-semibold leading-snug text-ink">{insight.text}</span>
@@ -91,8 +91,8 @@ export default function WeekGrid({
               type="button"
               onClick={() => router.push(href(d.offset))}
               aria-label={`${d.isToday ? 'Hoy' : d.name} ${d.num}. ${line.text}`}
-              className={`grid grid-cols-[38px_minmax(0,1fr)_16px] items-center gap-2 rounded-row border px-2.5 py-2.5 text-left shadow-card motion-safe:active:scale-[.99] ${
-                d.isToday ? 'border-v/45 bg-v-tint' : 'border-surface-line bg-surface-card'
+              className={`grid grid-cols-[38px_minmax(0,1fr)_16px] items-center gap-2 rounded-row px-3 py-3 text-left motion-safe:active:scale-[.99] ${
+                d.isToday ? 'bg-v-tint' : 'bg-surface-soft'
               }`}
             >
               <span className="w-[38px]">

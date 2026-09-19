@@ -103,7 +103,7 @@ export default function CsvImportCard() {
   };
 
   return (
-    <div className="rounded-row border border-surface-line bg-surface-card p-3.5 shadow-card">
+    <div className="rounded-row bg-surface-soft p-4">
       <p className="text-label font-medium leading-snug text-ink-2">
         Una mudanza, no un sync. Tres CSV: servicios, clientas y citas. Primero el preview; luego se escribe.
         No crea logins ni importa packs, fotos ni consentimientos.

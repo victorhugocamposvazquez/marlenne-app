@@ -1,145 +1,132 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Ban, Clock } from 'lucide-react';
-import Segmented from '@/components/ui/Segmented';
-import BrandLogo from '@/components/BrandLogo';
-import WeekStrip from '@/components/agenda/WeekStrip';
-import Chip from '@/components/ui/Chip';
+import { Calendar, ChevronDown, X } from 'lucide-react';
+import DayStrip from '@/components/agenda/DayStrip';
+import MonthCalendar from '@/components/agenda/MonthCalendar';
+import { avatarColor, initials } from '@/lib/categories';
+import { alignStripStart, monthTitleFromOffset, skipSunday } from '@/lib/time';
 import { shallowSet } from '@/hooks/useShallowQuery';
-import { dayTitle, weekRangeTitle, weekSubtitle } from '@/lib/time';
-import type { Provider } from '@/lib/types';
+import type { ClientOption } from '@/lib/types';
 
 export default function AgendaHeader({
-  day, mode, waiting, waitHint, citas, occ, providers = [], selectedPro, canFilter,
+  day, strip, mode, waiting, citas, busyOffsets = [], forClient, forHint,
 }: {
   day: number;
+  strip: number;
   mode: 'dia' | 'semana';
   waiting: number;
-  waitHint?: string | null;
   citas?: number;
-  occ?: number;
-  providers?: Provider[];
-  selectedPro?: string | null;
-  canFilter?: boolean;
+  busyOffsets?: number[];
+  forClient?: ClientOption | null;
+  forHint?: string;
 }) {
   const router = useRouter();
-  const go = (d: number, m: string, extra?: Record<string, string>) => {
+  const [cal, setCal] = useState(false);
+  const start = alignStripStart(day, strip, 5);
+
+  const go = (d: number, extra?: { strip?: number; mode?: string }) => {
     const q = new URLSearchParams();
     q.set('day', String(d));
-    q.set('mode', m);
-    if (selectedPro) q.set('pro', selectedPro);
-    if (typeof window !== 'undefined' && window.location.search.includes('new=1')) {
+    q.set('mode', extra?.mode ?? mode);
+    q.set('strip', String(extra?.strip ?? start));
+    if (typeof window !== 'undefined') {
       const live = new URLSearchParams(window.location.search);
-      q.set('new', '1');
-      for (const k of ['client', 'nombre', 'hora', 'servicio', 'con']) {
+      for (const k of ['new', 'client', 'nombre', 'hora', 'servicio', 'con', 'para']) {
         const v = live.get(k);
         if (v) q.set(k, v);
-      }
-    }
-    if (extra) {
-      for (const [k, v] of Object.entries(extra)) {
-        if (v) q.set(k, v);
-        else q.delete(k);
       }
     }
     router.push(`/agenda?${q.toString()}`);
   };
 
-  const title = mode === 'semana' ? weekRangeTitle(day) : dayTitle(day);
-  const subtitle = mode === 'semana'
-    ? weekSubtitle(day)
-    : (citas != null && occ != null
-      ? `${citas} ${citas === 1 ? 'cita' : 'citas'} · ${occ} % ocupación`
-      : null);
-
   return (
-    <header className="shrink-0 px-3 pb-2.5 pt-2">
-      <div className="mb-2.5 flex items-center gap-2">
-        <BrandLogo size={40} alt="" className="shrink-0" />
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-title font-extrabold leading-tight tracking-[-.02em]">{title}</h1>
-          {subtitle && (
-            <p className="truncate text-caption font-semibold text-ink-2">{subtitle}</p>
+    <header className="shrink-0 px-4 pb-0 pt-5">
+      <div className="mb-3 flex items-center justify-between px-1">
+        <button type="button" onClick={() => setCal(true)} className="flex items-center gap-2.5">
+          <span className="flex items-center gap-1">
+            <span className="text-title font-bold tracking-[-.02em]">{monthTitleFromOffset(day)}</span>
+            <ChevronDown size={16} strokeWidth={2.8} />
+          </span>
+          <span className="grid h-11 w-11 place-items-center rounded-pill bg-ink text-white">
+            <Calendar size={20} strokeWidth={2.2} />
+          </span>
+        </button>
+        <div className="flex items-center gap-3">
+          {day !== 0 && (
+            <button type="button" onClick={() => go(0, { strip: 0 })} className="text-[14px] font-semibold text-v-d">
+              Hoy
+            </button>
           )}
-        </div>
-        {day !== 0 && (
           <button
             type="button"
-            onClick={() => go(0, mode === 'semana' ? 'semana' : 'dia')}
-            className="shrink-0 rounded-pill bg-v-tint px-3 py-2 text-label font-extrabold text-v-d"
+            onClick={() => go(day, { mode: mode === 'semana' ? 'dia' : 'semana' })}
+            className="text-[13px] font-semibold text-ink-3"
           >
-            Hoy
+            {mode === 'semana' ? 'Día' : 'Semana'}
           </button>
-        )}
-        <Segmented
-          ariaLabel="Vista de agenda"
-          value={mode}
-          options={[
-            { id: 'dia', label: 'Día' },
-            { id: 'semana', label: 'Semana' },
-          ]}
-          onChange={m => go(day, m)}
-        />
+        </div>
       </div>
 
-      <WeekStrip
-        selectedOffset={day}
-        onSelect={offset => go(offset, 'dia')}
-        onShiftWeek={delta => go(day + delta, mode)}
-      />
+      {mode === 'dia' && (
+        <DayStrip
+          selectedOffset={day}
+          startOffset={start}
+          busyOffsets={busyOffsets}
+          onSelect={offset => go(skipSunday(offset, 1))}
+          onShift={delta => {
+            const next = start + delta;
+            go(skipSunday(next, 1), { strip: next });
+          }}
+        />
+      )}
 
-      {mode === 'semana' && canFilter && providers.length > 1 && (
-        <div className="mt-2 flex gap-1.5 overflow-x-auto">
-          <Chip className="shrink-0" active={!selectedPro} onClick={() => go(day, mode, { pro: '' })}>
-            Todas
-          </Chip>
-          {providers.map(p => (
-            <Chip
-              key={p.id}
-              className="shrink-0"
-              active={selectedPro === p.id}
-              onClick={() => go(day, mode, { pro: p.id })}
-            >
-              {p.full_name.split(' ')[0]}
-            </Chip>
-          ))}
+      {forClient && (
+        <div className="mt-3.5 flex items-center gap-3 rounded-[18px] border border-[rgba(208,0,168,.25)] bg-[linear-gradient(90deg,rgba(255,36,85,.08),rgba(208,0,168,.08),rgba(8,121,255,.08))] px-3.5 py-3">
+          <span
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[12px] font-bold text-white"
+            style={{ background: avatarColor(forClient.full_name) }}
+          >
+            {initials(forClient.full_name)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[15px] font-semibold">Cita para {forClient.full_name}</p>
+            <p className="truncate text-label text-ink-2">{forHint ?? 'Toca un hueco libre del día'}</p>
+          </div>
+          <button
+            type="button"
+            aria-label="Cancelar"
+            onClick={() => shallowSet({ para: null, client: null, nombre: null, servicio: null })}
+            className="grid h-8 w-8 place-items-center rounded-full bg-white"
+          >
+            <X size={14} strokeWidth={2.6} />
+          </button>
         </div>
       )}
 
-      {waiting > 0 ? (
-        <div className="mt-2.5 flex items-center gap-2 rounded-field bg-v-soft/80 px-3 py-2.5">
-          <Clock size={18} className="shrink-0 text-v-d" strokeWidth={2.2} />
-          <button
-            type="button"
-            onClick={() => shallowSet({
-              wait: '1', new: null, block: null, bloqueo: null, appt: null, close: null,
-            })}
-            className="min-w-0 flex-1 truncate text-left text-label font-bold text-v-d"
-          >
-            {waiting} en espera{waitHint ? ` · ${waitHint}` : ''}
-          </button>
-          <button
-            type="button"
-            onClick={() => shallowSet({
-              wait: '1', new: null, block: null, bloqueo: null, appt: null, close: null,
-            })}
-            className="shrink-0 text-label font-extrabold text-v-d"
-          >
-            Encajar
-          </button>
-        </div>
-      ) : (
+      {waiting > 0 && (
         <button
           type="button"
-          onClick={() => shallowSet({
-            block: '1', wait: null, new: null, appt: null, close: null, bloqueo: null,
-          })}
-          className="mt-2 flex items-center gap-1.5 text-caption font-bold text-ink-3"
+          onClick={() => shallowSet({ wait: '1', new: null, appt: null })}
+          className="mt-3 text-[13px] font-bold text-v-d"
         >
-          <Ban size={14} strokeWidth={2.2} />
-          Bloquear un hueco
+          {waiting} en espera
         </button>
+      )}
+
+      {mode === 'dia' && citas != null && !forClient && (
+        <p className="mt-3 px-1 text-label text-ink-3">
+          {citas === 0 ? 'Sin citas' : `${citas} ${citas === 1 ? 'cita' : 'citas'}`}
+        </p>
+      )}
+
+      {cal && (
+        <MonthCalendar
+          selectedOffset={day}
+          onClose={() => setCal(false)}
+          onSelect={offset => go(offset, { strip: offset })}
+        />
       )}
     </header>
   );
