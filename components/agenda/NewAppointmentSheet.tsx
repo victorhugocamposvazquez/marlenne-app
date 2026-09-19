@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, Check, ChevronLeft, Plus, Search, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import ChipScroller from '@/components/ui/ChipScroller';
 import DayStrip from '@/components/agenda/DayStrip';
 import MonthCalendar from '@/components/agenda/MonthCalendar';
 import { useCloseSheet } from '@/components/Sheet';
@@ -275,6 +276,13 @@ export default function NewAppointmentSheet({
     ? `${ctxDate} · ${fmt(startMin)}${provider ? ` · ${provider.full_name.split(' ')[0]}` : ''}`
     : ctxDate;
 
+  const editStep = (next: Step) => {
+    if (returnTo === 'confirm' || editing) changeField(next);
+    else setStep(next);
+  };
+
+  const trailPill = 'shrink-0 rounded-pill border border-surface-line bg-surface-soft px-2.5 py-1 text-[13px] font-semibold text-ink whitespace-nowrap motion-safe:active:scale-[.98]';
+
   if (!mounted) return null;
 
   return createPortal(
@@ -304,6 +312,18 @@ export default function NewAppointmentSheet({
             />
           ))}
         </div>
+        {step !== 'client' && step !== 'confirm' && who.length >= 2 && (
+          <ChipScroller className="mx-6 mt-4 shrink-0" label="Datos elegidos">
+            <button type="button" onClick={() => editStep('client')} className={trailPill}>
+              {who}
+            </button>
+            {service && step === 'when' && (
+              <button type="button" onClick={() => editStep('service')} className={trailPill}>
+                {service.name}
+              </button>
+            )}
+          </ChipScroller>
+        )}
         <h2 className="mx-6 mt-6 shrink-0 text-display font-bold tracking-[-.03em]">{question}</h2>
 
         {step === 'client' && (
