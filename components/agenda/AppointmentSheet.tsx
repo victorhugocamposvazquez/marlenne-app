@@ -14,6 +14,7 @@ import { moveAppointment } from '@/lib/move-appointment';
 import { createClient } from '@/lib/supabase/client';
 import { dayKey, durLbl, fmt, minutesOfDay, citaCambiada } from '@/lib/time';
 import { confirmPageUrl, waConfirmMsg, waHref, waWaiterMsg } from '@/lib/phone';
+import { goWhatsApp, reserveWhatsAppWindow } from '@/hooks/open-whatsapp';
 import { issueAppointmentLink } from '@/lib/confirm-link';
 import { shallowSet } from '@/hooks/useShallowQuery';
 import type { AgendaAppt, Provider, Waiter } from '@/lib/types';
@@ -86,6 +87,12 @@ export default function AppointmentSheet({
 
   const askConfirm = () => {
     setError(null);
+    const draft = waHref(appt.client_phone, waConfirmMsg({
+      clientLabel: appt.client_label,
+      service: appt.service_name,
+      startsAt: appt.starts_at,
+    }));
+    const waWin = draft ? reserveWhatsAppWindow() : null;
     startTransition(async () => {
       const token = await issueAppointmentLink(createClient(), appt.id);
       const url = token ? confirmPageUrl(token) : null;
@@ -94,11 +101,12 @@ export default function AppointmentSheet({
         service: appt.service_name,
         startsAt: appt.starts_at,
         confirmUrl: url,
-      }));
+      })) ?? draft;
       if (href) {
-        window.open(href, '_blank', 'noopener,noreferrer');
+        goWhatsApp(href, waWin);
         return;
       }
+      waWin?.close();
       if (url) {
         try {
           await navigator.clipboard.writeText(url);

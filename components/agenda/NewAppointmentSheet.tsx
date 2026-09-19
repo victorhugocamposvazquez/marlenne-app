@@ -18,6 +18,7 @@ import { readLastServiceId, writeLastServiceId } from '@/hooks/last-service';
 import { shallowSet } from '@/hooks/useShallowQuery';
 import { useToast } from '@/components/Toast';
 import { confirmPageUrl, waConfirmMsg, waHref } from '@/lib/phone';
+import { goWhatsApp, reserveWhatsAppWindow } from '@/hooks/open-whatsapp';
 import { issueAppointmentLink } from '@/lib/confirm-link';
 import type { AgendaAppt, ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
 
@@ -180,6 +181,17 @@ export default function NewAppointmentSheet({
     const pack = client
       ? pickPackForService(packs.filter(p => packUsableBy(p, client.id) && packFitsService(p, service.id) && packIsOpen(p)), client.id, service.id)
       : null;
+    const draftHref = wa
+      ? waHref(client?.phone, waConfirmMsg({
+          clientLabel: who,
+          service: service.name,
+          startsAt: toTimestamp(bookDay, startMin),
+        }))
+      : null;
+    if (wa && !draftHref) {
+      toast('Esta clienta no tiene un teléfono válido para WhatsApp', 'err');
+    }
+    const waWin = draftHref ? reserveWhatsAppWindow() : null;
     startTransition(async () => {
       const sb = createClient();
       const r = editing
@@ -201,21 +213,25 @@ export default function NewAppointmentSheet({
             startMin,
             clientPackId: pack?.id,
           });
-      if (!r.ok) { toast(r.error ?? 'No se ha podido guardar', 'err'); return; }
+      if (!r.ok) {
+        waWin?.close();
+        toast(r.error ?? 'No se ha podido guardar', 'err');
+        return;
+      }
       const savedId = editing?.id ?? r.id;
-      if (wa && (client?.phone) && savedId) {
+      if (draftHref && savedId) {
         const token = await issueAppointmentLink(sb, savedId);
-        const href = waHref(client.phone, waConfirmMsg({
+        const href = waHref(client?.phone, waConfirmMsg({
           clientLabel: who,
           service: service.name,
           startsAt: toTimestamp(bookDay, startMin),
           confirmUrl: token ? confirmPageUrl(token) : null,
-        }));
-        if (href) window.open(href, '_blank');
+        })) ?? draftHref;
+        goWhatsApp(href, waWin);
       }
       toast(editing
         ? `Cita actualizada · ${who.split(' ')[0]} ${fmt(startMin)}`
-        : `Cita guardada · ${who.split(' ')[0]} ${fmt(startMin)}${wa ? ' · WhatsApp' : ''}`);
+        : `Cita guardada · ${who.split(' ')[0]} ${fmt(startMin)}${draftHref ? ' · WhatsApp' : ''}`);
       closeAll();
       shallowSet({ para: null, new: null, appt: null, client: null, nombre: null, hora: null, servicio: null, con: null });
     });
@@ -457,18 +473,22 @@ export default function NewAppointmentSheet({
                   last
                 />
               </div>
-              <button type="button" onClick={() => setWa(v => !v)} className="mt-4 flex items-center gap-3 px-1">
-                <span
-                  className="grid h-[26px] w-[26px] place-items-center rounded-[8px]"
-                  style={{
-                    background: wa ? 'rgb(var(--c-ink))' : '#fff',
-                    boxShadow: wa ? undefined : 'inset 0 0 0 1.5px #C4C2CF',
-                  }}
-                >
-                  {wa && <Check size={14} strokeWidth={3} className="text-white" />}
-                </span>
-                <span className="text-[15px] font-semibold">Enviar confirmación por WhatsApp</span>
-              </button>
+              {waHref(client?.phone) ? (
+                <button type="button" onClick={() => setWa(v => !v)} className="mt-4 flex items-center gap-3 px-1">
+                  <span
+                    className="grid h-[26px] w-[26px] place-items-center rounded-[8px]"
+                    style={{
+                      background: wa ? 'rgb(var(--c-ink))' : '#fff',
+                      boxShadow: wa ? undefined : 'inset 0 0 0 1.5px #C4C2CF',
+                    }}
+                  >
+                    {wa && <Check size={14} strokeWidth={3} className="text-white" />}
+                  </span>
+                  <span className="text-[15px] font-semibold">Enviar confirmación por WhatsApp</span>
+                </button>
+              ) : (
+                <p className="mt-4 text-label text-ink-2">Sin teléfono en la ficha: no se puede abrir WhatsApp.</p>
+              )}
             </div>
             <div className="px-6 pb-[max(20px,env(safe-area-inset-bottom))] pt-4">
               <Button size="lg" full onClick={save} disabled={pending || !service || startMin == null}>
