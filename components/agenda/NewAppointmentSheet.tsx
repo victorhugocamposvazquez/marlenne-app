@@ -309,16 +309,16 @@ export default function NewAppointmentSheet({
             />
           ))}
         </div>
-        <h2 className="mx-6 mt-6 shrink-0 text-display font-bold tracking-[-.03em]">{question}</h2>
+        <h2 className="mx-6 mt-[1.2rem] shrink-0 text-display font-bold tracking-[-.03em]">{question}</h2>
         {showTrail && (
-          <div className="mx-6 mt-1.5 shrink-0 text-label leading-snug">
+          <div className="mx-6 mt-1.5 shrink-0 text-[14px] leading-snug">
             <button type="button" onClick={() => editStep('client')} className="flex w-full min-w-0 text-left">
-              <span className="shrink-0 text-ink-3">Para: </span>
+              <span className="mr-[3px] shrink-0 text-v">Para:</span>
               <span className="min-w-0 truncate font-semibold text-ink">{who}</span>
             </button>
             {service && step === 'when' && (
-              <button type="button" onClick={() => editStep('service')} className="flex w-full min-w-0 text-left">
-                <span className="shrink-0 text-ink-3">Servicio: </span>
+              <button type="button" onClick={() => editStep('service')} className="mt-[5px] flex w-full min-w-0 text-left">
+                <span className="mr-[3px] shrink-0 text-v">Servicio:</span>
                 <span className="min-w-0 truncate font-semibold text-ink">{service.name}</span>
               </button>
             )}
@@ -466,7 +466,7 @@ export default function NewAppointmentSheet({
               </p>
             )}
             {hours && hours.length > 0 && (
-              <div className="grid grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-4 gap-2.5">
                 {hours.map(min => {
                   const on = startMin === min;
                   return (
