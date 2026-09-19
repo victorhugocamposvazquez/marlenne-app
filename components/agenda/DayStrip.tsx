@@ -52,14 +52,14 @@ export default function DayStrip({
   };
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1">
       <button
         type="button"
         aria-label="Días anteriores"
         onClick={() => scrollByDays(-VISIBLE)}
-        className="grid h-14 w-[34px] shrink-0 place-items-center text-ink"
+        className="grid h-14 w-7 shrink-0 place-items-center text-ink"
       >
-        <ChevronLeft size={18} strokeWidth={3} />
+        <ChevronLeft size={16} strokeWidth={3} />
       </button>
       <div
         ref={scrollerRef}
@@ -108,9 +108,9 @@ export default function DayStrip({
         type="button"
         aria-label="Días siguientes"
         onClick={() => scrollByDays(VISIBLE)}
-        className="grid h-14 w-[34px] shrink-0 place-items-center text-ink"
+        className="grid h-14 w-7 shrink-0 place-items-center text-ink"
       >
-        <ChevronRight size={18} strokeWidth={3} />
+        <ChevronRight size={16} strokeWidth={3} />
       </button>
     </div>
   );

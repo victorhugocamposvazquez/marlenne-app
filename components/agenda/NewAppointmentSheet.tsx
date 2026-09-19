@@ -303,7 +303,10 @@ export default function NewAppointmentSheet({
         </div>
         <div className="mx-6 mt-3.5 flex gap-1.5">
           {[1, 2, 3].map(n => (
-            <span key={n} className={`h-1 flex-1 rounded-pill ${n <= idx ? 'bg-grad' : 'bg-surface-line'}`} />
+            <span
+              key={n}
+              className={`h-1 flex-1 rounded-pill ${n <= idx ? (n === 1 ? 'bg-v-2' : 'bg-grad') : 'bg-surface-line'}`}
+            />
           ))}
         </div>
         <h2 className="mx-6 mt-6 shrink-0 text-display font-bold tracking-[-.03em]">{question}</h2>
@@ -406,26 +409,32 @@ export default function NewAppointmentSheet({
         )}
 
         {step === 'when' && (
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-4">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-label font-semibold text-ink-2">Día</p>
-              <button type="button" onClick={() => setCal(true)} className="grid h-12 w-12 place-items-center rounded-pill bg-ink text-white" aria-label="Calendario">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-2">
+            <div className="mb-6 flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <DayStrip
+                  selectedOffset={dayOff}
+                  startOffset={alignStripStart(dayOff, stripStart, 5)}
+                  onSelect={offset => pickDay(offset)}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setCal(true)}
+                className="grid h-12 w-12 shrink-0 place-items-center rounded-pill bg-ink text-white"
+                aria-label="Calendario"
+              >
                 <Calendar size={24} strokeWidth={2.2} />
               </button>
             </div>
-            <DayStrip
-              selectedOffset={dayOff}
-              startOffset={alignStripStart(dayOff, stripStart, 5)}
-              onSelect={offset => pickDay(offset)}
-            />
             {providers.length > 1 && (
-              <div className="mt-4 flex gap-2 overflow-x-auto">
+              <div className="mb-6 flex flex-wrap gap-2.5">
                 {providers.map(p => (
                   <button
                     key={p.id}
                     type="button"
                     onClick={() => { setProviderId(p.id); setStartMin(null); }}
-                    className="shrink-0 rounded-pill px-3.5 py-2 text-label font-semibold"
+                    className="rounded-pill px-4 py-2.5 text-label font-semibold"
                     style={{
                       background: p.id === providerId ? 'rgb(var(--c-ink))' : 'rgb(var(--c-soft))',
                       color: p.id === providerId ? '#fff' : 'rgb(var(--c-ink))',
@@ -436,7 +445,7 @@ export default function NewAppointmentSheet({
                 ))}
               </div>
             )}
-            <p className="mb-2 mt-5 text-label font-semibold text-ink-2">Hora</p>
+            <p className="mb-3 text-label font-semibold text-ink-2">Hora</p>
             {hours == null && <p className="py-6 text-body text-ink-2">Buscando huecos…</p>}
             {hours && hours.length === 0 && (
               <p className="rounded-row bg-surface-soft px-4 py-5 text-body text-ink-2">
@@ -444,7 +453,7 @@ export default function NewAppointmentSheet({
               </p>
             )}
             {hours && hours.length > 0 && (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2.5">
                 {hours.map(min => {
                   const on = startMin === min;
                   return (
@@ -531,11 +540,11 @@ function Row({
   return (
     <div className={`flex items-center gap-3 py-3.5 ${last ? '' : 'border-b border-[#E6E5EC]'}`}>
       <div className="min-w-0 flex-1">
-        <p className="text-[12px] text-ink-3">{label}</p>
+        <p className="text-[14px] font-medium text-v">{label}</p>
         <p className="text-body-lg font-semibold">{value}</p>
         {hint && <p className="text-label text-ink-2">{hint}</p>}
       </div>
-      <button type="button" onClick={onChange} className="text-label font-bold text-v-d">Cambiar</button>
+      <button type="button" onClick={onChange} className="text-[14px] font-bold text-v-2">Cambiar</button>
     </div>
   );
 }
