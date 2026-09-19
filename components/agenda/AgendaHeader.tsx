@@ -2,16 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, ChevronDown, ChevronRight, X } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronRight } from 'lucide-react';
 import DayStrip from '@/components/agenda/DayStrip';
 import MonthCalendar from '@/components/agenda/MonthCalendar';
-import { avatarColor, initials } from '@/lib/categories';
 import { alignStripStart, monthTitleFromOffset, skipSunday } from '@/lib/time';
 import { shallowSet } from '@/hooks/useShallowQuery';
-import type { ClientOption } from '@/lib/types';
 
 export default function AgendaHeader({
-  day, strip, mode, waiting, citas, busyOffsets = [], forClient, forHint,
+  day, strip, mode, waiting, citas, busyOffsets = [],
 }: {
   day: number;
   strip: number;
@@ -19,8 +17,6 @@ export default function AgendaHeader({
   waiting: number;
   citas?: number;
   busyOffsets?: number[];
-  forClient?: ClientOption | null;
-  forHint?: string;
 }) {
   const router = useRouter();
   const [cal, setCal] = useState(false);
@@ -33,7 +29,7 @@ export default function AgendaHeader({
     q.set('strip', String(extra?.strip ?? start));
     if (typeof window !== 'undefined') {
       const live = new URLSearchParams(window.location.search);
-      for (const k of ['new', 'client', 'nombre', 'hora', 'servicio', 'con', 'para']) {
+      for (const k of ['new', 'client', 'nombre', 'hora', 'servicio', 'con']) {
         const v = live.get(k);
         if (v) q.set(k, v);
       }
@@ -71,39 +67,16 @@ export default function AgendaHeader({
         />
       )}
 
-      {forClient && (
-        <div className="mt-3.5 flex items-center gap-3 rounded-[18px] border border-[rgba(208,0,168,.25)] bg-[linear-gradient(90deg,rgba(255,36,85,.08),rgba(208,0,168,.08),rgba(8,121,255,.08))] px-3.5 py-3">
-          <span
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[12px] font-bold text-white"
-            style={{ background: avatarColor(forClient.full_name) }}
-          >
-            {initials(forClient.full_name)}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-semibold">Cita para {forClient.full_name}</p>
-            <p className="truncate text-label text-ink-2">{forHint ?? 'Toca un hueco libre del día'}</p>
-          </div>
-          <button
-            type="button"
-            aria-label="Cancelar"
-            onClick={() => shallowSet({ para: null, client: null, nombre: null, servicio: null })}
-            className="grid h-8 w-8 place-items-center rounded-full bg-white"
-          >
-            <X size={14} strokeWidth={2.6} />
-          </button>
-        </div>
-      )}
-
-      {(waiting > 0 || (mode === 'dia' && citas != null && !forClient)) && (
+      {(waiting > 0 || (mode === 'dia' && citas != null)) && (
         <div className="mt-3 flex items-center gap-2.5 px-1">
-          {mode === 'dia' && citas != null && !forClient && (
+          {mode === 'dia' && citas != null && (
             <span className="text-label text-ink-3">
               {citas === 0 ? 'Sin citas' : `${citas} ${citas === 1 ? 'cita' : 'citas'}`}
             </span>
           )}
           {waiting > 0 && (
             <>
-              {mode === 'dia' && citas != null && !forClient && (
+              {mode === 'dia' && citas != null && (
                 <span className="text-label text-ink-3/40" aria-hidden>·</span>
               )}
               <button

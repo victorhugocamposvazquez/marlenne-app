@@ -242,7 +242,7 @@ export default function NewAppointmentSheet({
         ? `Cita actualizada · ${who.split(' ')[0]} ${fmt(startMin)}`
         : `Cita guardada · ${who.split(' ')[0]} ${fmt(startMin)}${draftHref ? ' · WhatsApp' : ''}`);
       closeAll();
-      shallowSet({ para: null, new: null, appt: null, client: null, nombre: null, hora: null, servicio: null, con: null });
+      shallowSet({ new: null, appt: null, client: null, nombre: null, hora: null, servicio: null, con: null });
     });
   };
 

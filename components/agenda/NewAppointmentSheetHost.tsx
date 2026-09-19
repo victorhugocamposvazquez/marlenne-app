@@ -23,8 +23,7 @@ export default function NewAppointmentSheetHost({
   initialCon?: string;
 }) {
   const open = useShallowParam('new', initialOpen ? '1' : null);
-  const para = useShallowParam('para', null);
-  const clientId = useShallowParam('client', initialClient ?? null) ?? para;
+  const clientId = useShallowParam('client', initialClient ?? null);
   const nombre = useShallowParam('nombre', initialNombre ?? null);
   const hora = useShallowParam('hora', initialHora ?? null);
   const servicio = useShallowParam('servicio', initialServicio ?? null);

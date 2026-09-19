@@ -18,7 +18,7 @@ export default async function AgendaPage({
   searchParams: {
     day?: string; mode?: string; new?: string; appt?: string; client?: string;
     wait?: string; close?: string; block?: string; bloqueo?: string; pro?: string;
-    nombre?: string; hora?: string; servicio?: string; con?: string; para?: string; strip?: string;
+    nombre?: string; hora?: string; servicio?: string; con?: string; strip?: string;
   };
 }) {
   const parsed = Number(searchParams.day ?? 0);
@@ -75,12 +75,6 @@ export default async function AgendaPage({
         waiting={waitingPeek.count}
         citas={mode === 'dia' ? citas : undefined}
         busyOffsets={stripBusy}
-        forClient={searchParams.para
-          ? { id: searchParams.para, full_name: searchParams.nombre || 'Clienta', phone: null }
-          : null}
-        forHint={searchParams.servicio
-          ? `${searchParams.servicio} · toca un hueco con +`
-          : undefined}
       />
       {mode === 'dia' ? (
         <DayGrid
@@ -90,7 +84,6 @@ export default async function AgendaPage({
           blocks={dayAgenda.blocks}
           canMoveProvider={canMoveProvider}
           selectedPro={selectedPro}
-          bookMode={!!searchParams.para}
         />
       ) : (
         <WeekGrid days={weekDays} selectedPro={selectedPro} providerCount={providers.length} />
@@ -100,7 +93,7 @@ export default async function AgendaPage({
         day={dayStr}
         providers={sheetProviders}
         initialOpen={searchParams.new === '1'}
-        initialClient={searchParams.client ?? searchParams.para}
+        initialClient={searchParams.client}
         initialNombre={searchParams.nombre}
         initialHora={searchParams.hora}
         initialServicio={searchParams.servicio}

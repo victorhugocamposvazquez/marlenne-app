@@ -97,7 +97,7 @@ export default function ClientaFicha({
             </IconButton>
           )}
           <Link
-            href={`/agenda?para=${client.id}&nombre=${encodeURIComponent(client.full_name)}`}
+            href={`/agenda?new=1&client=${client.id}`}
             aria-label="Nueva cita para esta clienta"
             className="grid h-11 w-11 place-items-center rounded-icon bg-grad text-white shadow-btn transition motion-safe:active:scale-[.96]"
           >

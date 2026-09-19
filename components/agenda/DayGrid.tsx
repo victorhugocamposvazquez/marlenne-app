@@ -19,7 +19,7 @@ const HOUR_W = 46;
 const COL_INSET = 4;
 
 export default function DayGrid({
-  date, providers, appointments, blocks, canMoveProvider, selectedPro, bookMode = false,
+  date, providers, appointments, blocks, canMoveProvider, selectedPro,
 }: {
   date: string;
   providers: Provider[];
@@ -27,7 +27,6 @@ export default function DayGrid({
   blocks: AgendaBlock[];
   canMoveProvider: boolean;
   selectedPro?: string | null;
-  bookMode?: boolean;
 }) {
   const HOUR_H = 96;
   const pxPerMin = HOUR_H / 60;
@@ -272,32 +271,6 @@ export default function DayGrid({
                       openEmpty(p.id, e.clientY, e.currentTarget);
                     }}
                   >
-                    {bookMode && Array.from({ length: Math.floor((DAY_END - DAY_START) / 30) }, (_, i) => {
-                      const start = DAY_START + i * 30;
-                      const taken = appointments.some(a => {
-                        const pos = place(a);
-                        return pos.provider === p.id && pos.start < start + 30 && pos.start + a.duration_min > start;
-                      }) || blocks.some(b => {
-                        const s = minutesOfDay(b.starts_at);
-                        return b.provider_id === p.id && s < start + 30 && s + b.duration_min > start;
-                      });
-                      if (taken) return null;
-                      return (
-                        <button
-                          key={`plus-${p.id}-${start}`}
-                          type="button"
-                          onClick={e => {
-                            e.stopPropagation();
-                            const hora = `${String(Math.floor(start / 60)).padStart(2, '0')}:${String(start % 60).padStart(2, '0')}`;
-                            shallowSet({ new: '1', con: p.id, hora, appt: null, wait: null, block: null, bloqueo: null });
-                          }}
-                          className="absolute left-1 right-1 z-[2] flex items-center justify-center rounded-[10px] bg-[rgba(208,0,168,.08)]"
-                          style={{ top: (start - DAY_START) * pxPerMin + 1, height: 46 }}
-                        >
-                          <span className="bg-grad bg-clip-text text-[16px] font-bold text-transparent">+</span>
-                        </button>
-                      );
-                    })}
                     {placing && durationMin && slotGaps(starts[p.id] ?? []).map(g => {
                       const top = (g.first - DAY_START) * pxPerMin + 2;
                       const h = (g.last + durationMin - g.first) * pxPerMin - 6;
