@@ -102,8 +102,8 @@ export default function PasskeySettingsCard({
   };
 
   return (
-    <section className="mt-6">
-      <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">
+    <section className="mt-8">
+      <h2 className="mb-3 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">
         {platformSettingsTitle(ua)}
       </h2>
       <div className="rounded-row bg-surface-soft p-4">

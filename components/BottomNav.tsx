@@ -9,8 +9,9 @@ import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 export default function BottomNav({ role }: { role: string }) {
   const path = usePathname();
   const creating = useShallowParam('new');
+  const editing = useShallowParam('appt');
   const on = (p: string) => path.startsWith(p);
-  if (creating === '1') return null;
+  if (creating === '1' || editing) return null;
 
   const Item = ({ href, icon: Icon, label }: { href: string; icon: typeof Home; label: string }) => (
     <Link

@@ -8,9 +8,9 @@ import DayStrip from '@/components/agenda/DayStrip';
 import MonthCalendar from '@/components/agenda/MonthCalendar';
 import { useCloseSheet } from '@/components/Sheet';
 import { avatarColor, catStyle, initials } from '@/lib/categories';
-import { createAppointment, slotsFor } from '@/lib/agenda-write';
+import { createAppointment, updateAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
-import { alignStripStart, DAY_END, dateFromOffset, dayKey, durLbl, fmt, offsetFromDay, skipSunday, toTimestamp } from '@/lib/time';
+import { alignStripStart, DAY_END, dateFromOffset, dayKey, durLbl, fmt, minutesOfDay, offsetFromDay, skipSunday, toTimestamp } from '@/lib/time';
 import { bestNameMatches, fold, parseClock } from '@/lib/voice';
 import { packFitsService, packIsOpen, packUsableBy, pickPackForService } from '@/lib/packs';
 import { servicePickSections } from '@/lib/service-pick';
@@ -19,13 +19,14 @@ import { shallowSet } from '@/hooks/useShallowQuery';
 import { useToast } from '@/components/Toast';
 import { confirmPageUrl, waConfirmMsg, waHref } from '@/lib/phone';
 import { issueAppointmentLink } from '@/lib/confirm-link';
-import type { ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
+import type { AgendaAppt, ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
 
 type Step = 'client' | 'service' | 'when' | 'confirm';
 
 export default function NewAppointmentSheet({
   day, providers, services, clients, packs = [], serviceCounts = {}, preselected = null,
   initialName = '', initialHora = '', initialServiceQ = '', initialProviderId,
+  editing = null,
 }: {
   day: string;
   providers: Provider[];
@@ -38,27 +39,39 @@ export default function NewAppointmentSheet({
   initialHora?: string;
   initialServiceQ?: string;
   initialProviderId?: string;
+  editing?: AgendaAppt | null;
 }) {
   const closeAll = useCloseSheet();
   const toast = useToast();
   const [pending, startTransition] = useTransition();
   const guessed = initialServiceQ ? bestNameMatches(services, initialServiceQ, s => s.name) : [];
-  const [query, setQuery] = useState(preselected ? '' : initialName);
-  const [serviceQ, setServiceQ] = useState(guessed.length === 1 ? '' : initialServiceQ);
-  const [client, setClient] = useState<ClientOption | null>(preselected);
-  const [serviceId, setServiceId] = useState(guessed.length === 1 ? guessed[0].id : '');
-  const [providerId, setProviderId] = useState(
-    initialProviderId && providers.some(p => p.id === initialProviderId)
-      ? initialProviderId
-      : (providers[0]?.id ?? ''),
+  const editClient = editing
+    ? (clients.find(c => c.id === editing.client_id) ?? (editing.client_id
+      ? { id: editing.client_id, full_name: editing.client_label, phone: editing.client_phone }
+      : null))
+    : preselected;
+  const [query, setQuery] = useState(editClient ? '' : (editing?.client_label ?? initialName));
+  const [serviceQ, setServiceQ] = useState(guessed.length === 1 || editing ? '' : initialServiceQ);
+  const [client, setClient] = useState<ClientOption | null>(editClient);
+  const [serviceId, setServiceId] = useState(
+    editing?.service_id ?? (guessed.length === 1 ? guessed[0].id : ''),
   );
-  const [startMin, setStartMin] = useState<number | null>(parseClock(initialHora));
-  const [dayOff, setDayOff] = useState(() => skipSunday(offsetFromDay(day), 1));
+  const [providerId, setProviderId] = useState(
+    editing?.provider_id
+    ?? (initialProviderId && providers.some(p => p.id === initialProviderId)
+      ? initialProviderId
+      : (providers[0]?.id ?? '')),
+  );
+  const [startMin, setStartMin] = useState<number | null>(
+    editing ? minutesOfDay(editing.starts_at) : parseClock(initialHora),
+  );
+  const [dayOff, setDayOff] = useState(() => skipSunday(offsetFromDay(editing?.starts_at ?? day), 1));
   const [stripStart, setStripStart] = useState(() => {
-    const off = skipSunday(offsetFromDay(day), 1);
+    const off = skipSunday(offsetFromDay(editing?.starts_at ?? day), 1);
     return alignStripStart(off, off, 5);
   });
   const [step, setStep] = useState<Step>(() => {
+    if (editing) return 'confirm';
     if (preselected && guessed.length === 1 && parseClock(initialHora) != null) return 'confirm';
     if (preselected) return 'service';
     return 'client';
@@ -102,24 +115,24 @@ export default function NewAppointmentSheet({
     if (step !== 'service' || startMin == null || !providerId) { setFits({}); return; }
     let alive = true;
     void Promise.all(services.map(async s => {
-      const slots = await slotsFor(createClient(), providerId, bookDay, s.duration_min);
+      const slots = await slotsFor(createClient(), providerId, bookDay, s.duration_min, editing?.id);
       return [s.id, slots.includes(startMin)] as const;
     })).then(rows => {
       if (!alive) return;
       setFits(Object.fromEntries(rows));
     });
     return () => { alive = false; };
-  }, [step, startMin, providerId, bookDay, services]);
+  }, [step, startMin, providerId, bookDay, services, editing?.id]);
 
   useEffect(() => {
     if (step !== 'when' || !service || !providerId) { setHours(null); return; }
     let alive = true;
     setHours(null);
-    void slotsFor(createClient(), providerId, bookDay, service.duration_min).then(list => {
+    void slotsFor(createClient(), providerId, bookDay, service.duration_min, editing?.id).then(list => {
       if (alive) setHours(list);
     });
     return () => { alive = false; };
-  }, [step, service, providerId, bookDay]);
+  }, [step, service, providerId, bookDay, editing?.id]);
 
   const pickClient = (c: ClientOption | null, name?: string) => {
     setClient(c);
@@ -169,18 +182,29 @@ export default function NewAppointmentSheet({
       : null;
     startTransition(async () => {
       const sb = createClient();
-      const r = await createAppointment(sb, {
-        clientId: client?.id,
-        clientName: client ? undefined : who,
-        serviceId: service.id,
-        providerId,
-        date: bookDay,
-        startMin,
-        clientPackId: pack?.id,
-      });
+      const r = editing
+        ? await updateAppointment(sb, {
+            id: editing.id,
+            clientId: client?.id,
+            clientName: client ? undefined : who,
+            serviceId: service.id,
+            providerId,
+            date: bookDay,
+            startMin,
+          })
+        : await createAppointment(sb, {
+            clientId: client?.id,
+            clientName: client ? undefined : who,
+            serviceId: service.id,
+            providerId,
+            date: bookDay,
+            startMin,
+            clientPackId: pack?.id,
+          });
       if (!r.ok) { toast(r.error ?? 'No se ha podido guardar', 'err'); return; }
-      if (wa && (client?.phone) && r.id) {
-        const token = await issueAppointmentLink(sb, r.id);
+      const savedId = editing?.id ?? r.id;
+      if (wa && (client?.phone) && savedId) {
+        const token = await issueAppointmentLink(sb, savedId);
         const href = waHref(client.phone, waConfirmMsg({
           clientLabel: who,
           service: service.name,
@@ -189,14 +213,16 @@ export default function NewAppointmentSheet({
         }));
         if (href) window.open(href, '_blank');
       }
-      toast(`Cita guardada · ${who.split(' ')[0]} ${fmt(startMin)}${wa ? ' · WhatsApp' : ''}`);
+      toast(editing
+        ? `Cita actualizada · ${who.split(' ')[0]} ${fmt(startMin)}`
+        : `Cita guardada · ${who.split(' ')[0]} ${fmt(startMin)}${wa ? ' · WhatsApp' : ''}`);
       closeAll();
-      shallowSet({ para: null, new: null, client: null, nombre: null, hora: null, servicio: null, con: null });
+      shallowSet({ para: null, new: null, appt: null, client: null, nombre: null, hora: null, servicio: null, con: null });
     });
   };
 
   const idx = step === 'client' ? 1 : step === 'service' ? 2 : 3;
-  const canBack = step !== 'client' && !(preselected && step === 'service');
+  const canBack = step !== 'client' && !(preselected && step === 'service' && !editing) && !(editing && step === 'confirm');
   const question = step === 'client'
     ? '¿Para quién es?'
     : step === 'service'
@@ -233,7 +259,7 @@ export default function NewAppointmentSheet({
             </button>
           )}
           <div className="min-w-0 flex-1">
-            <p className="text-label text-ink-2">Nueva cita · paso {idx} de 3</p>
+            <p className="text-label text-ink-2">{editing ? 'Editar cita' : 'Nueva cita'} · paso {idx} de 3</p>
             <p className="truncate text-[15px] font-semibold">{ctx}</p>
           </div>
           <button type="button" aria-label="Cerrar" onClick={closeAll} className="grid h-10 w-10 place-items-center rounded-pill bg-track">
@@ -447,7 +473,7 @@ export default function NewAppointmentSheet({
             <div className="px-6 pb-[max(20px,env(safe-area-inset-bottom))] pt-4">
               <Button size="lg" full onClick={save} disabled={pending || !service || startMin == null}>
                 <Check size={20} strokeWidth={2.8} />
-                {pending ? 'Guardando…' : 'Guardar cita'}
+                {pending ? 'Guardando…' : editing ? 'Guardar cambios' : 'Guardar cita'}
               </Button>
             </div>
           </>

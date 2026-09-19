@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { addDays, dayKey, minutesOfDay, toTimestamp, weekdayUtc } from '@/lib/time';
+import { moveAppointment } from '@/lib/move-appointment';
 import type { Waiter } from '@/lib/types';
 
 export type WriteResult = { ok: boolean; error: string | null; id?: string; waiters?: Waiter[] };
@@ -109,6 +110,44 @@ export async function cancelAppointment(sb: SupabaseClient, id: string): Promise
   const { error } = await sb.from('appointments').delete().eq('id', id);
   if (error) return { ok: false, error: error.message };
   return { ok: true, error: null, waiters };
+}
+
+/** Cambia clienta, tratamiento, día, hora o profesional de una cita existente. */
+export async function updateAppointment(
+  sb: SupabaseClient,
+  input: {
+    id: string;
+    clientId?: string;
+    clientName?: string;
+    serviceId: string;
+    providerId: string;
+    date: string;
+    startMin: number;
+  },
+): Promise<WriteResult> {
+  const { data: svc } = await sb
+    .from('services')
+    .select('duration_min, price_cents')
+    .eq('id', input.serviceId)
+    .maybeSingle();
+  if (!svc) return { ok: false, error: 'Servicio no encontrado' };
+
+  const { error: upErr } = await sb.from('appointments').update({
+    client_id: input.clientId ?? null,
+    client_name: input.clientId ? null : (input.clientName?.trim() || null),
+    service_id: input.serviceId,
+    duration_min: svc.duration_min,
+    price_cents: svc.price_cents,
+  }).eq('id', input.id);
+  if (upErr) return { ok: false, error: overlapMsg(upErr.message) ? BUSY : upErr.message };
+
+  const moved = await moveAppointment(sb, {
+    id: input.id,
+    date: input.date,
+    startMin: input.startMin,
+    providerId: input.providerId,
+  });
+  return { ok: moved.ok, error: moved.error };
 }
 
 export async function updateAppointmentNote(sb: SupabaseClient, id: string, note: string): Promise<WriteResult> {

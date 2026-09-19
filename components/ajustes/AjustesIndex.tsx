@@ -10,14 +10,14 @@ type Destino = { href: string; title: string; hint: string };
 function Group({ title, rows }: { title: string; rows: Destino[] }) {
   if (!rows.length) return null;
   return (
-    <section className="mt-5">
-      <h2 className="mb-2 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">{title}</h2>
-      <div>
+    <section className="mt-8">
+      <h2 className="mb-3 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">{title}</h2>
+      <div className="rounded-card bg-surface-soft px-4">
         {rows.map(row => (
           <Link
             key={row.href}
             href={row.href}
-            className="flex min-h-[44px] items-center gap-3 border-b border-surface-line py-3.5 last:border-0"
+            className="flex min-h-[44px] items-center gap-3 border-b border-[#E6E5EC] py-3.5 last:border-0"
           >
             <span className="min-w-0 flex-1">
               <span className="block text-body-lg font-semibold">{row.title}</span>

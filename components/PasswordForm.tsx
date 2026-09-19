@@ -30,9 +30,9 @@ export default function PasswordForm() {
   };
 
   return (
-    <section className="mt-6">
-      <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">Tu contraseña</h2>
-      <div>
+    <section className="mt-8">
+      <h2 className="mb-3 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">Tu contraseña</h2>
+      <div className="rounded-card bg-surface-soft p-4">
         <input
           className={`${inputCls} mb-2`}
           type="password"

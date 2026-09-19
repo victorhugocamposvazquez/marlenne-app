@@ -41,11 +41,11 @@ export default function VoiceSettingsCard() {
   }, []);
 
   return (
-    <section className="mt-6">
-      <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">
+    <section className="mt-8">
+      <h2 className="mb-3 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">
         Voz
       </h2>
-      <div className="px-0">
+      <div className="rounded-card bg-surface-soft px-4">
         <Row
           title="Solo al tocar el micro"
           hint="Nada de oído de fondo. Tú pulsas y hablas."
