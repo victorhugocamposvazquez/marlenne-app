@@ -18,7 +18,7 @@ import { servicePickSections } from '@/lib/service-pick';
 import { readLastServiceId, writeLastServiceId } from '@/hooks/last-service';
 import { shallowSet } from '@/hooks/useShallowQuery';
 import { useToast } from '@/components/Toast';
-import { confirmPageUrl, firstName, waConfirmMsg, waHref } from '@/lib/phone';
+import { confirmPageUrl, waConfirmMsg, waHref } from '@/lib/phone';
 import { goWhatsApp, reserveWhatsAppWindow } from '@/hooks/open-whatsapp';
 import { issueAppointmentLink } from '@/lib/confirm-link';
 import type { AgendaAppt, ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
@@ -248,16 +248,18 @@ export default function NewAppointmentSheet({
 
   const idx = step === 'client' ? 1 : step === 'service' ? 2 : 3;
   const canBack = step !== 'confirm' && (step !== 'client' || returnTo === 'confirm') && !(preselected && step === 'service' && !editing && returnTo !== 'confirm');
-  const first = who.length >= 2 ? firstName(who) : '';
   const question = step === 'client'
     ? '¿Para quién es?'
     : step === 'service'
-      ? (first ? `¿Qué tratamiento para ${first}?` : '¿Qué tratamiento?')
+      ? '¿Qué tratamiento?'
       : step === 'when'
-        ? (first && service
-          ? `¿Cuándo le hacemos ${service.name} a ${first}?`
-          : first ? `¿Cuándo para ${first}?` : '¿Cuándo?')
+        ? '¿Cuándo?'
         : '¿Algún cambio?';
+  const editStep = (next: Step) => {
+    if (returnTo === 'confirm' || editing) changeField(next);
+    else setStep(next);
+  };
+  const showTrail = step !== 'client' && step !== 'confirm' && who.length >= 2;
   const goBack = () => {
     if (returnTo === 'confirm' && (step === 'client' || step === 'service')) {
       setReturnTo(null);
@@ -308,6 +310,21 @@ export default function NewAppointmentSheet({
           ))}
         </div>
         <h2 className="mx-6 mt-6 shrink-0 text-display font-bold tracking-[-.03em]">{question}</h2>
+        {showTrail && (
+          <p className="mx-6 mt-1.5 flex min-w-0 shrink-0 items-center text-label text-ink-2">
+            <button type="button" onClick={() => editStep('client')} className="shrink-0 font-semibold text-ink">
+              {who}
+            </button>
+            {service && step === 'when' && (
+              <>
+                <span className="shrink-0 px-1.5 text-ink-3" aria-hidden>·</span>
+                <button type="button" onClick={() => editStep('service')} className="min-w-0 truncate text-left">
+                  {service.name}
+                </button>
+              </>
+            )}
+          </p>
+        )}
 
         {step === 'client' && (
           <>
