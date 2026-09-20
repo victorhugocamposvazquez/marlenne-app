@@ -122,7 +122,7 @@ export default function WeekGrid({
                       ))}
                       {d.isToday && nowMin > DAY_START && nowMin < DAY_END && (
                         <span
-                          className="absolute top-[-2px] z-[1] h-[18px] w-0.5 rounded-full bg-ink"
+                          className="absolute top-[-2px] z-[1] h-[18px] w-0.5 rounded-full bg-v-2"
                           style={{ left: `${nowMarkerPct(nowMin)}%` }}
                         />
                       )}

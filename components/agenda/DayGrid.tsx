@@ -253,10 +253,10 @@ export default function DayGrid({
                   className="pointer-events-none absolute z-[8] flex items-center"
                   style={{ top: (now - DAY_START) * pxPerMin, width: solo ? '100%' : providers.length * colW }}
                 >
-                  <span className="-ml-1 grid h-5 w-10 shrink-0 place-items-center rounded-pill bg-ink text-[11px] font-bold text-white">
+                  <span className="-ml-1 grid h-5 w-10 shrink-0 place-items-center rounded-pill bg-v-2 text-[11px] font-bold text-white">
                     {fmt(now)}
                   </span>
-                  <span className="h-0.5 flex-1 bg-ink" />
+                  <span className="h-0.5 flex-1 bg-v-2" />
                 </div>
               )}
 

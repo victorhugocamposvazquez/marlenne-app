@@ -81,13 +81,13 @@ export default function DayStrip({
               style={{
                 width: 'var(--day-cell)',
                 flex: '0 0 var(--day-cell)',
-                background: on ? 'rgb(var(--c-ink))' : 'transparent',
+                background: on ? 'rgb(var(--c-brand-2))' : 'transparent',
                 color: on ? '#FFFFFF' : d.isSunday ? 'rgb(var(--c-ink-3))' : 'rgb(var(--c-ink))',
               }}
             >
               <span
                 className="text-[11px] font-semibold leading-none"
-                style={{ color: on ? '#B7B4C4' : d.isSunday ? 'rgb(var(--c-ink-3))' : 'rgb(var(--c-ink-2))' }}
+                style={{ color: on ? '#FFFFFF' : d.isSunday ? 'rgb(var(--c-ink-3))' : 'rgb(var(--c-ink-2))' }}
               >
                 {short}
               </span>

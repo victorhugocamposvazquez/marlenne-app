@@ -40,13 +40,13 @@ export default function WeekStrip({
               onClick={() => onSelect(d.offset)}
               className={`flex min-h-[4.25rem] flex-col items-center justify-center rounded-field px-0.5 py-1.5 ${
                 on
-                  ? 'bg-grad text-white'
+                  ? 'bg-v-2 text-white'
                   : d.isToday
-                    ? 'border-2 border-v bg-v-tint text-v-d'
+                    ? 'border-2 border-v-2 bg-v-tint text-v-d'
                     : 'border border-surface-line bg-surface-card text-ink-2'
               }`}
             >
-              <span className={`text-micro font-bold uppercase tracking-[.04em] ${on ? 'text-white/85' : ''}`}>
+              <span className={`text-micro font-bold uppercase tracking-[.04em] ${on ? 'text-white' : ''}`}>
                 {short}
               </span>
               <span className="text-body-lg font-extrabold tabular-nums leading-none">{d.num}</span>

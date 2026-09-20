@@ -77,9 +77,9 @@ export default function MonthCalendar({
                 }}
                 className="flex h-11 flex-col items-center justify-center gap-0.5 rounded-[12px]"
                 style={{
-                  background: sel ? 'rgb(var(--c-ink))' : 'transparent',
+                  background: sel ? 'rgb(var(--c-brand-2))' : 'transparent',
                   color: sel ? '#fff' : c.sun ? 'rgb(var(--c-ink-3))' : 'rgb(var(--c-ink))',
-                  boxShadow: today && !sel ? 'inset 0 0 0 1.5px rgb(var(--c-ink))' : undefined,
+                  boxShadow: today && !sel ? 'inset 0 0 0 1.5px rgb(var(--c-brand-2))' : undefined,
                 }}
               >
                 <span className="text-[15px] font-semibold">{c.n}</span>
