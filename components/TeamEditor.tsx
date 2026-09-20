@@ -117,7 +117,7 @@ function EditForm({
         Activa en la agenda
       </label>
       <Button
-        variant="ink"
+        variant="outline"
         full
         disabled={pending || name.trim().length < 2}
         onClick={() => onSave({ full_name: name, role, job_title: title, is_active: active })}

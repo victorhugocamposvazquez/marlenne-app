@@ -68,7 +68,7 @@ function NewMemberBody() {
         </div>
       </Field>
       <div className="mt-5 border-t border-surface-line pt-4">
-        <Button variant="ink" full disabled={!canSave} onClick={save}>
+        <Button full disabled={!canSave} onClick={save}>
           {pending ? 'Creando…' : 'Crear acceso'}
         </Button>
       </div>
