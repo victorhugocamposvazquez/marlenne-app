@@ -121,7 +121,7 @@ export default function ClientasView({
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
       <header className="shrink-0 px-6 pb-2 pt-5">
-        <PageHeading title={`Clientas - ${titleCount}`}>
+        <PageHeading title="Clientas" subtitle={titleCount}>
           <IconButton
             label="Nueva Client@"
             tone="ink"
@@ -130,19 +130,19 @@ export default function ClientasView({
             <Plus size={20} strokeWidth={2.4} />
           </IconButton>
         </PageHeading>
-        <div ref={sortRef} className="relative mt-3">
+        <div ref={sortRef} className="relative mt-1.5">
           <div className="flex items-center gap-1.5">
-            <span className="text-body-lg font-bold text-ink">Ordenar por:</span>
+            <span className="text-body font-bold text-ink">Ordenar por:</span>
             <button
               type="button"
               aria-haspopup="listbox"
               aria-expanded={sortOpen}
               aria-label={`Ordenar por ${sortLabel}`}
               onClick={() => setSortOpen(o => !o)}
-              className="inline-flex min-h-[44px] items-center gap-0.5 text-body-lg font-semibold text-ink"
+              className="inline-flex items-center gap-0.5 text-body font-semibold text-ink"
             >
               {sortLabel}
-              <ChevronDown size={18} strokeWidth={2.2} className={sortOpen ? 'rotate-180' : ''} aria-hidden />
+              <ChevronDown size={16} strokeWidth={2.2} className={sortOpen ? 'rotate-180' : ''} aria-hidden />
             </button>
           </div>
           {sortOpen && (
@@ -173,7 +173,7 @@ export default function ClientasView({
             </ul>
           )}
         </div>
-        <div className="mt-4 flex h-[54px] items-center gap-2.5 rounded-field bg-surface-soft px-4">
+        <div className="mt-2 flex h-[54px] items-center gap-2.5 rounded-field bg-surface-soft px-4">
           <Search size={18} className="text-ink-3" strokeWidth={2.2} />
           <input
             value={q}
@@ -183,7 +183,7 @@ export default function ClientasView({
             className="flex-1 border-0 bg-transparent text-[16px] outline-none placeholder:text-ink-3"
           />
         </div>
-        <div className="mt-3 flex gap-1.5 overflow-x-auto">
+        <div className="mt-2 flex gap-1.5 overflow-x-auto">
           {FILTERS.map(f => (
             <Chip
               key={f.id}
