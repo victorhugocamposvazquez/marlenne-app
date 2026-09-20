@@ -56,10 +56,11 @@ function DetailRow({ icon: Icon, label, value }: { icon: LucideIcon; label: stri
 }
 
 function PopupShell({
-  title, icon: Icon, onDismiss, undo, onUndo, children,
+  title, icon: Icon, iconTone = 'grad', onDismiss, undo, onUndo, children,
 }: {
   title: string;
   icon: LucideIcon;
+  iconTone?: 'grad' | 'ok';
   onDismiss: () => void;
   undo?: Undo;
   onUndo?: () => void;
@@ -89,7 +90,7 @@ function PopupShell({
               <X size={16} strokeWidth={2.4} />
             </button>
             <div className="flex flex-col items-center text-center">
-              <span className="mb-3 grid h-[52px] w-[52px] place-items-center rounded-full bg-grad text-white">
+              <span className={`mb-3 grid h-[52px] w-[52px] place-items-center rounded-full text-white ${iconTone === 'ok' ? 'bg-ok' : 'bg-grad'}`}>
                 <Icon size={24} strokeWidth={2.4} aria-hidden />
               </span>
               <h2 className="text-title font-bold tracking-[-.02em] text-ink">{title}</h2>
@@ -119,6 +120,7 @@ function CitaPopup({ cita, onDismiss, undo }: { cita: CitaToast; onDismiss: () =
     <PopupShell
       title={title}
       icon={Check}
+      iconTone="ok"
       onDismiss={onDismiss}
       undo={undo}
       onUndo={undo ? () => { onDismiss(); undo(); } : undefined}
