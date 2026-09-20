@@ -72,6 +72,7 @@ export default {
         body: ['15px', { lineHeight: '1.45' }],
         'body-lg': ['16px', { lineHeight: '1.4' }],
         title: ['20px', { lineHeight: '1.2' }],
+        headline: ['24px', { lineHeight: '1.15' }],
         h1: ['28px', { lineHeight: '1.1' }],
         display: ['26px', { lineHeight: '1.1' }],
       },

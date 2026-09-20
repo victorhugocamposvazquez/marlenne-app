@@ -54,16 +54,16 @@ export default function AgendaHeader({
             <span className={`${screenTitleCls} whitespace-nowrap`}>
               {monthTitleFromOffset(day)}
             </span>
-            <ChevronDown size={14} strokeWidth={2.6} className="shrink-0 text-ink-3" aria-hidden />
+            <ChevronDown size={16} strokeWidth={2.6} className="shrink-0 text-ink-3" aria-hidden />
           </button>
         )}
         actions={(
           <>
             <HeaderIconButton label="Calendario" onClick={() => setCal(true)}>
-              <Calendar size={20} strokeWidth={2} />
+              <Calendar size={22} strokeWidth={2} />
             </HeaderIconButton>
             <HeaderIconButton label="Nueva cita" onClick={openNew}>
-              <Plus size={20} strokeWidth={2.2} />
+              <Plus size={22} strokeWidth={2.2} />
             </HeaderIconButton>
           </>
         )}

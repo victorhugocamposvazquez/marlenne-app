@@ -17,7 +17,7 @@ export default function HoyHeaderActions({
     <div className={headerActionsCls}>
       <Link
         href="/agenda?wait=1"
-        className={`relative ${circleOutlineCls} h-11 w-11`}
+        className={`relative ${circleOutlineCls} h-12 w-12`}
         aria-label="Lista de espera"
       >
         <Bell size={20} strokeWidth={2} />
