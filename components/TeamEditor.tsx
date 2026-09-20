@@ -29,16 +29,8 @@ export default function TeamEditor({
   const miembro = useShallowParam('miembro', initialMiembro ? '1' : null);
   const [open, setOpen] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const active = team.filter(p => p.is_active !== false).length;
-
   return (
     <div>
-      <p className="mb-3 text-body font-normal text-ink-2">
-        {team.length === active
-          ? `${team.length} ${team.length === 1 ? 'persona' : 'personas'}`
-          : `${active} activas · ${team.length} en total`}
-      </p>
-
       <div className="flex flex-col gap-2">
         {team.map(p => (
           <div key={p.id} className="rounded-row bg-surface-soft">

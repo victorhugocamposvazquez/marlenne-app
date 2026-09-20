@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, ChevronDown, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import DayStrip from '@/components/agenda/DayStrip';
 import MonthCalendar from '@/components/agenda/MonthCalendar';
 import { circleOutlineCls } from '@/components/ui/IconButton';
@@ -41,15 +41,32 @@ export default function AgendaHeader({
   return (
     <header className="shrink-0 px-4 pb-0 pt-5">
       <div className="mb-3 flex items-center justify-between px-1">
-        <button type="button" onClick={() => setCal(true)} className="flex items-center gap-2.5">
-          <span className="flex items-center gap-1">
+        <div className="flex items-center gap-2.5">
+          <button type="button" onClick={() => setCal(true)} className="flex items-center gap-1">
             <span className="text-title font-bold tracking-[-.02em]">{monthTitleFromOffset(day)}</span>
             <ChevronDown size={16} strokeWidth={2.8} />
-          </span>
-          <span className={`${circleOutlineCls} h-12 w-12`}>
+          </button>
+          <button
+            type="button"
+            onClick={() => setCal(true)}
+            aria-label="Calendario"
+            className={`${circleOutlineCls} h-12 w-12`}
+          >
             <Calendar size={24} strokeWidth={2} />
-          </span>
-        </button>
+          </button>
+          <button
+            type="button"
+            aria-label="Nueva cita"
+            onClick={() => shallowSet({
+              new: '1',
+              con: null, hora: null, nombre: null, servicio: null, client: null,
+              wait: null, block: null, bloqueo: null, appt: null, close: null, alta: null, miembro: null,
+            })}
+            className={`${circleOutlineCls} h-12 w-12`}
+          >
+            <Plus size={22} strokeWidth={2.2} />
+          </button>
+        </div>
         <div className="flex items-center gap-3">
           {day !== 0 && (
             <button type="button" onClick={() => go(0, { strip: 0 })} className="text-[14px] font-semibold text-v-d">

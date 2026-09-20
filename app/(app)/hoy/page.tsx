@@ -4,13 +4,15 @@ import { requireSession } from '@/lib/require-session';
 import { listProviders, getDayAgenda, countWaitlist, listRecalls } from '@/lib/queries';
 import { countMyPasskeys } from '@/app/actions/webauthn';
 import { fmt, minutesOfDay, madridNow, DAY_START, DAY_END } from '@/lib/time';
-import { Bell, CalendarCheck, ChevronRight, HeartHandshake, UserRound } from 'lucide-react';
+import { CalendarCheck, ChevronRight, HeartHandshake, UserRound } from 'lucide-react';
 import EmptyState from '@/components/ui/EmptyState';
 import PageHeading from '@/components/ui/PageHeading';
 import LiveRefresh from '@/components/LiveRefresh';
 import HoyApptRow from '@/components/hoy/HoyApptRow';
 import RecallCard from '@/components/hoy/RecallCard';
 import PasskeySetupBanner from '@/components/PasskeySetupBanner';
+import CreateMenu from '@/components/CreateMenu';
+import HoyHeaderActions from '@/components/hoy/HoyHeaderActions';
 import type { AgendaAppt } from '@/lib/types';
 
 export default async function HoyPage() {
@@ -65,16 +67,7 @@ export default async function HoyPage() {
           )}
           title={cabin ? 'Tu día' : greeting}
         >
-          {!cabin && (
-            <Link
-              href="/agenda?wait=1"
-              className="relative grid h-11 w-11 place-items-center rounded-pill bg-track text-ink transition motion-safe:active:scale-[.96]"
-              aria-label="Lista de espera"
-            >
-              <Bell size={19} strokeWidth={2} />
-              {waiting > 0 && <span className="absolute right-2.5 top-2 h-2 w-2 rounded-full border-2 border-surface-card bg-v" />}
-            </Link>
-          )}
+          {cabin ? <CreateMenu role={me.role} /> : <HoyHeaderActions role={me.role} waiting={waiting} />}
         </PageHeading>
       </div>
 
