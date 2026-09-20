@@ -18,7 +18,7 @@ export default function PageHeading({
         {kicker != null && kicker}
         <h1 className="text-h1 font-bold tracking-[-.03em]">{title}</h1>
         {subtitle != null && (
-          <p className="mt-1 text-body font-normal text-ink-2">{subtitle}</p>
+          <div className="mt-1 text-body font-normal text-ink-2">{subtitle}</div>
         )}
       </div>
       {children}

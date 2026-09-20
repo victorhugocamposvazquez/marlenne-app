@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Search } from 'lucide-react';
+import { Check, ChevronDown, Plus, Search } from 'lucide-react';
 import NewClientSheet from '@/components/clienta/NewClientSheet';
 import Chip from '@/components/ui/Chip';
 import EmptyState from '@/components/ui/EmptyState';
@@ -64,6 +64,26 @@ export default function ClientasView({
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<Filter>('todas');
   const [sort, setSort] = useState<Sort>('az');
+  const [sortOpen, setSortOpen] = useState(false);
+  const sortRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!sortOpen) return;
+    const onDoc = (e: PointerEvent) => {
+      if (!sortRef.current?.contains(e.target as Node)) setSortOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSortOpen(false);
+    };
+    document.addEventListener('pointerdown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [sortOpen]);
+
+  const sortLabel = SORTS.find(s => s.id === sort)?.label ?? 'A–Z';
 
   const shown = useMemo(() => {
     const needle = fold(q);
@@ -94,15 +114,60 @@ export default function ClientasView({
     });
   }, [clients, q, filter, sort]);
 
+  const countLbl = shown.length === clients.length
+    ? `${clients.length} fichas`
+    : `${shown.length} de ${clients.length}`;
+
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
       <header className="shrink-0 px-6 pb-2 pt-5">
         <PageHeading
           title="Clientas"
           subtitle={
-            shown.length === clients.length
-              ? `${clients.length} fichas`
-              : `${shown.length} de ${clients.length}`
+            <div className="flex items-center gap-1.5">
+              <span>{countLbl}</span>
+              <span aria-hidden>·</span>
+              <div ref={sortRef} className="relative">
+                <button
+                  type="button"
+                  aria-haspopup="listbox"
+                  aria-expanded={sortOpen}
+                  aria-label={`Ordenar por ${sortLabel}`}
+                  onClick={() => setSortOpen(o => !o)}
+                  className="inline-flex items-center gap-0.5 font-semibold text-ink"
+                >
+                  {sortLabel}
+                  <ChevronDown size={16} strokeWidth={2.2} className={sortOpen ? 'rotate-180' : ''} aria-hidden />
+                </button>
+                {sortOpen && (
+                  <ul
+                    role="listbox"
+                    aria-label="Ordenar clientas"
+                    className="absolute left-0 top-[calc(100%+6px)] z-20 min-w-[11.5rem] overflow-hidden rounded-row bg-surface-card py-1 shadow-lift ring-1 ring-surface-line"
+                  >
+                    {SORTS.map(s => {
+                      const on = s.id === sort;
+                      return (
+                        <li key={s.id}>
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={on}
+                            onClick={() => { setSort(s.id); setSortOpen(false); }}
+                            className={`flex min-h-[44px] w-full items-center justify-between gap-3 px-3.5 text-left text-body ${
+                              on ? 'font-bold text-ink' : 'font-medium text-ink-2'
+                            }`}
+                          >
+                            {s.label}
+                            {on && <Check size={16} strokeWidth={2.4} className="shrink-0 text-ink" aria-hidden />}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
           }
         >
           <IconButton
@@ -132,18 +197,6 @@ export default function ClientasView({
               onClick={() => setFilter(prev => (prev === f.id ? 'todas' : f.id))}
             >
               {f.label}
-            </Chip>
-          ))}
-        </div>
-        <div className="mt-2 flex gap-1.5 overflow-x-auto">
-          {SORTS.map(s => (
-            <Chip
-              key={s.id}
-              className="min-h-[36px] shrink-0 px-3"
-              active={sort === s.id}
-              onClick={() => setSort(s.id)}
-            >
-              {s.label}
             </Chip>
           ))}
         </div>
