@@ -13,7 +13,7 @@ export default function PageHeading({
   children?: ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-3">
+    <div className="flex items-center gap-4">
       <div className="min-w-0 flex-1">
         {kicker != null && <div className="mb-1">{kicker}</div>}
         <h1 className="text-h1 font-bold tracking-[-.03em]">{title}</h1>

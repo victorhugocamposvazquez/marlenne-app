@@ -4,11 +4,14 @@ import { circleOutlineCls } from '@/components/ui/IconButton';
 /** Márgenes de cabecera de pantalla (referencia: Clientas). */
 export const screenHeaderCls = 'shrink-0 px-6 pb-2 pt-5';
 
-/** Fila título + acciones: el + queda siempre pegado al borde derecho del padding. */
-export const headerTitleRowCls = 'flex items-start gap-3';
+/** Fila título + acciones: aire fijo entre texto e iconos en todos los dispositivos. */
+export const headerTitleRowCls = 'flex items-center gap-4';
 
 /** Columna derecha: calendario, +, campana… sin saltos entre pantallas. */
 export const headerActionsCls = 'flex shrink-0 items-center gap-2';
+
+/** Mes / título de cabecera con iconos al lado (20px, no h1 de 28px). */
+export const screenTitleCls = 'text-title font-bold leading-tight tracking-[-.03em]';
 
 export function HeaderTitleRow({
   title, actions,
@@ -38,7 +41,7 @@ export function HeaderIconButton({
     <button
       type={type}
       aria-label={label}
-      className={`${circleOutlineCls} h-12 w-12 ${className}`}
+      className={`${circleOutlineCls} h-11 w-11 ${className}`}
       {...rest}
     >
       {children}

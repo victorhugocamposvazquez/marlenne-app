@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Calendar, ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import DayStrip from '@/components/agenda/DayStrip';
 import MonthCalendar from '@/components/agenda/MonthCalendar';
-import { HeaderIconButton, HeaderTitleRow, screenHeaderCls } from '@/components/ui/ScreenHeader';
+import { HeaderIconButton, HeaderTitleRow, screenHeaderCls, screenTitleCls } from '@/components/ui/ScreenHeader';
 import { alignStripStart, monthTitleFromOffset, skipSunday } from '@/lib/time';
 import { shallowSet } from '@/hooks/useShallowQuery';
 
@@ -50,20 +50,20 @@ export default function AgendaHeader({
     <header className={screenHeaderCls}>
       <HeaderTitleRow
         title={(
-          <button type="button" onClick={() => setCal(true)} className="flex min-w-0 items-center gap-1 text-left">
-            <span className="truncate whitespace-nowrap text-h1 font-bold tracking-[-.03em]">
+          <button type="button" onClick={() => setCal(true)} className="flex min-w-0 max-w-full items-center gap-0.5 text-left">
+            <span className={`${screenTitleCls} whitespace-nowrap`}>
               {monthTitleFromOffset(day)}
             </span>
-            <ChevronDown size={16} strokeWidth={2.8} className="shrink-0" aria-hidden />
+            <ChevronDown size={14} strokeWidth={2.6} className="shrink-0 text-ink-3" aria-hidden />
           </button>
         )}
         actions={(
           <>
             <HeaderIconButton label="Calendario" onClick={() => setCal(true)}>
-              <Calendar size={22} strokeWidth={2} />
+              <Calendar size={20} strokeWidth={2} />
             </HeaderIconButton>
             <HeaderIconButton label="Nueva cita" onClick={openNew}>
-              <Plus size={22} strokeWidth={2.2} />
+              <Plus size={20} strokeWidth={2.2} />
             </HeaderIconButton>
           </>
         )}
