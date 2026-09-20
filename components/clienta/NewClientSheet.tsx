@@ -65,8 +65,9 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
 
   return (
     <Sheet
-      title="Nueva clienta"
+      title="Nueva Client@"
       subtitle="Nombre y teléfono bastan. Luego das la cita."
+      initialHeight="tall"
       footer={
         <>
           {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
@@ -109,7 +110,6 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
         <Field label="Nombre">
           <input
             className={inputCls}
-            autoFocus
             placeholder="Nombre y apellidos"
             value={name}
             onChange={e => setName(e.target.value)}
@@ -154,36 +154,36 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
         </div>
       )}
 
-      <details className="mb-2">
-        <summary className="cursor-pointer text-label font-bold text-ink-3">Más datos y consentimientos</summary>
-        <div className="mt-2.5">
-          <Field label="Email">
-            <input className={inputCls} type="email" placeholder="opcional" value={email} onChange={e => setEmail(e.target.value)} />
-          </Field>
-          <label className="mb-2 flex items-center gap-2 text-body font-bold">
-            <input type="checkbox" checked={vip} onChange={e => setVip(e.target.checked)} className="h-5 w-5 accent-v" />
-            Marcar como VIP
-          </label>
-          <label className="mb-2 flex items-start gap-2 text-body font-bold">
-            <input type="checkbox" checked={salud} onChange={e => setSalud(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-v" />
-            <span>
-              Consentimiento de datos de salud
-              <span className="mt-0.5 block text-caption font-medium leading-snug text-ink-3">
-                {CONSENT_COPY.datos_salud}
-              </span>
+      <div className="mb-2">
+        <p className="mb-2.5 text-caption font-bold uppercase tracking-[.03em] text-ink-2">
+          Datos y consentimientos
+        </p>
+        <Field label="Email">
+          <input className={inputCls} type="email" placeholder="opcional" value={email} onChange={e => setEmail(e.target.value)} />
+        </Field>
+        <label className="mb-2 flex items-center gap-2 text-body font-bold">
+          <input type="checkbox" checked={vip} onChange={e => setVip(e.target.checked)} className="h-5 w-5 accent-v" />
+          Marcar como VIP
+        </label>
+        <label className="mb-2 flex items-start gap-2 text-body font-bold">
+          <input type="checkbox" checked={salud} onChange={e => setSalud(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-v" />
+          <span>
+            Consentimiento de datos de salud
+            <span className="mt-0.5 block text-caption font-medium leading-snug text-ink-3">
+              {CONSENT_COPY.datos_salud}
             </span>
-          </label>
-          <label className="mb-2 flex items-start gap-2 text-body font-bold">
-            <input type="checkbox" checked={foto} onChange={e => setFoto(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-v" />
-            <span>
-              Consentimiento de fotografías
-              <span className="mt-0.5 block text-caption font-medium leading-snug text-ink-3">
-                {CONSENT_COPY.fotografia}
-              </span>
+          </span>
+        </label>
+        <label className="mb-2 flex items-start gap-2 text-body font-bold">
+          <input type="checkbox" checked={foto} onChange={e => setFoto(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-v" />
+          <span>
+            Consentimiento de fotografías
+            <span className="mt-0.5 block text-caption font-medium leading-snug text-ink-3">
+              {CONSENT_COPY.fotografia}
             </span>
-          </label>
-        </div>
-      </details>
+          </span>
+        </label>
+      </div>
     </Sheet>
   );
 }

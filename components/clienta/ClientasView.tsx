@@ -81,7 +81,7 @@ export default function ClientasView({
           }
         >
           <IconButton
-            label="Nueva clienta"
+            label="Nueva Client@"
             tone="ink"
             onClick={() => shallowSet({ alta: '1' })}
           >

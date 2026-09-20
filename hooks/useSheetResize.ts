@@ -19,8 +19,15 @@ const TAP = 10;
  * Asidero tipo Instagram: arrastra para agrandar o encoger.
  * Al soltar encaja en un tope. Un toque sube un tamaño.
  */
-export function useSheetResize(initial: 'peek' | 'mid' | 'tall' = 'peek') {
-  const [height, setHeight] = useState(320);
+function detentIndex(initial: 'peek' | 'mid' | 'tall') {
+  return initial === 'peek' ? 0 : initial === 'tall' ? 2 : 1;
+}
+
+export function useSheetResize(
+  initial: 'peek' | 'mid' | 'tall' = 'mid',
+  onDismiss?: () => void,
+) {
+  const [height, setHeight] = useState(() => sheetDetents(viewH())[detentIndex(initial)]);
   const [dragging, setDragging] = useState(false);
   const live = useRef(320);
   const session = useRef<{
@@ -39,8 +46,7 @@ export function useSheetResize(initial: 'peek' | 'mid' | 'tall' = 'peek') {
   };
 
   useEffect(() => {
-    const i = initial === 'peek' ? 0 : initial === 'tall' ? 2 : 1;
-    setLive(sheetDetents(viewH())[i]);
+    setLive(sheetDetents(viewH())[detentIndex(initial)]);
     const onResize = () => {
       if (session.current) return;
       setLive(snapSheetHeight(live.current, sheetDetents(viewH()), 0));
@@ -96,7 +102,15 @@ export function useSheetResize(initial: 'peek' | 'mid' | 'tall' = 'peek') {
       const s = session.current;
       if (!s || ev.pointerId !== s.pointerId) return;
       const detents = sheetDetents(viewH());
+      const [min] = detents;
       const moved = ev.clientY - s.y0;
+      if (live.current < min - 72 || (s.vel > 0.35 && live.current < min + 48)) {
+        session.current = null;
+        setDragging(false);
+        onDismiss?.();
+        cleanup.current?.();
+        return;
+      }
       const next = Math.abs(moved) < TAP
         ? nextSheetHeight(s.h0, detents)
         : snapSheetHeight(live.current, detents, s.vel);
@@ -116,7 +130,7 @@ export function useSheetResize(initial: 'peek' | 'mid' | 'tall' = 'peek') {
     window.addEventListener('pointermove', move, { passive: false });
     window.addEventListener('pointerup', end);
     window.addEventListener('pointercancel', end);
-  }, []);
+  }, [onDismiss]);
 
   return { height, dragging, onHandleDown, ensureMid };
 }

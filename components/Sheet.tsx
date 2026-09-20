@@ -1,16 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import IconButton from '@/components/ui/IconButton';
+import SheetShell from '@/components/SheetShell';
 import { shallowSet } from '@/hooks/useShallowQuery';
 
 /** Los sheets viven en la URL, así el botón atrás del móvil también los cierra. */
 const SHEET_PARAMS = ['new', 'appt', 'client', 'wait', 'alta', 'close', 'editar', 'block', 'bloqueo', 'nombre', 'hora', 'servicio', 'con'];
 const SHALLOW_SHEET = new Set(['appt', 'close', 'new', 'wait', 'block', 'bloqueo', 'client', 'nombre', 'hora', 'servicio', 'con', 'alta', 'editar']);
-const DISMISS_PX = 90;
 
 /** Cierra el sheet quitando sus parámetros y conservando el día y la vista. */
 export function useCloseSheet() {
@@ -32,51 +31,20 @@ export function useCloseSheet() {
 }
 
 export default function Sheet({
-  title, subtitle, children, footer,
+  title, subtitle, children, footer, initialHeight = 'mid',
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  initialHeight?: 'peek' | 'mid' | 'tall';
 }) {
   const close = useCloseSheet();
-  const [dy, setDy] = useState(0);
-  const [mounted, setMounted] = useState(false);
-  const from = useRef<number | null>(null);
 
-  useEffect(() => {
-    setMounted(true);
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
-    document.addEventListener('keydown', onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [close]);
-
-  if (!mounted) return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-end justify-center">
-      <button aria-label="Cerrar" tabIndex={-1} onClick={close} className="absolute inset-0 bg-[rgba(15,14,26,.35)]" />
-
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="relative z-10 flex max-h-[88dvh] w-full max-w-[440px] animate-sheetUp flex-col rounded-t-sheet bg-white shadow-[0_-20px_60px_rgba(15,14,26,.18)]"
-        style={{ transform: dy ? `translateY(${dy}px)` : undefined, transition: dy ? 'none' : 'transform .2s' }}
-      >
-        <div
-          className="shrink-0 px-5 pb-3 pt-3"
-          style={{ touchAction: 'none' }}
-          onPointerDown={e => { from.current = e.clientY; e.currentTarget.setPointerCapture(e.pointerId); }}
-          onPointerMove={e => { if (from.current !== null) setDy(Math.max(0, e.clientY - from.current)); }}
-          onPointerUp={() => { if (dy > DISMISS_PX) close(); else setDy(0); from.current = null; }}
-        >
-          <div className="mx-auto mb-3 h-[5px] w-10 rounded-full bg-handle" />
+  return (
+    <SheetShell onClose={close} initialHeight={initialHeight} className="flex max-h-[92dvh] flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="shrink-0 px-5 pb-3">
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
               <h2 className="text-title font-bold leading-tight tracking-[-.02em]">{title}</h2>
@@ -98,8 +66,7 @@ export default function Sheet({
           </div>
         )}
       </div>
-    </div>,
-    document.body,
+    </SheetShell>
   );
 }
 

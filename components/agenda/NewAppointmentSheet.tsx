@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { createPortal } from 'react-dom';
 import { Calendar, Check, ChevronLeft, Plus, Search, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import DayStrip from '@/components/agenda/DayStrip';
 import MonthCalendar from '@/components/agenda/MonthCalendar';
 import { useCloseSheet } from '@/components/Sheet';
+import SheetShell from '@/components/SheetShell';
 import { avatarColor, catStyle, initials } from '@/lib/categories';
 import { createAppointment, updateAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
@@ -282,11 +282,9 @@ export default function NewAppointmentSheet({
 
   if (!mounted) return null;
 
-  return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-end justify-center">
-      <button type="button" aria-label="Cerrar" className="absolute inset-0 bg-[rgba(15,14,26,.35)]" onClick={closeAll} />
-      <div className="relative z-10 flex h-[88%] w-full max-w-[440px] flex-col rounded-t-sheet bg-white shadow-[0_-20px_60px_rgba(15,14,26,.18)]">
-        <div className="flex justify-center pt-3"><div className="h-[5px] w-10 rounded-full bg-handle" /></div>
+  return (
+    <SheetShell onClose={closeAll} initialHeight="tall" handleClassName="shrink-0 px-6 pb-0 pt-3">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex items-center gap-2.5 px-6 pt-3.5">
           {canBack && (
             <button type="button" aria-label="Atrás" onClick={goBack} className="grid h-10 w-10 place-items-center rounded-pill bg-track">
@@ -536,8 +534,7 @@ export default function NewAppointmentSheet({
           </>
         )}
       </div>
-    </div>,
-    document.body,
+    </SheetShell>
   );
 }
 

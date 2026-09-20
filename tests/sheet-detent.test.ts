@@ -14,7 +14,7 @@ test('el tope bajo deja 3 clientas a la vista', () => {
   assert.equal(peek, sheetHeightForClientRows(CLIENT_ROWS_PEEK));
   assert.equal(CLIENT_ROWS_PEEK, 3);
   assert.ok(mid > peek);
-  assert.equal(tall, 640);
+  assert.equal(tall, 704);
   assert.ok(sheetDetents(200)[0] >= 176);
 });
 

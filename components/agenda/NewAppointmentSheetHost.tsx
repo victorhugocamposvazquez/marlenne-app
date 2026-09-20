@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
 import NewAppointmentSheet from '@/components/agenda/NewAppointmentSheet';
+import SheetShell from '@/components/SheetShell';
+import { useCloseSheet } from '@/components/Sheet';
 import { loadClientOptions, loadSalonPacks, loadServiceCounts, loadServices } from '@/lib/agenda-catalog';
 import { createClient } from '@/lib/supabase/client';
 import { useShallowParam } from '@/hooks/useShallowQuery';
@@ -22,6 +23,7 @@ export default function NewAppointmentSheetHost({
   initialServicio?: string;
   initialCon?: string;
 }) {
+  const close = useCloseSheet();
   const open = useShallowParam('new', initialOpen ? '1' : null);
   const clientId = useShallowParam('client', initialClient ?? null);
   const nombre = useShallowParam('nombre', initialNombre ?? null);
@@ -59,14 +61,12 @@ export default function NewAppointmentSheetHost({
   if (open !== '1') return null;
   if (!mounted) return null;
   if (loading && services.length === 0) {
-    return createPortal(
-      <div className="fixed inset-0 z-[60] flex items-end justify-center">
-        <div className="absolute inset-0 bg-[rgba(15,14,26,.35)]" />
-        <div className="relative z-10 flex h-[88%] w-full max-w-[440px] items-center justify-center rounded-t-sheet bg-white shadow-[0_-20px_60px_rgba(15,14,26,.18)]">
+    return (
+      <SheetShell onClose={close} initialHeight="tall">
+        <div className="flex flex-1 items-center justify-center pb-8">
           <p className="text-body font-semibold text-ink-2">Cargando…</p>
         </div>
-      </div>,
-      document.body,
+      </SheetShell>
     );
   }
 
