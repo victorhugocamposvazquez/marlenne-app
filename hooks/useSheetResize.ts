@@ -5,6 +5,7 @@ import { haptic } from '@/hooks/haptics';
 import {
   nextSheetHeight,
   rubberHeight,
+  SHEET_DISMISS_PX,
   sheetDetents,
   snapSheetHeight,
 } from '@/lib/sheet-detent';
@@ -67,7 +68,8 @@ export function useSheetResize(
 
   const onHandleDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0) return;
-    if ((e.target as HTMLElement).closest('button, a, input')) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('button, a, input, textarea, select, label')) return;
     e.preventDefault();
     e.stopPropagation();
     cleanup.current?.();
@@ -104,16 +106,20 @@ export function useSheetResize(
       const detents = sheetDetents(viewH());
       const [min] = detents;
       const moved = ev.clientY - s.y0;
-      if (live.current < min - 72 || (s.vel > 0.35 && live.current < min + 48)) {
+      const dismiss = live.current <= SHEET_DISMISS_PX
+        || (s.vel > 0.55 && live.current < min * 0.42);
+      if (dismiss) {
         session.current = null;
         setDragging(false);
         onDismiss?.();
         cleanup.current?.();
         return;
       }
-      const next = Math.abs(moved) < TAP
-        ? nextSheetHeight(s.h0, detents)
-        : snapSheetHeight(live.current, detents, s.vel);
+      const next = live.current < min
+        ? min
+        : Math.abs(moved) < TAP
+          ? nextSheetHeight(s.h0, detents)
+          : snapSheetHeight(live.current, detents, s.vel);
       session.current = null;
       setDragging(false);
       setLive(next);

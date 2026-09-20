@@ -4,7 +4,7 @@ import { useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import IconButton from '@/components/ui/IconButton';
-import SheetShell from '@/components/SheetShell';
+import SheetShell, { SheetGrab, SheetHandle } from '@/components/SheetShell';
 import { shallowSet } from '@/hooks/useShallowQuery';
 
 /** Los sheets viven en la URL, así el botón atrás del móvil también los cierra. */
@@ -42,9 +42,10 @@ export default function Sheet({
   const close = useCloseSheet();
 
   return (
-    <SheetShell onClose={close} initialHeight={initialHeight} className="flex max-h-[92dvh] flex-col">
+    <SheetShell onClose={close} initialHeight={initialHeight} grabHeader className="flex max-h-[92dvh] flex-col">
       <div className="flex min-h-0 flex-1 flex-col">
-        <div className="shrink-0 px-5 pb-3">
+        <SheetGrab className="shrink-0 px-5 pb-3 pt-1">
+          <SheetHandle className="mb-3" />
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
               <h2 className="text-title font-bold leading-tight tracking-[-.02em]">{title}</h2>
@@ -54,7 +55,7 @@ export default function Sheet({
               <X size={18} strokeWidth={2.2} />
             </IconButton>
           </div>
-        </div>
+        </SheetGrab>
 
         <div className={`min-h-0 flex-1 overflow-y-auto px-5 ${footer ? 'pb-2' : 'pb-[max(16px,env(safe-area-inset-bottom))]'}`}>
           {children}

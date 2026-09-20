@@ -6,7 +6,7 @@ import Button from '@/components/ui/Button';
 import DayStrip from '@/components/agenda/DayStrip';
 import MonthCalendar from '@/components/agenda/MonthCalendar';
 import { useCloseSheet } from '@/components/Sheet';
-import SheetShell from '@/components/SheetShell';
+import SheetShell, { SheetGrab, SheetHandle } from '@/components/SheetShell';
 import { avatarColor, catStyle, initials } from '@/lib/categories';
 import { createAppointment, updateAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
@@ -283,30 +283,33 @@ export default function NewAppointmentSheet({
   if (!mounted) return null;
 
   return (
-    <SheetShell onClose={closeAll} initialHeight="tall" handleClassName="shrink-0 px-6 pb-0 pt-3">
+    <SheetShell onClose={closeAll} initialHeight="tall" grabHeader>
       <div className="flex min-h-0 flex-1 flex-col">
-        <div className="flex items-center gap-2.5 px-6 pt-3.5">
-          {canBack && (
-            <button type="button" aria-label="Atrás" onClick={goBack} className="grid h-10 w-10 place-items-center rounded-pill bg-track">
-              <ChevronLeft size={16} strokeWidth={2.4} />
+        <SheetGrab className="shrink-0 px-6 pb-2 pt-1">
+          <SheetHandle className="mb-3" />
+          <div className="flex items-center gap-2.5">
+            {canBack && (
+              <button type="button" aria-label="Atrás" onClick={goBack} className="grid h-10 w-10 shrink-0 place-items-center rounded-pill bg-track">
+                <ChevronLeft size={16} strokeWidth={2.4} />
+              </button>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-label text-ink-2">{editing ? 'Editar cita' : 'Nueva cita'} · paso {idx} de 3</p>
+              <p className="truncate text-[15px] font-semibold">{ctx}</p>
+            </div>
+            <button type="button" aria-label="Cerrar" onClick={closeAll} className="grid h-10 w-10 shrink-0 place-items-center rounded-pill bg-track">
+              <X size={16} strokeWidth={2.4} />
             </button>
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="text-label text-ink-2">{editing ? 'Editar cita' : 'Nueva cita'} · paso {idx} de 3</p>
-            <p className="truncate text-[15px] font-semibold">{ctx}</p>
           </div>
-          <button type="button" aria-label="Cerrar" onClick={closeAll} className="grid h-10 w-10 place-items-center rounded-pill bg-track">
-            <X size={16} strokeWidth={2.4} />
-          </button>
-        </div>
-        <div className="mx-6 mt-3.5 flex gap-1.5">
-          {[1, 2, 3].map(n => (
-            <span
-              key={n}
-              className={`h-1 flex-1 rounded-pill ${n <= idx ? (n === 1 ? 'bg-v-2' : 'bg-grad') : 'bg-surface-line'}`}
-            />
-          ))}
-        </div>
+          <div className="mt-3.5 flex gap-1.5">
+            {[1, 2, 3].map(n => (
+              <span
+                key={n}
+                className={`h-1 flex-1 rounded-pill ${n <= idx ? (n === 1 ? 'bg-v-2' : 'bg-grad') : 'bg-surface-line'}`}
+              />
+            ))}
+          </div>
+        </SheetGrab>
         <h2 className="mx-6 mt-[1.2rem] shrink-0 text-display font-bold tracking-[-.03em]">{question}</h2>
         {showTrail && (
           <div className="mx-6 mt-1.5 shrink-0 text-[14px] leading-snug">

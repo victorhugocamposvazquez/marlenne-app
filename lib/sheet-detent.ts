@@ -6,6 +6,7 @@ export const CLIENT_ROW_PX = 44;
 export const CLIENT_ROWS_PEEK = 3;
 export const SHEET_TALL = 0.88;
 export const SHEET_MIN_PX = 176;
+export const SHEET_DISMISS_PX = 108;
 export const SHEET_FLICK = 0.45;
 
 /** Hueco para N clientas a la vista (búsqueda + filas). */
@@ -21,9 +22,12 @@ export function sheetDetents(viewH: number): [number, number, number] {
   return [peek, mid, Math.max(mid + 48, tall)];
 }
 
-/** Fuera de min/max el dedo sigue, pero frena (goma). */
+/** Fuera de min/max el dedo sigue, pero frena (goma). Abajo deja arrastrar casi hasta cerrar. */
 export function rubberHeight(raw: number, min: number, max: number): number {
-  if (raw < min) return min - (min - raw) * 0.28;
+  if (raw < min) {
+    const floor = SHEET_DISMISS_PX * 0.85;
+    return Math.max(floor, min - (min - raw) * 0.52);
+  }
   if (raw > max) return max + (raw - max) * 0.28;
   return raw;
 }

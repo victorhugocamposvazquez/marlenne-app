@@ -1,13 +1,46 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { sheetDetents } from '@/lib/sheet-detent';
 import { useSheetResize } from '@/hooks/useSheetResize';
 
-function viewH() {
-  if (typeof window === 'undefined') return 800;
-  return window.visualViewport?.height ?? window.innerHeight;
+type GrabCtx = {
+  onHandleDown: (e: React.PointerEvent) => void;
+  dragging: boolean;
+};
+
+const SheetGrabContext = createContext<GrabCtx | null>(null);
+
+/** Zona amplia para arrastrar el panel. Los botones/enlaces siguen siendo tocables. */
+export function SheetGrab({
+  children,
+  className = '',
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  const ctx = useContext(SheetGrabContext);
+  if (!ctx) return <div className={className}>{children}</div>;
+  return (
+    <div
+      data-sheet-grab
+      className={`touch-none ${className}`}
+      style={{ touchAction: 'none' }}
+      onPointerDown={ctx.onHandleDown}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Barra visual del asidero (la zona táctil la da SheetGrab). */
+export function SheetHandle({ className = '' }: { className?: string }) {
+  return (
+    <div
+      className={`mx-auto h-1.5 w-14 rounded-full bg-handle ${className}`}
+      aria-hidden
+    />
+  );
 }
 
 export default function SheetShell({
@@ -15,13 +48,14 @@ export default function SheetShell({
   children,
   initialHeight = 'mid',
   className = '',
-  handleClassName = 'shrink-0 px-5 pb-1 pt-3',
+  grabHeader = false,
 }: {
   onClose: () => void;
   children: ReactNode;
   initialHeight?: 'peek' | 'mid' | 'tall';
   className?: string;
-  handleClassName?: string;
+  /** Si false, el hijo debe incluir SheetGrab (p. ej. cabecera del sheet). */
+  grabHeader?: boolean;
 }) {
   const { height, dragging, onHandleDown } = useSheetResize(initialHeight, onClose);
   const [mounted, setMounted] = useState(false);
@@ -43,47 +77,48 @@ export default function SheetShell({
 
   if (!mounted) return null;
 
-  const vh = viewH();
-  const [peek, , tall] = sheetDetents(vh);
-  const span = Math.max(tall - peek, 1);
-  const progress = Math.min(1, Math.max(0, (height - peek) / span));
-  const backdropOpacity = 0.1 + progress * 0.28;
+  const grabCtx: GrabCtx = { onHandleDown, dragging };
 
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-end justify-center">
-      <button
-        type="button"
-        aria-label="Cerrar"
-        tabIndex={-1}
-        onClick={onClose}
-        className="absolute inset-0 bg-[rgba(15,14,26,.35)] transition-opacity duration-300 ease-out"
-        style={{ opacity: entered ? backdropOpacity : 0 }}
-      />
+    <SheetGrabContext.Provider value={grabCtx}>
+      <div className="fixed inset-0 z-[60] h-[100dvh] w-screen">
+        <button
+          type="button"
+          aria-label="Cerrar"
+          tabIndex={-1}
+          onClick={onClose}
+          className="absolute inset-0 bg-[rgba(15,14,26,.35)]"
+          style={{
+            opacity: entered ? 1 : 0,
+            transition: dragging ? 'none' : 'opacity .22s ease-out',
+          }}
+        />
 
-      <div
-        role="presentation"
-        className={`relative z-10 flex w-full max-w-[440px] flex-col overflow-hidden rounded-t-sheet bg-white shadow-[0_-20px_60px_rgba(15,14,26,.18)] ${className}`}
-        style={{
-          height,
-          maxHeight: '92dvh',
-          transform: entered ? 'translateY(0)' : 'translateY(100%)',
-          transition: dragging
-            ? 'none'
-            : 'transform .34s cubic-bezier(.22,.92,.28,1), height .28s cubic-bezier(.22,.92,.28,1)',
-        }}
-      >
-        <div
-          className={handleClassName}
-          style={{ touchAction: 'none' }}
-          onPointerDown={onHandleDown}
-        >
-          <div className="mx-auto h-[5px] w-10 rounded-full bg-handle" />
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col">
-          {children}
+        <div className="absolute inset-x-0 bottom-0 flex justify-center">
+          <div
+            role="presentation"
+            className={`relative z-10 flex w-full max-w-[440px] flex-col overflow-hidden rounded-t-sheet bg-white shadow-[0_-20px_60px_rgba(15,14,26,.18)] ${className}`}
+            style={{
+              height,
+              maxHeight: '92dvh',
+              transform: entered ? 'translateY(0)' : 'translateY(100%)',
+              transition: dragging
+                ? 'none'
+                : 'transform .34s cubic-bezier(.22,.92,.28,1), height .28s cubic-bezier(.22,.92,.28,1)',
+            }}
+          >
+            {!grabHeader && (
+              <SheetGrab className="flex min-h-[56px] shrink-0 items-center justify-center px-6 py-3">
+                <SheetHandle />
+              </SheetGrab>
+            )}
+            <div className="flex min-h-0 flex-1 flex-col">
+              {children}
+            </div>
+          </div>
         </div>
       </div>
-    </div>,
+    </SheetGrabContext.Provider>,
     document.body,
   );
 }
