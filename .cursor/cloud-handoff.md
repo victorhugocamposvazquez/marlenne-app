@@ -10,7 +10,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ### Cabecera agenda: mes en una línea + «Hoy» abajo
 
-- **Rama:** `cursor/agenda-mes-5156`
+- **Rama:** `cursor/agenda-mes-5156` · **PR #20**
 - **Qué:** «Septiembre 2026» sin «de» (nunca partido en dos filas). «Hoy» en segunda fila bajo el mes, no al lado de los iconos.
 - **Archivos:** `lib/time.ts` (`monthTitleFromOffset`), `components/agenda/AgendaHeader.tsx`, `tests/month-title.test.ts`
 - **Pedido:** 2026-09-20, sesión cloud (captura del header en agenda).
