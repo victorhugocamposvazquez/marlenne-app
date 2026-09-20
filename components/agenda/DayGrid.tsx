@@ -241,7 +241,7 @@ export default function DayGrid({
                   className="pointer-events-none absolute z-[9] flex items-center"
                   style={{ top: (drag.start - DAY_START) * pxPerMin, width: solo ? '100%' : providers.length * colW }}
                 >
-                  <span className="-ml-1 rounded-badge bg-v px-1.5 py-0.5 text-caption font-extrabold tabular-nums text-white shadow-pill">
+                  <span className="-ml-1 rounded-badge bg-v px-1.5 py-0.5 text-caption font-extrabold tabular-nums text-white">
                     {fmt(drag.start)}
                   </span>
                   <span className="h-0.5 flex-1 bg-v" />

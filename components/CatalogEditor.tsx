@@ -57,7 +57,7 @@ export default function CatalogEditor({
           <button
             type="button"
             onClick={() => { setAddingCat(a => !a); setAddingSvc(null); }}
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-chip bg-v-2 px-3.5 text-label font-bold text-white shadow-btn motion-safe:active:scale-[.97]"
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-chip bg-v-2 px-3.5 text-label font-bold text-white motion-safe:active:scale-[.97]"
           >
             <Plus size={16} strokeWidth={2.4} />
             {addingCat ? 'Cerrar' : 'Nueva categoría'}

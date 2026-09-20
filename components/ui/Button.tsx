@@ -6,9 +6,9 @@ type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'ink';
 type Size = 'lg' | 'md' | 'sm';
 
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-grad text-white shadow-btn disabled:bg-none disabled:bg-surface-line disabled:text-ink-3 disabled:shadow-none',
+  primary: 'bg-grad text-white disabled:bg-none disabled:bg-surface-line disabled:text-ink-3',
   secondary: 'bg-surface-soft text-ink',
-  ink: 'bg-v-2 text-white shadow-btn',
+  ink: 'bg-v-2 text-white',
   danger: 'bg-danger text-white',
   ghost: 'text-v-d',
 };

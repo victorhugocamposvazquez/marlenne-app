@@ -449,7 +449,7 @@ export function NewAppointmentSheetBody({
               <button
                 type="button"
                 onClick={() => setCal(true)}
-                className="grid h-12 w-12 shrink-0 place-items-center rounded-pill bg-v-2 text-white shadow-btn"
+                className="grid h-12 w-12 shrink-0 place-items-center rounded-pill bg-v-2 text-white"
                 aria-label="Calendario"
               >
                 <Calendar size={24} strokeWidth={2.2} />

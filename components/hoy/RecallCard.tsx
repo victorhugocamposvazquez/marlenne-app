@@ -25,7 +25,7 @@ export default function RecallCard({ row }: { row: RecallRow }) {
       <Link
         href={`/agenda?new=1&client=${row.client_id}${servicio}`}
         aria-label={`Dar cita a ${row.full_name}`}
-        className="inline-flex h-[38px] shrink-0 items-center rounded-pill bg-v-2 px-3.5 text-label font-semibold text-white shadow-btn"
+        className="inline-flex h-[38px] shrink-0 items-center rounded-pill bg-v-2 px-3.5 text-label font-semibold text-white"
       >
         Dar cita
       </Link>

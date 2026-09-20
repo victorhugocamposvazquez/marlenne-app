@@ -88,7 +88,7 @@ export default function PasskeySetupBanner({ ua, hasPasskeys }: { ua: string; ha
         type="button"
         disabled={pending}
         onClick={register}
-        className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-field bg-grad px-4 text-body font-extrabold text-white shadow-btn motion-safe:active:scale-[.98] disabled:opacity-40"
+        className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-field bg-grad px-4 text-body font-extrabold text-white motion-safe:active:scale-[.98] disabled:opacity-40"
       >
         <FaceIcon size={18} strokeWidth={2.2} />
         {pending ? platformWaitingLabel(ua) : label}

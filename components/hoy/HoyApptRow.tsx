@@ -43,7 +43,7 @@ export default function HoyApptRow({
         type="button"
         disabled={pending}
         onClick={() => set('curso')}
-        className="min-h-[44px] shrink-0 rounded-pill bg-v-2 px-3.5 text-label font-semibold text-white shadow-btn transition motion-safe:active:scale-[.97] disabled:opacity-40"
+        className="min-h-[44px] shrink-0 rounded-pill bg-v-2 px-3.5 text-label font-semibold text-white transition motion-safe:active:scale-[.97] disabled:opacity-40"
       >
         Pasa
       </button>

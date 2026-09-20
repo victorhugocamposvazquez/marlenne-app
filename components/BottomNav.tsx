@@ -73,7 +73,7 @@ export default function BottomNav({ role }: { role: string }) {
           href={fabHref}
           onClick={openFab}
           aria-label={fabLabel}
-          className="mx-1.5 grid h-12 w-12 shrink-0 place-items-center rounded-pill bg-v-2 text-white shadow-btn"
+          className="mx-1.5 grid h-12 w-12 shrink-0 place-items-center rounded-pill bg-v-2 text-white"
         >
           <Plus size={22} strokeWidth={2.6} />
         </Link>

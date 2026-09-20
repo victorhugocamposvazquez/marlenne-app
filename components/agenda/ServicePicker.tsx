@@ -74,7 +74,7 @@ export default function ServicePicker({
                 onClick={() => onPick(s.id)}
                 className={`shrink-0 rounded-pill px-3 py-2 text-label font-bold ${
                   s.id === selectedId
-                    ? 'bg-grad text-white shadow-pill'
+                    ? 'bg-grad text-white'
                     : 'border border-surface-line bg-surface-card text-ink-2'
                 }`}
               >

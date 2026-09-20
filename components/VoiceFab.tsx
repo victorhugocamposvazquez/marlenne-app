@@ -1147,7 +1147,7 @@ export default function VoiceFab() {
             );
             tapMic(overlay ? { overlay: true } : undefined);
           }}
-          className={`pointer-events-auto grid h-14 w-14 place-items-center rounded-card text-white shadow-btn transition motion-safe:active:scale-[.96] ${
+          className={`pointer-events-auto grid h-14 w-14 place-items-center rounded-card text-white transition motion-safe:active:scale-[.96] ${
             pickEngineKind() === 'push' ? 'touch-none select-none' : ''
           } ${
             hearing ? 'bg-danger' : 'bg-grad'

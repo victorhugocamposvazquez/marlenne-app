@@ -62,13 +62,13 @@
   --grad: var(--grad-logo);
   --grad-160: linear-gradient(135deg, #ff2455 0%, #d000a8 50%, #0879ff 100%);
 
-  /* Sombras: casi ninguna, salvo botón y hoja */
+  /* Sombras: botones sin sombra; hoja, toast y arrastre conservan la suya */
   --sh-card: 0 0 0 transparent;
   --sh-lift: 0 8px 22px rgba(15, 14, 26, .06);
   --sh-toast: 0 12px 30px rgba(15, 14, 26, .3);
   --sh-drag: 0 12px 28px rgba(15, 14, 26, .18);
-  --sh-btn: 0 10px 28px rgba(208, 0, 168, .28);
-  --sh-pill: 0 8px 22px rgba(208, 0, 168, .3);
+  --sh-btn: 0 0 0 transparent;
+  --sh-pill: 0 0 0 transparent;
   --sh-hero: 0 10px 28px rgba(208, 0, 168, .2);
   --sh-nav: 0 0 0 transparent;
   --sh-seg: 0 0 0 transparent;

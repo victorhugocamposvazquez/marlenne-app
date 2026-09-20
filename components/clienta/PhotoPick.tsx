@@ -47,7 +47,7 @@ export default function PhotoPick({
         type="button"
         disabled={disabled}
         onClick={() => cameraRef.current?.click()}
-        className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-chip bg-grad px-2.5 text-caption font-extrabold text-white shadow-btn motion-safe:active:scale-[.98] disabled:opacity-40"
+        className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-chip bg-grad px-2.5 text-caption font-extrabold text-white motion-safe:active:scale-[.98] disabled:opacity-40"
       >
         <Camera size={15} strokeWidth={2.3} aria-hidden />
         Hacer foto
