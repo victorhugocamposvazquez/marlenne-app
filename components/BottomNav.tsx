@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { MouseEvent } from 'react';
 import { Home, Calendar, Users, Settings, Plus } from 'lucide-react';
+import { circleOutlineCls } from '@/components/ui/IconButton';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 
 export default function BottomNav({ role }: { role: string }) {
@@ -73,9 +74,9 @@ export default function BottomNav({ role }: { role: string }) {
           href={fabHref}
           onClick={openFab}
           aria-label={fabLabel}
-          className="mx-1.5 grid h-12 w-12 shrink-0 place-items-center rounded-pill bg-v-2 text-white"
+          className={`mx-1.5 h-12 w-12 ${circleOutlineCls}`}
         >
-          <Plus size={22} strokeWidth={2.6} />
+          <Plus size={22} strokeWidth={2.2} />
         </Link>
         {role !== 'provider' && <Item href="/clientas" icon={Users} label="Clientas" />}
         <Item href="/ajustes" icon={Settings} label="Ajustes" />

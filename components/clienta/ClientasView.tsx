@@ -6,7 +6,7 @@ import { Check, ChevronDown, Plus, Search } from 'lucide-react';
 import NewClientSheet from '@/components/clienta/NewClientSheet';
 import Chip from '@/components/ui/Chip';
 import EmptyState from '@/components/ui/EmptyState';
-import IconButton from '@/components/ui/IconButton';
+import IconButton, { pillOutlineCls } from '@/components/ui/IconButton';
 import Badge from '@/components/ui/Badge';
 import PageHeading from '@/components/ui/PageHeading';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
@@ -124,10 +124,11 @@ export default function ClientasView({
         <PageHeading title="Clientas" subtitle={titleCount}>
           <IconButton
             label="Nueva Client@"
-            tone="ink"
+            tone="outline"
+            className="h-12 w-12 rounded-pill"
             onClick={() => shallowSet({ alta: '1' })}
           >
-            <Plus size={20} strokeWidth={2.4} />
+            <Plus size={22} strokeWidth={2.2} />
           </IconButton>
         </PageHeading>
         <div ref={sortRef} className="relative mt-1.5">
@@ -239,7 +240,7 @@ export default function ClientasView({
               <Link
                 href={`/agenda?new=1&client=${c.id}`}
                 aria-label={`Dar cita a ${c.full_name}`}
-                className="inline-flex h-[38px] shrink-0 items-center rounded-pill bg-v-2 px-3.5 text-label font-semibold text-white"
+                className={`${pillOutlineCls} h-[38px] shrink-0 px-3.5 text-label font-semibold`}
               >
                 Dar cita
               </Link>

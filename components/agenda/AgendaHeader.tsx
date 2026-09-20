@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Calendar, ChevronDown, ChevronRight } from 'lucide-react';
 import DayStrip from '@/components/agenda/DayStrip';
 import MonthCalendar from '@/components/agenda/MonthCalendar';
+import { circleOutlineCls } from '@/components/ui/IconButton';
 import { alignStripStart, monthTitleFromOffset, skipSunday } from '@/lib/time';
 import { shallowSet } from '@/hooks/useShallowQuery';
 
@@ -45,8 +46,8 @@ export default function AgendaHeader({
             <span className="text-title font-bold tracking-[-.02em]">{monthTitleFromOffset(day)}</span>
             <ChevronDown size={16} strokeWidth={2.8} />
           </span>
-          <span className="grid h-12 w-12 place-items-center rounded-pill bg-v-2 text-white">
-            <Calendar size={24} strokeWidth={2.2} />
+          <span className={`${circleOutlineCls} h-12 w-12`}>
+            <Calendar size={24} strokeWidth={2} />
           </span>
         </button>
         <div className="flex items-center gap-3">

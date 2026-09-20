@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { Calendar, Check, ChevronLeft, Plus, Search, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import { circleOutlineCls } from '@/components/ui/IconButton';
 import DayStrip from '@/components/agenda/DayStrip';
 import MonthCalendar from '@/components/agenda/MonthCalendar';
 import { useCloseSheet } from '@/components/Sheet';
@@ -449,10 +450,10 @@ export function NewAppointmentSheetBody({
               <button
                 type="button"
                 onClick={() => setCal(true)}
-                className="grid h-12 w-12 shrink-0 place-items-center rounded-pill bg-v-2 text-white"
+                className={`${circleOutlineCls} h-12 w-12`}
                 aria-label="Calendario"
               >
-                <Calendar size={24} strokeWidth={2.2} />
+                <Calendar size={24} strokeWidth={2} />
               </button>
             </div>
             {providers.length > 1 && (

@@ -2,7 +2,7 @@
 
 import type { ButtonHTMLAttributes } from 'react';
 
-type Tone = 'card' | 'soft' | 'ok' | 'danger' | 'ghost' | 'brand' | 'ink';
+type Tone = 'card' | 'soft' | 'ok' | 'danger' | 'ghost' | 'brand' | 'ink' | 'outline';
 
 const TONES: Record<Tone, string> = {
   card: 'bg-track text-ink',
@@ -12,7 +12,16 @@ const TONES: Record<Tone, string> = {
   ghost: 'text-ink-2',
   brand: 'bg-grad text-white',
   ink: 'bg-v-2 text-white',
+  outline: 'border-2 border-ink bg-transparent text-ink',
 };
+
+/** Círculo outline: borde ink 2px, sin relleno (calendario, + del nav, cabeceras). */
+export const circleOutlineCls =
+  'grid shrink-0 place-items-center rounded-pill border-2 border-ink bg-transparent text-ink transition motion-safe:active:scale-[.96]';
+
+/** Pastilla outline: borde ink 2px, sin relleno (Dar cita, acciones secundarias). */
+export const pillOutlineCls =
+  'inline-flex items-center justify-center rounded-pill border-2 border-ink bg-transparent text-ink transition motion-safe:active:scale-[.97]';
 
 /** Botón de icono con área táctil mínima de 44×44. `label` es obligatorio (aria-label). */
 export default function IconButton({
