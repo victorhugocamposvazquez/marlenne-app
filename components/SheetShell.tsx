@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useLayoutEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useSheetResize } from '@/hooks/useSheetResize';
 
@@ -10,6 +10,11 @@ type GrabCtx = {
 };
 
 const SheetGrabContext = createContext<GrabCtx | null>(null);
+
+const OVERLAY_STYLE = {
+  top: 'calc(-1 * env(safe-area-inset-top, 0px))',
+  minHeight: 'calc(100dvh + env(safe-area-inset-top, 0px))',
+} as const;
 
 /** Zona amplia para arrastrar el panel. Los botones/enlaces siguen siendo tocables. */
 export function SheetGrab({
@@ -59,17 +64,14 @@ export default function SheetShell({
 }) {
   const { height, dragging, onHandleDown } = useSheetResize(initialHeight, onClose);
   const [mounted, setMounted] = useState(false);
-  const [entered, setEntered] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setMounted(true);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    const id = requestAnimationFrame(() => setEntered(true));
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
     return () => {
-      cancelAnimationFrame(id);
       document.body.style.overflow = prev;
       document.removeEventListener('keydown', onKey);
     };
@@ -81,30 +83,24 @@ export default function SheetShell({
 
   return createPortal(
     <SheetGrabContext.Provider value={grabCtx}>
-      <div className="fixed inset-0 z-[60] h-[100dvh] w-screen">
+      <div className="fixed inset-x-0 bottom-0 z-[60]" style={OVERLAY_STYLE}>
+        {/* Fondo: aparece entero al instante, sin fade (evita el salto en hora/batería). */}
         <button
           type="button"
           aria-label="Cerrar"
           tabIndex={-1}
           onClick={onClose}
           className="absolute inset-0 bg-[rgba(15,14,26,.35)]"
-          style={{
-            opacity: entered ? 1 : 0,
-            transition: dragging ? 'none' : 'opacity .22s ease-out',
-          }}
         />
 
         <div className="absolute inset-x-0 bottom-0 flex justify-center">
           <div
             role="presentation"
-            className={`relative z-10 flex w-full max-w-[440px] flex-col overflow-hidden rounded-t-sheet bg-white shadow-[0_-20px_60px_rgba(15,14,26,.18)] ${className}`}
+            className={`relative z-10 flex w-full max-w-[440px] animate-sheetEnter flex-col overflow-hidden rounded-t-sheet bg-white shadow-[0_-20px_60px_rgba(15,14,26,.18)] ${className}`}
             style={{
               height,
               maxHeight: '92dvh',
-              transform: entered ? 'translateY(0)' : 'translateY(100%)',
-              transition: dragging
-                ? 'none'
-                : 'transform .34s cubic-bezier(.22,.92,.28,1), height .28s cubic-bezier(.22,.92,.28,1)',
+              transition: dragging ? 'none' : 'height .28s cubic-bezier(.22,.92,.28,1)',
             }}
           >
             {!grabHeader && (
