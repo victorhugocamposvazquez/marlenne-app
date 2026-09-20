@@ -170,7 +170,7 @@ export default function SheetShell({
               className={`relative z-10 flex w-full max-w-[440px] flex-col overflow-hidden rounded-t-sheet bg-white shadow-[0_-20px_60px_rgba(15,14,26,.18)] ${closing ? 'animate-sheetExit' : ''} ${className}`}
               style={{
                 height,
-                maxHeight: keyboardBottom > 0 ? 'calc(100dvh - 12px)' : '92dvh',
+                maxHeight: '92dvh',
                 transform: closing ? undefined : entered ? 'translateY(0)' : 'translateY(100%)',
                 transition: dragging || closing
                   ? 'none'

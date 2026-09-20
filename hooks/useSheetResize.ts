@@ -11,6 +11,8 @@ import {
 
 export type SheetDetent = 'peek' | 'mid' | 'tall';
 
+type SheetLayout = { height: number; bottom: number };
+
 /** Altura estable del layout; no se encoge con el teclado virtual. */
 function layoutH() {
   return window.innerHeight;
@@ -30,9 +32,9 @@ function keyboardInset() {
 const KEYBOARD_OPEN_INSET = 72;
 const KEYBOARD_CLOSE_INSET = 48;
 
-/** Tope superior del panel cuando hay teclado: casi todo el viewport visible. */
+/** Con teclado: cabe en el viewport visible (nunca forzar el tope «tall» aquí). */
 function heightAboveKeyboard(detents: [number, number, number]) {
-  return Math.min(detents[2], Math.max(detents[0], visibleH() - 12));
+  return Math.min(detents[2], Math.max(detents[0], visibleH() - 16));
 }
 
 const TAP = 10;
@@ -51,8 +53,7 @@ export function useSheetResize(
     return d[Math.max(detentIndex(initial), floorIdx)];
   };
 
-  const [height, setHeight] = useState(startH);
-  const [keyboardBottom, setKeyboardBottom] = useState(0);
+  const [layout, setLayout] = useState<SheetLayout>(() => ({ height: startH(), bottom: 0 }));
   const [dragging, setDragging] = useState(false);
   const live = useRef(startH());
   const beforeKeyboard = useRef<number | null>(null);
@@ -67,10 +68,10 @@ export function useSheetResize(
   } | null>(null);
   const cleanup = useRef<(() => void) | null>(null);
 
-  const setLive = (h: number) => {
-    live.current = h;
-    setHeight(h);
-  };
+  const applyLayout = useCallback((height: number, bottom: number) => {
+    live.current = height;
+    setLayout({ height, bottom });
+  }, []);
 
   const floorPx = useCallback((detents: [number, number, number]) => detents[floorIdx], [floorIdx]);
 
@@ -90,26 +91,24 @@ export function useSheetResize(
         keyboardActive.current = false;
         const restore = restoreAfterKeyboard(detents);
         beforeKeyboard.current = null;
-        setKeyboardBottom(0);
-        setLive(restore);
+        applyLayout(restore, 0);
         return;
       }
       keyboardActive.current = true;
       if (beforeKeyboard.current === null) beforeKeyboard.current = live.current;
-      setKeyboardBottom(inset);
-      setLive(Math.max(heightAboveKeyboard(detents), floorPx(detents)));
+      applyLayout(heightAboveKeyboard(detents), inset);
     }
-  }, [floorPx, restoreAfterKeyboard]);
+  }, [applyLayout, restoreAfterKeyboard]);
 
   const syncLayout = useCallback(() => {
     if (session.current || keyboardActive.current) return;
     const detents = sheetDetents(layoutH());
     if (floorDetent) {
-      setLive(detents[floorIdx]);
+      applyLayout(detents[floorIdx], 0);
       return;
     }
-    setLive(snapSheetHeight(live.current, detents, 0));
-  }, [floorDetent, floorIdx]);
+    applyLayout(snapSheetHeight(live.current, detents, 0), 0);
+  }, [applyLayout, floorDetent, floorIdx]);
 
   useEffect(() => {
     syncKeyboard();
@@ -128,8 +127,8 @@ export function useSheetResize(
   const ensureMid = useCallback(() => {
     const detents = sheetDetents(layoutH());
     const min = floorPx(detents);
-    if (live.current < min - 16) setLive(min);
-  }, [floorPx]);
+    if (live.current < min - 16) applyLayout(min, layout.bottom);
+  }, [applyLayout, floorPx, layout.bottom]);
 
   const onHandleDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0) return;
@@ -165,7 +164,7 @@ export function useSheetResize(
       const dragMin = detents[0];
       const kb = keyboardInset() > KEYBOARD_OPEN_INSET;
       const max = kb ? heightAboveKeyboard(detents) : detents[2];
-      setLive(rubberHeight(s.h0 - (ev.clientY - s.y0), dragMin, max));
+      applyLayout(rubberHeight(s.h0 - (ev.clientY - s.y0), dragMin, max), kb ? keyboardInset() : 0);
     };
 
     const end = (ev: PointerEvent) => {
@@ -179,7 +178,7 @@ export function useSheetResize(
       if (kb) {
         session.current = null;
         setDragging(false);
-        setLive(Math.max(heightAboveKeyboard(detents), floorPx(detents)));
+        applyLayout(heightAboveKeyboard(detents), keyboardInset());
         cleanup.current?.();
         return;
       }
@@ -191,7 +190,7 @@ export function useSheetResize(
           : snapSheetHeight(live.current, detents, s.vel);
       session.current = null;
       setDragging(false);
-      setLive(next);
+      applyLayout(next, 0);
       if (next !== s.h0) haptic('tick');
       cleanup.current?.();
     };
@@ -205,7 +204,13 @@ export function useSheetResize(
     window.addEventListener('pointermove', move, { passive: false });
     window.addEventListener('pointerup', end);
     window.addEventListener('pointercancel', end);
-  }, [floorPx]);
+  }, [applyLayout]);
 
-  return { height, dragging, onHandleDown, ensureMid, keyboardBottom };
+  return {
+    height: layout.height,
+    keyboardBottom: layout.bottom,
+    dragging,
+    onHandleDown,
+    ensureMid,
+  };
 }
