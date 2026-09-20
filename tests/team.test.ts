@@ -21,8 +21,8 @@ test('equipo vacío sigue vacío', () => {
   assert.deepEqual(agendaColumns([]), []);
 });
 
-test('picker de agenda usa el puesto guardado', () => {
-  const p = { ...person('provider'), full_name: 'Cabina', job_title: 'Cabina 2' };
-  assert.equal(providerAgendaLabel(p), 'Cabina 2');
-  assert.equal(providerAgendaLabel({ ...p, job_title: null }), 'Cabina');
+test('picker de agenda usa el nombre completo guardado', () => {
+  const p = { ...person('provider'), full_name: 'Cabina 1', job_title: 'Esteticista' };
+  assert.equal(providerAgendaLabel(p), 'Cabina 1');
+  assert.equal(providerAgendaLabel({ ...p, full_name: 'Cabina 2' }), 'Cabina 2');
 });

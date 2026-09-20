@@ -10,8 +10,7 @@ export function agendaColumns(staff: Provider[]): Provider[] {
   return pros.length > 0 ? pros : staff;
 }
 
-/** Etiqueta en pickers: el puesto guardado (Cabina 1…) o el nombre si no hay. */
+/** Etiqueta en pickers: nombre completo tal como está guardado (p. ej. Cabina 1). */
 export function providerAgendaLabel(p: Provider): string {
-  const title = p.job_title?.trim();
-  return title || p.full_name;
+  return p.full_name.trim();
 }
