@@ -22,6 +22,10 @@ function visibleH() {
   return window.visualViewport?.height ?? window.innerHeight;
 }
 
+function viewportTop() {
+  return window.visualViewport?.offsetTop ?? 0;
+}
+
 /** Cuánto tapa el teclado desde abajo (px). */
 function keyboardInset() {
   const vv = window.visualViewport;
@@ -32,9 +36,11 @@ function keyboardInset() {
 const KEYBOARD_OPEN_INSET = 72;
 const KEYBOARD_CLOSE_INSET = 48;
 
-/** Con teclado: cabe en el viewport visible (nunca forzar el tope «tall» aquí). */
+/** Con teclado: cabe en el viewport visible. */
 function heightAboveKeyboard(detents: [number, number, number]) {
-  return Math.min(detents[2], Math.max(detents[0], visibleH() - 16));
+  const top = viewportTop();
+  const usable = visibleH() - top - 20;
+  return Math.min(detents[2], Math.max(detents[0], usable));
 }
 
 const TAP = 10;
@@ -58,6 +64,8 @@ export function useSheetResize(
   const live = useRef(startH());
   const beforeKeyboard = useRef<number | null>(null);
   const keyboardActive = useRef(false);
+  /** Altura bloqueada mientras el teclado sigue abierto (Safari encoge el vv al cambiar de campo). */
+  const keyboardHeightLock = useRef(0);
   const session = useRef<{
     pointerId: number;
     y0: number;
@@ -81,6 +89,22 @@ export function useSheetResize(
     return live.current;
   }, [floorDetent, floorIdx]);
 
+  const lockKeyboardHeight = useCallback((detents: [number, number, number]) => {
+    const candidate = heightAboveKeyboard(detents);
+    keyboardHeightLock.current = keyboardHeightLock.current > 0
+      ? Math.max(keyboardHeightLock.current, candidate)
+      : candidate;
+    return keyboardHeightLock.current;
+  }, []);
+
+  const closeKeyboard = useCallback((detents: [number, number, number]) => {
+    keyboardActive.current = false;
+    keyboardHeightLock.current = 0;
+    const restore = restoreAfterKeyboard(detents);
+    beforeKeyboard.current = null;
+    applyLayout(restore, 0);
+  }, [applyLayout, restoreAfterKeyboard]);
+
   const syncKeyboard = useCallback(() => {
     if (session.current) return;
     const detents = sheetDetents(layoutH());
@@ -88,17 +112,21 @@ export function useSheetResize(
 
     if (inset > KEYBOARD_OPEN_INSET || keyboardActive.current) {
       if (inset <= KEYBOARD_CLOSE_INSET) {
-        keyboardActive.current = false;
-        const restore = restoreAfterKeyboard(detents);
-        beforeKeyboard.current = null;
-        applyLayout(restore, 0);
+        closeKeyboard(detents);
         return;
       }
       keyboardActive.current = true;
       if (beforeKeyboard.current === null) beforeKeyboard.current = live.current;
-      applyLayout(heightAboveKeyboard(detents), inset);
+      applyLayout(lockKeyboardHeight(detents), inset);
     }
-  }, [applyLayout, restoreAfterKeyboard]);
+  }, [applyLayout, closeKeyboard, lockKeyboardHeight]);
+
+  /** Solo reposiciona sobre el teclado; no recalcula altura (evita encoger al cambiar de input). */
+  const syncKeyboardScroll = useCallback(() => {
+    if (session.current || !keyboardActive.current) return;
+    if (keyboardInset() <= KEYBOARD_CLOSE_INSET) return;
+    setLayout(prev => ({ height: prev.height, bottom: keyboardInset() }));
+  }, []);
 
   const syncLayout = useCallback(() => {
     if (session.current || keyboardActive.current) return;
@@ -114,15 +142,15 @@ export function useSheetResize(
     syncKeyboard();
     const vv = window.visualViewport;
     vv?.addEventListener('resize', syncKeyboard);
-    vv?.addEventListener('scroll', syncKeyboard);
+    vv?.addEventListener('scroll', syncKeyboardScroll);
     window.addEventListener('resize', syncLayout);
     return () => {
       vv?.removeEventListener('resize', syncKeyboard);
-      vv?.removeEventListener('scroll', syncKeyboard);
+      vv?.removeEventListener('scroll', syncKeyboardScroll);
       window.removeEventListener('resize', syncLayout);
       cleanup.current?.();
     };
-  }, [initial, floorDetent, syncKeyboard, syncLayout]);
+  }, [initial, floorDetent, syncKeyboard, syncKeyboardScroll, syncLayout]);
 
   const ensureMid = useCallback(() => {
     const detents = sheetDetents(layoutH());
@@ -163,7 +191,7 @@ export function useSheetResize(
       const detents = sheetDetents(layoutH());
       const dragMin = detents[0];
       const kb = keyboardInset() > KEYBOARD_OPEN_INSET;
-      const max = kb ? heightAboveKeyboard(detents) : detents[2];
+      const max = kb ? (keyboardHeightLock.current || heightAboveKeyboard(detents)) : detents[2];
       applyLayout(rubberHeight(s.h0 - (ev.clientY - s.y0), dragMin, max), kb ? keyboardInset() : 0);
     };
 
@@ -178,7 +206,7 @@ export function useSheetResize(
       if (kb) {
         session.current = null;
         setDragging(false);
-        applyLayout(heightAboveKeyboard(detents), keyboardInset());
+        applyLayout(lockKeyboardHeight(detents), keyboardInset());
         cleanup.current?.();
         return;
       }
@@ -204,7 +232,7 @@ export function useSheetResize(
     window.addEventListener('pointermove', move, { passive: false });
     window.addEventListener('pointerup', end);
     window.addEventListener('pointercancel', end);
-  }, [applyLayout]);
+  }, [applyLayout, lockKeyboardHeight]);
 
   return {
     height: layout.height,

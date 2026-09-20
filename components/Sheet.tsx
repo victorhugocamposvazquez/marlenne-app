@@ -44,11 +44,24 @@ function SheetBody({
   useEffect(() => {
     const root = scrollRef.current;
     if (!root) return;
+
+    const revealField = (field: HTMLElement) => {
+      const pad = 20;
+      const rootRect = root.getBoundingClientRect();
+      const fieldRect = field.getBoundingClientRect();
+      if (fieldRect.bottom > rootRect.bottom - pad) {
+        root.scrollTop += fieldRect.bottom - rootRect.bottom + pad;
+      }
+      if (fieldRect.top < rootRect.top + pad) {
+        root.scrollTop -= rootRect.top + pad - fieldRect.top;
+      }
+    };
+
     const onFocus = (e: FocusEvent) => {
       const t = e.target;
       if (!(t instanceof HTMLElement) || !root.contains(t)) return;
       requestAnimationFrame(() => {
-        t.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        requestAnimationFrame(() => revealField(t));
       });
     };
     root.addEventListener('focusin', onFocus);
