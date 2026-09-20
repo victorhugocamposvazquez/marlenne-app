@@ -25,20 +25,7 @@ import type { AgendaAppt, ClientOption, ClientPack, Provider, ServiceOption } fr
 
 type Step = 'client' | 'service' | 'when' | 'confirm';
 
-export default function NewAppointmentSheet(props: {
-  day: string;
-  providers: Provider[];
-  services: ServiceOption[];
-  clients: ClientOption[];
-  packs?: ClientPack[];
-  serviceCounts?: Record<string, number>;
-  preselected?: ClientOption | null;
-  initialName?: string;
-  initialHora?: string;
-  initialServiceQ?: string;
-  initialProviderId?: string;
-  editing?: AgendaAppt | null;
-}) {
+export default function NewAppointmentSheet(props: NewAppointmentSheetBodyProps) {
   const closeUrl = useCloseSheet();
   return (
     <SheetShell onClose={closeUrl} initialHeight="tall" grabHeader>
@@ -47,11 +34,7 @@ export default function NewAppointmentSheet(props: {
   );
 }
 
-function NewAppointmentSheetBody({
-  day, providers, services, clients, packs = [], serviceCounts = {}, preselected = null,
-  initialName = '', initialHora = '', initialServiceQ = '', initialProviderId,
-  editing = null,
-}: {
+export type NewAppointmentSheetBodyProps = {
   day: string;
   providers: Provider[];
   services: ServiceOption[];
@@ -64,7 +47,13 @@ function NewAppointmentSheetBody({
   initialServiceQ?: string;
   initialProviderId?: string;
   editing?: AgendaAppt | null;
-}) {
+};
+
+export function NewAppointmentSheetBody({
+  day, providers, services, clients, packs = [], serviceCounts = {}, preselected = null,
+  initialName = '', initialHora = '', initialServiceQ = '', initialProviderId,
+  editing = null,
+}: NewAppointmentSheetBodyProps) {
   const requestClose = useSheetShellClose();
   const toast = useToast();
   const [pending, startTransition] = useTransition();

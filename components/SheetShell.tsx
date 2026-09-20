@@ -98,6 +98,7 @@ export default function SheetShell({
   const afterCloseRef = useRef<(() => void) | null>(null);
   const finishedRef = useRef(false);
   const [closing, setClosing] = useState(false);
+  const [entered, setEntered] = useState(false);
 
   const finishClose = useCallback(() => {
     if (finishedRef.current) return;
@@ -118,7 +119,9 @@ export default function SheetShell({
   useLayoutEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    const id = requestAnimationFrame(() => setEntered(true));
     return () => {
+      cancelAnimationFrame(id);
       document.body.style.overflow = prev;
     };
   }, []);
@@ -155,11 +158,14 @@ export default function SheetShell({
             <div
               ref={panelRef}
               role="presentation"
-              className={`relative z-10 flex w-full max-w-[440px] flex-col overflow-hidden rounded-t-sheet bg-white shadow-[0_-20px_60px_rgba(15,14,26,.18)] ${closing ? 'animate-sheetExit' : 'animate-sheetEnter'} ${className}`}
+              className={`relative z-10 flex w-full max-w-[440px] flex-col overflow-hidden rounded-t-sheet bg-white shadow-[0_-20px_60px_rgba(15,14,26,.18)] ${closing ? 'animate-sheetExit' : ''} ${className}`}
               style={{
                 height,
                 maxHeight: '92dvh',
-                transition: dragging || closing ? 'none' : 'height .28s cubic-bezier(.22,.92,.28,1)',
+                transform: closing ? undefined : entered ? 'translateY(0)' : 'translateY(100%)',
+                transition: dragging || closing
+                  ? 'none'
+                  : 'transform .34s cubic-bezier(.22,.92,.28,1), height .28s cubic-bezier(.22,.92,.28,1)',
               }}
             >
               {!grabHeader && (

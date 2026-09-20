@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import NewAppointmentSheet from '@/components/agenda/NewAppointmentSheet';
+import { NewAppointmentSheetBody } from '@/components/agenda/NewAppointmentSheet';
 import SheetShell from '@/components/SheetShell';
 import { useCloseSheet } from '@/components/Sheet';
 import { loadClientOptions, loadSalonPacks, loadServiceCounts, loadServices } from '@/lib/agenda-catalog';
@@ -36,9 +36,6 @@ export default function NewAppointmentSheetHost({
   const [packs, setPacks] = useState<ClientPack[]>([]);
   const [serviceCounts, setServiceCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (open !== '1') return;
@@ -59,33 +56,31 @@ export default function NewAppointmentSheetHost({
   }, [open]);
 
   if (open !== '1') return null;
-  if (!mounted) return null;
-  if (loading && services.length === 0) {
-    return (
-      <SheetShell onClose={close} initialHeight="tall">
-        <div className="flex flex-1 items-center justify-center pb-8">
-          <p className="text-body font-semibold text-ink-2">Cargando…</p>
-        </div>
-      </SheetShell>
-    );
-  }
 
   const preselected = clients.find(c => c.id === clientId)
     ?? (nombre ? bestNameMatches(clients, nombre, c => c.full_name)[0] ?? null : null);
 
   return (
-    <NewAppointmentSheet
-      day={day}
-      providers={providers}
-      services={services}
-      clients={clients}
-      packs={packs}
-      serviceCounts={serviceCounts}
-      preselected={preselected}
-      initialName={nombre ?? ''}
-      initialHora={hora ?? ''}
-      initialServiceQ={servicio ?? ''}
-      initialProviderId={con ?? undefined}
-    />
+    <SheetShell onClose={close} initialHeight="tall" grabHeader>
+      {loading && services.length === 0 ? (
+        <div className="flex flex-1 items-center justify-center pb-8">
+          <p className="text-body font-semibold text-ink-2">Cargando…</p>
+        </div>
+      ) : (
+        <NewAppointmentSheetBody
+          day={day}
+          providers={providers}
+          services={services}
+          clients={clients}
+          packs={packs}
+          serviceCounts={serviceCounts}
+          preselected={preselected}
+          initialName={nombre ?? ''}
+          initialHora={hora ?? ''}
+          initialServiceQ={servicio ?? ''}
+          initialProviderId={con ?? undefined}
+        />
+      )}
+    </SheetShell>
   );
 }
