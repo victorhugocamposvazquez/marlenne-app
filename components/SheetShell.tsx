@@ -114,7 +114,7 @@ export default function SheetShell({
     setClosing(true);
   }, [closing]);
 
-  const { height, dragging, onHandleDown } = useSheetResize(initialHeight);
+  const { height, dragging, onHandleDown, keyboardBottom } = useSheetResize(initialHeight);
 
   useLayoutEffect(() => {
     const prev = document.body.style.overflow;
@@ -154,14 +154,20 @@ export default function SheetShell({
             className="pointer-events-none absolute inset-0 bg-[rgba(15,14,26,.18)]"
           />
 
-          <div className="absolute inset-x-0 bottom-0 flex justify-center">
+          <div
+            className="absolute inset-x-0 flex justify-center"
+            style={{
+              bottom: keyboardBottom,
+              transition: dragging || closing ? 'none' : 'bottom .22s ease-out',
+            }}
+          >
             <div
               ref={panelRef}
               role="presentation"
               className={`relative z-10 flex w-full max-w-[440px] flex-col overflow-hidden rounded-t-sheet bg-white shadow-[0_-20px_60px_rgba(15,14,26,.18)] ${closing ? 'animate-sheetExit' : ''} ${className}`}
               style={{
                 height,
-                maxHeight: '92dvh',
+                maxHeight: keyboardBottom > 0 ? 'calc(100dvh - 12px)' : '92dvh',
                 transform: closing ? undefined : entered ? 'translateY(0)' : 'translateY(100%)',
                 transition: dragging || closing
                   ? 'none'

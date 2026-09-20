@@ -9,8 +9,29 @@ import {
   snapSheetHeight,
 } from '@/lib/sheet-detent';
 
-function viewH() {
+/** Altura estable del layout; no se encoge con el teclado virtual. */
+function layoutH() {
+  return window.innerHeight;
+}
+
+function visibleH() {
   return window.visualViewport?.height ?? window.innerHeight;
+}
+
+/** Cuánto tapa el teclado desde abajo (px). */
+function keyboardInset() {
+  const vv = window.visualViewport;
+  if (!vv) return 0;
+  return Math.max(0, layoutH() - vv.height - vv.offsetTop);
+}
+
+function keyboardOpen() {
+  return keyboardInset() > 72;
+}
+
+/** Tope superior del panel cuando hay teclado: casi todo el viewport visible. */
+function heightAboveKeyboard(detents: [number, number, number]) {
+  return Math.min(detents[2], Math.max(detents[0], visibleH() - 12));
 }
 
 const TAP = 10;
@@ -24,9 +45,10 @@ function detentIndex(initial: 'peek' | 'mid' | 'tall') {
 }
 
 export function useSheetResize(initial: 'peek' | 'mid' | 'tall' = 'mid') {
-  const [height, setHeight] = useState(() => sheetDetents(viewH())[detentIndex(initial)]);
+  const [height, setHeight] = useState(() => sheetDetents(layoutH())[detentIndex(initial)]);
+  const [keyboardBottom, setKeyboardBottom] = useState(0);
   const [dragging, setDragging] = useState(false);
-  const live = useRef(sheetDetents(viewH())[detentIndex(initial)]);
+  const live = useRef(sheetDetents(layoutH())[detentIndex(initial)]);
   const session = useRef<{
     pointerId: number;
     y0: number;
@@ -42,22 +64,35 @@ export function useSheetResize(initial: 'peek' | 'mid' | 'tall' = 'mid') {
     setHeight(h);
   };
 
+  const syncViewport = useCallback(() => {
+    if (session.current) return;
+    const detents = sheetDetents(layoutH());
+    const inset = keyboardInset();
+    setKeyboardBottom(inset);
+
+    if (keyboardOpen()) {
+      setLive(heightAboveKeyboard(detents));
+      return;
+    }
+    setLive(snapSheetHeight(live.current, detents, 0));
+  }, []);
+
   useEffect(() => {
-    const onResize = () => {
-      if (session.current) return;
-      setLive(snapSheetHeight(live.current, sheetDetents(viewH()), 0));
-    };
-    window.visualViewport?.addEventListener('resize', onResize);
-    window.addEventListener('resize', onResize);
+    syncViewport();
+    const vv = window.visualViewport;
+    vv?.addEventListener('resize', syncViewport);
+    vv?.addEventListener('scroll', syncViewport);
+    window.addEventListener('resize', syncViewport);
     return () => {
-      window.visualViewport?.removeEventListener('resize', onResize);
-      window.removeEventListener('resize', onResize);
+      vv?.removeEventListener('resize', syncViewport);
+      vv?.removeEventListener('scroll', syncViewport);
+      window.removeEventListener('resize', syncViewport);
       cleanup.current?.();
     };
-  }, [initial]);
+  }, [initial, syncViewport]);
 
   const ensureMid = useCallback(() => {
-    const [peek] = sheetDetents(viewH());
+    const [peek] = sheetDetents(layoutH());
     if (live.current < peek - 16) setLive(peek);
   }, []);
 
@@ -91,16 +126,26 @@ export function useSheetResize(initial: 'peek' | 'mid' | 'tall' = 'mid') {
       s.vel = (ev.clientY - s.lastY) / dt;
       s.lastY = ev.clientY;
       s.lastTs = now;
-      const [min, , max] = sheetDetents(viewH());
-      setLive(rubberHeight(s.h0 - (ev.clientY - s.y0), min, max));
+      const detents = sheetDetents(layoutH());
+      const max = keyboardOpen() ? heightAboveKeyboard(detents) : detents[2];
+      setLive(rubberHeight(s.h0 - (ev.clientY - s.y0), detents[0], max));
     };
 
     const end = (ev: PointerEvent) => {
       const s = session.current;
       if (!s || ev.pointerId !== s.pointerId) return;
-      const detents = sheetDetents(viewH());
+      const detents = sheetDetents(layoutH());
       const [min] = detents;
       const moved = ev.clientY - s.y0;
+
+      if (keyboardOpen()) {
+        session.current = null;
+        setDragging(false);
+        setLive(heightAboveKeyboard(detents));
+        cleanup.current?.();
+        return;
+      }
+
       const next = live.current < min
         ? min
         : Math.abs(moved) < TAP
@@ -124,5 +169,5 @@ export function useSheetResize(initial: 'peek' | 'mid' | 'tall' = 'mid') {
     window.addEventListener('pointercancel', end);
   }, []);
 
-  return { height, dragging, onHandleDown, ensureMid };
+  return { height, dragging, onHandleDown, ensureMid, keyboardBottom };
 }
