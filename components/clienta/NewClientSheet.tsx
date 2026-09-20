@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Sheet, { Field, inputCls } from '@/components/Sheet';
 import { useSheetShellClose } from '@/components/SheetShell';
 import Button from '@/components/ui/Button';
+import { useToast } from '@/components/Toast';
 import { addConsent, createClientRecord } from '@/lib/client-write';
 import { createClient } from '@/lib/supabase/client';
 import { CONSENT_COPY } from '@/lib/consents';
@@ -33,54 +34,9 @@ function ExistingMatch({ c }: { c: ClientOption }) {
   );
 }
 
-function SaveActions({
-  name,
-  pending,
-  error,
-  dupId,
-  onSave,
-}: {
-  name: string;
-  pending: boolean;
-  error: string | null;
-  dupId: string | null;
-  onSave: (book: boolean) => void;
-}) {
+function NewClientBody({ existing }: { existing: ClientOption[] }) {
   const router = useRouter();
-  const requestClose = useSheetShellClose();
-  const canSave = name.trim().length >= 2 && !pending;
-
-  return (
-    <div className="mt-5 border-t border-surface-line pt-4">
-      {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
-      {dupId ? (
-        <Button
-          full
-          onClick={() => requestClose(() => router.push(`/agenda?new=1&client=${dupId}`))}
-        >
-          Dar cita a esa ficha
-        </Button>
-      ) : (
-        <>
-          <Button full variant="ink" onClick={() => onSave(true)} disabled={!canSave}>
-            {pending ? 'Guardando…' : 'Crear y dar cita'}
-          </Button>
-          <button
-            type="button"
-            onClick={() => onSave(false)}
-            disabled={!canSave}
-            className="mt-2 flex min-h-[44px] w-full items-center justify-center text-body font-semibold text-ink-2 disabled:opacity-40"
-          >
-            Solo la ficha
-          </button>
-        </>
-      )}
-    </div>
-  );
-}
-
-export default function NewClientSheet({ existing = [] }: { existing?: ClientOption[] }) {
-  const router = useRouter();
+  const toast = useToast();
   const requestClose = useSheetShellClose();
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState('');
@@ -105,6 +61,8 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
       .slice(0, 4);
   }, [name, phone, existing]);
 
+  const canSave = name.trim().length >= 2 && !pending;
+
   const save = (book: boolean) => {
     setError(null);
     setDupId(null);
@@ -123,23 +81,20 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
       }
       if (foto) await addConsent(sb, { clientId: r.id, kind: 'fotografia' });
       if (salud) await addConsent(sb, { clientId: r.id, kind: 'datos_salud' });
+      toast('Ficha creada');
       requestClose(() => {
-        router.push(book ? `/agenda?new=1&client=${r.id}` : `/clientas/${r.id}`);
+        if (book) router.push(`/agenda?new=1&client=${r.id}`);
+        else router.refresh();
       });
     });
   };
 
   return (
-    <Sheet
-      title="Nueva Client@"
-      subtitle="Nombre y teléfono bastan. Luego das la cita."
-      initialHeight="tall"
-      floorDetent="tall"
-    >
+    <>
       <form
         onSubmit={e => {
           e.preventDefault();
-          if (name.trim().length >= 2) save(true);
+          if (canSave) save(true);
         }}
       >
         <Field label="Nombre">
@@ -206,13 +161,44 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
         </label>
       </div>
 
-      <SaveActions
-        name={name}
-        pending={pending}
-        error={error}
-        dupId={dupId}
-        onSave={save}
-      />
+      <div className="mt-5 border-t border-surface-line pt-4">
+        {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
+        {dupId ? (
+          <Button
+            full
+            onClick={() => requestClose(() => router.push(`/agenda?new=1&client=${dupId}`))}
+          >
+            Dar cita a esa ficha
+          </Button>
+        ) : (
+          <>
+            <Button full variant="ink" onClick={() => save(true)} disabled={!canSave}>
+              {pending ? 'Guardando…' : 'Crear y dar cita'}
+            </Button>
+            <button
+              type="button"
+              onClick={() => save(false)}
+              disabled={!canSave}
+              className="mt-2 flex min-h-[44px] w-full items-center justify-center text-body font-semibold text-ink-2 disabled:opacity-40"
+            >
+              Solo la ficha
+            </button>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+export default function NewClientSheet({ existing = [] }: { existing?: ClientOption[] }) {
+  return (
+    <Sheet
+      title="Nueva Client@"
+      subtitle="Nombre y teléfono bastan. Luego das la cita."
+      initialHeight="tall"
+      floorDetent="tall"
+    >
+      <NewClientBody existing={existing} />
     </Sheet>
   );
 }

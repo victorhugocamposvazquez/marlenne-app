@@ -235,13 +235,14 @@ export async function listClients(): Promise<ClientListRow[]> {
   const sb = createClient();
   const { data } = await sb
     .from('clients')
-    .select('id, full_name, phone, tags, treatments(service:services(name), closed_at)')
+    .select('id, full_name, phone, tags, created_at, treatments(service:services(name), closed_at)')
     .order('full_name');
   const rows = data ?? [];
   const ids = rows.map((c: { id: string }) => c.id);
 
   const nextBy = new Map<string, string>();
   const lastBy = new Map<string, string>();
+  const visitsBy = new Map<string, number>();
   const packsBy = new Map<string, string[]>();
   if (ids.length) {
     const now = new Date().toISOString();
@@ -267,7 +268,9 @@ export async function listClients(): Promise<ClientListRow[]> {
       if (a.client_id && !nextBy.has(a.client_id)) nextBy.set(a.client_id, a.starts_at);
     }
     for (const a of past ?? []) {
-      if (a.client_id && !lastBy.has(a.client_id)) lastBy.set(a.client_id, a.starts_at);
+      if (!a.client_id) continue;
+      visitsBy.set(a.client_id, (visitsBy.get(a.client_id) ?? 0) + 1);
+      if (!lastBy.has(a.client_id)) lastBy.set(a.client_id, a.starts_at);
     }
     if (!packsRes.error) {
       for (const p of packsRes.data ?? []) {
@@ -285,7 +288,7 @@ export async function listClients(): Promise<ClientListRow[]> {
   }
 
   return (rows as unknown as {
-    id: string; full_name: string; phone: string | null; tags: string[] | null;
+    id: string; full_name: string; phone: string | null; tags: string[] | null; created_at: string;
     treatments?: { service?: { name: string } | null; closed_at: string | null }[];
   }[]).map(c => ({
     id: c.id,
@@ -299,6 +302,8 @@ export async function listClients(): Promise<ClientListRow[]> {
     open_packs: packsBy.get(c.id) ?? [],
     next_at: nextBy.get(c.id) ?? null,
     last_at: lastBy.get(c.id) ?? null,
+    created_at: c.created_at,
+    visit_count: visitsBy.get(c.id) ?? 0,
   }));
 }
 

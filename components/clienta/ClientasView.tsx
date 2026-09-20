@@ -17,6 +17,7 @@ import { fold } from '@/lib/voice';
 import type { ClientListRow } from '@/lib/types';
 
 type Filter = 'todas' | 'vip' | 'proxima' | 'sin' | 'tratamiento' | 'volver' | 'bono';
+type Sort = 'az' | 'za' | 'alta' | 'visitas';
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'todas', label: 'Todas' },
@@ -27,6 +28,17 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'bono', label: 'Con bono' },
   { id: 'vip', label: 'VIP' },
 ];
+
+const SORTS: { id: Sort; label: string }[] = [
+  { id: 'az', label: 'A–Z' },
+  { id: 'za', label: 'Z–A' },
+  { id: 'alta', label: 'Última alta' },
+  { id: 'visitas', label: 'Más visitas' },
+];
+
+function byName(a: ClientListRow, b: ClientListRow) {
+  return fold(a.full_name).localeCompare(fold(b.full_name), 'es');
+}
 
 function clientListMeta(c: ClientListRow) {
   const phone = c.phone?.trim() || 'Sin teléfono';
@@ -51,11 +63,12 @@ export default function ClientasView({
   const alta = useShallowParam('alta', initialAlta ? '1' : null);
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<Filter>('todas');
+  const [sort, setSort] = useState<Sort>('az');
 
   const shown = useMemo(() => {
     const needle = fold(q);
     const tel = phoneDigits(q);
-    return clients.filter(c => {
+    const filtered = clients.filter(c => {
       if (filter === 'vip' && !c.tags.includes('VIP')) return false;
       if (filter === 'proxima' && !c.next_at) return false;
       if (filter === 'sin' && c.next_at) return false;
@@ -67,7 +80,19 @@ export default function ClientasView({
       const phoneHit = tel.length >= 3 && phoneDigits(c.phone ?? '').includes(tel);
       return !!(nameHit || phoneHit);
     });
-  }, [clients, q, filter]);
+    return [...filtered].sort((a, b) => {
+      if (sort === 'za') return byName(b, a);
+      if (sort === 'alta') {
+        const byDate = (b.created_at ?? '').localeCompare(a.created_at ?? '');
+        return byDate || byName(a, b);
+      }
+      if (sort === 'visitas') {
+        const byVisits = (b.visit_count ?? 0) - (a.visit_count ?? 0);
+        return byVisits || byName(a, b);
+      }
+      return byName(a, b);
+    });
+  }, [clients, q, filter, sort]);
 
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
@@ -107,6 +132,18 @@ export default function ClientasView({
               onClick={() => setFilter(prev => (prev === f.id ? 'todas' : f.id))}
             >
               {f.label}
+            </Chip>
+          ))}
+        </div>
+        <div className="mt-2 flex gap-1.5 overflow-x-auto">
+          {SORTS.map(s => (
+            <Chip
+              key={s.id}
+              className="min-h-[36px] shrink-0 px-3"
+              active={sort === s.id}
+              onClick={() => setSort(s.id)}
+            >
+              {s.label}
             </Chip>
           ))}
         </div>
