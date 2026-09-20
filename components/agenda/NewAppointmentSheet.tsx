@@ -6,7 +6,7 @@ import Button from '@/components/ui/Button';
 import DayStrip from '@/components/agenda/DayStrip';
 import MonthCalendar from '@/components/agenda/MonthCalendar';
 import { useCloseSheet } from '@/components/Sheet';
-import SheetShell, { SheetGrab, SheetHandle } from '@/components/SheetShell';
+import SheetShell, { SheetGrab, SheetHandle, useSheetShellClose } from '@/components/SheetShell';
 import { avatarColor, catStyle, initials } from '@/lib/categories';
 import { createAppointment, updateAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
@@ -25,7 +25,29 @@ import type { AgendaAppt, ClientOption, ClientPack, Provider, ServiceOption } fr
 
 type Step = 'client' | 'service' | 'when' | 'confirm';
 
-export default function NewAppointmentSheet({
+export default function NewAppointmentSheet(props: {
+  day: string;
+  providers: Provider[];
+  services: ServiceOption[];
+  clients: ClientOption[];
+  packs?: ClientPack[];
+  serviceCounts?: Record<string, number>;
+  preselected?: ClientOption | null;
+  initialName?: string;
+  initialHora?: string;
+  initialServiceQ?: string;
+  initialProviderId?: string;
+  editing?: AgendaAppt | null;
+}) {
+  const closeUrl = useCloseSheet();
+  return (
+    <SheetShell onClose={closeUrl} initialHeight="tall" grabHeader>
+      <NewAppointmentSheetBody {...props} />
+    </SheetShell>
+  );
+}
+
+function NewAppointmentSheetBody({
   day, providers, services, clients, packs = [], serviceCounts = {}, preselected = null,
   initialName = '', initialHora = '', initialServiceQ = '', initialProviderId,
   editing = null,
@@ -43,7 +65,7 @@ export default function NewAppointmentSheet({
   initialProviderId?: string;
   editing?: AgendaAppt | null;
 }) {
-  const closeAll = useCloseSheet();
+  const requestClose = useSheetShellClose();
   const toast = useToast();
   const [pending, startTransition] = useTransition();
   const guessed = initialServiceQ ? bestNameMatches(services, initialServiceQ, s => s.name) : [];
@@ -85,10 +107,9 @@ export default function NewAppointmentSheet({
   const [wa, setWa] = useState(true);
   const [lastId, setLastId] = useState<string | null>(null);
   const [fits, setFits] = useState<Record<string, boolean>>({});
-  const [mounted, setMounted] = useState(false);
   const whenSnap = useRef({ dayOff: 0, startMin: null as number | null, providerId: '' });
 
-  useEffect(() => { setMounted(true); setLastId(readLastServiceId()); }, []);
+  useEffect(() => { setLastId(readLastServiceId()); }, []);
 
   const service = services.find(s => s.id === serviceId) ?? null;
   const who = client?.full_name ?? query.trim();
@@ -241,8 +262,7 @@ export default function NewAppointmentSheet({
       toast(editing
         ? `Cita actualizada · ${who.split(' ')[0]} ${fmt(startMin)}`
         : `Cita guardada · ${who.split(' ')[0]} ${fmt(startMin)}${draftHref ? ' · WhatsApp' : ''}`);
-      closeAll();
-      shallowSet({ new: null, appt: null, client: null, nombre: null, hora: null, servicio: null, con: null });
+      requestClose();
     });
   };
 
@@ -280,10 +300,7 @@ export default function NewAppointmentSheet({
     ? `${ctxDate} · ${fmt(startMin)}${provider ? ` · ${provider.full_name.split(' ')[0]}` : ''}`
     : ctxDate;
 
-  if (!mounted) return null;
-
   return (
-    <SheetShell onClose={closeAll} initialHeight="tall" grabHeader>
       <div className="flex min-h-0 flex-1 flex-col">
         <SheetGrab className="shrink-0 px-6 pb-2 pt-1">
           <SheetHandle className="mb-3" />
@@ -297,7 +314,7 @@ export default function NewAppointmentSheet({
               <p className="text-label text-ink-2">{editing ? 'Editar cita' : 'Nueva cita'} · paso {idx} de 3</p>
               <p className="truncate text-[15px] font-semibold">{ctx}</p>
             </div>
-            <button type="button" aria-label="Cerrar" onClick={closeAll} className="grid h-10 w-10 shrink-0 place-items-center rounded-pill bg-track">
+            <button type="button" aria-label="Cerrar" onClick={() => requestClose()} className="grid h-10 w-10 shrink-0 place-items-center rounded-pill bg-track">
               <X size={16} strokeWidth={2.4} />
             </button>
           </div>
@@ -537,7 +554,6 @@ export default function NewAppointmentSheet({
           </>
         )}
       </div>
-    </SheetShell>
   );
 }
 

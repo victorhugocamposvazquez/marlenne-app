@@ -2,7 +2,8 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import Sheet, { Field, inputCls, useCloseSheet } from '@/components/Sheet';
+import Sheet, { Field, inputCls } from '@/components/Sheet';
+import { useSheetShellClose } from '@/components/SheetShell';
 import Button from '@/components/ui/Button';
 import { addConsent, createClientRecord } from '@/lib/client-write';
 import { createClient } from '@/lib/supabase/client';
@@ -14,8 +15,25 @@ function digits(s: string) {
   return s.replace(/\D/g, '');
 }
 
+function ExistingMatch({ c }: { c: ClientOption }) {
+  const router = useRouter();
+  const requestClose = useSheetShellClose();
+  return (
+    <button
+      type="button"
+      onClick={() => requestClose(() => router.push(`/agenda?new=1&client=${c.id}`))}
+      className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left last:pb-2.5"
+    >
+      <span className="min-w-0">
+        <span className="block truncate text-body font-bold">{c.full_name}</span>
+        {c.phone && <span className="block text-caption font-medium text-ink-3">{c.phone}</span>}
+      </span>
+      <span className="shrink-0 text-label font-bold text-v-d">Dar cita</span>
+    </button>
+  );
+}
+
 export default function NewClientSheet({ existing = [] }: { existing?: ClientOption[] }) {
-  const close = useCloseSheet();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState('');
@@ -40,7 +58,7 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
       .slice(0, 4);
   }, [name, phone, existing]);
 
-  const save = (book: boolean) => {
+  const save = (book: boolean, requestClose: (after?: () => void) => void) => {
     setError(null);
     setDupId(null);
     startTransition(async () => {
@@ -58,8 +76,9 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
       }
       if (foto) await addConsent(sb, { clientId: r.id, kind: 'fotografia' });
       if (salud) await addConsent(sb, { clientId: r.id, kind: 'datos_salud' });
-      close();
-      router.push(book ? `/agenda?new=1&client=${r.id}` : `/clientas/${r.id}`);
+      requestClose(() => {
+        router.push(book ? `/agenda?new=1&client=${r.id}` : `/clientas/${r.id}`);
+      });
     });
   };
 
@@ -68,30 +87,27 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
       title="Nueva Client@"
       subtitle="Nombre y teléfono bastan. Luego das la cita."
       initialHeight="tall"
-      footer={
+      footer={requestClose => (
         <>
           {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
           {dupId ? (
             <Button
               size="lg"
               full
-              onClick={() => {
-                close();
-                router.push(`/agenda?new=1&client=${dupId}`);
-              }}
+              onClick={() => requestClose(() => router.push(`/agenda?new=1&client=${dupId}`))}
             >
               Dar cita a esa ficha
             </Button>
           ) : (
             <>
-              <Button size="lg" full onClick={() => save(true)} disabled={name.trim().length < 2 || pending}>
+              <Button size="lg" full onClick={() => save(true, requestClose)} disabled={name.trim().length < 2 || pending}>
                 {pending ? 'Guardando…' : 'Crear y dar cita'}
               </Button>
               <Button
                 variant="ghost"
                 full
                 className="mt-1 text-ink-2"
-                onClick={() => save(false)}
+                onClick={() => save(false, requestClose)}
                 disabled={name.trim().length < 2 || pending}
               >
                 Solo la ficha
@@ -99,12 +115,11 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
             </>
           )}
         </>
-      }
+      )}
     >
       <form
         onSubmit={e => {
           e.preventDefault();
-          if (name.trim().length >= 2 && !pending) save(true);
         }}
       >
         <Field label="Nombre">
@@ -135,21 +150,7 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
             ¿Ya está en la base?
           </p>
           {matches.map(c => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => {
-                close();
-                router.push(`/agenda?new=1&client=${c.id}`);
-              }}
-              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left last:pb-2.5"
-            >
-              <span className="min-w-0">
-                <span className="block truncate text-body font-bold">{c.full_name}</span>
-                {c.phone && <span className="block text-caption font-medium text-ink-3">{c.phone}</span>}
-              </span>
-              <span className="shrink-0 text-label font-bold text-v-d">Dar cita</span>
-            </button>
+            <ExistingMatch key={c.id} c={c} />
           ))}
         </div>
       )}

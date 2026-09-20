@@ -5,7 +5,6 @@ import { haptic } from '@/hooks/haptics';
 import {
   nextSheetHeight,
   rubberHeight,
-  SHEET_DISMISS_PX,
   sheetDetents,
   snapSheetHeight,
 } from '@/lib/sheet-detent';
@@ -24,13 +23,10 @@ function detentIndex(initial: 'peek' | 'mid' | 'tall') {
   return initial === 'peek' ? 0 : initial === 'tall' ? 2 : 1;
 }
 
-export function useSheetResize(
-  initial: 'peek' | 'mid' | 'tall' = 'mid',
-  onDismiss?: () => void,
-) {
+export function useSheetResize(initial: 'peek' | 'mid' | 'tall' = 'mid') {
   const [height, setHeight] = useState(() => sheetDetents(viewH())[detentIndex(initial)]);
   const [dragging, setDragging] = useState(false);
-  const live = useRef(320);
+  const live = useRef(sheetDetents(viewH())[detentIndex(initial)]);
   const session = useRef<{
     pointerId: number;
     y0: number;
@@ -47,7 +43,6 @@ export function useSheetResize(
   };
 
   useEffect(() => {
-    setLive(sheetDetents(viewH())[detentIndex(initial)]);
     const onResize = () => {
       if (session.current) return;
       setLive(snapSheetHeight(live.current, sheetDetents(viewH()), 0));
@@ -106,15 +101,6 @@ export function useSheetResize(
       const detents = sheetDetents(viewH());
       const [min] = detents;
       const moved = ev.clientY - s.y0;
-      const dismiss = live.current <= SHEET_DISMISS_PX
-        || (s.vel > 0.55 && live.current < min * 0.42);
-      if (dismiss) {
-        session.current = null;
-        setDragging(false);
-        onDismiss?.();
-        cleanup.current?.();
-        return;
-      }
       const next = live.current < min
         ? min
         : Math.abs(moved) < TAP
@@ -136,7 +122,7 @@ export function useSheetResize(
     window.addEventListener('pointermove', move, { passive: false });
     window.addEventListener('pointerup', end);
     window.addEventListener('pointercancel', end);
-  }, [onDismiss]);
+  }, []);
 
   return { height, dragging, onHandleDown, ensureMid };
 }

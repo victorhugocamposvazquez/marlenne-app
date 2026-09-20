@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import Sheet, { Field, inputCls, useCloseSheet } from '@/components/Sheet';
+import Sheet, { Field, inputCls } from '@/components/Sheet';
+import { useSheetShellClose } from '@/components/SheetShell';
 import Button from '@/components/ui/Button';
 import { deleteClientRecord, updateClientRecord } from '@/lib/client-write';
 import { createClient } from '@/lib/supabase/client';
@@ -15,7 +16,7 @@ export default function EditClientSheet({
   upcomingCount?: number;
   photoCount?: number;
 }) {
-  const close = useCloseSheet();
+  const requestClose = useSheetShellClose();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState(client.full_name);
@@ -45,8 +46,7 @@ export default function EditClientSheet({
       });
       if (!r.ok) setError(r.error ?? 'No se ha podido guardar');
       else {
-        close();
-        router.refresh();
+        requestClose(() => router.refresh());
       }
     });
   };

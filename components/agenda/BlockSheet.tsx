@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet';
+import Sheet, { Chip, Field, inputCls } from '@/components/Sheet';
+import { useSheetShellClose } from '@/components/SheetShell';
 import Button from '@/components/ui/Button';
 import { createBlock, deleteBlock } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
@@ -18,7 +19,7 @@ export default function BlockSheet({
   providers: Provider[];
   existing?: AgendaBlock | null;
 }) {
-  const close = useCloseSheet();
+  const requestClose = useSheetShellClose();
   const [pending, startTransition] = useTransition();
   const [providerId, setProviderId] = useState(existing?.provider_id ?? providers[0]?.id ?? '');
   const [date, setDate] = useState(day);
@@ -48,7 +49,7 @@ export default function BlockSheet({
                 onClick={() => startTransition(async () => {
                   const r = await deleteBlock(createClient(), existing.id);
                   if (!r.ok) setError(r.error ?? 'No se ha podido borrar');
-                  else close();
+                  else requestClose();
                 })}
               >
                 Quitar bloqueo
@@ -72,7 +73,7 @@ export default function BlockSheet({
         weekdays: repeatWeekdays,
       });
       if (!r.ok) setError(r.error ?? 'No se ha podido bloquear');
-      else close();
+      else requestClose();
     });
   };
 

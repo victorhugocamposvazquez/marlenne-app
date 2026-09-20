@@ -78,6 +78,7 @@ export default {
       keyframes: {
         sheetUp: { from: { transform: 'translateY(30px)', opacity: '0' }, to: { transform: 'none', opacity: '1' } },
         sheetEnter: { from: { transform: 'translateY(100%)' }, to: { transform: 'translateY(0)' } },
+        sheetExit: { from: { transform: 'translateY(0)' }, to: { transform: 'translateY(100%)' } },
         toastIn: { from: { transform: 'translateY(10px) scale(.97)', opacity: '0' }, to: { transform: 'none', opacity: '1' } },
         pulseDot: { '0%,100%': { opacity: '1' }, '50%': { opacity: '.35' } },
         voiceBar: { '0%,100%': { transform: 'scaleY(0.28)' }, '50%': { transform: 'scaleY(1)' } },
@@ -85,6 +86,7 @@ export default {
       animation: {
         sheetUp: 'sheetUp .26s cubic-bezier(.2,.9,.3,1)',
         sheetEnter: 'sheetEnter .34s cubic-bezier(.22,.92,.28,1) both',
+        sheetExit: 'sheetExit .28s cubic-bezier(.4,0,.2,1) forwards',
         toastIn: 'toastIn .22s ease',
         pulseDot: 'pulseDot 1.6s infinite',
         voiceBar: 'voiceBar .7s ease-in-out infinite',

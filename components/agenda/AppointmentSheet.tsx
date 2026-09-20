@@ -3,7 +3,8 @@
 import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { CalendarClock, CalendarPlus, MessageCircle, Phone, Trash2, UserRound } from 'lucide-react';
-import Sheet, { Chip, Field, inputCls, useCloseSheet } from '@/components/Sheet';
+import Sheet, { Chip, Field, inputCls } from '@/components/Sheet';
+import { useSheetShellClose } from '@/components/SheetShell';
 import Button from '@/components/ui/Button';
 import NextSlotControls from '@/components/agenda/NextSlotControls';
 import { catStyle, STATUS, type StatusId } from '@/lib/categories';
@@ -40,7 +41,7 @@ export default function AppointmentSheet({
   startClosing?: boolean;
   sms?: { status: string; sent_at: string | null } | null;
 }) {
-  const close = useCloseSheet();
+  const requestClose = useSheetShellClose();
   const toast = useToast();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +81,7 @@ export default function AppointmentSheet({
       if (!r.ok) setError(r.error ?? 'No se ha podido guardar');
       else {
         if (okMsg) toast(okMsg, undo ? { undo } : undefined);
-        if (thenClose) close();
+        if (thenClose) requestClose();
       }
     });
   };
@@ -247,7 +248,7 @@ export default function AppointmentSheet({
               const r = await cancelAppointment(createClient(), appt.id);
               if (!r.ok) setError(r.error ?? 'No se ha podido cancelar');
               else if (r.waiters?.length) setWaiters(r.waiters);
-              else close();
+              else requestClose();
             });
           }}
         >

@@ -4,7 +4,7 @@ import { useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import IconButton from '@/components/ui/IconButton';
-import SheetShell, { SheetGrab, SheetHandle } from '@/components/SheetShell';
+import SheetShell, { SheetGrab, SheetHandle, useSheetShellClose } from '@/components/SheetShell';
 import { shallowSet } from '@/hooks/useShallowQuery';
 
 /** Los sheets viven en la URL, así el botón atrás del móvil también los cierra. */
@@ -30,43 +30,60 @@ export function useCloseSheet() {
   }, [pathname, router]);
 }
 
+function SheetBody({
+  title, subtitle, children, footer,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode | ((requestClose: ReturnType<typeof useSheetShellClose>) => React.ReactNode);
+}) {
+  const requestClose = useSheetShellClose();
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <SheetGrab className="shrink-0 px-5 pb-3 pt-1">
+        <SheetHandle className="mb-3" />
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-title font-bold leading-tight tracking-[-.02em]">{title}</h2>
+            {subtitle && <p className="mt-0.5 text-label font-medium text-ink-2">{subtitle}</p>}
+          </div>
+          <IconButton label="Cerrar" onClick={() => requestClose()}>
+            <X size={18} strokeWidth={2.2} />
+          </IconButton>
+        </div>
+      </SheetGrab>
+
+        <div className={`min-h-0 flex-1 overflow-y-auto px-5 ${footer ? 'pb-2' : 'pb-[max(16px,env(safe-area-inset-bottom))]'}`}>
+          {children}
+        </div>
+
+      {footer && (
+        <div className="shrink-0 px-6 pb-[max(16px,env(safe-area-inset-bottom))] pt-3">
+          {typeof footer === 'function' ? footer(requestClose) : footer}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Sheet({
   title, subtitle, children, footer, initialHeight = 'mid',
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
-  footer?: React.ReactNode;
+  footer?: React.ReactNode | ((requestClose: ReturnType<typeof useSheetShellClose>) => React.ReactNode);
   initialHeight?: 'peek' | 'mid' | 'tall';
 }) {
   const close = useCloseSheet();
 
   return (
     <SheetShell onClose={close} initialHeight={initialHeight} grabHeader className="flex max-h-[92dvh] flex-col">
-      <div className="flex min-h-0 flex-1 flex-col">
-        <SheetGrab className="shrink-0 px-5 pb-3 pt-1">
-          <SheetHandle className="mb-3" />
-          <div className="flex items-start gap-3">
-            <div className="min-w-0 flex-1">
-              <h2 className="text-title font-bold leading-tight tracking-[-.02em]">{title}</h2>
-              {subtitle && <p className="mt-0.5 text-label font-medium text-ink-2">{subtitle}</p>}
-            </div>
-            <IconButton label="Cerrar" onClick={close}>
-              <X size={18} strokeWidth={2.2} />
-            </IconButton>
-          </div>
-        </SheetGrab>
-
-        <div className={`min-h-0 flex-1 overflow-y-auto px-5 ${footer ? 'pb-2' : 'pb-[max(16px,env(safe-area-inset-bottom))]'}`}>
-          {children}
-        </div>
-
-        {footer && (
-          <div className="shrink-0 px-6 pb-[max(16px,env(safe-area-inset-bottom))] pt-3">
-            {footer}
-          </div>
-        )}
-      </div>
+      <SheetBody title={title} subtitle={subtitle} footer={footer}>
+        {children}
+      </SheetBody>
     </SheetShell>
   );
 }
