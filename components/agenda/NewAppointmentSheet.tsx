@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { Calendar, Check, ChevronLeft, Plus, Search, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { circleOutlineCls } from '@/components/ui/IconButton';
+import { circleOutlineCls, pillOutlineCls } from '@/components/ui/IconButton';
+import { providerAgendaLabel } from '@/lib/team';
 import DayStrip from '@/components/agenda/DayStrip';
 import MonthCalendar from '@/components/agenda/MonthCalendar';
 import { useCloseSheet } from '@/components/Sheet';
@@ -295,7 +296,7 @@ export function NewAppointmentSheetBody({
     else setStep('client');
   };
   const ctx = startMin != null
-    ? `${ctxDate} · ${fmt(startMin)}${provider ? ` · ${provider.full_name.split(' ')[0]}` : ''}`
+    ? `${ctxDate} · ${fmt(startMin)}${provider ? ` · ${providerAgendaLabel(provider)}` : ''}`
     : ctxDate;
 
   return (
@@ -457,21 +458,29 @@ export function NewAppointmentSheetBody({
               </button>
             </div>
             {providers.length > 1 && (
-              <div className="mb-6 flex flex-wrap gap-2.5">
-                {providers.map(p => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => { setProviderId(p.id); setStartMin(null); }}
-                    className="rounded-pill px-4 py-2.5 text-label font-semibold"
-                    style={{
-                      background: p.id === providerId ? 'rgb(var(--c-ink))' : 'rgb(var(--c-soft))',
-                      color: p.id === providerId ? '#fff' : 'rgb(var(--c-ink))',
-                    }}
-                  >
-                    {p.full_name.split(' ')[0]}
-                  </button>
-                ))}
+              <div className="mb-6">
+                <p className="mb-2 text-label font-semibold text-ink-2">Equipo</p>
+                <div
+                  className="-mx-6 overflow-x-auto px-6 pb-2 [scrollbar-gutter:stable] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-ink-3 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-surface-line"
+                >
+                  <div className="flex w-max min-w-full snap-x snap-mandatory gap-2.5">
+                    {providers.map(p => {
+                      const on = p.id === providerId;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => { setProviderId(p.id); setStartMin(null); }}
+                          className={`${pillOutlineCls} h-[38px] shrink-0 snap-start whitespace-nowrap px-4 text-label ${
+                            on ? 'font-extrabold' : 'font-semibold text-ink-2'
+                          }`}
+                        >
+                          {providerAgendaLabel(p)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             )}
             <p className="mb-3 text-label font-semibold text-ink-2">Hora</p>
@@ -521,7 +530,7 @@ export function NewAppointmentSheetBody({
                 <Row
                   label="Cuándo"
                   value={startMin != null && service ? `${ctxDate}, ${fmt(startMin)}–${fmt(startMin + service.duration_min)}` : ctxDate}
-                  hint={provider ? `Con ${provider.full_name.split(' ')[0]}` : undefined}
+                  hint={provider ? `Con ${providerAgendaLabel(provider)}` : undefined}
                   onChange={() => openWhen('confirm')}
                   last
                 />

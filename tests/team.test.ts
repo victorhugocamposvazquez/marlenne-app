@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { agendaColumns } from '../lib/team';
+import { agendaColumns, providerAgendaLabel } from '../lib/team';
 import type { Provider } from '../lib/types';
 
 function person(role: Provider['role'], id = role): Provider {
@@ -19,4 +19,10 @@ test('sin profesionales, el equipo no deja la agenda vacía', () => {
 
 test('equipo vacío sigue vacío', () => {
   assert.deepEqual(agendaColumns([]), []);
+});
+
+test('picker de agenda usa el puesto guardado', () => {
+  const p = { ...person('provider'), full_name: 'Cabina', job_title: 'Cabina 2' };
+  assert.equal(providerAgendaLabel(p), 'Cabina 2');
+  assert.equal(providerAgendaLabel({ ...p, job_title: null }), 'Cabina');
 });
