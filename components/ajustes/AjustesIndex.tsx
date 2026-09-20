@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import ReadyList from '@/components/ajustes/ReadyList';
-import { ajustesCardCls, ajustesSectionTitleCls } from '@/components/ajustes/AjustesSection';
+import { ajustesCardCls, ajustesGroupTitleCls } from '@/components/ajustes/AjustesSection';
 import PageHeading from '@/components/ui/PageHeading';
 import type { ReadyItem } from '@/lib/ready';
 import type { StaffRole } from '@/lib/types';
@@ -12,7 +12,7 @@ function Group({ title, rows }: { title: string; rows: Destino[] }) {
   if (!rows.length) return null;
   return (
     <section className="mt-8">
-      <h2 className={ajustesSectionTitleCls}>{title}</h2>
+      <h2 className={ajustesGroupTitleCls}>{title}</h2>
       <div className={ajustesCardCls}>
         {rows.map(row => (
           <Link

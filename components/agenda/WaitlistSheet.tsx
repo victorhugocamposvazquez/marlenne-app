@@ -6,6 +6,7 @@ import Sheet, { Field, inputCls } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
 import EmptyState from '@/components/ui/EmptyState';
 import IconButton from '@/components/ui/IconButton';
+import Skeleton from '@/components/ui/Skeleton';
 import { addToWaitlist, resolveWaitlist } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import { shallowSet } from '@/hooks/useShallowQuery';
@@ -15,11 +16,12 @@ import { fold } from '@/lib/voice';
 import type { ClientOption, ServiceOption, WaitItem } from '@/lib/types';
 
 export default function WaitlistSheet({
-  items, clients, services,
+  items, clients, services, loading,
 }: {
   items: WaitItem[];
   clients: ClientOption[];
   services: ServiceOption[];
+  loading?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [adding, setAdding] = useState(false);
@@ -66,7 +68,7 @@ export default function WaitlistSheet({
       title="Lista de espera"
       subtitle={items.length ? `${items.length} pendientes` : 'Nadie esperando ahora'}
       footer={
-        adding ? (
+        loading ? undefined : adding ? (
           <>
             {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
             <div className="flex gap-2">
@@ -90,104 +92,113 @@ export default function WaitlistSheet({
         )
       }
     >
-      <div className="mb-3 flex flex-col gap-2">
-        {items.length === 0 && !adding && (
-          <EmptyState
-            icon={Clock}
-            title="Nadie en la lista de espera."
-            hint="Cuando no hay hueco, apunta aquí a quien llama."
-          />
-        )}
-        {items.map(w => {
-          const name = w.client?.full_name ?? w.client_name ?? 'Sin nombre';
-          const wa = waHref(
-            w.client?.phone,
-            `Hola ${firstName(name)}, ¿sigues esperando ${w.service?.name ?? 'cita'}? Tenemos un hueco.`,
-          );
-          return (
-            <div key={w.id} className="rounded-row bg-surface-soft p-3.5">
-              <div className="flex items-start gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-body font-bold">{name}</div>
-                  <div className="text-caption font-medium text-ink-3">
-                    {[w.service?.name, w.preference, dateLbl(w.created_at)].filter(Boolean).join(' · ')}
-                  </div>
-                  {w.client?.phone && (
-                    <div className="mt-0.5 flex flex-wrap gap-2">
-                      <a href={`tel:${w.client.phone}`} className="text-label font-bold text-v-d">
-                        {w.client.phone}
-                      </a>
-                      {wa && (
-                        <a
-                          href={wa}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-label font-bold text-ok-fg"
-                        >
-                          <MessageCircle size={13} strokeWidth={2.2} />
-                          WhatsApp
-                        </a>
+      {loading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
+        </div>
+      ) : (
+        <>
+          <div className="mb-3 flex flex-col gap-2">
+            {items.length === 0 && !adding && (
+              <EmptyState
+                icon={Clock}
+                title="Nadie en la lista de espera."
+                hint="Cuando no hay hueco, apunta aquí a quien llama."
+              />
+            )}
+            {items.map(w => {
+              const name = w.client?.full_name ?? w.client_name ?? 'Sin nombre';
+              const wa = waHref(
+                w.client?.phone,
+                `Hola ${firstName(name)}, ¿sigues esperando ${w.service?.name ?? 'cita'}? Tenemos un hueco.`,
+              );
+              return (
+                <div key={w.id} className="rounded-row bg-surface-soft p-3.5">
+                  <div className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-body font-bold">{name}</div>
+                      <div className="text-caption font-medium text-ink-3">
+                        {[w.service?.name, w.preference, dateLbl(w.created_at)].filter(Boolean).join(' · ')}
+                      </div>
+                      {w.client?.phone && (
+                        <div className="mt-0.5 flex flex-wrap gap-2">
+                          <a href={`tel:${w.client.phone}`} className="text-label font-bold text-v-d">
+                            {w.client.phone}
+                          </a>
+                          {wa && (
+                            <a
+                              href={wa}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-label font-bold text-ok-fg"
+                            >
+                              <MessageCircle size={13} strokeWidth={2.2} />
+                              WhatsApp
+                            </a>
+                          )}
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
-                <IconButton
-                  label={`Quitar a ${name} de la espera`}
-                  tone="ok"
-                  disabled={pending}
-                  onClick={() => startTransition(() => { void resolveWaitlist(createClient(), w.id); })}
-                >
-                  <Check size={17} strokeWidth={2.4} />
-                </IconButton>
-              </div>
-              <button
-                onClick={() => {
-                  shallowSet({
-                    wait: null,
-                    new: '1',
-                    client: w.client_id ?? null,
-                    nombre: w.client_id ? null : (w.client_name ?? null),
-                    servicio: w.service?.name ?? null,
-                  });
-                }}
-                className="mt-1 flex min-h-[44px] items-center gap-1.5 text-label font-bold text-v-d"
-              >
-                <CalendarPlus size={14} strokeWidth={2.2} />
-                Dar cita
-              </button>
-            </div>
-          );
-        })}
-      </div>
-
-      {adding && (
-        <div className="mb-2 rounded-field border border-surface-line bg-surface-bg/40 p-3.5">
-          <Field label="Quién">
-            {client ? (
-              <button type="button" onClick={() => setClient(null)} className={`${inputCls} text-left`}>
-                {client.full_name}
-              </button>
-            ) : (
-              <>
-                <input className={inputCls} placeholder="Nombre o buscar" value={query} onChange={e => setQuery(e.target.value)} />
-                {matches.map(c => (
-                  <button key={c.id} type="button" onClick={() => setClient(c)} className="mt-1 block w-full rounded-chip px-3 py-2 text-left text-body font-bold hover:bg-v-tint">
-                    {c.full_name}
+                    <IconButton
+                      label={`Quitar a ${name} de la espera`}
+                      tone="ok"
+                      disabled={pending}
+                      onClick={() => startTransition(() => { void resolveWaitlist(createClient(), w.id); })}
+                    >
+                      <Check size={17} strokeWidth={2.4} />
+                    </IconButton>
+                  </div>
+                  <button
+                    onClick={() => {
+                      shallowSet({
+                        wait: null,
+                        new: '1',
+                        client: w.client_id ?? null,
+                        nombre: w.client_id ? null : (w.client_name ?? null),
+                        servicio: w.service?.name ?? null,
+                      });
+                    }}
+                    className="mt-1 flex min-h-[44px] items-center gap-1.5 text-label font-bold text-v-d"
+                  >
+                    <CalendarPlus size={14} strokeWidth={2.2} />
+                    Dar cita
                   </button>
-                ))}
-              </>
-            )}
-          </Field>
-          <Field label="Servicio">
-            <select className={inputCls} value={serviceId} onChange={e => setServiceId(e.target.value)}>
-              <option value="">Cualquiera</option>
-              {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </Field>
-          <Field label="Preferencia">
-            <input className={inputCls} placeholder="Tardes, esta semana…" value={preference} onChange={e => setPreference(e.target.value)} />
-          </Field>
-        </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {adding && (
+            <div className="mb-2 rounded-field border border-surface-line bg-surface-bg/40 p-3.5">
+              <Field label="Quién">
+                {client ? (
+                  <button type="button" onClick={() => setClient(null)} className={`${inputCls} text-left`}>
+                    {client.full_name}
+                  </button>
+                ) : (
+                  <>
+                    <input className={inputCls} placeholder="Nombre o buscar" value={query} onChange={e => setQuery(e.target.value)} />
+                    {matches.map(c => (
+                      <button key={c.id} type="button" onClick={() => setClient(c)} className="mt-1 block w-full rounded-chip px-3 py-2 text-left text-body font-bold hover:bg-v-tint">
+                        {c.full_name}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </Field>
+              <Field label="Servicio">
+                <select className={inputCls} value={serviceId} onChange={e => setServiceId(e.target.value)}>
+                  <option value="">Cualquiera</option>
+                  {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </Field>
+              <Field label="Preferencia">
+                <input className={inputCls} placeholder="Tardes, esta semana…" value={preference} onChange={e => setPreference(e.target.value)} />
+              </Field>
+            </div>
+          )}
+        </>
       )}
     </Sheet>
   );
