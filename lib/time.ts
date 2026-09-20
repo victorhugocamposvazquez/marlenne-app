@@ -182,10 +182,11 @@ export function skipSunday(offset: number, dir: 1 | -1) {
 }
 
 export function monthTitleFromOffset(offset: number) {
-  const s = dateFromOffset(offset).toLocaleDateString('es-ES', {
-    timeZone: TZ, month: 'long', year: 'numeric',
-  });
-  return s.charAt(0).toUpperCase() + s.slice(1);
+  const d = dateFromOffset(offset);
+  const month = d.toLocaleDateString('es-ES', { timeZone: TZ, month: 'long' });
+  const year = d.toLocaleDateString('es-ES', { timeZone: TZ, year: 'numeric' });
+  const m = month.charAt(0).toUpperCase() + month.slice(1);
+  return `${m} ${year}`;
 }
 
 /** «Esta semana» o «17 ago – 23 ago». */

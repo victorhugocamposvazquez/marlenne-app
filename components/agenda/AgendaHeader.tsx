@@ -50,22 +50,15 @@ export default function AgendaHeader({
     <header className={screenHeaderCls}>
       <HeaderTitleRow
         title={(
-          <button type="button" onClick={() => setCal(true)} className="flex items-center gap-1 text-left">
-            <span className="text-h1 font-bold tracking-[-.03em]">{monthTitleFromOffset(day)}</span>
+          <button type="button" onClick={() => setCal(true)} className="flex min-w-0 items-center gap-1 text-left">
+            <span className="truncate whitespace-nowrap text-h1 font-bold tracking-[-.03em]">
+              {monthTitleFromOffset(day)}
+            </span>
             <ChevronDown size={16} strokeWidth={2.8} className="shrink-0" aria-hidden />
           </button>
         )}
         actions={(
           <>
-            {day !== 0 && (
-              <button
-                type="button"
-                onClick={() => go(0, { strip: 0 })}
-                className="min-h-[48px] shrink-0 px-1 text-[14px] font-semibold text-v-d"
-              >
-                Hoy
-              </button>
-            )}
             <HeaderIconButton label="Calendario" onClick={() => setCal(true)}>
               <Calendar size={22} strokeWidth={2} />
             </HeaderIconButton>
@@ -75,6 +68,16 @@ export default function AgendaHeader({
           </>
         )}
       />
+
+      {day !== 0 && (
+        <button
+          type="button"
+          onClick={() => go(0, { strip: 0 })}
+          className="-mt-0.5 mb-0.5 self-start text-[14px] font-semibold text-v-d"
+        >
+          Hoy
+        </button>
+      )}
 
       {mode === 'dia' && (
         <DayStrip
