@@ -8,18 +8,14 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Pendiente (hazlo en el MacBook o mergea la rama cloud)
 
-### Cabecera agenda: mes en una línea + «Hoy» abajo
-
-- **Rama:** `cursor/agenda-mes-5156` · **PR #20**
-- **Qué:** «Septiembre 2026» sin «de» (nunca partido en dos filas). «Hoy» en segunda fila bajo el mes, no al lado de los iconos.
-- **Archivos:** `lib/time.ts` (`monthTitleFromOffset`), `components/agenda/AgendaHeader.tsx`, `tests/month-title.test.ts`
-- **Pedido:** 2026-09-20, sesión cloud (captura del header en agenda).
+_Nada pendiente._
 
 ---
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
-- 2026-09-20 — Archivo handoff + regla `.cursor/cloud-handoff.mdc` (commit `8c5dea0`, ya en `main`).
+- 2026-09-20 — **Cabecera agenda:** «Septiembre 2026» sin «de», «Hoy» en segunda fila (`1181db4`, PR #20, en `main`).
+- 2026-09-20 — Archivo handoff + regla `.cursor/cloud-handoff.mdc` (`8c5dea0`, en `main`).
 
 ---
 
