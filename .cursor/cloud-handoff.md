@@ -14,7 +14,8 @@ _Nada pendiente._
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
-- 2026-09-20 — **Cabecera agenda:** «Septiembre 2026» sin «de», «Hoy» en segunda fila (`1181db4`, PR #20, en `main`).
+- 2026-09-20 — **Cabecera agenda:** más aire mes/iconos, título 20px, gap 16px (`d68418c`, en `main`).
+- 2026-09-20 — **Cabecera agenda:** «Septiembre 2026» sin «de», «Hoy» en segunda fila (`1181db4`, en `main`).
 - 2026-09-20 — Archivo handoff + regla `.cursor/cloud-handoff.mdc` (`8c5dea0`, en `main`).
 
 ---
