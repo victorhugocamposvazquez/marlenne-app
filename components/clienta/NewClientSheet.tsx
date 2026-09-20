@@ -172,7 +172,7 @@ function NewClientBody({ existing }: { existing: ClientOption[] }) {
           </Button>
         ) : (
           <>
-            <Button full variant="ink" onClick={() => save(true)} disabled={!canSave}>
+            <Button full onClick={() => save(true)} disabled={!canSave}>
               {pending ? 'Guardando…' : 'Crear y dar cita'}
             </Button>
             <button

@@ -491,7 +491,7 @@ export function NewAppointmentSheetBody({
                       onClick={() => pickHour(min)}
                       className="h-[50px] rounded-row text-[16px] font-semibold tabular-nums"
                       style={{
-                        background: on ? 'var(--grad)' : 'rgb(var(--c-soft))',
+                        background: on ? 'rgb(var(--c-brand-2))' : 'rgb(var(--c-soft))',
                         color: on ? '#fff' : 'rgb(var(--c-ink))',
                       }}
                     >

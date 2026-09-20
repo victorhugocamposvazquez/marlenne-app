@@ -2,15 +2,23 @@
 
 import { useEffect, useState } from 'react';
 import AppointmentSheet from '@/components/agenda/AppointmentSheet';
-import NewAppointmentSheet from '@/components/agenda/NewAppointmentSheet';
-import Sheet from '@/components/Sheet';
-import { SheetSkeleton } from '@/components/ui/Skeleton';
+import { NewAppointmentSheetBody } from '@/components/agenda/NewAppointmentSheet';
+import { useCloseSheet } from '@/components/Sheet';
+import SheetShell from '@/components/SheetShell';
 import { loadClientOptions, loadSalonPacks, loadServiceCounts, loadServices } from '@/lib/agenda-catalog';
 import { createClient } from '@/lib/supabase/client';
 import { APPT_SELECT, mapAppt } from '@/lib/agenda-appt';
 import { useShallowParam } from '@/hooks/useShallowQuery';
 import { dayKey } from '@/lib/time';
 import type { AgendaAppt, ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
+
+function SheetLoading() {
+  return (
+    <div className="flex flex-1 items-center justify-center pb-8">
+      <p className="text-body font-semibold text-ink-2">Cargando…</p>
+    </div>
+  );
+}
 
 export default function AppointmentSheetHost({
   appointments, providers, canMoveProvider, initialId, startClosing,
@@ -21,6 +29,7 @@ export default function AppointmentSheetHost({
   initialId?: string | null;
   startClosing?: boolean;
 }) {
+  const close = useCloseSheet();
   const id = useShallowParam('appt', initialId ?? null);
   const closeQ = useShallowParam('close', startClosing ? '1' : null);
   const seed = id ? appointments.find(a => a.id === id) ?? null : null;
@@ -68,16 +77,16 @@ export default function AppointmentSheetHost({
   }, [id, seed?.id]);
 
   if (!id) return null;
-  if (!appt && loading) {
-    return (
-      <Sheet title="Cita">
-        <SheetSkeleton />
-      </Sheet>
-    );
-  }
-  if (!appt) return null;
 
   if (closeQ === '1') {
+    if (!appt && loading) {
+      return (
+        <SheetShell onClose={close} initialHeight="tall" grabHeader>
+          <SheetLoading />
+        </SheetShell>
+      );
+    }
+    if (!appt) return null;
     return (
       <AppointmentSheet
         appt={appt}
@@ -89,13 +98,14 @@ export default function AppointmentSheetHost({
     );
   }
 
-  if (services.length === 0) {
+  if (!appt && loading) {
     return (
-      <Sheet title="Cita">
-        <SheetSkeleton />
-      </Sheet>
+      <SheetShell onClose={close} initialHeight="tall" grabHeader>
+        <SheetLoading />
+      </SheetShell>
     );
   }
+  if (!appt) return null;
 
   const preselected = appt.client_id
     ? clients.find(c => c.id === appt.client_id) ?? {
@@ -106,18 +116,24 @@ export default function AppointmentSheetHost({
     : null;
 
   return (
-    <NewAppointmentSheet
-      key={appt.id}
-      day={dayKey(appt.starts_at)}
-      providers={providers}
-      services={services}
-      clients={clients}
-      packs={packs}
-      serviceCounts={serviceCounts}
-      preselected={preselected}
-      initialName={appt.client_label}
-      initialProviderId={appt.provider_id}
-      editing={appt}
-    />
+    <SheetShell onClose={close} initialHeight="tall" grabHeader>
+      {services.length === 0 ? (
+        <SheetLoading />
+      ) : (
+        <NewAppointmentSheetBody
+          key={appt.id}
+          day={dayKey(appt.starts_at)}
+          providers={providers}
+          services={services}
+          clients={clients}
+          packs={packs}
+          serviceCounts={serviceCounts}
+          preselected={preselected}
+          initialName={appt.client_label}
+          initialProviderId={appt.provider_id}
+          editing={appt}
+        />
+      )}
+    </SheetShell>
   );
 }
