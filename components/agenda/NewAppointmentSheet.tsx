@@ -248,9 +248,17 @@ export function NewAppointmentSheetBody({
         })) ?? draftHref;
         goWhatsApp(href, waWin);
       }
-      toast(editing
-        ? `Cita actualizada · ${who.split(' ')[0]} ${fmt(startMin)}`
-        : `Cita guardada · ${who.split(' ')[0]} ${fmt(startMin)}${draftHref ? ' · WhatsApp' : ''}`);
+      toast('', {
+        cita: {
+          mode: editing ? 'modified' : 'created',
+          client: who,
+          date: ctxDate,
+          time: service
+            ? `${fmt(startMin)}–${fmt(startMin + service.duration_min)}`
+            : fmt(startMin),
+          treatment: service.name,
+        },
+      });
       requestClose();
     });
   };
@@ -441,7 +449,7 @@ export function NewAppointmentSheetBody({
               <button
                 type="button"
                 onClick={() => setCal(true)}
-                className="grid h-12 w-12 shrink-0 place-items-center rounded-pill bg-ink text-white"
+                className="grid h-12 w-12 shrink-0 place-items-center rounded-pill bg-v-2 text-white shadow-btn"
                 aria-label="Calendario"
               >
                 <Calendar size={24} strokeWidth={2.2} />

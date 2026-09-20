@@ -11,7 +11,7 @@ const TONES: Record<Tone, string> = {
   danger: 'bg-danger-bg text-danger-fg',
   ghost: 'text-ink-2',
   brand: 'bg-grad text-white shadow-btn',
-  ink: 'bg-ink text-white',
+  ink: 'bg-v-2 text-white shadow-btn',
 };
 
 /** Botón de icono con área táctil mínima de 44×44. `label` es obligatorio (aria-label). */

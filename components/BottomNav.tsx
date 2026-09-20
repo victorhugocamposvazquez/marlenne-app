@@ -24,13 +24,25 @@ export default function BottomNav({ role }: { role: string }) {
     </Link>
   );
 
-  const openNew = (e: MouseEvent<HTMLAnchorElement>) => {
-    if (!path.startsWith('/agenda')) return;
+  const onClientas = on('/clientas');
+  const fabHref = onClientas ? '/clientas?alta=1' : '/agenda?new=1';
+  const fabLabel = onClientas ? 'Nueva clienta' : 'Nueva cita';
+
+  const openFab = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (!on('/agenda') && !onClientas) return;
     e.preventDefault();
+    if (onClientas) {
+      shallowSet({
+        alta: '1',
+        new: null, con: null, hora: null, nombre: null, servicio: null, client: null,
+        wait: null, block: null, bloqueo: null, appt: null, close: null,
+      });
+      return;
+    }
     shallowSet({
       new: '1',
       con: null, hora: null, nombre: null, servicio: null, client: null,
-      wait: null, block: null, bloqueo: null, appt: null, close: null,
+      wait: null, block: null, bloqueo: null, appt: null, close: null, alta: null,
     });
   };
 
@@ -40,10 +52,10 @@ export default function BottomNav({ role }: { role: string }) {
         <Item href="/hoy" icon={Home} label="Hoy" />
         <Item href="/agenda" icon={Calendar} label="Agenda" />
         <Link
-          href="/agenda?new=1"
-          onClick={openNew}
-          aria-label="Nueva cita"
-          className="mx-1.5 grid h-12 w-12 shrink-0 place-items-center rounded-pill bg-grad text-white shadow-btn"
+          href={fabHref}
+          onClick={openFab}
+          aria-label={fabLabel}
+          className="mx-1.5 grid h-12 w-12 shrink-0 place-items-center rounded-pill bg-v-2 text-white shadow-btn"
         >
           <Plus size={22} strokeWidth={2.6} />
         </Link>

@@ -1,4 +1,6 @@
 export type VoicePrefs = {
+  /** Oculta el micro flotante. */
+  off: boolean;
   hola: boolean;
   speak: boolean;
   micOnly: boolean;
@@ -9,7 +11,7 @@ export const VOICE_PREFS_EVENT = 'marlenne-voice-prefs';
 const KEY = 'marlenne-voice';
 const OLD = 'marlenne-wake';
 
-const DEFAULTS: VoicePrefs = { hola: true, speak: true, micOnly: false, cloud: true };
+const DEFAULTS: VoicePrefs = { off: false, hola: true, speak: true, micOnly: false, cloud: true };
 
 export function getVoicePrefs(): VoicePrefs {
   if (typeof window === 'undefined') return DEFAULTS;
@@ -29,5 +31,5 @@ export function setVoicePrefs(patch: Partial<VoicePrefs>): VoicePrefs {
 }
 
 export function wakeWanted(p = getVoicePrefs()) {
-  return p.hola && !p.micOnly;
+  return !p.off && p.hola && !p.micOnly;
 }

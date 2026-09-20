@@ -223,6 +223,7 @@ export default function VoiceFab() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [hasMic, setHasMic] = useState(false);
   const [micPerm, setMicPerm] = useState<MicPerm>('unknown');
+  const [marlenOff, setMarlenOff] = useState(false);
   const micRef = useRef<MicPerm>('unknown');
 
   // Con el panel abierto, el audio ya está despierto: la primera frase sale sin la espera.
@@ -232,6 +233,7 @@ export default function VoiceFab() {
 
   const syncPrefs = (p = getVoicePrefs()) => {
     prefsRef.current = p;
+    setMarlenOff(p.off);
     hushRef.current = !wakeWanted(p);
     if (hushRef.current) {
       armedRef.current = false;
@@ -345,6 +347,14 @@ export default function VoiceFab() {
     });
     const onPrefs = () => {
       syncPrefs();
+      if (prefsRef.current.off) {
+        genRef.current += 1;
+        killRec();
+        wakeRef.current = false;
+        setWakeOn(false);
+        setOpen(false);
+        return;
+      }
       if (wakeWanted(prefsRef.current) && micRef.current === 'granted') {
         arm();
         startWakeRef.current();
@@ -891,6 +901,8 @@ export default function VoiceFab() {
       window.setTimeout(listen, 120);
     });
   };
+
+  if (marlenOff) return null;
 
   return (
     <div

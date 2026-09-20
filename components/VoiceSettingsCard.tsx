@@ -24,7 +24,7 @@ function Row({
         <span className="block text-body-lg font-bold text-ink">{title}</span>
         <span className="mt-0.5 block text-body leading-snug text-ink-2">{hint}</span>
       </span>
-      <span className={`h-7 w-12 shrink-0 rounded-full p-0.5 ${on ? 'bg-ink' : 'bg-surface-line'}`}>
+      <span className={`h-7 w-12 shrink-0 rounded-full p-0.5 ${on ? 'bg-v-2' : 'bg-surface-line'}`}>
         <span className={`block h-6 w-6 rounded-full bg-surface-card shadow ${on ? 'ml-5' : ''}`} />
       </span>
     </button>
@@ -32,7 +32,7 @@ function Row({
 }
 
 export default function VoiceSettingsCard() {
-  const [prefs, setPrefs] = useState<VoicePrefs>({ hola: true, speak: true, micOnly: false, cloud: true });
+  const [prefs, setPrefs] = useState<VoicePrefs>({ off: false, hola: true, speak: true, micOnly: false, cloud: true });
 
   useEffect(() => {
     const sync = () => setPrefs(getVoicePrefs());
@@ -43,6 +43,12 @@ export default function VoiceSettingsCard() {
 
   return (
     <AjustesSection title="Voz">
+      <Row
+        title="Desactivar Marlén"
+        hint="Oculta el micro flotante. La agenda y el resto siguen igual."
+        on={prefs.off}
+        onToggle={() => setVoicePrefs({ off: !prefs.off })}
+      />
       <Row
         title="Solo al tocar el micro"
         hint="Nada de oído de fondo. Tú pulsas y hablas."

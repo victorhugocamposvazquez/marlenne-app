@@ -57,7 +57,7 @@ export default function CatalogEditor({
           <button
             type="button"
             onClick={() => { setAddingCat(a => !a); setAddingSvc(null); }}
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-chip bg-ink px-3.5 text-label font-bold text-white motion-safe:active:scale-[.97]"
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-chip bg-v-2 px-3.5 text-label font-bold text-white shadow-btn motion-safe:active:scale-[.97]"
           >
             <Plus size={16} strokeWidth={2.4} />
             {addingCat ? 'Cerrar' : 'Nueva categoría'}
@@ -326,7 +326,7 @@ function ServiceForm({
           type="button"
           onClick={() => setColor('')}
           className={`mb-2 min-h-[40px] rounded-chip px-3 text-label font-bold ${
-            !color ? 'bg-ink text-white' : 'border border-surface-line bg-surface-card text-ink-2'
+            !color ? 'bg-v-2 text-white' : 'border border-surface-line bg-surface-card text-ink-2'
           }`}
         >
           El de la categoría

@@ -38,7 +38,7 @@ export default function TeamEditor({
         <button
           type="button"
           onClick={() => { setAdding(a => !a); setCreated(null); }}
-          className="min-h-[44px] rounded-chip bg-ink px-3.5 text-label font-bold text-white motion-safe:active:scale-[.97]"
+          className="min-h-[44px] rounded-chip bg-v-2 px-3.5 text-label font-bold text-white shadow-btn motion-safe:active:scale-[.97]"
         >
           {adding ? 'Cerrar' : 'Añadir'}
         </button>
