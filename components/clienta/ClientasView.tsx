@@ -114,62 +114,14 @@ export default function ClientasView({
     });
   }, [clients, q, filter, sort]);
 
-  const countLbl = shown.length === clients.length
+  const titleCount = shown.length === clients.length
     ? `${clients.length} fichas`
     : `${shown.length} de ${clients.length}`;
 
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
       <header className="shrink-0 px-6 pb-2 pt-5">
-        <PageHeading
-          title="Clientas"
-          subtitle={
-            <div className="flex items-center gap-1.5">
-              <span>{countLbl}</span>
-              <span aria-hidden>·</span>
-              <div ref={sortRef} className="relative">
-                <button
-                  type="button"
-                  aria-haspopup="listbox"
-                  aria-expanded={sortOpen}
-                  aria-label={`Ordenar por ${sortLabel}`}
-                  onClick={() => setSortOpen(o => !o)}
-                  className="inline-flex items-center gap-0.5 font-semibold text-ink"
-                >
-                  {sortLabel}
-                  <ChevronDown size={16} strokeWidth={2.2} className={sortOpen ? 'rotate-180' : ''} aria-hidden />
-                </button>
-                {sortOpen && (
-                  <ul
-                    role="listbox"
-                    aria-label="Ordenar clientas"
-                    className="absolute left-0 top-[calc(100%+6px)] z-20 min-w-[11.5rem] overflow-hidden rounded-row bg-surface-card py-1 shadow-lift ring-1 ring-surface-line"
-                  >
-                    {SORTS.map(s => {
-                      const on = s.id === sort;
-                      return (
-                        <li key={s.id}>
-                          <button
-                            type="button"
-                            role="option"
-                            aria-selected={on}
-                            onClick={() => { setSort(s.id); setSortOpen(false); }}
-                            className={`flex min-h-[44px] w-full items-center justify-between gap-3 px-3.5 text-left text-body ${
-                              on ? 'font-bold text-ink' : 'font-medium text-ink-2'
-                            }`}
-                          >
-                            {s.label}
-                            {on && <Check size={16} strokeWidth={2.4} className="shrink-0 text-ink" aria-hidden />}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            </div>
-          }
-        >
+        <PageHeading title={`Clientas - ${titleCount}`}>
           <IconButton
             label="Nueva Client@"
             tone="ink"
@@ -178,6 +130,49 @@ export default function ClientasView({
             <Plus size={20} strokeWidth={2.4} />
           </IconButton>
         </PageHeading>
+        <div ref={sortRef} className="relative mt-3">
+          <div className="flex items-center gap-1.5">
+            <span className="text-body-lg font-bold text-ink">Ordenar por:</span>
+            <button
+              type="button"
+              aria-haspopup="listbox"
+              aria-expanded={sortOpen}
+              aria-label={`Ordenar por ${sortLabel}`}
+              onClick={() => setSortOpen(o => !o)}
+              className="inline-flex min-h-[44px] items-center gap-0.5 text-body-lg font-semibold text-ink"
+            >
+              {sortLabel}
+              <ChevronDown size={18} strokeWidth={2.2} className={sortOpen ? 'rotate-180' : ''} aria-hidden />
+            </button>
+          </div>
+          {sortOpen && (
+            <ul
+              role="listbox"
+              aria-label="Ordenar clientas"
+              className="absolute left-0 top-full z-20 min-w-[11.5rem] overflow-hidden rounded-row bg-surface-card py-1 shadow-lift ring-1 ring-surface-line"
+            >
+              {SORTS.map(s => {
+                const on = s.id === sort;
+                return (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={on}
+                      onClick={() => { setSort(s.id); setSortOpen(false); }}
+                      className={`flex min-h-[44px] w-full items-center justify-between gap-3 px-3.5 text-left text-body ${
+                        on ? 'font-bold text-ink' : 'font-medium text-ink-2'
+                      }`}
+                    >
+                      {s.label}
+                      {on && <Check size={16} strokeWidth={2.4} className="shrink-0 text-ink" aria-hidden />}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
         <div className="mt-4 flex h-[54px] items-center gap-2.5 rounded-field bg-surface-soft px-4">
           <Search size={18} className="text-ink-3" strokeWidth={2.2} />
           <input
