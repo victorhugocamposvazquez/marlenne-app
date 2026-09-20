@@ -27,9 +27,8 @@ function keyboardInset() {
   return Math.max(0, layoutH() - vv.height - vv.offsetTop);
 }
 
-function keyboardOpen() {
-  return keyboardInset() > 72;
-}
+const KEYBOARD_OPEN_INSET = 72;
+const KEYBOARD_CLOSE_INSET = 48;
 
 /** Tope superior del panel cuando hay teclado: casi todo el viewport visible. */
 function heightAboveKeyboard(detents: [number, number, number]) {
@@ -57,6 +56,7 @@ export function useSheetResize(
   const [dragging, setDragging] = useState(false);
   const live = useRef(startH());
   const beforeKeyboard = useRef<number | null>(null);
+  const keyboardActive = useRef(false);
   const session = useRef<{
     pointerId: number;
     y0: number;
@@ -74,41 +74,56 @@ export function useSheetResize(
 
   const floorPx = useCallback((detents: [number, number, number]) => detents[floorIdx], [floorIdx]);
 
-  const syncViewport = useCallback(() => {
+  const restoreAfterKeyboard = useCallback((detents: [number, number, number]) => {
+    if (floorDetent) return detents[floorIdx];
+    if (beforeKeyboard.current != null) return beforeKeyboard.current;
+    return live.current;
+  }, [floorDetent, floorIdx]);
+
+  const syncKeyboard = useCallback(() => {
     if (session.current) return;
     const detents = sheetDetents(layoutH());
     const inset = keyboardInset();
-    setKeyboardBottom(inset);
 
-    if (keyboardOpen()) {
+    if (inset > KEYBOARD_OPEN_INSET || keyboardActive.current) {
+      if (inset <= KEYBOARD_CLOSE_INSET) {
+        keyboardActive.current = false;
+        const restore = restoreAfterKeyboard(detents);
+        beforeKeyboard.current = null;
+        setKeyboardBottom(0);
+        setLive(restore);
+        return;
+      }
+      keyboardActive.current = true;
       if (beforeKeyboard.current === null) beforeKeyboard.current = live.current;
+      setKeyboardBottom(inset);
       setLive(Math.max(heightAboveKeyboard(detents), floorPx(detents)));
+    }
+  }, [floorPx, restoreAfterKeyboard]);
+
+  const syncLayout = useCallback(() => {
+    if (session.current || keyboardActive.current) return;
+    const detents = sheetDetents(layoutH());
+    if (floorDetent) {
+      setLive(detents[floorIdx]);
       return;
     }
-
-    if (beforeKeyboard.current !== null) {
-      const restore = floorDetent ? detents[floorIdx] : beforeKeyboard.current;
-      beforeKeyboard.current = null;
-      setLive(restore);
-      return;
-    }
-
     setLive(snapSheetHeight(live.current, detents, 0));
-  }, [floorDetent, floorIdx, floorPx]);
+  }, [floorDetent, floorIdx]);
 
   useEffect(() => {
-    syncViewport();
+    syncKeyboard();
     const vv = window.visualViewport;
-    vv?.addEventListener('resize', syncViewport);
-    vv?.addEventListener('scroll', syncViewport);
-    window.addEventListener('resize', syncViewport);
+    vv?.addEventListener('resize', syncKeyboard);
+    vv?.addEventListener('scroll', syncKeyboard);
+    window.addEventListener('resize', syncLayout);
     return () => {
-      vv?.removeEventListener('resize', syncViewport);
-      vv?.removeEventListener('scroll', syncViewport);
-      window.removeEventListener('resize', syncViewport);
+      vv?.removeEventListener('resize', syncKeyboard);
+      vv?.removeEventListener('scroll', syncKeyboard);
+      window.removeEventListener('resize', syncLayout);
       cleanup.current?.();
     };
-  }, [initial, floorDetent, syncViewport]);
+  }, [initial, floorDetent, syncKeyboard, syncLayout]);
 
   const ensureMid = useCallback(() => {
     const detents = sheetDetents(layoutH());
@@ -148,7 +163,8 @@ export function useSheetResize(
       s.lastTs = now;
       const detents = sheetDetents(layoutH());
       const dragMin = detents[0];
-      const max = keyboardOpen() ? heightAboveKeyboard(detents) : detents[2];
+      const kb = keyboardInset() > KEYBOARD_OPEN_INSET;
+      const max = kb ? heightAboveKeyboard(detents) : detents[2];
       setLive(rubberHeight(s.h0 - (ev.clientY - s.y0), dragMin, max));
     };
 
@@ -158,8 +174,9 @@ export function useSheetResize(
       const detents = sheetDetents(layoutH());
       const [dragMin] = detents;
       const moved = ev.clientY - s.y0;
+      const kb = keyboardInset() > KEYBOARD_OPEN_INSET;
 
-      if (keyboardOpen()) {
+      if (kb) {
         session.current = null;
         setDragging(false);
         setLive(Math.max(heightAboveKeyboard(detents), floorPx(detents)));
