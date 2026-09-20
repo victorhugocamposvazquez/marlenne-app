@@ -10,8 +10,9 @@ export default function BottomNav({ role }: { role: string }) {
   const path = usePathname();
   const creating = useShallowParam('new');
   const editing = useShallowParam('appt');
+  const addingMember = useShallowParam('miembro');
   const on = (p: string) => path.startsWith(p);
-  if (creating === '1' || editing) return null;
+  if (creating === '1' || editing || addingMember === '1') return null;
 
   const Item = ({ href, icon: Icon, label }: { href: string; icon: typeof Home; label: string }) => (
     <Link
@@ -25,24 +26,41 @@ export default function BottomNav({ role }: { role: string }) {
   );
 
   const onClientas = on('/clientas');
-  const fabHref = onClientas ? '/clientas?alta=1' : '/agenda?new=1';
-  const fabLabel = onClientas ? 'Nueva clienta' : 'Nueva cita';
+  const onEquipo = on('/ajustes/equipo');
+  const fabHref = onClientas
+    ? '/clientas?alta=1'
+    : onEquipo && role === 'admin'
+      ? '/ajustes/equipo?miembro=1'
+      : '/agenda?new=1';
+  const fabLabel = onClientas
+    ? 'Nueva clienta'
+    : onEquipo && role === 'admin'
+      ? 'Nueva persona'
+      : 'Nueva cita';
 
   const openFab = (e: MouseEvent<HTMLAnchorElement>) => {
-    if (!on('/agenda') && !onClientas) return;
+    if (!on('/agenda') && !onClientas && !(onEquipo && role === 'admin')) return;
     e.preventDefault();
     if (onClientas) {
       shallowSet({
         alta: '1',
         new: null, con: null, hora: null, nombre: null, servicio: null, client: null,
-        wait: null, block: null, bloqueo: null, appt: null, close: null,
+        wait: null, block: null, bloqueo: null, appt: null, close: null, miembro: null,
+      });
+      return;
+    }
+    if (onEquipo && role === 'admin') {
+      shallowSet({
+        miembro: '1',
+        new: null, con: null, hora: null, nombre: null, servicio: null, client: null,
+        wait: null, block: null, bloqueo: null, appt: null, close: null, alta: null,
       });
       return;
     }
     shallowSet({
       new: '1',
       con: null, hora: null, nombre: null, servicio: null, client: null,
-      wait: null, block: null, bloqueo: null, appt: null, close: null, alta: null,
+      wait: null, block: null, bloqueo: null, appt: null, close: null, alta: null, miembro: null,
     });
   };
 

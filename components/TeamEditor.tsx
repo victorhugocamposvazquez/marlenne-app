@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { createMember, updateMember } from '@/app/actions/staff';
+import { updateMember } from '@/app/actions/staff';
 import { avatarColor } from '@/lib/categories';
+import NewMemberSheet from '@/components/team/NewMemberSheet';
 import { Chip, Field, inputCls } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
 import { useToast } from '@/components/Toast';
+import { useShallowParam } from '@/hooks/useShallowQuery';
 import type { Provider, StaffRole } from '@/lib/types';
 
 const ROLES: { id: StaffRole; label: string }[] = [
@@ -17,53 +19,25 @@ const ROLES: { id: StaffRole; label: string }[] = [
 const roleLbl = (r: StaffRole) => ROLES.find(x => x.id === r)?.label ?? r;
 
 export default function TeamEditor({
-  team, meId, heading = true,
+  team, meId, initialMiembro,
 }: {
   team: Provider[];
   meId: string;
-  heading?: boolean;
+  initialMiembro?: boolean;
 }) {
   const toast = useToast();
-  const [adding, setAdding] = useState(false);
+  const miembro = useShallowParam('miembro', initialMiembro ? '1' : null);
   const [open, setOpen] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [created, setCreated] = useState<{ name: string; email: string; password: string } | null>(null);
+  const active = team.filter(p => p.is_active !== false).length;
 
   return (
     <div>
-      <div className={`mb-2.5 flex items-center ${heading ? 'justify-between' : 'justify-end'}`}>
-        {heading && (
-          <h2 className="text-body-lg font-bold text-ink">Equipo</h2>
-        )}
-        <button
-          type="button"
-          onClick={() => { setAdding(a => !a); setCreated(null); }}
-          className="min-h-[44px] rounded-chip bg-v-2 px-3.5 text-label font-bold text-white shadow-btn motion-safe:active:scale-[.97]"
-        >
-          {adding ? 'Cerrar' : 'Añadir'}
-        </button>
-      </div>
-
-      {created && (
-        <p className="mb-2.5 rounded-row border border-ok-line bg-ok-bg p-3 text-label font-semibold leading-snug text-ok-strong">
-          {created.name} ya puede entrar con <span className="font-extrabold">{created.email}</span>.
-          Contraseña temporal: <span className="font-extrabold tabular-nums">{created.password}</span>
-        </p>
-      )}
-
-      {adding && (
-        <AddForm
-          pending={pending}
-          onSave={input => startTransition(async () => {
-            const r = await createMember(input);
-            if (!r.ok || !r.password) toast(r.error ?? 'No se ha podido crear', 'err');
-            else {
-              setCreated({ name: input.full_name, email: input.email, password: r.password });
-              setAdding(false);
-            }
-          })}
-        />
-      )}
+      <p className="mb-3 text-body font-normal text-ink-2">
+        {team.length === active
+          ? `${team.length} ${team.length === 1 ? 'persona' : 'personas'}`
+          : `${active} activas · ${team.length} en total`}
+      </p>
 
       <div className="flex flex-col gap-2">
         {team.map(p => (
@@ -106,47 +80,7 @@ export default function TeamEditor({
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-function AddForm({
-  pending, onSave,
-}: {
-  pending: boolean;
-  onSave: (i: { email: string; full_name: string; role: StaffRole; job_title?: string }) => void;
-}) {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [title, setTitle] = useState('');
-  const [role, setRole] = useState<StaffRole>('provider');
-
-  return (
-    <div className="mb-3 rounded-row bg-surface-soft p-4">
-      <Field label="Nombre">
-        <input className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="Nombre y apellidos" />
-      </Field>
-      <Field label="Email de acceso">
-        <input className={inputCls} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="ana@marlenne.es" />
-      </Field>
-      <Field label="Puesto">
-        <input className={inputCls} value={title} onChange={e => setTitle(e.target.value)} placeholder="Esteticista · corporal" />
-      </Field>
-      <Field label="Rol">
-        <div className="flex flex-wrap gap-2">
-          {ROLES.map(r => (
-            <Chip key={r.id} active={r.id === role} onClick={() => setRole(r.id)}>{r.label}</Chip>
-          ))}
-        </div>
-      </Field>
-      <Button
-        variant="ink"
-        full
-        disabled={pending || name.trim().length < 2 || !email.includes('@')}
-        onClick={() => onSave({ email, full_name: name, role, job_title: title })}
-      >
-        {pending ? 'Creando…' : 'Crear acceso'}
-      </Button>
+      {miembro === '1' && <NewMemberSheet />}
     </div>
   );
 }

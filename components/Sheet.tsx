@@ -8,8 +8,8 @@ import SheetShell, { SheetGrab, SheetHandle, useSheetShellClose } from '@/compon
 import { shallowSet } from '@/hooks/useShallowQuery';
 
 /** Los sheets viven en la URL, así el botón atrás del móvil también los cierra. */
-const SHEET_PARAMS = ['new', 'appt', 'client', 'wait', 'alta', 'close', 'editar', 'block', 'bloqueo', 'nombre', 'hora', 'servicio', 'con'];
-const SHALLOW_SHEET = new Set(['appt', 'close', 'new', 'wait', 'block', 'bloqueo', 'client', 'nombre', 'hora', 'servicio', 'con', 'alta', 'editar']);
+const SHEET_PARAMS = ['new', 'appt', 'client', 'wait', 'alta', 'miembro', 'close', 'editar', 'block', 'bloqueo', 'nombre', 'hora', 'servicio', 'con'];
+const SHALLOW_SHEET = new Set(['appt', 'close', 'new', 'wait', 'block', 'bloqueo', 'client', 'nombre', 'hora', 'servicio', 'con', 'alta', 'miembro', 'editar']);
 
 /** Cierra el sheet quitando sus parámetros y conservando el día y la vista. */
 export function useCloseSheet() {

@@ -394,7 +394,7 @@ export default function VoiceFab() {
   }, []);
 
   useEffect(() => {
-    const sheet = ['new', 'appt', 'alta', 'editar', 'close', 'block', 'bloqueo', 'wait']
+    const sheet = ['new', 'appt', 'alta', 'miembro', 'editar', 'close', 'block', 'bloqueo', 'wait']
       .some(k => searchParams.get(k));
     const check = () => {
       const el = document.activeElement as HTMLElement | null;

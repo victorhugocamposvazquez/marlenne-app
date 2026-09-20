@@ -3,15 +3,20 @@ import { listStaff } from '@/lib/queries';
 import { avatarColor } from '@/lib/categories';
 import AjustesHeader from '@/components/ajustes/AjustesHeader';
 import TeamEditor from '@/components/TeamEditor';
+import EquipoHeaderAction from '@/components/team/EquipoHeaderAction';
 
-export default async function EquipoPage() {
+export default async function EquipoPage({
+  searchParams,
+}: {
+  searchParams: { miembro?: string };
+}) {
   const me = await requireSession();
   const team = await listStaff({ includeInactive: me.role === 'admin' });
 
   return (
-    <AjustesHeader title="Equipo">
+    <AjustesHeader title="Equipo" extra={me.role === 'admin' ? <EquipoHeaderAction /> : undefined}>
       {me.role === 'admin' ? (
-        <TeamEditor team={team} meId={me.id} heading={false} />
+        <TeamEditor team={team} meId={me.id} initialMiembro={searchParams.miembro === '1'} />
       ) : (
         <div className="flex flex-col gap-2">
           {team.map(p => (
