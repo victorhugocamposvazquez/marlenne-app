@@ -1,0 +1,15 @@
+---
+description: Recordatorio cloud → MacBook — leer y mantener el handoff antes de tocar código
+alwaysApply: true
+---
+
+# Handoff Cloud ↔ MacBook
+
+Hugo alterna **Cursor Cloud** y **MacBook**. No pierdas lo pedido en cloud al trabajar en local.
+
+1. **Al empezar una sesión** (MacBook o cloud): lee `.cursor/cloud-handoff.md`.
+2. Si hay entradas en **Pendiente** (rama, PR, descripción): priorízalas o avisa a Hugo antes de otra tarea.
+3. **Al completar** trabajo pedido desde cloud: actualiza ese archivo (pendiente → hecho, enlace PR/rama, fecha).
+4. **Base de producto:** `main` = *citas nueva forma* del MacBook. No reintroducir el flujo antiguo de alta (sheet pegado al timeline, `ClientPicker`/`ServicePicker` viejos) salvo petición explícita.
+
+Ramas cloud: prefijo `cursor/`, sufijo `-5156`.
