@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import IconButton from '@/components/ui/IconButton';
@@ -39,34 +39,6 @@ function SheetBody({
   footer?: React.ReactNode | ((requestClose: ReturnType<typeof useSheetShellClose>) => React.ReactNode);
 }) {
   const requestClose = useSheetShellClose();
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const root = scrollRef.current;
-    if (!root) return;
-
-    const revealField = (field: HTMLElement) => {
-      const pad = 20;
-      const rootRect = root.getBoundingClientRect();
-      const fieldRect = field.getBoundingClientRect();
-      if (fieldRect.bottom > rootRect.bottom - pad) {
-        root.scrollTop += fieldRect.bottom - rootRect.bottom + pad;
-      }
-      if (fieldRect.top < rootRect.top + pad) {
-        root.scrollTop -= rootRect.top + pad - fieldRect.top;
-      }
-    };
-
-    const onFocus = (e: FocusEvent) => {
-      const t = e.target;
-      if (!(t instanceof HTMLElement) || !root.contains(t)) return;
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => revealField(t));
-      });
-    };
-    root.addEventListener('focusin', onFocus);
-    return () => root.removeEventListener('focusin', onFocus);
-  }, []);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -84,7 +56,6 @@ function SheetBody({
       </SheetGrab>
 
         <div
-          ref={scrollRef}
           className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 ${footer ? 'pb-2' : 'pb-[max(20px,env(safe-area-inset-bottom))]'}`}
         >
           {children}

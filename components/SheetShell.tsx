@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { useRevealField } from '@/hooks/useRevealField';
 import { useSheetResize, type SheetDetent } from '@/hooks/useSheetResize';
 
 type GrabCtx = {
@@ -117,7 +118,8 @@ export default function SheetShell({
     setClosing(true);
   }, [closing]);
 
-  const { height, dragging, onHandleDown, keyboardBottom } = useSheetResize(initialHeight, { floorDetent });
+  const { height, dragging, onHandleDown } = useSheetResize(initialHeight, { floorDetent });
+  useRevealField(panelRef, isClient);
 
   useLayoutEffect(() => {
     const prev = document.body.style.overflow;
@@ -157,13 +159,7 @@ export default function SheetShell({
             className="pointer-events-none absolute inset-0 bg-[rgba(15,14,26,.18)]"
           />
 
-          <div
-            className="absolute inset-x-0 flex justify-center"
-            style={{
-              bottom: keyboardBottom,
-              transition: dragging || closing ? 'none' : 'bottom .22s ease-out',
-            }}
-          >
+          <div className="absolute inset-x-0 bottom-0 flex justify-center">
             <div
               ref={panelRef}
               role="presentation"
