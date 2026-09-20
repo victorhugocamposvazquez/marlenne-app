@@ -85,7 +85,7 @@ function SheetBody({
 
         <div
           ref={scrollRef}
-          className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 ${footer ? 'pb-2' : 'pb-[max(16px,env(safe-area-inset-bottom))]'}`}
+          className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 ${footer ? 'pb-2' : 'pb-[max(20px,env(safe-area-inset-bottom))]'}`}
         >
           {children}
         </div>
