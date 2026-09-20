@@ -65,6 +65,7 @@
   /* Sombras: botones sin sombra; hoja, toast y arrastre conservan la suya */
   --sh-card: 0 0 0 transparent;
   --sh-lift: 0 8px 22px rgba(15, 14, 26, .06);
+  --sh-popup: 0 24px 64px rgba(15, 14, 26, .22), 0 0 0 1px rgba(15, 14, 26, .06);
   --sh-toast: 0 12px 30px rgba(15, 14, 26, .3);
   --sh-drag: 0 12px 28px rgba(15, 14, 26, .18);
   --sh-btn: 0 0 0 transparent;
