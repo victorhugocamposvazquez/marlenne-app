@@ -9,6 +9,8 @@ import {
   snapSheetHeight,
 } from '@/lib/sheet-detent';
 
+export type SheetDetent = 'peek' | 'mid' | 'tall';
+
 /** Altura estable del layout; no se encoge con el teclado virtual. */
 function layoutH() {
   return window.innerHeight;
@@ -36,19 +38,25 @@ function heightAboveKeyboard(detents: [number, number, number]) {
 
 const TAP = 10;
 
-/**
- * Asidero tipo Instagram: arrastra para agrandar o encoger.
- * Al soltar encaja en un tope. Un toque sube un tamaño.
- */
-function detentIndex(initial: 'peek' | 'mid' | 'tall') {
-  return initial === 'peek' ? 0 : initial === 'tall' ? 2 : 1;
+function detentIndex(d: SheetDetent) {
+  return d === 'peek' ? 0 : d === 'tall' ? 2 : 1;
 }
 
-export function useSheetResize(initial: 'peek' | 'mid' | 'tall' = 'mid') {
-  const [height, setHeight] = useState(() => sheetDetents(layoutH())[detentIndex(initial)]);
+export function useSheetResize(
+  initial: SheetDetent = 'mid',
+  { floorDetent }: { floorDetent?: SheetDetent } = {},
+) {
+  const floorIdx = floorDetent ? detentIndex(floorDetent) : 0;
+  const startH = () => {
+    const d = sheetDetents(layoutH());
+    return d[Math.max(detentIndex(initial), floorIdx)];
+  };
+
+  const [height, setHeight] = useState(startH);
   const [keyboardBottom, setKeyboardBottom] = useState(0);
   const [dragging, setDragging] = useState(false);
-  const live = useRef(sheetDetents(layoutH())[detentIndex(initial)]);
+  const live = useRef(startH());
+  const beforeKeyboard = useRef<number | null>(null);
   const session = useRef<{
     pointerId: number;
     y0: number;
@@ -64,6 +72,8 @@ export function useSheetResize(initial: 'peek' | 'mid' | 'tall' = 'mid') {
     setHeight(h);
   };
 
+  const floorPx = useCallback((detents: [number, number, number]) => detents[floorIdx], [floorIdx]);
+
   const syncViewport = useCallback(() => {
     if (session.current) return;
     const detents = sheetDetents(layoutH());
@@ -71,11 +81,20 @@ export function useSheetResize(initial: 'peek' | 'mid' | 'tall' = 'mid') {
     setKeyboardBottom(inset);
 
     if (keyboardOpen()) {
-      setLive(heightAboveKeyboard(detents));
+      if (beforeKeyboard.current === null) beforeKeyboard.current = live.current;
+      setLive(Math.max(heightAboveKeyboard(detents), floorPx(detents)));
       return;
     }
+
+    if (beforeKeyboard.current !== null) {
+      const restore = floorDetent ? detents[floorIdx] : beforeKeyboard.current;
+      beforeKeyboard.current = null;
+      setLive(restore);
+      return;
+    }
+
     setLive(snapSheetHeight(live.current, detents, 0));
-  }, []);
+  }, [floorDetent, floorIdx, floorPx]);
 
   useEffect(() => {
     syncViewport();
@@ -89,12 +108,13 @@ export function useSheetResize(initial: 'peek' | 'mid' | 'tall' = 'mid') {
       window.removeEventListener('resize', syncViewport);
       cleanup.current?.();
     };
-  }, [initial, syncViewport]);
+  }, [initial, floorDetent, syncViewport]);
 
   const ensureMid = useCallback(() => {
-    const [peek] = sheetDetents(layoutH());
-    if (live.current < peek - 16) setLive(peek);
-  }, []);
+    const detents = sheetDetents(layoutH());
+    const min = floorPx(detents);
+    if (live.current < min - 16) setLive(min);
+  }, [floorPx]);
 
   const onHandleDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0) return;
@@ -127,27 +147,28 @@ export function useSheetResize(initial: 'peek' | 'mid' | 'tall' = 'mid') {
       s.lastY = ev.clientY;
       s.lastTs = now;
       const detents = sheetDetents(layoutH());
+      const dragMin = detents[0];
       const max = keyboardOpen() ? heightAboveKeyboard(detents) : detents[2];
-      setLive(rubberHeight(s.h0 - (ev.clientY - s.y0), detents[0], max));
+      setLive(rubberHeight(s.h0 - (ev.clientY - s.y0), dragMin, max));
     };
 
     const end = (ev: PointerEvent) => {
       const s = session.current;
       if (!s || ev.pointerId !== s.pointerId) return;
       const detents = sheetDetents(layoutH());
-      const [min] = detents;
+      const [dragMin] = detents;
       const moved = ev.clientY - s.y0;
 
       if (keyboardOpen()) {
         session.current = null;
         setDragging(false);
-        setLive(heightAboveKeyboard(detents));
+        setLive(Math.max(heightAboveKeyboard(detents), floorPx(detents)));
         cleanup.current?.();
         return;
       }
 
-      const next = live.current < min
-        ? min
+      const next = live.current < dragMin
+        ? dragMin
         : Math.abs(moved) < TAP
           ? nextSheetHeight(s.h0, detents)
           : snapSheetHeight(live.current, detents, s.vel);
@@ -167,7 +188,7 @@ export function useSheetResize(initial: 'peek' | 'mid' | 'tall' = 'mid') {
     window.addEventListener('pointermove', move, { passive: false });
     window.addEventListener('pointerup', end);
     window.addEventListener('pointercancel', end);
-  }, []);
+  }, [floorPx]);
 
   return { height, dragging, onHandleDown, ensureMid, keyboardBottom };
 }

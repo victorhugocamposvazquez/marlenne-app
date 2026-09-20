@@ -87,18 +87,25 @@ function SheetBody({
 }
 
 export default function Sheet({
-  title, subtitle, children, footer, initialHeight = 'mid',
+  title, subtitle, children, footer, initialHeight = 'mid', floorDetent,
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
   footer?: React.ReactNode | ((requestClose: ReturnType<typeof useSheetShellClose>) => React.ReactNode);
   initialHeight?: 'peek' | 'mid' | 'tall';
+  floorDetent?: 'peek' | 'mid' | 'tall';
 }) {
   const close = useCloseSheet();
 
   return (
-    <SheetShell onClose={close} initialHeight={initialHeight} grabHeader className="flex max-h-[92dvh] flex-col">
+    <SheetShell
+      onClose={close}
+      initialHeight={initialHeight}
+      floorDetent={floorDetent}
+      grabHeader
+      className="flex max-h-[92dvh] flex-col"
+    >
       <SheetBody title={title} subtitle={subtitle} footer={footer}>
         {children}
       </SheetBody>

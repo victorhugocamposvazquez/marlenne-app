@@ -87,6 +87,7 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
       title="Nueva Client@"
       subtitle="Nombre y teléfono bastan. Luego das la cita."
       initialHeight="tall"
+      floorDetent="tall"
       footer={requestClose => (
         <>
           {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}

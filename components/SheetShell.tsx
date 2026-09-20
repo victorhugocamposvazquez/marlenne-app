@@ -12,7 +12,7 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { useSheetResize } from '@/hooks/useSheetResize';
+import { useSheetResize, type SheetDetent } from '@/hooks/useSheetResize';
 
 type GrabCtx = {
   onHandleDown: (e: React.PointerEvent) => void;
@@ -84,12 +84,15 @@ export default function SheetShell({
   onClose,
   children,
   initialHeight = 'mid',
+  floorDetent,
   className = '',
   grabHeader = false,
 }: {
   onClose: () => void;
   children: ReactNode;
-  initialHeight?: 'peek' | 'mid' | 'tall';
+  initialHeight?: SheetDetent;
+  /** Tras teclado o resize automático, no bajar de este tope (el arrastre manual sí puede). */
+  floorDetent?: SheetDetent;
   className?: string;
   grabHeader?: boolean;
 }) {
@@ -114,7 +117,7 @@ export default function SheetShell({
     setClosing(true);
   }, [closing]);
 
-  const { height, dragging, onHandleDown, keyboardBottom } = useSheetResize(initialHeight);
+  const { height, dragging, onHandleDown, keyboardBottom } = useSheetResize(initialHeight, { floorDetent });
 
   useLayoutEffect(() => {
     const prev = document.body.style.overflow;
