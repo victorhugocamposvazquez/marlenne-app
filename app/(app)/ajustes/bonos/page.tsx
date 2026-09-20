@@ -17,10 +17,10 @@ export default async function BonosPage() {
     <AjustesHeader title="Bonos">
       {admin && (
         <section className="mb-6">
-          <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">
+          <h2 className="mb-2.5 text-body-lg font-bold text-ink">
             Plantillas · {templates.length}
           </h2>
-          <p className="mb-2.5 text-label font-medium text-ink-2">
+          <p className="mb-3 text-body text-ink-2">
             Lo que se vende: 6 láser, 4 cavitación.
           </p>
           <PackTemplatesEditor templates={templates} services={services} />

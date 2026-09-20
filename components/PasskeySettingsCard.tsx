@@ -9,6 +9,7 @@ import {
   removePasskey,
   type PasskeyRow,
 } from '@/app/actions/webauthn';
+import AjustesSection from '@/components/ajustes/AjustesSection';
 import Button from '@/components/ui/Button';
 import { useToast } from '@/components/Toast';
 import {
@@ -102,22 +103,18 @@ export default function PasskeySettingsCard({
   };
 
   return (
-    <section className="mt-8">
-      <h2 className="mb-3 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">
-        {platformSettingsTitle(ua)}
-      </h2>
-      <div className="rounded-row bg-surface-soft p-4">
-        <p className="text-label font-medium leading-snug text-ink-2">
+    <AjustesSection title={platformSettingsTitle(ua)} cardClassName="rounded-row p-4">
+        <p className="text-body leading-snug text-ink-2">
           {platformSettingsHint(ua)}
         </p>
         {rows.length > 0 && (
           <ul className="mt-3 flex flex-col gap-2">
             {rows.map(row => (
-              <li key={row.id} className="flex items-center gap-2 rounded-chip bg-surface-bg px-3 py-2">
-                <FaceIcon size={16} strokeWidth={2.2} className="shrink-0 text-v-d" />
+              <li key={row.id} className="flex items-center gap-2.5 rounded-chip bg-surface-bg px-3 py-2.5">
+                <FaceIcon size={18} strokeWidth={2.2} className="shrink-0 text-ink-2" />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-body font-bold">{row.friendly_name}</span>
-                  <span className="block text-caption font-medium text-ink-3">
+                  <span className="block text-body-lg font-bold">{row.friendly_name}</span>
+                  <span className="block text-label font-medium text-ink-3">
                     Desde {formatDay(row.created_at)}
                     {row.last_used_at ? ` · último uso ${formatDay(row.last_used_at)}` : ''}
                   </span>
@@ -135,18 +132,17 @@ export default function PasskeySettingsCard({
             ))}
           </ul>
         )}
-        {error && <p className="mt-2 text-label font-semibold text-danger-fg">{error}</p>}
+        {error && <p className="mt-2 text-body font-semibold text-danger-fg">{error}</p>}
         {available ? (
-          <Button full className="mt-3" onClick={register} disabled={pending}>
+          <Button variant="ink" full className="mt-3" onClick={register} disabled={pending}>
             <FaceIcon size={18} strokeWidth={2.2} />
             {pending ? platformWaitingLabel(ua) : label}
           </Button>
         ) : (
-          <p className="mt-3 text-label font-medium text-ink-3">
+          <p className="mt-3 text-body text-ink-3">
             Este aparato no tiene Face ID, huella ni cara. Prueba en el iPhone, el Android o el iPad de recepción.
           </p>
         )}
-      </div>
-    </section>
+    </AjustesSection>
   );
 }

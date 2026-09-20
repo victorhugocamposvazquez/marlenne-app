@@ -48,10 +48,10 @@ export default function PackTemplatesEditor({
             onClick={() => { setCreating(false); setOpen(o => o === t.id ? null : t.id); }}
             className="flex w-full items-baseline justify-between gap-3 px-3.5 py-2.5 text-left"
           >
-            <span className={`min-w-0 truncate text-body font-semibold ${t.is_active ? '' : 'text-ink-3 line-through'}`}>
+            <span className={`min-w-0 truncate text-body-lg font-bold ${t.is_active ? '' : 'text-ink-3 line-through'}`}>
               {t.name}
             </span>
-            <span className="shrink-0 text-caption font-bold tabular-nums text-ink-3">
+            <span className="shrink-0 text-label font-semibold tabular-nums text-ink-3">
               {t.sessions_total} ses. · {(t.price_cents / 100).toFixed(0)} €
             </span>
           </button>
@@ -67,8 +67,8 @@ export default function PackTemplatesEditor({
         </div>
       ))}
       {creating ? (
-        <div className="overflow-hidden rounded-row border border-v/30 bg-surface-card">
-          <p className="px-3.5 pt-3 text-body font-bold">Nuevo bono de catálogo</p>
+        <div className="overflow-hidden rounded-row border border-surface-line bg-surface-card">
+          <p className="px-3.5 pt-3 text-body-lg font-bold">Nuevo bono de catálogo</p>
           <TemplateForm
             services={services}
             pending={pending}
@@ -154,6 +154,7 @@ function TemplateForm({
           </Button>
         )}
         <Button
+          variant="ink"
           className="flex-1"
           full={!onCancel}
           disabled={pending}

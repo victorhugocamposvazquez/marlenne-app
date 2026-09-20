@@ -104,7 +104,7 @@ export default function CsvImportCard() {
 
   return (
     <div className="rounded-row bg-surface-soft p-4">
-      <p className="text-label font-medium leading-snug text-ink-2">
+      <p className="text-body leading-snug text-ink-2">
         Una mudanza, no un sync. Tres CSV: servicios, clientas y citas. Primero el preview; luego se escribe.
         No crea logins ni importa packs, fotos ni consentimientos.
       </p>
@@ -165,7 +165,7 @@ export default function CsvImportCard() {
         <Button variant="secondary" className="flex-1" disabled={pending} onClick={runPreview}>
           {pending && !preview ? 'Leyendo…' : 'Vista previa'}
         </Button>
-        <Button className="flex-1" disabled={pending || !preview || !!preview.fileErrors.length} onClick={apply}>
+        <Button variant="ink" className="flex-1" disabled={pending || !preview || !!preview.fileErrors.length} onClick={apply}>
           {pending && preview ? 'Importando…' : 'Importar'}
         </Button>
       </div>

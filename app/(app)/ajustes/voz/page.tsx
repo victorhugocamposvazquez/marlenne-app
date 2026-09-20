@@ -11,10 +11,10 @@ const when = new Intl.DateTimeFormat('es-ES', {
 function PhraseList({ title, rows }: { title: string; rows: [string, number][] }) {
   return (
     <div>
-      <p className="text-caption font-bold text-ink-2">{title}</p>
-      <div className="mt-1.5 flex flex-wrap gap-1.5">
+      <p className="text-body font-semibold text-ink-2">{title}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
         {rows.map(([said, n]) => (
-          <span key={said} className="rounded-chip bg-surface-soft px-2.5 py-1 text-caption font-semibold text-ink">
+          <span key={said} className="rounded-chip bg-surface-soft px-3 py-1.5 text-label font-semibold text-ink">
             «{said}»{n > 1 ? ` · ${n}` : ''}
           </span>
         ))}
@@ -37,13 +37,13 @@ export default async function VozPage() {
 
   return (
     <AjustesHeader title="Voz">
-      <p className="text-caption font-medium leading-snug text-ink-2">
+      <p className="text-body leading-snug text-ink-2">
         Lo que se dijo y no salió, últimos 30 días. Sirve para añadir alias de servicios o nombres. Se borra solo.
       </p>
       {top.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
+        <div className="mt-4 flex flex-wrap gap-2">
           {top.map(([k, n]) => (
-            <span key={k} className="rounded-chip bg-v-soft px-2.5 py-1 text-caption font-bold text-v-d">
+            <span key={k} className="rounded-chip bg-surface-soft px-3 py-1.5 text-label font-bold text-ink">
               {VOICE_OUTCOMES[k] ?? k} · {n}
             </span>
           ))}
@@ -63,13 +63,13 @@ export default async function VozPage() {
         </div>
       )}
       {rows.length === 0 ? (
-        <p className="mt-4 text-body font-semibold text-ink-2">Nada apuntado. O todo va bien, o nadie usa la voz.</p>
+        <p className="mt-4 text-body-lg font-semibold text-ink-2">Nada apuntado. O todo va bien, o nadie usa la voz.</p>
       ) : (
-        <div className="mt-3">
+        <div className="mt-4">
           {rows.map(r => (
-            <div key={r.id} className="border-b border-surface-line py-3 last:border-0">
-              <p className="text-body font-bold">«{r.said}»</p>
-              <p className="text-caption font-medium text-ink-2">
+            <div key={r.id} className="border-b border-surface-line py-4 last:border-0">
+              <p className="text-body-lg font-bold">«{r.said}»</p>
+              <p className="mt-0.5 text-body text-ink-2">
                 {VOICE_OUTCOMES[r.outcome] ?? r.outcome}
                 {r.detail ? ` · ${r.detail}` : ''}
                 {' · '}

@@ -15,7 +15,7 @@ export default async function EquipoPage() {
       ) : (
         <div className="flex flex-col gap-2">
           {team.map(p => (
-            <div key={p.id} className="flex items-center gap-3 border-b border-surface-line py-3.5">
+            <div key={p.id} className="flex items-center gap-3 border-b border-surface-line py-4">
               <span
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-icon text-label font-bold text-white"
                 style={{ background: p.color ?? avatarColor(p.full_name) }}
@@ -23,8 +23,8 @@ export default async function EquipoPage() {
                 {p.initials}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-body font-bold">{p.full_name}</span>
-                <span className="block truncate text-caption font-medium text-ink-2">{p.job_title}</span>
+                <span className="block truncate text-body-lg font-bold">{p.full_name}</span>
+                <span className="block truncate text-body text-ink-2">{p.job_title}</span>
               </span>
             </div>
           ))}

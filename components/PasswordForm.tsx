@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { changePassword } from '@/app/actions/auth';
 import { inputCls } from '@/components/Sheet';
+import AjustesSection from '@/components/ajustes/AjustesSection';
 import Button from '@/components/ui/Button';
 import { useToast } from '@/components/Toast';
 
@@ -30,9 +31,7 @@ export default function PasswordForm() {
   };
 
   return (
-    <section className="mt-8">
-      <h2 className="mb-3 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">Tu contraseña</h2>
-      <div className="rounded-card bg-surface-soft p-4">
+    <AjustesSection title="Tu contraseña" cardClassName="p-4">
         <input
           className={`${inputCls} mb-2`}
           type="password"
@@ -49,15 +48,15 @@ export default function PasswordForm() {
           value={confirm}
           onChange={e => setConfirm(e.target.value)}
         />
-        {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
+        {error && <p className="mb-2 text-body font-semibold text-danger-fg">{error}</p>}
         <Button
+          variant="ink"
           full
           onClick={save}
           disabled={pending || password.length < 8}
         >
           {pending ? 'Guardando…' : 'Cambiar contraseña'}
         </Button>
-      </div>
-    </section>
+    </AjustesSection>
   );
 }

@@ -25,13 +25,13 @@ export default function SubpageHeader({
             <ChevronLeft size={22} strokeWidth={2.4} aria-hidden />
           </Link>
           {leading}
-          <h1 className="min-w-0 flex-1 truncate text-title font-bold leading-tight tracking-[-.02em]">
+          <h1 className="min-w-0 flex-1 truncate text-display font-bold leading-tight tracking-[-.03em]">
             {title}
           </h1>
           {extra}
         </div>
       </header>
-      <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-6 pb-fab pt-4">
+      <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-6 pb-fab pt-5">
         {children}
       </div>
     </div>

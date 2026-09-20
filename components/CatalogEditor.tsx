@@ -57,7 +57,7 @@ export default function CatalogEditor({
           <button
             type="button"
             onClick={() => { setAddingCat(a => !a); setAddingSvc(null); }}
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-chip bg-v-soft px-3 text-label font-bold text-v-d motion-safe:active:scale-[.97]"
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-chip bg-ink px-3.5 text-label font-bold text-white motion-safe:active:scale-[.97]"
           >
             <Plus size={16} strokeWidth={2.4} />
             {addingCat ? 'Cerrar' : 'Nueva categoría'}
@@ -103,7 +103,7 @@ export default function CatalogEditor({
                   <button
                     type="button"
                     onClick={() => setEditCat(e => e === cat.id ? null : cat.id)}
-                    className="inline-flex min-h-[44px] items-center gap-1 px-1.5 text-label font-bold text-v-d"
+                    className="inline-flex min-h-[44px] items-center gap-1 px-1.5 text-label font-bold text-ink"
                   >
                     <Pencil size={14} strokeWidth={2.3} />
                     {editCat === cat.id ? 'Cerrar' : 'Editar'}
@@ -159,7 +159,7 @@ export default function CatalogEditor({
                       <button
                         type="button"
                         onClick={() => setEditSvc(e => e === s.id ? null : s.id)}
-                        className="inline-flex min-h-[44px] shrink-0 items-center gap-1 text-label font-bold text-v-d"
+                        className="inline-flex min-h-[44px] shrink-0 items-center gap-1 text-label font-bold text-ink"
                       >
                         <Pencil size={14} strokeWidth={2.3} />
                         {editSvc === s.id ? 'Cerrar' : 'Editar'}
@@ -195,7 +195,7 @@ export default function CatalogEditor({
                   <button
                     type="button"
                     onClick={() => { setAddingSvc(cat.id); setAddingCat(false); setEditSvc(null); }}
-                    className="flex min-h-[44px] w-full items-center gap-1.5 px-3.5 text-left text-label font-bold text-v-d motion-safe:active:bg-v-tint"
+                    className="flex min-h-[44px] w-full items-center gap-1.5 px-3.5 text-left text-label font-bold text-ink motion-safe:active:bg-surface-line/60"
                   >
                     <Plus size={15} strokeWidth={2.4} />
                     Añadir a {look.label}
@@ -240,6 +240,7 @@ function CategoryForm({
       </label>
       <div className="mt-3 flex flex-wrap gap-2">
         <Button
+          variant="ink"
           className="flex-1"
           disabled={pending}
           onClick={() => onSave({ name, color, opens_treatment: opens })}
@@ -293,7 +294,7 @@ function ServiceForm({
 
   return (
     <div className={service
-      ? 'border-t border-surface-line bg-v-tint/40 px-3.5 py-3'
+      ? 'border-t border-surface-line bg-surface-soft px-3.5 py-3'
       : 'mb-2 rounded-row bg-surface-soft p-4'}>
       <label className="block">
         <span className="mb-1 block text-caption font-bold uppercase text-ink-2">Nombre</span>
@@ -325,7 +326,7 @@ function ServiceForm({
           type="button"
           onClick={() => setColor('')}
           className={`mb-2 min-h-[40px] rounded-chip px-3 text-label font-bold ${
-            !color ? 'bg-v-soft text-v-d' : 'border border-surface-line bg-surface-card text-ink-2'
+            !color ? 'bg-ink text-white' : 'border border-surface-line bg-surface-card text-ink-2'
           }`}
         >
           El de la categoría
@@ -340,6 +341,7 @@ function ServiceForm({
       )}
       <div className="mt-3 flex flex-wrap gap-2">
         <Button
+          variant="ink"
           className="flex-1"
           disabled={pending}
           onClick={() => onSave({

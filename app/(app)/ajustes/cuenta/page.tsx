@@ -4,6 +4,7 @@ import { requireSession } from '@/lib/require-session';
 import { signOut } from '@/app/actions/auth';
 import { listMyPasskeys } from '@/app/actions/webauthn';
 import AjustesHeader from '@/components/ajustes/AjustesHeader';
+import { ajustesCardCls, ajustesSectionTitleCls } from '@/components/ajustes/AjustesSection';
 import Button from '@/components/ui/Button';
 import PasswordForm from '@/components/PasswordForm';
 import PasskeySettingsCard from '@/components/PasskeySettingsCard';
@@ -41,12 +42,12 @@ export default async function CuentaPage() {
       <IosShortcutsCard />
       <PasswordForm />
       <section className="mt-8">
-        <h2 className="mb-3 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">En el radar</h2>
-        <ul className="rounded-card bg-surface-soft px-4">
+        <h2 className={ajustesSectionTitleCls}>En el radar</h2>
+        <ul className={ajustesCardCls}>
           {ROADMAP.map(item => (
-            <li key={item.label} className="flex items-start gap-2.5 border-b border-[#E6E5EC] py-3 last:border-0">
-              <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${item.done ? 'bg-ok' : 'bg-handle'}`} />
-              <span className={`text-body font-semibold ${item.done ? 'text-ink-2' : 'text-ink'}`}>{item.label}</span>
+            <li key={item.label} className="flex items-start gap-3 border-b border-surface-line py-4 last:border-0">
+              <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${item.done ? 'bg-ok' : 'bg-handle'}`} />
+              <span className={`text-body-lg font-semibold ${item.done ? 'text-ink-2' : 'text-ink'}`}>{item.label}</span>
             </li>
           ))}
         </ul>

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import ReadyList from '@/components/ajustes/ReadyList';
+import { ajustesCardCls, ajustesSectionTitleCls } from '@/components/ajustes/AjustesSection';
 import PageHeading from '@/components/ui/PageHeading';
 import type { ReadyItem } from '@/lib/ready';
 import type { StaffRole } from '@/lib/types';
@@ -11,19 +12,19 @@ function Group({ title, rows }: { title: string; rows: Destino[] }) {
   if (!rows.length) return null;
   return (
     <section className="mt-8">
-      <h2 className="mb-3 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">{title}</h2>
-      <div className="rounded-card bg-surface-soft px-4">
+      <h2 className={ajustesSectionTitleCls}>{title}</h2>
+      <div className={ajustesCardCls}>
         {rows.map(row => (
           <Link
             key={row.href}
             href={row.href}
-            className="flex min-h-[44px] items-center gap-3 border-b border-[#E6E5EC] py-3.5 last:border-0"
+            className="flex min-h-[52px] items-center gap-3 border-b border-surface-line py-4 text-ink no-underline last:border-0 hover:text-ink"
           >
             <span className="min-w-0 flex-1">
-              <span className="block text-body-lg font-semibold">{row.title}</span>
-              <span className="block text-label leading-snug text-ink-2">{row.hint}</span>
+              <span className="block text-body-lg font-bold">{row.title}</span>
+              <span className="mt-0.5 block text-body leading-snug text-ink-2">{row.hint}</span>
             </span>
-            <ChevronRight size={18} strokeWidth={2.2} className="shrink-0 text-ink-3" aria-hidden />
+            <ChevronRight size={20} strokeWidth={2.2} className="shrink-0 text-ink-3" aria-hidden />
           </Link>
         ))}
       </div>
@@ -71,7 +72,9 @@ export default function AjustesIndex({
     <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-6 pb-fab pt-5">
       <PageHeading
         title="Ajustes"
-        subtitle={`${me.full_name} · ${me.job_title ?? me.role}`}
+        subtitle={
+          <span className="text-body-lg text-ink-2">{`${me.full_name} · ${me.job_title ?? me.role}`}</span>
+        }
       />
       <Group title="Centro" rows={centro} />
       <Group title="Cuenta" rows={cuenta} />

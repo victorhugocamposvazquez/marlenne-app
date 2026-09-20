@@ -26,10 +26,10 @@ export default function SoldPacksCard({
 
   return (
     <section className={className}>
-      <h2 className="mb-2.5 text-body font-extrabold uppercase tracking-[.04em] text-ink-2">
+      <h2 className="mb-2.5 text-body-lg font-bold text-ink">
         Bonos vendidos · {open.length} vivos
       </h2>
-      <p className="mb-2.5 text-label font-medium text-ink-2">
+      <p className="mb-3 text-body text-ink-2">
         Recargar sesiones aquí. Vender uno nuevo, en la ficha. La clienta no entra a Marlén.
       </p>
       {packs.length === 0 ? (
@@ -72,17 +72,17 @@ function SoldRow({ pack, canEdit, muted }: { pack: ClientPack; canEdit: boolean;
     <article className={`rounded-row bg-surface-soft p-4 ${muted ? 'opacity-70' : ''}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <Link href={`/clientas/${pack.owner_client_id}`} className="block truncate text-body font-bold">
+          <Link href={`/clientas/${pack.owner_client_id}`} className="block truncate text-body-lg font-bold text-ink no-underline hover:text-ink">
             {pack.owner_name || 'Sin nombre'}
           </Link>
-          <p className="mt-0.5 text-caption font-medium text-ink-3">
+          <p className="mt-0.5 text-body text-ink-2">
             {packLabel(pack)}
             {pack.friend_name ? ` · con ${pack.friend_name}` : ''}
             {expired ? ' · caducado' : ''}
           </p>
         </div>
         {pack.friend_client_id && (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-badge bg-v-soft px-2 py-1 text-micro font-bold text-v-d">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-badge bg-surface-line px-2 py-1 text-label font-semibold text-ink-2">
             <Users size={11} strokeWidth={2.4} />
             Amigo
           </span>

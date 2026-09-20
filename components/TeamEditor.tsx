@@ -33,12 +33,12 @@ export default function TeamEditor({
     <div>
       <div className={`mb-2.5 flex items-center ${heading ? 'justify-between' : 'justify-end'}`}>
         {heading && (
-          <h2 className="text-body font-extrabold uppercase tracking-[.04em] text-ink-2">Equipo</h2>
+          <h2 className="text-body-lg font-bold text-ink">Equipo</h2>
         )}
         <button
           type="button"
           onClick={() => { setAdding(a => !a); setCreated(null); }}
-          className="min-h-[44px] rounded-chip bg-v-soft px-3 text-label font-bold text-v-d motion-safe:active:scale-[.97]"
+          className="min-h-[44px] rounded-chip bg-ink px-3.5 text-label font-bold text-white motion-safe:active:scale-[.97]"
         >
           {adding ? 'Cerrar' : 'Añadir'}
         </button>
@@ -80,10 +80,10 @@ export default function TeamEditor({
                 {p.initials}
               </span>
               <span className="min-w-0 flex-1">
-                <span className={`block truncate text-body font-bold ${p.is_active === false ? 'text-ink-3 line-through' : ''}`}>
+                <span className={`block truncate text-body-lg font-bold ${p.is_active === false ? 'text-ink-3 line-through' : ''}`}>
                   {p.full_name}{p.id === meId ? ' · tú' : ''}
                 </span>
-                <span className="block truncate text-caption font-medium text-ink-3">
+                <span className="block truncate text-body text-ink-2">
                   {roleLbl(p.role)}{p.job_title ? ` · ${p.job_title}` : ''}
                   {p.is_active === false ? ' · inactiva' : ''}
                 </span>
@@ -140,6 +140,7 @@ function AddForm({
         </div>
       </Field>
       <Button
+        variant="ink"
         full
         disabled={pending || name.trim().length < 2 || !email.includes('@')}
         onClick={() => onSave({ email, full_name: name, role, job_title: title })}
@@ -182,6 +183,7 @@ function EditForm({
         Activa en la agenda
       </label>
       <Button
+        variant="ink"
         full
         disabled={pending || name.trim().length < 2}
         onClick={() => onSave({ full_name: name, role, job_title: title, is_active: active })}

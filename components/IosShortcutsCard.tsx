@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import AjustesSection from '@/components/ajustes/AjustesSection';
 import { useToast } from '@/components/Toast';
 
 const PATHS = [
@@ -24,19 +25,15 @@ export default function IosShortcutsCard() {
   };
 
   return (
-    <section className="mt-8">
-      <h2 className="mb-3 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">
-        iPhone · Siri y atajos
-      </h2>
-      <div className="rounded-row bg-surface-soft p-4">
-        <p className="text-label font-medium leading-snug text-ink-2">
+    <AjustesSection title="iPhone · Siri y atajos" cardClassName="rounded-row p-4">
+        <p className="text-body leading-snug text-ink-2">
           Safari → Compartir → Añadir a pantalla de inicio (así el micro no
           pide permiso cada vez). Face ID se activa en Tu cuenta, en este
           mismo iPhone. Siri no ve la PWA:
           crea un Atajo «Abrir URL» y añádelo a Siri. Si abre Safari en vez del
           icono, prueba la URL <span className="font-bold">webapp://</span>.
         </p>
-        <p className="mt-2 text-label font-medium leading-snug text-ink-2">
+        <p className="mt-2 text-body leading-snug text-ink-2">
           Dentro de la app, el micrófono (o escribir) ejecuta agenda: huecos,
           citas, pasa, no vino. Si hay clave de modelo, se puede hablar normal.
           Solo agenda, nunca ficha clínica.
@@ -46,19 +43,19 @@ export default function IosShortcutsCard() {
             const https = `${origin}${p.path}`;
             const webapp = `webapp://${origin.replace(/^https?:\/\//, '')}${p.path}`;
             return (
-              <li key={p.path} className="rounded-chip bg-surface-bg px-3 py-2">
-                <div className="text-body font-bold">«{p.phrase}»</div>
+              <li key={p.path} className="rounded-chip bg-surface-bg px-3 py-2.5">
+                <div className="text-body-lg font-bold">«{p.phrase}»</div>
                 <button
                   type="button"
                   onClick={() => copy(https)}
-                  className="mt-0.5 block w-full truncate text-left text-caption font-semibold text-v-d"
+                  className="mt-0.5 block w-full truncate text-left text-label font-semibold text-ink"
                 >
                   {https || p.path}
                 </button>
                 <button
                   type="button"
                   onClick={() => copy(webapp)}
-                  className="block w-full truncate text-left text-caption font-medium text-ink-3"
+                  className="block w-full truncate text-left text-label font-medium text-ink-3"
                 >
                   {origin ? webapp : `webapp://…${p.path}`}
                 </button>
@@ -66,7 +63,6 @@ export default function IosShortcutsCard() {
             );
           })}
         </ul>
-      </div>
-    </section>
+    </AjustesSection>
   );
 }
