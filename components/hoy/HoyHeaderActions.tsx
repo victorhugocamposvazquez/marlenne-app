@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { Bell } from 'lucide-react';
 import CreateMenu from '@/components/CreateMenu';
+import { headerActionsCls } from '@/components/ui/ScreenHeader';
+import { circleOutlineCls } from '@/components/ui/IconButton';
 import type { StaffRole } from '@/lib/types';
 
 export default function HoyHeaderActions({
@@ -12,10 +14,10 @@ export default function HoyHeaderActions({
   waiting: number;
 }) {
   return (
-    <div className="flex shrink-0 items-center gap-2">
+    <div className={headerActionsCls}>
       <Link
         href="/agenda?wait=1"
-        className="relative grid h-12 w-12 place-items-center rounded-pill border-2 border-ink bg-transparent text-ink transition motion-safe:active:scale-[.96]"
+        className={`relative ${circleOutlineCls} h-12 w-12`}
         aria-label="Lista de espera"
       >
         <Bell size={20} strokeWidth={2} />

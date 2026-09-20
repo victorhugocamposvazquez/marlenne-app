@@ -15,13 +15,15 @@ export default function PageHeading({
   return (
     <div className="flex items-start gap-3">
       <div className="min-w-0 flex-1">
-        {kicker != null && kicker}
+        {kicker != null && <div className="mb-1">{kicker}</div>}
         <h1 className="text-h1 font-bold tracking-[-.03em]">{title}</h1>
         {subtitle != null && (
           <div className="mt-1 text-body font-normal text-ink-2">{subtitle}</div>
         )}
       </div>
-      {children}
+      {children != null && (
+        <div className="flex shrink-0 items-center gap-2">{children}</div>
+      )}
     </div>
   );
 }

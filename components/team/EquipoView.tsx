@@ -5,6 +5,7 @@ import { ChevronLeft } from 'lucide-react';
 import TeamEditor from '@/components/TeamEditor';
 import EquipoHeaderAction from '@/components/team/EquipoHeaderAction';
 import PageHeading from '@/components/ui/PageHeading';
+import { screenHeaderCls } from '@/components/ui/ScreenHeader';
 import { avatarColor } from '@/lib/categories';
 import type { Provider } from '@/lib/types';
 
@@ -26,15 +27,20 @@ export default function EquipoView({
 }) {
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="shrink-0 px-6 pb-2 pt-5">
-        <Link
-          href="/ajustes"
-          className="mb-3 inline-flex min-h-[44px] items-center gap-0.5 text-body font-semibold text-ink-2"
+      <header className={screenHeaderCls}>
+        <PageHeading
+          kicker={(
+            <Link
+              href="/ajustes"
+              className="inline-flex items-center gap-0.5 text-body font-semibold text-ink-2"
+            >
+              <ChevronLeft size={16} strokeWidth={2.4} aria-hidden />
+              Ajustes
+            </Link>
+          )}
+          title="Equipo"
+          subtitle={teamSubtitle(team)}
         >
-          <ChevronLeft size={18} strokeWidth={2.4} aria-hidden />
-          Ajustes
-        </Link>
-        <PageHeading title="Equipo" subtitle={teamSubtitle(team)}>
           {admin && <EquipoHeaderAction />}
         </PageHeading>
       </header>

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
-import IconButton from '@/components/ui/IconButton';
+import { HeaderIconButton } from '@/components/ui/ScreenHeader';
 import type { StaffRole } from '@/lib/types';
 
 type Item = { id: string; label: string; run: () => void };
@@ -47,15 +47,13 @@ export default function CreateMenu({ role }: { role: StaffRole }) {
 
   return (
     <div ref={ref} className="relative">
-      <IconButton
+      <HeaderIconButton
         label="Crear"
-        tone="outline"
-        className="h-12 w-12 rounded-pill"
         aria-expanded={open}
         onClick={() => setOpen(o => !o)}
       >
         <Plus size={22} strokeWidth={2.2} />
-      </IconButton>
+      </HeaderIconButton>
       {open && (
         <ul
           role="menu"

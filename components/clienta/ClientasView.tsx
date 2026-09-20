@@ -6,9 +6,10 @@ import { Check, ChevronDown, Plus, Search } from 'lucide-react';
 import NewClientSheet from '@/components/clienta/NewClientSheet';
 import Chip from '@/components/ui/Chip';
 import EmptyState from '@/components/ui/EmptyState';
-import IconButton, { pillOutlineCls } from '@/components/ui/IconButton';
+import { pillOutlineCls } from '@/components/ui/IconButton';
 import Badge from '@/components/ui/Badge';
 import PageHeading from '@/components/ui/PageHeading';
+import { HeaderIconButton, screenHeaderCls } from '@/components/ui/ScreenHeader';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 import { avatarColor, initials } from '@/lib/categories';
 import { phoneDigits } from '@/lib/phone';
@@ -120,16 +121,11 @@ export default function ClientasView({
 
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="shrink-0 px-6 pb-2 pt-5">
+      <header className={screenHeaderCls}>
         <PageHeading title="Clientas" subtitle={titleCount}>
-          <IconButton
-            label="Nueva Client@"
-            tone="outline"
-            className="h-12 w-12 rounded-pill"
-            onClick={() => shallowSet({ alta: '1' })}
-          >
+          <HeaderIconButton label="Nueva Client@" onClick={() => shallowSet({ alta: '1' })}>
             <Plus size={22} strokeWidth={2.2} />
-          </IconButton>
+          </HeaderIconButton>
         </PageHeading>
         <div ref={sortRef} className="relative mt-1.5">
           <div className="flex items-center gap-1.5">

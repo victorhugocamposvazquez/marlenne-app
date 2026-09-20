@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Calendar, ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import DayStrip from '@/components/agenda/DayStrip';
 import MonthCalendar from '@/components/agenda/MonthCalendar';
-import { circleOutlineCls } from '@/components/ui/IconButton';
+import { HeaderIconButton, HeaderTitleRow, screenHeaderCls } from '@/components/ui/ScreenHeader';
 import { alignStripStart, monthTitleFromOffset, skipSunday } from '@/lib/time';
 import { shallowSet } from '@/hooks/useShallowQuery';
 
@@ -38,43 +38,43 @@ export default function AgendaHeader({
     router.push(`/agenda?${q.toString()}`);
   };
 
+  const openNew = () => {
+    shallowSet({
+      new: '1',
+      con: null, hora: null, nombre: null, servicio: null, client: null,
+      wait: null, block: null, bloqueo: null, appt: null, close: null, alta: null, miembro: null,
+    });
+  };
+
   return (
-    <header className="shrink-0 px-4 pb-0 pt-5">
-      <div className="mb-3 flex items-center justify-between px-1">
-        <div className="flex items-center gap-2.5">
-          <button type="button" onClick={() => setCal(true)} className="flex items-center gap-1">
-            <span className="text-title font-bold tracking-[-.02em]">{monthTitleFromOffset(day)}</span>
-            <ChevronDown size={16} strokeWidth={2.8} />
+    <header className={screenHeaderCls}>
+      <HeaderTitleRow
+        title={(
+          <button type="button" onClick={() => setCal(true)} className="flex items-center gap-1 text-left">
+            <span className="text-h1 font-bold tracking-[-.03em]">{monthTitleFromOffset(day)}</span>
+            <ChevronDown size={16} strokeWidth={2.8} className="shrink-0" aria-hidden />
           </button>
-          <button
-            type="button"
-            onClick={() => setCal(true)}
-            aria-label="Calendario"
-            className={`${circleOutlineCls} h-12 w-12`}
-          >
-            <Calendar size={24} strokeWidth={2} />
-          </button>
-          <button
-            type="button"
-            aria-label="Nueva cita"
-            onClick={() => shallowSet({
-              new: '1',
-              con: null, hora: null, nombre: null, servicio: null, client: null,
-              wait: null, block: null, bloqueo: null, appt: null, close: null, alta: null, miembro: null,
-            })}
-            className={`${circleOutlineCls} h-12 w-12`}
-          >
-            <Plus size={22} strokeWidth={2.2} />
-          </button>
-        </div>
-        <div className="flex items-center gap-3">
-          {day !== 0 && (
-            <button type="button" onClick={() => go(0, { strip: 0 })} className="text-[14px] font-semibold text-v-d">
-              Hoy
-            </button>
-          )}
-        </div>
-      </div>
+        )}
+        actions={(
+          <>
+            {day !== 0 && (
+              <button
+                type="button"
+                onClick={() => go(0, { strip: 0 })}
+                className="min-h-[48px] shrink-0 px-1 text-[14px] font-semibold text-v-d"
+              >
+                Hoy
+              </button>
+            )}
+            <HeaderIconButton label="Calendario" onClick={() => setCal(true)}>
+              <Calendar size={22} strokeWidth={2} />
+            </HeaderIconButton>
+            <HeaderIconButton label="Nueva cita" onClick={openNew}>
+              <Plus size={22} strokeWidth={2.2} />
+            </HeaderIconButton>
+          </>
+        )}
+      />
 
       {mode === 'dia' && (
         <DayStrip
@@ -86,7 +86,7 @@ export default function AgendaHeader({
       )}
 
       {(waiting > 0 || (mode === 'dia' && citas != null)) && (
-        <div className="mt-3 flex items-center gap-2.5 px-1">
+        <div className="mt-3 flex items-center gap-2.5">
           {mode === 'dia' && citas != null && (
             <span className="text-label text-ink-3">
               {citas === 0 ? 'Sin citas' : `${citas} ${citas === 1 ? 'cita' : 'citas'}`}
