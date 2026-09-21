@@ -185,9 +185,11 @@ export default function CsvImportCard() {
           )}
           {!!preview.clients.length && (
             <li>
-              Clientas: {preview.counts.clientsNew} altas, {preview.counts.clientsSkip} duplicadas (teléfono o nombre)
+              Clientas: {preview.counts.clientsNew} altas, {preview.counts.clientsSkip} ya en la agenda
               {' · '}
-              {preview.clients.filter(c => c.phone?.trim()).length} con teléfono en el archivo
+              {preview.clients.filter(c => c.action === 'skip' && c.existingId && c.phone?.trim()).length} recibirán teléfono
+              {' · '}
+              {preview.clients.filter(c => c.phone?.trim()).length} móviles reales en el archivo
             </li>
           )}
           {!!preview.appointments.length && (

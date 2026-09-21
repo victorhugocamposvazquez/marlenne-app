@@ -103,6 +103,16 @@ function phoneTail(s: string) {
   return d.length >= 6 ? d : '';
 }
 
+/** SimplyBook y otros CRMs rellenan móviles genéricos cuando no hay dato real. */
+export function isPlaceholderImportPhone(d: string): boolean {
+  const digits = phoneDigits(d);
+  if (digits.length < 9) return false;
+  const tail = digits.slice(-9);
+  if (/^0+$/.test(tail)) return true;
+  if (/^(\d)\1{8}$/.test(tail)) return true;
+  return false;
+}
+
 /** Limpia teléfonos de Excel/SimplyBook (`'+34 649…`, prefijo `'`, espacios). */
 export function parseImportPhone(raw: string): string | null {
   let s = raw.trim();
@@ -110,9 +120,16 @@ export function parseImportPhone(raw: string): string | null {
   if (s.startsWith("'")) s = s.slice(1).trim();
   const d = phoneDigits(s);
   if (d.length < 9) return d.length >= 6 ? d : null;
+  if (isPlaceholderImportPhone(d)) return null;
   if (d.length === 9) return d;
   if (d.length === 11 && d.startsWith('34')) return d;
   return d;
+}
+
+function usablePhoneTail(phone: string | null): string {
+  if (!phone || isPlaceholderImportPhone(phone)) return '';
+  const tail = phoneTail(phone);
+  return tail.length >= 9 ? tail : '';
 }
 
 function excelSerialToDate(serial: number): string | null {
@@ -272,7 +289,7 @@ export function previewClients(csv: string, existing: ExistingClient[]): Preview
   const { rows } = parseCsv(csv);
   const seenPhones = new Set<string>();
   return rows.map((row, i) => {
-    const full_name = clientFullName(row);
+    const full_name = clientFullName(row).replace(/\s+/g, ' ').trim();
     const phoneRaw = cell(
       row,
       'telefono', 'phone', 'movil', 'telefono_movil', 'tel', 'mobile', 'celular', 'whatsapp', 'telefono_contacto',
@@ -292,8 +309,8 @@ export function previewClients(csv: string, existing: ExistingClient[]): Preview
       action: 'create',
     };
     if (full_name.length < 2) return { ...base, action: 'skip', error: 'Falta el nombre' };
-    const tail = phone ? phoneTail(phone) : '';
-    if (tail.length >= 9) {
+    const tail = usablePhoneTail(phone);
+    if (tail) {
       if (seenPhones.has(tail)) return { ...base, action: 'skip', error: 'Teléfono duplicado en el archivo' };
       seenPhones.add(tail);
       const hit = existing.find(c => phoneDigits(c.phone ?? '').endsWith(tail));
@@ -302,8 +319,15 @@ export function previewClients(csv: string, existing: ExistingClient[]): Preview
       }
     }
     const nameHit = existing.filter(c => fold(c.full_name) === fold(full_name));
-    if (nameHit.length === 1 && !tail) {
+    if (nameHit.length === 1) {
       return { ...base, action: 'skip', existingId: nameHit[0].id, existingName: nameHit[0].full_name };
+    }
+    if (nameHit.length > 1 && tail) {
+      const phoneHit = nameHit.find(c => phoneDigits(c.phone ?? '').endsWith(tail));
+      if (phoneHit) {
+        return { ...base, action: 'skip', existingId: phoneHit.id, existingName: phoneHit.full_name };
+      }
+      return { ...base, action: 'skip', error: 'Varias clientas con ese nombre; revisa en la agenda' };
     }
     return base;
   });
