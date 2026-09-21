@@ -32,6 +32,43 @@ export default function CsvImportCard() {
 
   const hasFile = !!(servicesFile || clientsFile || apptsFile);
 
+  const loadPreview = async (): Promise<ImportPreview | null> => {
+    const [servicesCsv, clientsCsv, appointmentsCsv] = await Promise.all([
+      readSpreadsheet(servicesFile),
+      readSpreadsheet(clientsFile),
+      readSpreadsheet(apptsFile),
+    ]);
+    const sb = createClient();
+    const range = appointmentsCsv ? peekAppointmentDates(appointmentsCsv) : null;
+    const from = range ? toTimestamp(range.from, 0) : null;
+    const to = range ? toTimestamp(range.to, 24 * 60 - 1) : null;
+    const [services, clients, staff, appts, blocks] = await Promise.all([
+      sb.from('services').select('id, name, category, duration_min, price_cents'),
+      fetchAllPages((from, to) =>
+        sb.from('clients').select('id, full_name, phone').order('full_name').range(from, to),
+      ),
+      sb.from('staff').select('id, full_name, is_active'),
+      from && to
+        ? sb.from('appointments').select('provider_id, starts_at, ends_at, status').gte('starts_at', from).lte('starts_at', to)
+        : Promise.resolve({ data: [] as { provider_id: string; starts_at: string; ends_at: string; status: string }[] }),
+      from && to
+        ? sb.from('time_blocks').select('provider_id, starts_at, ends_at').gte('starts_at', from).lte('starts_at', to)
+        : Promise.resolve({ data: [] as { provider_id: string; starts_at: string; ends_at: string }[] }),
+    ]);
+    return buildPreview({
+      servicesCsv,
+      clientsCsv,
+      appointmentsCsv,
+      existing: {
+        services: (services.data ?? []) as { id: string; name: string; category: CategoryId; duration_min: number; price_cents: number }[],
+        clients,
+        staff: staff.data ?? [],
+        appointments: appts.data ?? [],
+        blocks: blocks.data ?? [],
+      },
+    });
+  };
+
   const runPreview = () => {
     if (!hasFile) {
       setError('Elige al menos un archivo.');
@@ -41,40 +78,8 @@ export default function CsvImportCard() {
     setDoneMsg(null);
     startTransition(async () => {
       try {
-        const [servicesCsv, clientsCsv, appointmentsCsv] = await Promise.all([
-          readSpreadsheet(servicesFile),
-          readSpreadsheet(clientsFile),
-          readSpreadsheet(apptsFile),
-        ]);
-        const sb = createClient();
-        const range = appointmentsCsv ? peekAppointmentDates(appointmentsCsv) : null;
-        const from = range ? toTimestamp(range.from, 0) : null;
-        const to = range ? toTimestamp(range.to, 24 * 60 - 1) : null;
-        const [services, clients, staff, appts, blocks] = await Promise.all([
-          sb.from('services').select('id, name, category, duration_min, price_cents'),
-          fetchAllPages((from, to) =>
-            sb.from('clients').select('id, full_name, phone').order('full_name').range(from, to),
-          ),
-          sb.from('staff').select('id, full_name, is_active'),
-          from && to
-            ? sb.from('appointments').select('provider_id, starts_at, ends_at, status').gte('starts_at', from).lte('starts_at', to)
-            : Promise.resolve({ data: [] as { provider_id: string; starts_at: string; ends_at: string; status: string }[] }),
-          from && to
-            ? sb.from('time_blocks').select('provider_id, starts_at, ends_at').gte('starts_at', from).lte('starts_at', to)
-            : Promise.resolve({ data: [] as { provider_id: string; starts_at: string; ends_at: string }[] }),
-        ]);
-        const next = buildPreview({
-          servicesCsv,
-          clientsCsv,
-          appointmentsCsv,
-          existing: {
-            services: (services.data ?? []) as { id: string; name: string; category: CategoryId; duration_min: number; price_cents: number }[],
-            clients,
-            staff: staff.data ?? [],
-            appointments: appts.data ?? [],
-            blocks: blocks.data ?? [],
-          },
-        });
+        const next = await loadPreview();
+        if (!next) return;
         setPreview(next);
         if (next.fileErrors.length) setError(next.fileErrors[0]);
       } catch {
@@ -84,13 +89,28 @@ export default function CsvImportCard() {
   };
 
   const apply = async () => {
-    if (!preview || applying) return;
+    if (!hasFile || applying) return;
     setError(null);
     setDoneMsg(null);
     setApplying(true);
     setImportPct(0);
     try {
-      const r = await applyCsvImport(createClient(), preview, p => setImportPct(p.pct), {
+      let active = preview;
+      if (!active) {
+        try {
+          active = await loadPreview();
+        } catch {
+          setError('No se ha podido leer el archivo. Prueba a guardarlo de nuevo desde Excel.');
+          return;
+        }
+        if (!active) return;
+        setPreview(active);
+      }
+      if (active.fileErrors.length) {
+        setError(active.fileErrors[0]);
+        return;
+      }
+      const r = await applyCsvImport(createClient(), active, p => setImportPct(p.pct), {
         services: servicesFile?.name ?? null,
         clients: clientsFile?.name ?? null,
         appointments: apptsFile?.name ?? null,
@@ -130,8 +150,8 @@ export default function CsvImportCard() {
     <div className="rounded-row bg-surface-soft p-4">
       <ol className="list-decimal space-y-2 pl-5 text-body font-semibold leading-snug text-ink">
         <li>Descarga el Excel o CSV desde tu otra app, si aún no lo tienes.</li>
-        <li>Súbelo aquí y revisa la vista previa.</li>
-        <li>Importa.</li>
+        <li>Súbelo aquí (vista previa opcional).</li>
+        <li>Pulsa Importar.</li>
       </ol>
       <p className="mt-2.5 text-label font-medium text-ink-2">Sin plantilla — Marlén reconoce columnas habituales.</p>
 
@@ -189,8 +209,8 @@ export default function CsvImportCard() {
         <Button variant="secondary" className="flex-1" disabled={pending || applying || !hasFile} onClick={runPreview}>
           {pending && !preview && !applying ? 'Leyendo…' : 'Vista previa'}
         </Button>
-        <Button variant="ink" className="flex-1" disabled={pending || applying || !preview || !!preview.fileErrors.length} onClick={() => void apply()}>
-          Importar
+        <Button variant="ink" className="flex-1" disabled={pending || applying || !hasFile} onClick={() => void apply()}>
+          {applying && !preview ? 'Leyendo…' : applying ? 'Importando…' : 'Importar'}
         </Button>
       </div>
     </div>
