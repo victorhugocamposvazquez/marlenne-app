@@ -9,6 +9,22 @@ export type ImportApplyResult = {
   failedAppointments: number;
 };
 
+export type ImportProgress = { done: number; total: number; pct: number };
+
+export function countImportSteps(preview: ImportPreview): number {
+  let n = 0;
+  for (const s of preview.services) {
+    if (s.existingId || s.action === 'create') n += 1;
+  }
+  for (const c of preview.clients) {
+    if (c.existingId || c.action === 'create') n += 1;
+  }
+  for (const a of preview.appointments) {
+    if (a.action === 'create' && a.starts_at) n += 1;
+  }
+  return n;
+}
+
 async function salonOf(sb: SupabaseClient) {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return { user: null, salonId: null as string | null, role: null as string | null };
@@ -25,11 +41,13 @@ async function insertServices(
   salonId: string,
   rows: PreviewService[],
   ids: Map<string, string>,
+  onStep?: () => void,
 ) {
   let created = 0;
   for (const row of rows) {
     if (row.existingId) {
       ids.set(`new-svc:${row.row}`, row.existingId);
+      onStep?.();
       continue;
     }
     if (row.action !== 'create') continue;
@@ -47,9 +65,13 @@ async function insertServices(
       price_cents: row.price_cents,
       sort_order: 800 + row.row,
     }).select('id').single();
-    if (error || !data) continue;
+    if (error || !data) {
+      onStep?.();
+      continue;
+    }
     ids.set(`new-svc:${row.row}`, data.id);
     created += 1;
+    onStep?.();
   }
   return created;
 }
@@ -59,12 +81,14 @@ async function insertClients(
   salonId: string,
   rows: PreviewClient[],
   ids: Map<string, string>,
+  onStep?: () => void,
 ) {
   let created = 0;
   let failed = 0;
   for (const row of rows) {
     if (row.existingId) {
       ids.set(`new-cli:${row.row}`, row.existingId);
+      onStep?.();
       continue;
     }
     if (row.action !== 'create') continue;
@@ -78,10 +102,12 @@ async function insertClients(
     }).select('id').single();
     if (error || !data) {
       failed += 1;
+      onStep?.();
       continue;
     }
     ids.set(`new-cli:${row.row}`, data.id);
     created += 1;
+    onStep?.();
   }
   return { created, failed };
 }
@@ -98,6 +124,7 @@ async function insertAppointments(
   userId: string,
   rows: PreviewAppointment[],
   ids: Map<string, string>,
+  onStep?: () => void,
 ) {
   let created = 0;
   let failed = 0;
@@ -108,6 +135,7 @@ async function insertAppointments(
     const providerId = row.providerId;
     if (!clientId || !serviceId || !providerId) {
       failed += 1;
+      onStep?.();
       continue;
     }
     const { error } = await sb.from('appointments').insert({
@@ -123,6 +151,7 @@ async function insertAppointments(
     });
     if (error) failed += 1;
     else created += 1;
+    onStep?.();
   }
   return { created, failed };
 }
@@ -130,6 +159,7 @@ async function insertAppointments(
 export async function applyCsvImport(
   sb: SupabaseClient,
   preview: ImportPreview,
+  onProgress?: (p: ImportProgress) => void,
 ): Promise<ImportApplyResult> {
   const empty = { services: 0, clients: 0, appointments: 0 };
   const { user, salonId, role } = await salonOf(sb);
@@ -144,9 +174,22 @@ export async function applyCsvImport(
   }
 
   const ids = new Map<string, string>();
-  const services = await insertServices(sb, salonId, preview.services, ids);
-  const clients = await insertClients(sb, salonId, preview.clients, ids);
-  const appts = await insertAppointments(sb, salonId, user.id, preview.appointments, ids);
+  const total = countImportSteps(preview);
+  let done = 0;
+  const tick = () => {
+    done += 1;
+    onProgress?.({
+      done,
+      total,
+      pct: total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 100,
+    });
+  };
+  onProgress?.({ done: 0, total, pct: 0 });
+
+  const services = await insertServices(sb, salonId, preview.services, ids, tick);
+  const clients = await insertClients(sb, salonId, preview.clients, ids, tick);
+  const appts = await insertAppointments(sb, salonId, user.id, preview.appointments, ids, tick);
+  onProgress?.({ done: total, total, pct: 100 });
 
   return {
     ok: true,

@@ -25,6 +25,9 @@ export default function CsvImportCard() {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [doneMsg, setDoneMsg] = useState<string | null>(null);
+  const [importPct, setImportPct] = useState<number | null>(null);
+  const [applying, setApplying] = useState(false);
+  const importing = applying;
 
   const hasFile = !!(servicesFile || clientsFile || apptsFile);
 
@@ -77,11 +80,14 @@ export default function CsvImportCard() {
     });
   };
 
-  const apply = () => {
-    if (!preview) return;
+  const apply = async () => {
+    if (!preview || applying) return;
     setError(null);
-    startTransition(async () => {
-      const r = await applyCsvImport(createClient(), preview);
+    setDoneMsg(null);
+    setApplying(true);
+    setImportPct(0);
+    try {
+      const r = await applyCsvImport(createClient(), preview, p => setImportPct(p.pct));
       if (!r.ok) {
         setError(r.error ?? 'No se ha podido importar');
         return;
@@ -107,7 +113,10 @@ export default function CsvImportCard() {
       setClientsFile(null);
       setApptsFile(null);
       router.refresh();
-    });
+    } finally {
+      setApplying(false);
+      setImportPct(null);
+    }
   };
 
   return (
@@ -130,6 +139,21 @@ export default function CsvImportCard() {
       <CsvFileField label="Servicios" file={servicesFile} optional onChange={f => { setServicesFile(f); setPreview(null); }} />
       <CsvFileField label="Clientas" file={clientsFile} optional onChange={f => { setClientsFile(f); setPreview(null); }} />
       <CsvFileField label="Citas" file={apptsFile} optional onChange={f => { setApptsFile(f); setPreview(null); }} />
+
+      {importing && (
+        <div className="mt-3" role="progressbar" aria-valuenow={importPct ?? 0} aria-valuemin={0} aria-valuemax={100}>
+          <div className="mb-1.5 flex items-center justify-between text-caption font-semibold text-ink-2">
+            <span>Importando…</span>
+            <span className="tabular-nums text-ok-fg">{importPct}%</span>
+          </div>
+          <div className="h-2.5 overflow-hidden rounded-pill bg-surface-line">
+            <div
+              className="h-full rounded-pill bg-ok transition-[width] duration-150 ease-out"
+              style={{ width: `${importPct}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {error && <p className="mt-3 text-label font-semibold text-danger-fg">{error}</p>}
       {doneMsg && <p className="mt-3 text-label font-semibold text-ok-fg">{doneMsg}</p>}
@@ -163,11 +187,11 @@ export default function CsvImportCard() {
       )}
 
       <div className="mt-3 flex gap-2">
-        <Button variant="secondary" className="flex-1" disabled={pending || !hasFile} onClick={runPreview}>
-          {pending && !preview ? 'Leyendo…' : 'Vista previa'}
+        <Button variant="secondary" className="flex-1" disabled={pending || applying || !hasFile} onClick={runPreview}>
+          {pending && !preview && !applying ? 'Leyendo…' : 'Vista previa'}
         </Button>
-        <Button variant="ink" className="flex-1" disabled={pending || !preview || !!preview.fileErrors.length} onClick={apply}>
-          {pending && preview ? 'Importando…' : 'Importar'}
+        <Button variant="ink" className="flex-1" disabled={pending || applying || !preview || !!preview.fileErrors.length} onClick={() => void apply()}>
+          Importar
         </Button>
       </div>
     </div>
