@@ -100,6 +100,33 @@ async function salonAdmin(sb: SupabaseClient) {
 
 type TaggedCounts = { clients: number; services: number; appointments: number };
 
+/** Altas seguidas dentro de este margen = misma importación (900 filas pueden tardar). */
+const BULK_IMPORT_GAP_MS = 2 * 60 * 60 * 1000;
+const MIN_BULK_CLIENTS = 15;
+
+function clusterByTimeGap(rows: { id: string; created_at: string }[], gapMs: number) {
+  if (!rows.length) return [] as { ids: string[]; at: string }[];
+  const sorted = [...rows].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const groups: { ids: string[]; at: string }[] = [];
+  let cur = {
+    ids: [sorted[0].id],
+    at: sorted[0].created_at,
+    lastMs: +new Date(sorted[0].created_at),
+  };
+  for (let i = 1; i < sorted.length; i++) {
+    const ms = +new Date(sorted[i].created_at);
+    if (ms - cur.lastMs <= gapMs) {
+      cur.ids.push(sorted[i].id);
+      cur.lastMs = ms;
+    } else {
+      groups.push({ ids: cur.ids, at: cur.at });
+      cur = { ids: [sorted[i].id], at: sorted[i].created_at, lastMs: ms };
+    }
+  }
+  groups.push({ ids: cur.ids, at: cur.at });
+  return groups;
+}
+
 async function countTaggedRows(sb: SupabaseClient, batchId: string): Promise<TaggedCounts> {
   const [clients, services, appointments] = await Promise.all([
     sb.from('clients').select('id', { count: 'exact', head: true }).eq('import_batch_id', batchId),
@@ -173,6 +200,82 @@ export async function listRecentImportBatches(sb: SupabaseClient): Promise<Impor
   return (full.data ?? []).map(row => normalizeBatchRow(row as Record<string, unknown>));
 }
 
+/** Agrupa clientas creadas en ráfaga (con o sin lote) en un solo lote de importación. */
+export async function recoverBulkClientImportClusters(
+  sb: SupabaseClient,
+  salonId: string,
+  userId: string,
+) {
+  const since = new Date(Date.now() - RECENT_IMPORT_DAYS * 86_400_000).toISOString();
+  const { data: clients, error } = await sb
+    .from('clients')
+    .select('id, created_at, import_batch_id')
+    .eq('salon_id', salonId)
+    .gte('created_at', since)
+    .order('created_at', { ascending: true });
+  if (error || !clients?.length) return;
+
+  for (const cluster of clusterByTimeGap(clients, BULK_IMPORT_GAP_MS)) {
+    if (cluster.ids.length < MIN_BULK_CLIENTS) continue;
+
+    const members = clients.filter(c => cluster.ids.includes(c.id));
+    const batchVotes = new Map<string, number>();
+    for (const m of members) {
+      if (m.import_batch_id) {
+        batchVotes.set(m.import_batch_id, (batchVotes.get(m.import_batch_id) ?? 0) + 1);
+      }
+    }
+
+    const batchId = batchVotes.size > 0
+      ? [...batchVotes.entries()].sort((a, b) => b[1] - a[1])[0][0]
+      : crypto.randomUUID();
+
+    for (let i = 0; i < cluster.ids.length; i += 100) {
+      await sb
+        .from('clients')
+        .update({ import_batch_id: batchId })
+        .in('id', cluster.ids.slice(i, i + 100));
+    }
+
+    for (const otherId of batchVotes.keys()) {
+      if (otherId === batchId) continue;
+      const left = await countTaggedRows(sb, otherId);
+      if (left.clients + left.services + left.appointments === 0) {
+        await sb.from('import_batches').delete().eq('id', otherId);
+      }
+    }
+
+    const counts = await countTaggedRows(sb, batchId);
+    const total = counts.clients + counts.services + counts.appointments;
+    const { data: existing } = await sb
+      .from('import_batches')
+      .select('id, file_name, created_by')
+      .eq('id', batchId)
+      .maybeSingle();
+
+    const patch = {
+      rows_created: total,
+      clients_created: counts.clients,
+      services_created: counts.services,
+      appointments_created: counts.appointments,
+      kind: 'session' as const,
+      ...(existing?.created_by ? {} : { created_by: userId }),
+    };
+
+    if (existing) {
+      await sb.from('import_batches').update(patch).eq('id', batchId);
+    } else {
+      await sb.from('import_batches').insert({
+        id: batchId,
+        salon_id: salonId,
+        file_name: null,
+        created_at: cluster.at,
+        ...patch,
+      });
+    }
+  }
+}
+
 /** Recrea filas en import_batches a partir de clientas/citas/servicios ya etiquetados. */
 export async function rebuildMissingImportBatches(
   sb: SupabaseClient,
@@ -221,6 +324,16 @@ export async function rebuildMissingImportBatches(
       ...patch,
     });
   }
+}
+
+export async function syncImportBatchHistory(
+  sb: SupabaseClient,
+  salonId: string,
+  userId: string,
+) {
+  await recoverBulkClientImportClusters(sb, salonId, userId);
+  await rebuildMissingImportBatches(sb, salonId, userId);
+  await purgeInferredImportBatches(sb, salonId);
 }
 
 /** Borra lotes vacíos sin usuario. Los que tienen filas etiquetadas se reconstruyen, no se borran. */

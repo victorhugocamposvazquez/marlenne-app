@@ -3,8 +3,7 @@
 import { requireRole } from '@/lib/require-session';
 import {
   listRecentImportBatches,
-  purgeInferredImportBatches,
-  rebuildMissingImportBatches,
+  syncImportBatchHistory,
   type ImportBatchRow,
 } from '@/lib/import-batch';
 import { createClient } from '@/lib/supabase/server';
@@ -15,8 +14,7 @@ export async function loadImportBatches(): Promise<{
 }> {
   const me = await requireRole('admin');
   const sb = createClient();
-  await rebuildMissingImportBatches(sb, me.salon_id, me.id);
-  await purgeInferredImportBatches(sb, me.salon_id);
+  await syncImportBatchHistory(sb, me.salon_id, me.id);
   const batches = await listRecentImportBatches(sb);
   return { batches, error: null };
 }

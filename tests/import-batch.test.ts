@@ -8,13 +8,15 @@ import {
   type ImportBatchRow,
 } from '../lib/import-batch';
 
+// clusterByTimeGap es interno; comprobamos el resumen con ~900 client@s.
+
 const sample: ImportBatchRow = {
   id: 'b1',
   kind: 'session',
   created_at: '2026-09-21T09:34:00.000Z',
   file_name: 'clientas.xlsx',
-  rows_created: 198,
-  clients_created: 198,
+  rows_created: 892,
+  clients_created: 892,
   services_created: 0,
   appointments_created: 0,
 };
@@ -29,7 +31,7 @@ test('formatImportBatchWhen usa locale español', () => {
 test('importBatchSummary muestra sesión unificada', () => {
   const s = importBatchSummary(sample);
   assert.match(s, /Importación/);
-  assert.match(s, /198 client@s/);
+  assert.match(s, /892 client@s/);
   assert.match(s, /clientas\.xlsx/);
 });
 
@@ -40,6 +42,6 @@ test('importFileLabel junta archivos de la misma acción', () => {
 
 test('deleteImportBatchConfirmText avisa sobre clientas con citas', () => {
   const s = deleteImportBatchConfirmText(sample);
-  assert.match(s, /198 client@s/);
+  assert.match(s, /892 client@s/);
   assert.match(s, /citas en agenda/);
 });
