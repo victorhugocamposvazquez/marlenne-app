@@ -1,5 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ImportPreview, PreviewAppointment, PreviewClient, PreviewService } from '@/lib/csv-import';
+import { createImportBatch, finalizeImportBatch, type ImportKind } from '@/lib/import-batch';
+
+export type ImportFileNames = {
+  services?: string | null;
+  clients?: string | null;
+  appointments?: string | null;
+};
 
 export type ImportApplyResult = {
   ok: boolean;
@@ -41,6 +48,7 @@ async function insertServices(
   salonId: string,
   rows: PreviewService[],
   ids: Map<string, string>,
+  batchId: string | null,
   onStep?: () => void,
 ) {
   let created = 0;
@@ -64,6 +72,7 @@ async function insertServices(
       duration_min: row.duration_min,
       price_cents: row.price_cents,
       sort_order: 800 + row.row,
+      ...(batchId ? { import_batch_id: batchId } : {}),
     }).select('id').single();
     if (error || !data) {
       onStep?.();
@@ -81,6 +90,7 @@ async function insertClients(
   salonId: string,
   rows: PreviewClient[],
   ids: Map<string, string>,
+  batchId: string | null,
   onStep?: () => void,
 ) {
   let created = 0;
@@ -99,6 +109,7 @@ async function insertClients(
       email: row.email,
       notes: row.notes,
       tags: row.tags,
+      ...(batchId ? { import_batch_id: batchId } : {}),
     }).select('id').single();
     if (error || !data) {
       failed += 1;
@@ -124,6 +135,7 @@ async function insertAppointments(
   userId: string,
   rows: PreviewAppointment[],
   ids: Map<string, string>,
+  batchId: string | null,
   onStep?: () => void,
 ) {
   let created = 0;
@@ -148,6 +160,7 @@ async function insertAppointments(
       status: row.status,
       note: row.note,
       created_by: userId,
+      ...(batchId ? { import_batch_id: batchId } : {}),
     });
     if (error) failed += 1;
     else created += 1;
@@ -156,10 +169,15 @@ async function insertAppointments(
   return { created, failed };
 }
 
+function hasCreates<T extends { action: string }>(rows: T[]) {
+  return rows.some(r => r.action === 'create');
+}
+
 export async function applyCsvImport(
   sb: SupabaseClient,
   preview: ImportPreview,
   onProgress?: (p: ImportProgress) => void,
+  fileNames?: ImportFileNames,
 ): Promise<ImportApplyResult> {
   const empty = { services: 0, clients: 0, appointments: 0 };
   const { user, salonId, role } = await salonOf(sb);
@@ -186,9 +204,27 @@ export async function applyCsvImport(
   };
   onProgress?.({ done: 0, total, pct: 0 });
 
-  const services = await insertServices(sb, salonId, preview.services, ids, tick);
-  const clients = await insertClients(sb, salonId, preview.clients, ids, tick);
-  const appts = await insertAppointments(sb, salonId, user.id, preview.appointments, ids, tick);
+  async function openBatch(kind: ImportKind, fileName?: string | null) {
+    if (!hasCreates(
+      kind === 'services' ? preview.services : kind === 'clients' ? preview.clients : preview.appointments,
+    )) return null;
+    return createImportBatch(sb, { salonId, userId: user.id, kind, fileName });
+  }
+
+  const servicesBatchId = await openBatch('services', fileNames?.services);
+  const clientsBatchId = await openBatch('clients', fileNames?.clients);
+  const apptsBatchId = await openBatch('appointments', fileNames?.appointments);
+
+  const services = await insertServices(sb, salonId, preview.services, ids, servicesBatchId, tick);
+  const clients = await insertClients(sb, salonId, preview.clients, ids, clientsBatchId, tick);
+  const appts = await insertAppointments(sb, salonId, user.id, preview.appointments, ids, apptsBatchId, tick);
+
+  await Promise.all([
+    finalizeImportBatch(sb, servicesBatchId, services),
+    finalizeImportBatch(sb, clientsBatchId, clients.created),
+    finalizeImportBatch(sb, apptsBatchId, appts.created),
+  ]);
+
   onProgress?.({ done: total, total, pct: 100 });
 
   return {

@@ -87,7 +87,11 @@ export default function CsvImportCard() {
     setApplying(true);
     setImportPct(0);
     try {
-      const r = await applyCsvImport(createClient(), preview, p => setImportPct(p.pct));
+      const r = await applyCsvImport(createClient(), preview, p => setImportPct(p.pct), {
+        services: servicesFile?.name ?? null,
+        clients: clientsFile?.name ?? null,
+        appointments: apptsFile?.name ?? null,
+      });
       if (!r.ok) {
         setError(r.error ?? 'No se ha podido importar');
         return;
