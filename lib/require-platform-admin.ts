@@ -10,13 +10,18 @@ export type PlatformAdminContext = {
 
 /** Comprueba platform_admins con el cliente admin (fuera de RLS de staff). */
 export async function isPlatformAdmin(userId: string): Promise<boolean> {
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from('platform_admins')
-    .select('id')
-    .eq('id', userId)
-    .maybeSingle();
-  return !!data;
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from('platform_admins')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error) return false;
+    return !!data;
+  } catch {
+    return false;
+  }
 }
 
 /** Sesión de consola Marlén. Usa getSession (staff opcional) + admin client para el rol. */

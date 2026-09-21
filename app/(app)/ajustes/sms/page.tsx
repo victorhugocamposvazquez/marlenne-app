@@ -1,6 +1,7 @@
-import { redirect } from 'next/navigation';
+import SmsSetupNeeded from '@/components/ajustes/SmsSetupNeeded';
 import SmsSettingsView from '@/components/ajustes/SmsSettingsView';
 import { requireRole } from '@/lib/require-session';
+import { ensureSmsSetupForSalon } from '@/lib/sms/setup';
 import { createClient } from '@/lib/supabase/server';
 import { TZ } from '@/lib/time';
 
@@ -12,10 +13,20 @@ export default async function SmsSettingsPage() {
   const me = await requireRole('admin');
   const sb = createClient();
 
-  const [{ data: config }, { data: template }, { data: logs }, { data: appts }] = await Promise.all([
-    sb.from('sms_config').select('*').eq('salon_id', me.salon_id).maybeSingle(),
-    sb.from('sms_templates').select('cuerpo').eq('salon_id', me.salon_id)
-      .eq('clave', 'recordatorio_cita').maybeSingle(),
+  const setup = await ensureSmsSetupForSalon(sb, me.salon_id);
+  if (!setup.ok) {
+    if (setup.reason === 'migration') return <SmsSetupNeeded kind="migration" />;
+    return (
+      <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-6 pb-fab pt-5">
+        <SmsSetupNeeded kind="migration" />
+        <p className="mt-4 text-body text-danger-fg">{setup.message}</p>
+      </div>
+    );
+  }
+
+  const { config, templateBody } = setup;
+
+  const [{ data: logs }, { data: appts }] = await Promise.all([
     sb.from('sms_log')
       .select('id, status, to_phone, body, sent_at, created_at, simulated, delivered_at, error_message, origin')
       .eq('salon_id', me.salon_id)
@@ -29,8 +40,6 @@ export default async function SmsSettingsPage() {
       .order('starts_at', { ascending: true })
       .limit(10),
   ]);
-
-  if (!config) redirect('/ajustes');
 
   const testAppointments = (appts ?? []).map(a => {
     const client = a.client as unknown as { full_name: string } | null;
@@ -52,7 +61,7 @@ export default async function SmsSettingsPage() {
         reminder_send_hour: config.reminder_send_hour,
         test_mode: config.test_mode,
       }}
-      templateBody={template?.cuerpo ?? ''}
+      templateBody={templateBody}
       logs={logs ?? []}
       testAppointments={testAppointments}
     />

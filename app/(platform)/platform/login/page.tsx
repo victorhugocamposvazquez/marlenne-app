@@ -20,6 +20,12 @@ export default async function PlatformLoginPage() {
       <p className="mt-2 max-w-lg text-body leading-snug text-ink-2">
         Acceso interno para supervisar centros, SMS y salud del sistema.
       </p>
+      <p className="mt-3 max-w-lg text-label leading-snug text-ink-3">
+        URL: <strong className="text-ink-2">/platform/login</strong>
+        {' · '}
+        Tras entrar: <strong className="text-ink-2">/platform/centros</strong>
+        . Tu usuario debe estar en <code className="text-ink-2">platform_admins</code> en Supabase.
+      </p>
       <PlatformLoginForm />
     </div>
   );

@@ -3,8 +3,10 @@ export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { ajustesCardCls, ajustesGroupTitleCls } from '@/components/ajustes/AjustesSection';
+import PlatformSchemaBanner from '@/components/platform/PlatformSchemaBanner';
 import PageHeading from '@/components/ui/PageHeading';
 import { requirePlatformAdmin } from '@/lib/require-platform-admin';
+import { isSmsSchemaMissing } from '@/lib/sms/setup';
 import { createClient } from '@/lib/supabase/server';
 import { TZ } from '@/lib/time';
 
@@ -33,12 +35,18 @@ export default async function PlatformCentrosPage() {
   const sb = createClient();
   const todayStart = startOfTodayMadrid();
 
-  const [{ data: salons }, { data: configs }, { data: queued }, { data: sentToday }] = await Promise.all([
+  const [{ data: salons }, configRes, queuedRes, sentTodayRes] = await Promise.all([
     sb.from('salons').select('id, name, timezone').order('name'),
     sb.from('sms_config').select('salon_id, enabled, test_mode'),
     sb.from('sms_log').select('salon_id').eq('status', 'queued'),
     sb.from('sms_log').select('salon_id').eq('status', 'sent').gte('sent_at', todayStart),
   ]);
+  const schemaMissing = isSmsSchemaMissing(configRes.error)
+    || isSmsSchemaMissing(queuedRes.error)
+    || isSmsSchemaMissing(sentTodayRes.error);
+  const configs = configRes.data;
+  const queued = queuedRes.data;
+  const sentToday = sentTodayRes.data;
 
   const configBySalon = new Map((configs ?? []).map(c => [c.salon_id, c]));
   const queueBySalon = new Map<string, number>();
@@ -67,6 +75,7 @@ export default async function PlatformCentrosPage() {
 
   return (
     <div>
+      {schemaMissing && <PlatformSchemaBanner />}
       <PageHeading title="Centros" subtitle={`${rows.length} salones`} />
       <section className="mt-8">
         <h2 className={ajustesGroupTitleCls}>SMS por centro</h2>
