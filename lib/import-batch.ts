@@ -62,13 +62,14 @@ export function formatImportBatchWhen(iso: string): string {
 }
 
 function countSummary(batch: ImportBatchRow): string {
-  if (batch.kind === 'session') {
-    const parts: string[] = [];
-    if (batch.clients_created > 0) parts.push(`${batch.clients_created} client@s`);
-    if (batch.services_created > 0) parts.push(`${batch.services_created} servicios`);
-    if (batch.appointments_created > 0) parts.push(`${batch.appointments_created} citas`);
-    if (parts.length) return parts.join(', ');
-  }
+  const parts: string[] = [];
+  const clients = batch.clients_created || (batch.kind === 'clients' ? batch.rows_created : 0);
+  const services = batch.services_created || (batch.kind === 'services' ? batch.rows_created : 0);
+  const appts = batch.appointments_created || (batch.kind === 'appointments' ? batch.rows_created : 0);
+  if (clients > 0) parts.push(`${clients} client@s`);
+  if (services > 0) parts.push(`${services} servicios`);
+  if (appts > 0) parts.push(`${appts} citas`);
+  if (parts.length) return parts.join(', ');
   return `${batch.rows_created} altas`;
 }
 
@@ -97,27 +98,132 @@ async function salonAdmin(sb: SupabaseClient) {
   return { user, salonId: data?.salon_id ?? null, role: data?.role ?? null };
 }
 
+type TaggedCounts = { clients: number; services: number; appointments: number };
+
+async function countTaggedRows(sb: SupabaseClient, batchId: string): Promise<TaggedCounts> {
+  const [clients, services, appointments] = await Promise.all([
+    sb.from('clients').select('id', { count: 'exact', head: true }).eq('import_batch_id', batchId),
+    sb.from('services').select('id', { count: 'exact', head: true }).eq('import_batch_id', batchId),
+    sb.from('appointments').select('id', { count: 'exact', head: true }).eq('import_batch_id', batchId),
+  ]);
+  return {
+    clients: clients.count ?? 0,
+    services: services.count ?? 0,
+    appointments: appointments.count ?? 0,
+  };
+}
+
+async function distinctTaggedBatchIds(sb: SupabaseClient, salonId: string) {
+  const ids = new Set<string>();
+  const addRows = (rows: { import_batch_id: string | null }[] | null) => {
+    for (const row of rows ?? []) {
+      if (row.import_batch_id) ids.add(row.import_batch_id);
+    }
+  };
+  const [clients, services, appointments] = await Promise.all([
+    sb.from('clients').select('import_batch_id').eq('salon_id', salonId).not('import_batch_id', 'is', null),
+    sb.from('services').select('import_batch_id').eq('salon_id', salonId).not('import_batch_id', 'is', null),
+    sb.from('appointments').select('import_batch_id').eq('salon_id', salonId).not('import_batch_id', 'is', null),
+  ]);
+  addRows(clients.data);
+  addRows(services.data);
+  addRows(appointments.data);
+  return [...ids];
+}
+
+function normalizeBatchRow(row: Record<string, unknown>): ImportBatchRow {
+  const kind = row.kind as ImportKind;
+  const rows_created = Number(row.rows_created ?? 0);
+  return {
+    id: String(row.id),
+    kind,
+    created_at: String(row.created_at),
+    file_name: (row.file_name as string | null) ?? null,
+    rows_created,
+    clients_created: Number(row.clients_created ?? (kind === 'clients' ? rows_created : 0)),
+    services_created: Number(row.services_created ?? (kind === 'services' ? rows_created : 0)),
+    appointments_created: Number(row.appointments_created ?? (kind === 'appointments' ? rows_created : 0)),
+  };
+}
+
 export async function listRecentImportBatches(sb: SupabaseClient): Promise<ImportBatchRow[]> {
   const { salonId, role } = await salonAdmin(sb);
   if (!salonId || role !== 'admin') return [];
   const since = new Date(Date.now() - RECENT_IMPORT_DAYS * 86_400_000).toISOString();
-  const { data } = await sb
+
+  const full = await sb
     .from('import_batches')
     .select('id, kind, created_at, file_name, rows_created, clients_created, services_created, appointments_created')
     .eq('salon_id', salonId)
-    .not('created_by', 'is', null)
     .gte('created_at', since)
     .order('created_at', { ascending: false })
     .limit(RECENT_IMPORT_LIMIT);
-  return (data ?? []).map(row => ({
-    ...row,
-    clients_created: row.clients_created ?? 0,
-    services_created: row.services_created ?? 0,
-    appointments_created: row.appointments_created ?? 0,
-  })) as ImportBatchRow[];
+
+  if (full.error) {
+    const legacy = await sb
+      .from('import_batches')
+      .select('id, kind, created_at, file_name, rows_created')
+      .eq('salon_id', salonId)
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(RECENT_IMPORT_LIMIT);
+    return (legacy.data ?? []).map(row => normalizeBatchRow(row as Record<string, unknown>));
+  }
+
+  return (full.data ?? []).map(row => normalizeBatchRow(row as Record<string, unknown>));
 }
 
-/** Borra lotes inferidos (sin usuario) que no son importaciones reales. */
+/** Recrea filas en import_batches a partir de clientas/citas/servicios ya etiquetados. */
+export async function rebuildMissingImportBatches(
+  sb: SupabaseClient,
+  salonId: string,
+  userId: string,
+) {
+  for (const batchId of await distinctTaggedBatchIds(sb, salonId)) {
+    const counts = await countTaggedRows(sb, batchId);
+    const total = counts.clients + counts.services + counts.appointments;
+    if (total === 0) continue;
+
+    const { data: existing } = await sb
+      .from('import_batches')
+      .select('id, kind, created_by, file_name')
+      .eq('id', batchId)
+      .maybeSingle();
+
+    const patch = {
+      rows_created: total,
+      clients_created: counts.clients,
+      services_created: counts.services,
+      appointments_created: counts.appointments,
+      ...(existing?.created_by ? {} : { created_by: userId }),
+    };
+
+    if (existing) {
+      await sb.from('import_batches').update(patch).eq('id', batchId);
+      continue;
+    }
+
+    const { data: anchor } = await sb
+      .from('clients')
+      .select('created_at')
+      .eq('import_batch_id', batchId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    await sb.from('import_batches').insert({
+      id: batchId,
+      salon_id: salonId,
+      kind: 'session',
+      created_by: userId,
+      file_name: null,
+      created_at: anchor?.created_at ?? new Date().toISOString(),
+      ...patch,
+    });
+  }
+}
+
+/** Borra lotes vacíos sin usuario. Los que tienen filas etiquetadas se reconstruyen, no se borran. */
 export async function purgeInferredImportBatches(sb: SupabaseClient, salonId: string) {
   const { data: junk } = await sb
     .from('import_batches')
@@ -125,9 +231,9 @@ export async function purgeInferredImportBatches(sb: SupabaseClient, salonId: st
     .eq('salon_id', salonId)
     .is('created_by', null);
   for (const batch of junk ?? []) {
-    for (const table of ['clients', 'services', 'appointments'] as const) {
-      await sb.from(table).update({ import_batch_id: null }).eq('import_batch_id', batch.id);
-    }
+    const counts = await countTaggedRows(sb, batch.id);
+    const total = counts.clients + counts.services + counts.appointments;
+    if (total > 0) continue;
     await sb.from('import_batches').delete().eq('id', batch.id);
   }
 }
