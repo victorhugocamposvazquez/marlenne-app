@@ -2,30 +2,18 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Download } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import CsvFileField from '@/components/ui/CsvFileField';
 import { applyCsvImport } from '@/lib/csv-import-apply';
-import {
-  buildPreview, CSV_TEMPLATES, peekAppointmentDates, type ImportPreview,
-} from '@/lib/csv-import';
+import { buildPreview, peekAppointmentDates, type ImportPreview } from '@/lib/csv-import';
+import { readImportFile } from '@/lib/import-file';
 import { createClient } from '@/lib/supabase/client';
 import { toTimestamp } from '@/lib/time';
 import type { CategoryId } from '@/lib/categories';
 
-function downloadTemplate(name: keyof typeof CSV_TEMPLATES) {
-  const blob = new Blob([CSV_TEMPLATES[name]], { type: 'text/csv;charset=utf-8' });
-  const href = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = href;
-  a.download = `${name}-marlenne.csv`;
-  a.click();
-  URL.revokeObjectURL(href);
-}
-
-async function readFile(file: File | null) {
+async function readSpreadsheet(file: File | null) {
   if (!file) return undefined;
-  return file.text();
+  return readImportFile(file);
 }
 
 export default function CsvImportCard() {
@@ -42,46 +30,50 @@ export default function CsvImportCard() {
 
   const runPreview = () => {
     if (!hasFile) {
-      setError('Elige al menos un CSV.');
+      setError('Elige al menos un archivo.');
       return;
     }
     setError(null);
     setDoneMsg(null);
     startTransition(async () => {
-      const [servicesCsv, clientsCsv, appointmentsCsv] = await Promise.all([
-        readFile(servicesFile),
-        readFile(clientsFile),
-        readFile(apptsFile),
-      ]);
-      const sb = createClient();
-      const range = appointmentsCsv ? peekAppointmentDates(appointmentsCsv) : null;
-      const from = range ? toTimestamp(range.from, 0) : null;
-      const to = range ? toTimestamp(range.to, 24 * 60 - 1) : null;
-      const [services, clients, staff, appts, blocks] = await Promise.all([
-        sb.from('services').select('id, name, category, duration_min, price_cents'),
-        sb.from('clients').select('id, full_name, phone'),
-        sb.from('staff').select('id, full_name, is_active'),
-        from && to
-          ? sb.from('appointments').select('provider_id, starts_at, ends_at, status').gte('starts_at', from).lte('starts_at', to)
-          : Promise.resolve({ data: [] as { provider_id: string; starts_at: string; ends_at: string; status: string }[] }),
-        from && to
-          ? sb.from('time_blocks').select('provider_id, starts_at, ends_at').gte('starts_at', from).lte('starts_at', to)
-          : Promise.resolve({ data: [] as { provider_id: string; starts_at: string; ends_at: string }[] }),
-      ]);
-      const next = buildPreview({
-        servicesCsv,
-        clientsCsv,
-        appointmentsCsv,
-        existing: {
-          services: (services.data ?? []) as { id: string; name: string; category: CategoryId; duration_min: number; price_cents: number }[],
-          clients: clients.data ?? [],
-          staff: staff.data ?? [],
-          appointments: appts.data ?? [],
-          blocks: blocks.data ?? [],
-        },
-      });
-      setPreview(next);
-      if (next.fileErrors.length) setError(next.fileErrors[0]);
+      try {
+        const [servicesCsv, clientsCsv, appointmentsCsv] = await Promise.all([
+          readSpreadsheet(servicesFile),
+          readSpreadsheet(clientsFile),
+          readSpreadsheet(apptsFile),
+        ]);
+        const sb = createClient();
+        const range = appointmentsCsv ? peekAppointmentDates(appointmentsCsv) : null;
+        const from = range ? toTimestamp(range.from, 0) : null;
+        const to = range ? toTimestamp(range.to, 24 * 60 - 1) : null;
+        const [services, clients, staff, appts, blocks] = await Promise.all([
+          sb.from('services').select('id, name, category, duration_min, price_cents'),
+          sb.from('clients').select('id, full_name, phone'),
+          sb.from('staff').select('id, full_name, is_active'),
+          from && to
+            ? sb.from('appointments').select('provider_id, starts_at, ends_at, status').gte('starts_at', from).lte('starts_at', to)
+            : Promise.resolve({ data: [] as { provider_id: string; starts_at: string; ends_at: string; status: string }[] }),
+          from && to
+            ? sb.from('time_blocks').select('provider_id, starts_at, ends_at').gte('starts_at', from).lte('starts_at', to)
+            : Promise.resolve({ data: [] as { provider_id: string; starts_at: string; ends_at: string }[] }),
+        ]);
+        const next = buildPreview({
+          servicesCsv,
+          clientsCsv,
+          appointmentsCsv,
+          existing: {
+            services: (services.data ?? []) as { id: string; name: string; category: CategoryId; duration_min: number; price_cents: number }[],
+            clients: clients.data ?? [],
+            staff: staff.data ?? [],
+            appointments: appts.data ?? [],
+            blocks: blocks.data ?? [],
+          },
+        });
+        setPreview(next);
+        if (next.fileErrors.length) setError(next.fileErrors[0]);
+      } catch {
+        setError('No se ha podido leer el archivo. Prueba a guardarlo de nuevo desde Excel.');
+      }
     });
   };
 
@@ -121,23 +113,19 @@ export default function CsvImportCard() {
   return (
     <div className="rounded-row bg-surface-soft p-4">
       <p className="text-body leading-snug text-ink-2">
-        Mudanza desde otra app: sube uno o varios CSV. Puedes importar solo clientas para empezar.
+        Sube el Excel o CSV tal como te lo da la otra app — no hace falta plantilla.
+        Marlén reconoce columnas habituales (nombre, teléfono, email…). Puedes importar solo clientas.
         Vista previa primero; luego se escribe. No crea logins ni importa packs, fotos ni consentimientos.
       </p>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        {(['servicios', 'clientas', 'citas'] as const).map(name => (
-          <button
-            key={name}
-            type="button"
-            onClick={() => downloadTemplate(name)}
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-chip border border-surface-line bg-surface-bg px-3 text-label font-bold text-ink-2"
-          >
-            <Download size={14} strokeWidth={2.2} />
-            Plantilla {name}
-          </button>
-        ))}
-      </div>
+      <details className="mt-3 text-label text-ink-3">
+        <summary className="cursor-pointer font-semibold text-ink-2">Columnas que reconocemos</summary>
+        <ul className="mt-2 list-inside list-disc space-y-1">
+          <li>Clientas: nombre (o nombre + apellidos), teléfono/móvil, email, notas, etiquetas</li>
+          <li>Servicios: nombre, minutos, precio, categoría (si falta, corporal)</li>
+          <li>Citas: clienta, servicio, profesional, fecha, hora (o fecha+hora juntas)</li>
+        </ul>
+      </details>
 
       <CsvFileField label="Servicios" file={servicesFile} optional onChange={f => { setServicesFile(f); setPreview(null); }} />
       <CsvFileField label="Clientas" file={clientsFile} optional onChange={f => { setClientsFile(f); setPreview(null); }} />

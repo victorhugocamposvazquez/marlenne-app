@@ -55,7 +55,7 @@ export default function AjustesIndex({
     }] : []),
     ...(admin ? [{
       href: '/ajustes/importar',
-      title: 'Importar CSV',
+      title: 'Importar datos',
       hint: 'Una mudanza: servicios, clientas y citas',
     }, {
       href: '/ajustes/voz',

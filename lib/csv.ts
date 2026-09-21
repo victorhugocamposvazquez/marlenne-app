@@ -88,9 +88,16 @@ export function parseCsv(text: string): { headers: string[]; rows: Record<string
 }
 
 export function cell(row: Record<string, string>, ...aliases: string[]) {
+  const keys = Object.keys(row);
   for (const a of aliases) {
     const v = row[normHeader(a)];
-    if (v) return v;
+    if (v?.trim()) return v;
+  }
+  for (const a of aliases) {
+    const n = normHeader(a);
+    if (n.length < 3) continue;
+    const hit = keys.find(k => k === n || (n.length >= 3 && k.includes(n)));
+    if (hit && row[hit]?.trim()) return row[hit];
   }
   return '';
 }

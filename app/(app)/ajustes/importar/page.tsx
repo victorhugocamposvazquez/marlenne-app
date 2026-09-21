@@ -6,7 +6,7 @@ export default async function ImportarPage() {
   await requireRole('admin');
 
   return (
-    <AjustesHeader title="Importar CSV">
+    <AjustesHeader title="Importar datos">
       <CsvImportCard />
     </AjustesHeader>
   );

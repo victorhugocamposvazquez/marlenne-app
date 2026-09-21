@@ -103,14 +103,32 @@ function phoneTail(s: string) {
   return d.length >= 6 ? d : '';
 }
 
+function excelSerialToDate(serial: number): string | null {
+  if (serial < 30_000 || serial > 80_000) return null;
+  const utc = Date.UTC(1899, 11, 30 + Math.floor(serial));
+  const d = new Date(utc);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function parseDate(raw: string): string | null {
   const s = raw.trim();
-  const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (/^\d{4,5}(\.\d+)?$/.test(s)) {
+    const iso = excelSerialToDate(Number(s));
+    if (iso) return iso;
+  }
+  const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (iso) {
     const y = iso[1];
     const m = iso[2].padStart(2, '0');
     const d = iso[3].padStart(2, '0');
     return `${y}-${m}-${d}`;
+  }
+  const isoSpace = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})\s/);
+  if (isoSpace) {
+    return `${isoSpace[1]}-${isoSpace[2].padStart(2, '0')}-${isoSpace[3].padStart(2, '0')}`;
   }
   const eu = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
   if (eu) {
@@ -155,6 +173,43 @@ function parseTags(raw: string): string[] {
   return raw.split(/[,;|]/).map(s => s.trim()).filter(Boolean);
 }
 
+function clientFullName(row: Record<string, string>): string {
+  const direct = cell(
+    row,
+    'nombre_completo', 'full_name', 'nombre_y_apellidos', 'clienta', 'cliente', 'contacto', 'paciente',
+  );
+  if (direct.trim().length >= 2) return direct.trim();
+  const first = cell(row, 'nombre', 'first_name');
+  const last = cell(row, 'apellidos', 'apellido', 'surname', 'last_name');
+  const combined = [first, last].map(s => s.trim()).filter(Boolean).join(' ');
+  if (combined.length >= 2) return combined;
+  return cell(row, 'name').trim();
+}
+
+function parseAppointmentWhen(row: Record<string, string>): { date: string | null; startMin: number | null } {
+  const combined = cell(
+    row, 'fecha_hora', 'inicio', 'start', 'datetime', 'fecha_y_hora', 'fecha_cita', 'fecha_de_cita',
+  );
+  if (combined.trim()) {
+    const isoSplit = combined.match(/^(\d{4}-\d{2}-\d{2})[T\s](\d{1,2}:\d{2})/);
+    if (isoSplit) {
+      return { date: parseDate(isoSplit[1]), startMin: parseClock(isoSplit[2]) };
+    }
+    const parts = combined.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      const date = parseDate(parts[0]);
+      const time = parseClock(parts[1]);
+      if (date && time != null) return { date, startMin: time };
+    }
+    const dateOnly = parseDate(combined);
+    if (dateOnly) return { date: dateOnly, startMin: null };
+  }
+  return {
+    date: parseDate(cell(row, 'fecha', 'date', 'dia', 'fecha_cita', 'fecha_de_la_cita')),
+    startMin: parseClock(cell(row, 'hora', 'time', 'hour', 'hora_inicio', 'hora_cita', 'hora_de_inicio')),
+  };
+}
+
 function addMinutesIso(iso: string, min: number) {
   return new Date(+new Date(iso) + min * 60_000).toISOString();
 }
@@ -171,11 +226,11 @@ function tooMany(n: number, kind: string): string | null {
 export function previewServices(csv: string, existing: ExistingService[]): PreviewService[] {
   const { rows } = parseCsv(csv);
   return rows.map((row, i) => {
-    const name = cell(row, 'nombre', 'name', 'servicio', 'service');
-    const catRaw = cell(row, 'categoria', 'category', 'tipo');
-    const minRaw = cell(row, 'minutos', 'duration', 'duracion', 'min');
-    const priceRaw = cell(row, 'precio_euros', 'precio', 'price', 'euros', 'precio_eur');
-    const category = parseCategory(catRaw);
+    const name = cell(row, 'nombre', 'name', 'servicio', 'service', 'tratamiento', 'concepto');
+    const catRaw = cell(row, 'categoria', 'category', 'tipo', 'familia');
+    const minRaw = cell(row, 'minutos', 'duration', 'duracion', 'min', 'duracion_minutos', 'tiempo');
+    const priceRaw = cell(row, 'precio_euros', 'precio', 'price', 'euros', 'precio_eur', 'importe', 'pvp');
+    let category = parseCategory(catRaw);
     const duration_min = Number(minRaw.replace(',', '.'));
     const price_cents = parseEuros(priceRaw) ?? 0;
     const base: PreviewService = {
@@ -187,15 +242,17 @@ export function previewServices(csv: string, existing: ExistingService[]): Previ
       action: 'create',
     };
     if (base.name.length < 2) return { ...base, action: 'skip', error: 'Falta el nombre' };
+    if (!category && base.duration_min >= 5) category = 'corporal';
     if (!category) return { ...base, action: 'skip', error: 'Categoría no reconocida' };
     if (!base.duration_min || base.duration_min < 5) return { ...base, action: 'skip', error: 'Minutos no válidos' };
+    base.category = category;
     const hit = pick(existing, base.name, s => s.name);
     if (hit !== 'none' && hit !== 'ambiguous') {
       return { ...base, action: 'skip', existingId: hit.id, category: hit.category };
     }
     const dupInFile = rows.slice(0, i).some(prev => fold(cell(prev, 'nombre', 'name', 'servicio')) === fold(base.name));
     if (dupInFile) return { ...base, action: 'skip', error: 'Duplicado en el archivo' };
-    return { ...base, category };
+    return base;
   });
 }
 
@@ -203,12 +260,14 @@ export function previewClients(csv: string, existing: ExistingClient[]): Preview
   const { rows } = parseCsv(csv);
   const seenPhones = new Set<string>();
   return rows.map((row, i) => {
-    const full_name = cell(row, 'nombre', 'name', 'full_name', 'nombre_completo', 'clienta', 'cliente').trim();
-    const phoneRaw = cell(row, 'telefono', 'phone', 'movil', 'telefono_movil', 'tel', 'mobile');
+    const full_name = clientFullName(row);
+    const phoneRaw = cell(
+      row, 'telefono', 'phone', 'movil', 'telefono_movil', 'tel', 'mobile', 'celular', 'whatsapp', 'telefono_contacto',
+    );
     const phone = phoneRaw.trim() || null;
-    const email = cell(row, 'email', 'correo').trim() || null;
-    const notes = cell(row, 'notas', 'notes', 'note').trim() || null;
-    const tags = parseTags(cell(row, 'etiquetas', 'tags', 'labels'));
+    const email = cell(row, 'email', 'correo', 'e_mail', 'mail').trim() || null;
+    const notes = cell(row, 'notas', 'notes', 'note', 'observaciones', 'comentarios').trim() || null;
+    const tags = parseTags(cell(row, 'etiquetas', 'tags', 'labels', 'grupo'));
     const base: PreviewClient = {
       row: i + 2,
       full_name,
@@ -293,17 +352,17 @@ export function previewAppointments(csv: string, cat: Catalog): PreviewAppointme
   const { rows } = parseCsv(csv);
   const accepted: PreviewAppointment[] = [];
   return rows.map((row, i) => {
-    const client_name = cell(row, 'nombre_clienta', 'clienta', 'cliente', 'nombre', 'name').trim();
-    const phone = cell(row, 'telefono', 'phone', 'movil', 'tel').trim() || null;
-    const service_name = cell(row, 'servicio', 'service').trim();
-    const provider_name = cell(row, 'profesional', 'provider', 'staff', 'con').trim();
-    const dateRaw = cell(row, 'fecha', 'date', 'dia');
-    const horaRaw = cell(row, 'hora', 'time', 'hour');
-    const minRaw = cell(row, 'minutos', 'duration', 'duracion');
-    const status = parseStatus(cell(row, 'estado', 'status'));
-    const note = cell(row, 'nota', 'note', 'notes').trim() || null;
-    const date = parseDate(dateRaw);
-    const startMin = parseClock(horaRaw);
+    const client_name = clientFullName(row) || cell(row, 'nombre_clienta').trim();
+    const phone = cell(row, 'telefono', 'phone', 'movil', 'tel', 'celular').trim() || null;
+    const service_name = cell(row, 'servicio', 'service', 'tratamiento', 'concepto').trim();
+    const provider_name = cell(row, 'profesional', 'provider', 'staff', 'con', 'empleado', 'cabina', 'recurso').trim();
+    const when = parseAppointmentWhen(row);
+    const minRaw = cell(row, 'minutos', 'duration', 'duracion', 'duracion_minutos');
+    const status = parseStatus(cell(row, 'estado', 'status', 'situacion'));
+    const note = cell(row, 'nota', 'note', 'notes', 'observaciones').trim() || null;
+    const date = when.date;
+    const startMin = when.startMin;
+    const dateRaw = cell(row, 'fecha', 'date', 'dia', 'fecha_hora', 'inicio');
     const csvMins = Number(minRaw.replace(',', '.'));
     const base: PreviewAppointment = {
       row: i + 2,
@@ -402,7 +461,7 @@ export function buildPreview(input: {
   }
 
   if (!input.servicesCsv && !input.clientsCsv && !input.appointmentsCsv) {
-    fileErrors.push('Elige al menos un CSV.');
+    fileErrors.push('Elige al menos un archivo.');
   }
 
   const apptsOverlap = appointments.filter(a => a.skipReason?.startsWith('Pisa')).length;

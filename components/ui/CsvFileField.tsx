@@ -3,7 +3,14 @@
 import { useRef } from 'react';
 import { FileUp } from 'lucide-react';
 
-/** Selector de CSV sin el «Nada seleccionado» nativo del navegador. */
+const ACCEPT = [
+  '.csv', '.xlsx', '.xls', '.xlsm',
+  'text/csv',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+].join(',');
+
+/** Selector de Excel/CSV sin el «Nada seleccionado» nativo del navegador. */
 export default function CsvFileField({
   label,
   file,
@@ -26,7 +33,7 @@ export default function CsvFileField({
       <input
         ref={ref}
         type="file"
-        accept=".csv,text/csv"
+        accept={ACCEPT}
         className="sr-only"
         tabIndex={-1}
         onChange={e => {
@@ -42,7 +49,7 @@ export default function CsvFileField({
         >
           <FileUp size={18} strokeWidth={2} className="shrink-0 text-ink-3" aria-hidden />
           <span className={`min-w-0 flex-1 truncate text-body font-medium ${file ? 'text-ink' : 'text-ink-3'}`}>
-            {file ? file.name : 'Elegir CSV…'}
+            {file ? file.name : 'Elegir Excel o CSV…'}
           </span>
         </button>
         {file && (
