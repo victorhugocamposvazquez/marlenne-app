@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { Calendar, ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import DayStrip from '@/components/agenda/DayStrip';
 import MonthCalendar from '@/components/agenda/MonthCalendar';
-import { HeaderIconButton, HeaderTitleRow, screenHeaderCls, screenTitleCls } from '@/components/ui/ScreenHeader';
+import {
+  HeaderIconButton, HeaderTitleRow, screenHeaderCls, screenTitleChevronCls, screenTitleCls,
+} from '@/components/ui/ScreenHeader';
 import { alignStripStart, monthTitleFromOffset, skipSunday } from '@/lib/time';
 import { shallowSet } from '@/hooks/useShallowQuery';
 
@@ -50,11 +52,13 @@ export default function AgendaHeader({
     <header className={screenHeaderCls}>
       <HeaderTitleRow
         title={(
-          <button type="button" onClick={() => setCal(true)} className="flex min-w-0 max-w-full items-center gap-0.5 text-left">
-            <span className={`${screenTitleCls} whitespace-nowrap`}>
-              {monthTitleFromOffset(day)}
-            </span>
-            <ChevronDown size={16} strokeWidth={2.6} className="shrink-0 text-ink-3" aria-hidden />
+          <button
+            type="button"
+            onClick={() => setCal(true)}
+            className={`flex min-w-0 max-w-full items-center gap-[0.15em] text-left ${screenTitleCls}`}
+          >
+            <span className="whitespace-nowrap">{monthTitleFromOffset(day)}</span>
+            <ChevronDown strokeWidth={2.6} className={screenTitleChevronCls} aria-hidden />
           </button>
         )}
         actions={(
@@ -69,48 +73,55 @@ export default function AgendaHeader({
         )}
       />
 
-      {day !== 0 && (
-        <button
-          type="button"
-          onClick={() => go(0, { strip: 0 })}
-          className="-mt-0.5 mb-0.5 self-start text-[14px] font-semibold text-v-d"
-        >
-          Hoy
-        </button>
-      )}
-
       {mode === 'dia' && (
-        <DayStrip
-          selectedOffset={day}
-          startOffset={start}
-          busyOffsets={busyOffsets}
-          onSelect={offset => go(skipSunday(offset, 1))}
-        />
-      )}
-
-      {(waiting > 0 || (mode === 'dia' && citas != null)) && (
-        <div className="mt-3 flex items-center gap-2.5">
-          {mode === 'dia' && citas != null && (
-            <span className="text-label text-ink-3">
-              {citas === 0 ? 'Sin citas' : `${citas} ${citas === 1 ? 'cita' : 'citas'}`}
-            </span>
-          )}
-          {waiting > 0 && (
-            <>
-              {mode === 'dia' && citas != null && (
-                <span className="text-label text-ink-3/40" aria-hidden>·</span>
-              )}
-              <button
-                type="button"
-                onClick={() => shallowSet({ wait: '1', new: null, appt: null })}
-                className="inline-flex items-center gap-0.5 text-[13px] font-bold text-v-d"
-              >
-                {waiting} en espera
-                <ChevronRight size={13} strokeWidth={2.6} className="opacity-50" aria-hidden />
-              </button>
-            </>
-          )}
-        </div>
+        <>
+          <div className="mt-1">
+            <DayStrip
+              selectedOffset={day}
+              startOffset={start}
+              busyOffsets={busyOffsets}
+              onSelect={offset => go(skipSunday(offset, 1))}
+              onPage={delta => go(day, { strip: start + delta })}
+            />
+          </div>
+          <div className="mt-2 flex min-h-[18px] flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-center text-label">
+            {citas != null && (
+              <span className="shrink-0 text-ink-3">
+                {citas === 0 ? 'Sin citas' : `${citas} ${citas === 1 ? 'cita' : 'citas'}`}
+              </span>
+            )}
+            {day !== 0 && (
+              <>
+                {citas != null && (
+                  <span className="text-ink-3/40" aria-hidden>·</span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => go(0, { strip: 0 })}
+                  className="inline-flex shrink-0 items-center gap-0.5 font-semibold text-v-2"
+                >
+                  Ir a hoy
+                  <ChevronRight size={13} strokeWidth={2.6} className="opacity-60" aria-hidden />
+                </button>
+              </>
+            )}
+            {waiting > 0 && (
+              <>
+                {(citas != null || day !== 0) && (
+                  <span className="text-ink-3/40" aria-hidden>·</span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => shallowSet({ wait: '1', new: null, appt: null })}
+                  className="inline-flex shrink-0 items-center gap-0.5 font-bold text-v-d"
+                >
+                  {waiting} en espera
+                  <ChevronRight size={13} strokeWidth={2.6} className="opacity-50" aria-hidden />
+                </button>
+              </>
+            )}
+          </div>
+        </>
       )}
 
       {cal && (

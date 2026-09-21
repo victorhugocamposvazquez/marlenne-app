@@ -446,6 +446,7 @@ export function NewAppointmentSheetBody({
                   selectedOffset={dayOff}
                   startOffset={alignStripStart(dayOff, stripStart, 5)}
                   onSelect={offset => pickDay(offset)}
+                  onPage={delta => setStripStart(s => s + delta)}
                 />
               </div>
               <button
