@@ -10,6 +10,7 @@ import MonthCalendar from '@/components/agenda/MonthCalendar';
 import { useCloseSheet } from '@/components/Sheet';
 import SheetShell, { SheetGrab, SheetHandle, useSheetShellClose } from '@/components/SheetShell';
 import { avatarColor, catStyle, initials } from '@/lib/categories';
+import { syncAppointmentReminderAction } from '@/app/actions/reminder-sync';
 import { createAppointment, updateAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import { alignStripStart, DAY_END, dateFromOffset, dayKey, durLbl, fmt, minutesOfDay, offsetFromDay, skipSunday, toTimestamp } from '@/lib/time';
@@ -239,6 +240,8 @@ export function NewAppointmentSheetBody({
         toast(r.error ?? 'No se ha podido guardar', 'err');
         return;
       }
+      const apptId = editing?.id ?? r.id;
+      if (apptId) void syncAppointmentReminderAction(apptId);
       const savedId = editing?.id ?? r.id;
       if (draftHref && savedId) {
         const token = await issueAppointmentLink(sb, savedId);

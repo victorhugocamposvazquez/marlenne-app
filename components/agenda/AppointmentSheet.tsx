@@ -11,6 +11,7 @@ import { catStyle, STATUS, type StatusId } from '@/lib/categories';
 import {
   cancelAppointment, slotsFor, updateAppointmentNote, updateStatus,
 } from '@/lib/agenda-write';
+import { syncAppointmentReminderAction } from '@/app/actions/reminder-sync';
 import { moveAppointment } from '@/lib/move-appointment';
 import { createClient } from '@/lib/supabase/client';
 import { dayKey, durLbl, fmt, minutesOfDay, citaCambiada } from '@/lib/time';
@@ -32,6 +33,30 @@ const SMS_LABEL: Record<string, string> = {
   queued: 'SMS en cola',
 };
 
+function smsBadgeLabel(sms: {
+  status: string;
+  simulated: boolean;
+  delivered_at: string | null;
+  error_message: string | null;
+}) {
+  if (sms.error_message) return 'SMS fallido';
+  if (sms.delivered_at) return 'SMS entregado';
+  if (sms.simulated) return 'SMS simulado';
+  return SMS_LABEL[sms.status] ?? `SMS ${sms.status}`;
+}
+
+function smsBadgeCls(sms: {
+  status: string;
+  simulated: boolean;
+  delivered_at: string | null;
+  error_message: string | null;
+}) {
+  if (sms.error_message || sms.status === 'failed') return 'bg-danger-bg text-danger-fg';
+  if (sms.delivered_at || (sms.status === 'sent' && !sms.simulated)) return 'bg-ok-bg text-ok-fg';
+  if (sms.simulated) return 'bg-v-soft text-v-d';
+  return 'bg-surface-bg text-ink-2';
+}
+
 export default function AppointmentSheet({
   appt, providers, canMoveProvider, startClosing = false, sms = null,
 }: {
@@ -39,7 +64,13 @@ export default function AppointmentSheet({
   providers: Provider[];
   canMoveProvider: boolean;
   startClosing?: boolean;
-  sms?: { status: string; sent_at: string | null } | null;
+  sms?: {
+    status: string;
+    sent_at: string | null;
+    simulated: boolean;
+    delivered_at: string | null;
+    error_message: string | null;
+  } | null;
 }) {
   const requestClose = useSheetShellClose();
   const toast = useToast();
@@ -304,13 +335,8 @@ export default function AppointmentSheet({
           </span>
         )}
         {sms && (
-          <span className={`rounded-badge px-2.5 py-1.5 text-caption font-bold ${
-            sms.status === 'sent' ? 'bg-ok-bg text-ok-fg'
-              : sms.status === 'failed' ? 'bg-danger-bg text-danger-fg'
-              : 'bg-surface-bg text-ink-2'
-          }`}
-          >
-            {SMS_LABEL[sms.status] ?? `SMS ${sms.status}`}
+          <span className={`rounded-badge px-2.5 py-1.5 text-caption font-bold ${smsBadgeCls(sms)}`}>
+            {smsBadgeLabel(sms)}
           </span>
         )}
       </div>

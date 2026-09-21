@@ -134,12 +134,18 @@ export async function getAppointmentSms(id: string) {
   const sb = createClient();
   const { data } = await sb
     .from('sms_log')
-    .select('status, sent_at')
+    .select('status, sent_at, simulated, delivered_at, error_message')
     .eq('appointment_id', id)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
-  return data as { status: string; sent_at: string | null } | null;
+  return data as {
+    status: string;
+    sent_at: string | null;
+    simulated: boolean;
+    delivered_at: string | null;
+    error_message: string | null;
+  } | null;
 }
 
 export async function getDayAgenda(date: Date, providerIds: string[]) {

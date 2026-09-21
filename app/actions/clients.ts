@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { addToWaitlist as addWaitWrite, resolveWaitlist as resolveWaitWrite } from '@/lib/agenda-write';
+import { syncClientRemindersAction } from '@/app/actions/reminder-sync';
 import {
   addConsent as addConsentWrite,
   createClientRecord as createWrite,
@@ -41,8 +42,10 @@ export async function updateClientRecord(input: {
     tags?: string[];
     sms_opt_in?: boolean;
     birth_date?: string | null;
+  prevPhone?: string | null;
 }) {
   const r = await updateWrite(createClient(), input);
+  if (r.ok) void syncClientRemindersAction(input.id, input.prevPhone);
   revalidatePath('/clientas');
   revalidatePath(`/clientas/${input.id}`);
   return r;

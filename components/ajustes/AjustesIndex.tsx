@@ -54,6 +54,10 @@ export default function AjustesIndex({
       hint: admin ? 'Plantillas, vendidos y recargar sesiones' : 'Vendidos y recargar sesiones',
     }] : []),
     ...(admin ? [{
+      href: '/ajustes/sms',
+      title: 'SMS',
+      hint: 'Recordatorios, plantilla y pruebas',
+    }, {
       href: '/ajustes/importar',
       title: 'Importar datos',
       hint: 'Una mudanza: servicios, clientas y citas',

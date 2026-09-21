@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { catStyle, STATUS, avatarColor } from '@/lib/categories';
 import { citaCambiada, fmt, minutesOfDay, nowMinutes, dayKey, DAY_START, DAY_END, durLbl } from '@/lib/time';
+import { syncAppointmentReminderAction } from '@/app/actions/reminder-sync';
 import { moveAppointment } from '@/lib/move-appointment';
 import { createClient } from '@/lib/supabase/client';
 import type { AgendaAppt, AgendaBlock, Provider } from '@/lib/types';
@@ -107,6 +108,7 @@ export default function DayGrid({
       setOptimistic(o => ({ ...o, [id]: { start, provider: providerId } }));
       void (async () => {
         const r = await moveAppointment(createClient(), { id, date, startMin: start, providerId });
+        if (r.ok) void syncAppointmentReminderAction(id);
         if (r.ok) {
           toast(citaCambiada(start, providerChanged ? who : null), {
             undo: () => {

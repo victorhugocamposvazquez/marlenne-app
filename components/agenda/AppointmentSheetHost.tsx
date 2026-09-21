@@ -34,7 +34,13 @@ export default function AppointmentSheetHost({
   const closeQ = useShallowParam('close', startClosing ? '1' : null);
   const seed = id ? appointments.find(a => a.id === id) ?? null : null;
   const [fetched, setFetched] = useState<AgendaAppt | null>(null);
-  const [sms, setSms] = useState<{ status: string; sent_at: string | null } | null>(null);
+  const [sms, setSms] = useState<{
+    status: string;
+    sent_at: string | null;
+    simulated: boolean;
+    delivered_at: string | null;
+    error_message: string | null;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [services, setServices] = useState<ServiceOption[]>([]);
   const [clients, setClients] = useState<ClientOption[]>([]);
@@ -58,7 +64,8 @@ export default function AppointmentSheetHost({
         seed
           ? Promise.resolve({ data: null as unknown })
           : sb.from('appointments').select(APPT_SELECT).eq('id', id).maybeSingle(),
-        sb.from('sms_log').select('status, sent_at').eq('appointment_id', id)
+        sb.from('sms_log').select('status, sent_at, simulated, delivered_at, error_message')
+          .eq('appointment_id', id)
           .order('created_at', { ascending: false }).limit(1).maybeSingle(),
         Promise.all([
           loadServices(sb), loadClientOptions(sb), loadSalonPacks(sb), loadServiceCounts(sb),

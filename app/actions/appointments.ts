@@ -11,6 +11,7 @@ import {
   updateStatus as statusWrite,
 } from '@/lib/agenda-write';
 import { moveAppointment as moveAppointmentRpc } from '@/lib/move-appointment';
+import { syncAppointmentReminderAction } from '@/app/actions/reminder-sync';
 
 function touchAgenda() {
   revalidatePath('/agenda');
@@ -22,6 +23,7 @@ export async function moveAppointment({
   id, date, startMin, providerId,
 }: { id: string; date: string; startMin: number; providerId: string }) {
   const r = await moveAppointmentRpc(createClient(), { id, date, startMin, providerId });
+  if (r.ok) void syncAppointmentReminderAction(id);
   touchAgenda();
   return r;
 }
@@ -67,6 +69,7 @@ export async function createAppointment(input: {
   note?: string;
 }) {
   const r = await createWrite(createClient(), input);
+  if (r.ok && r.id) void syncAppointmentReminderAction(r.id);
   touchAgenda();
   revalidatePath('/clientas');
   return r;

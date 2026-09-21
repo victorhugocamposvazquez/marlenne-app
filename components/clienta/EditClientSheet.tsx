@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Sheet, { Field, inputCls } from '@/components/Sheet';
 import { useSheetShellClose } from '@/components/SheetShell';
 import Button from '@/components/ui/Button';
+import { syncClientRemindersAction } from '@/app/actions/reminder-sync';
 import { deleteClientRecord, updateClientRecord } from '@/lib/client-write';
 import { createClient } from '@/lib/supabase/client';
 import type { ClientRow } from '@/lib/types';
@@ -46,6 +47,7 @@ export default function EditClientSheet({
       });
       if (!r.ok) setError(r.error ?? 'No se ha podido guardar');
       else {
+        void syncClientRemindersAction(client.id, client.phone);
         requestClose(() => router.refresh());
       }
     });
