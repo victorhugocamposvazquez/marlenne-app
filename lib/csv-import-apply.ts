@@ -22,6 +22,9 @@ export type ImportApplyResult = {
 
 export type ImportProgress = { done: number; total: number; pct: number };
 
+/** Filas por petición a Supabase (1800 clientas ≈ 18 idas en vez de 1800). */
+export const IMPORT_INSERT_CHUNK = 100;
+
 export function countImportSteps(preview: ImportPreview): number {
   let n = 0;
   for (const s of preview.services) {
@@ -47,6 +50,30 @@ function isNewKey(id?: string) {
   return !!id && (id.startsWith('new-cli:') || id.startsWith('new-svc:'));
 }
 
+function makeProgress(onStep?: () => void) {
+  return (n: number) => {
+    for (let i = 0; i < n; i++) onStep?.();
+  };
+}
+
+async function insertOneClient(
+  sb: SupabaseClient,
+  salonId: string,
+  row: PreviewClient,
+  batchId: string | null,
+): Promise<{ id: string | null }> {
+  const { data, error } = await sb.from('clients').insert({
+    salon_id: salonId,
+    full_name: row.full_name,
+    phone: row.phone,
+    email: row.email,
+    notes: row.notes,
+    tags: row.tags,
+    ...(batchId ? { import_batch_id: batchId } : {}),
+  }).select('id').single();
+  return { id: error || !data ? null : data.id };
+}
+
 async function insertServices(
   sb: SupabaseClient,
   salonId: string,
@@ -55,36 +82,63 @@ async function insertServices(
   batchId: string | null,
   onStep?: () => void,
 ) {
+  const step = makeProgress(onStep);
+  const { data: cats } = await sb
+    .from('service_categories')
+    .select('id, slug')
+    .eq('salon_id', salonId);
+  const catBySlug = new Map((cats ?? []).map(c => [c.slug, c.id]));
+
   let created = 0;
+  const toCreate: PreviewService[] = [];
   for (const row of rows) {
     if (row.existingId) {
       ids.set(`new-svc:${row.row}`, row.existingId);
-      onStep?.();
+      step(1);
       continue;
     }
     if (row.action !== 'create') continue;
-    const { data: cat } = await sb
-      .from('service_categories')
-      .select('id')
-      .eq('salon_id', salonId)
-      .eq('slug', row.category)
-      .maybeSingle();
-    const { data, error } = await sb.from('services').insert({
-      salon_id: salonId,
-      name: row.name,
-      ...(cat?.id ? { category_id: cat.id } : { category: row.category }),
-      duration_min: row.duration_min,
-      price_cents: row.price_cents,
-      sort_order: 800 + row.row,
-      ...(batchId ? { import_batch_id: batchId } : {}),
-    }).select('id').single();
-    if (error || !data) {
-      onStep?.();
+    toCreate.push(row);
+  }
+
+  for (let i = 0; i < toCreate.length; i += IMPORT_INSERT_CHUNK) {
+    const chunk = toCreate.slice(i, i + IMPORT_INSERT_CHUNK);
+    const payloads = chunk.map(row => {
+      const categoryId = catBySlug.get(row.category);
+      return {
+        salon_id: salonId,
+        name: row.name,
+        ...(categoryId ? { category_id: categoryId } : { category: row.category }),
+        duration_min: row.duration_min,
+        price_cents: row.price_cents,
+        sort_order: 800 + row.row,
+        ...(batchId ? { import_batch_id: batchId } : {}),
+      };
+    });
+    const { data, error } = await sb.from('services').insert(payloads).select('id');
+    if (!error && data?.length === chunk.length) {
+      data.forEach((r, j) => ids.set(`new-svc:${chunk[j].row}`, r.id));
+      created += data.length;
+      step(chunk.length);
       continue;
     }
-    ids.set(`new-svc:${row.row}`, data.id);
-    created += 1;
-    onStep?.();
+    for (const row of chunk) {
+      const categoryId = catBySlug.get(row.category);
+      const { data: one, error: oneErr } = await sb.from('services').insert({
+        salon_id: salonId,
+        name: row.name,
+        ...(categoryId ? { category_id: categoryId } : { category: row.category }),
+        duration_min: row.duration_min,
+        price_cents: row.price_cents,
+        sort_order: 800 + row.row,
+        ...(batchId ? { import_batch_id: batchId } : {}),
+      }).select('id').single();
+      if (!oneErr && one) {
+        ids.set(`new-svc:${row.row}`, one.id);
+        created += 1;
+      }
+      step(1);
+    }
   }
   return created;
 }
@@ -97,16 +151,24 @@ async function insertClients(
   batchId: string | null,
   onStep?: () => void,
 ) {
+  const step = makeProgress(onStep);
   let created = 0;
   let failed = 0;
+  const toCreate: PreviewClient[] = [];
+
   for (const row of rows) {
     if (row.existingId) {
       ids.set(`new-cli:${row.row}`, row.existingId);
-      onStep?.();
+      step(1);
       continue;
     }
     if (row.action !== 'create') continue;
-    const { data, error } = await sb.from('clients').insert({
+    toCreate.push(row);
+  }
+
+  for (let i = 0; i < toCreate.length; i += IMPORT_INSERT_CHUNK) {
+    const chunk = toCreate.slice(i, i + IMPORT_INSERT_CHUNK);
+    const payloads = chunk.map(row => ({
       salon_id: salonId,
       full_name: row.full_name,
       phone: row.phone,
@@ -114,15 +176,22 @@ async function insertClients(
       notes: row.notes,
       tags: row.tags,
       ...(batchId ? { import_batch_id: batchId } : {}),
-    }).select('id').single();
-    if (error || !data) {
-      failed += 1;
-      onStep?.();
+    }));
+    const { data, error } = await sb.from('clients').insert(payloads).select('id');
+    if (!error && data?.length === chunk.length) {
+      data.forEach((r, j) => ids.set(`new-cli:${chunk[j].row}`, r.id));
+      created += data.length;
+      step(chunk.length);
       continue;
     }
-    ids.set(`new-cli:${row.row}`, data.id);
-    created += 1;
-    onStep?.();
+    for (const row of chunk) {
+      const { id } = await insertOneClient(sb, salonId, row, batchId);
+      if (id) {
+        ids.set(`new-cli:${row.row}`, id);
+        created += 1;
+      } else failed += 1;
+      step(1);
+    }
   }
   return { created, failed };
 }
@@ -133,6 +202,13 @@ function resolveId(raw: string | undefined, ids: Map<string, string>) {
   return ids.get(raw) ?? null;
 }
 
+type ResolvedAppt = PreviewAppointment & {
+  clientId: string;
+  serviceId: string;
+  providerId: string;
+  starts_at: string;
+};
+
 async function insertAppointments(
   sb: SupabaseClient,
   salonId: string,
@@ -142,8 +218,11 @@ async function insertAppointments(
   batchId: string | null,
   onStep?: () => void,
 ) {
+  const step = makeProgress(onStep);
   let created = 0;
   let failed = 0;
+  const toCreate: ResolvedAppt[] = [];
+
   for (const row of rows) {
     if (row.action !== 'create' || !row.starts_at) continue;
     const clientId = resolveId(row.clientId, ids);
@@ -151,24 +230,49 @@ async function insertAppointments(
     const providerId = row.providerId;
     if (!clientId || !serviceId || !providerId) {
       failed += 1;
-      onStep?.();
+      step(1);
       continue;
     }
-    const { error } = await sb.from('appointments').insert({
+    toCreate.push({ ...row, clientId, serviceId, providerId, starts_at: row.starts_at });
+  }
+
+  for (let i = 0; i < toCreate.length; i += IMPORT_INSERT_CHUNK) {
+    const chunk = toCreate.slice(i, i + IMPORT_INSERT_CHUNK);
+    const payloads = chunk.map(row => ({
       salon_id: salonId,
-      client_id: clientId,
-      service_id: serviceId,
-      provider_id: providerId,
+      client_id: row.clientId,
+      service_id: row.serviceId,
+      provider_id: row.providerId,
       starts_at: row.starts_at,
       duration_min: row.duration_min,
       status: row.status,
       note: row.note,
       created_by: userId,
       ...(batchId ? { import_batch_id: batchId } : {}),
-    });
-    if (error) failed += 1;
-    else created += 1;
-    onStep?.();
+    }));
+    const { error } = await sb.from('appointments').insert(payloads);
+    if (!error) {
+      created += chunk.length;
+      step(chunk.length);
+      continue;
+    }
+    for (const row of chunk) {
+      const { error: oneErr } = await sb.from('appointments').insert({
+        salon_id: salonId,
+        client_id: row.clientId,
+        service_id: row.serviceId,
+        provider_id: row.providerId,
+        starts_at: row.starts_at,
+        duration_min: row.duration_min,
+        status: row.status,
+        note: row.note,
+        created_by: userId,
+        ...(batchId ? { import_batch_id: batchId } : {}),
+      });
+      if (oneErr) failed += 1;
+      else created += 1;
+      step(1);
+    }
   }
   return { created, failed };
 }

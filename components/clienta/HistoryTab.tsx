@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { catStyle, STATUS } from '@/lib/categories';
 import { dateLbl, fmt, minutesOfDay, offsetFromDay } from '@/lib/time';
 import type { AgendaAppt } from '@/lib/types';
