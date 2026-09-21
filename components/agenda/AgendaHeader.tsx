@@ -75,13 +75,12 @@ export default function AgendaHeader({
 
       {mode === 'dia' && (
         <>
-          <div className="mt-1">
+          <div className="mt-1.5 w-full">
             <DayStrip
               selectedOffset={day}
               startOffset={start}
               busyOffsets={busyOffsets}
               onSelect={offset => go(skipSunday(offset, 1))}
-              onPage={delta => go(day, { strip: start + delta })}
             />
           </div>
           <div className="mt-2 flex min-h-[18px] flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-center text-label">

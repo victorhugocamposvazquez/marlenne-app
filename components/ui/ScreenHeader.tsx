@@ -10,10 +10,10 @@ export const headerTitleRowCls = 'flex w-full items-center justify-between gap-3
 /** Columna derecha: calendario, +, campana… sin saltos entre pantallas. */
 export const headerActionsCls = 'flex shrink-0 items-center gap-2';
 
-/** Mes en agenda: fluido respecto al ancho útil (min(100vw, 440px)), ref. 26px. */
+/** Mes en agenda: fluido respecto al ancho útil (min(100vw, 440px)), ref. 28px. */
 export const screenTitleCls = 'text-agenda-month font-bold tracking-[-.03em]';
 
-/** Chevron del mes: escala con el título (2/3 em → ~17px @ 26px). */
+/** Chevron del mes: escala con el título (2/3 em → ~19px @ 28px). */
 export const screenTitleChevronCls = 'size-[0.667em] shrink-0 text-ink-3';
 
 export function HeaderTitleRow({
