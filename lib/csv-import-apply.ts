@@ -213,12 +213,24 @@ export async function applyCsvImport(
 
   async function openBatch(kind: ImportKind, fileName?: string | null) {
     if (!hasCreates(previewRowsForKind(preview, kind))) return null;
-    return createImportBatch(sb, { salonId, userId, kind, fileName });
+    const batch = await createImportBatch(sb, { salonId, userId, kind, fileName });
+    if (!batch.id) {
+      throw new Error(batch.error ?? 'No se pudo registrar la importación en el historial');
+    }
+    return batch.id;
   }
 
-  const servicesBatchId = await openBatch('services', fileNames?.services);
-  const clientsBatchId = await openBatch('clients', fileNames?.clients);
-  const apptsBatchId = await openBatch('appointments', fileNames?.appointments);
+  let servicesBatchId: string | null = null;
+  let clientsBatchId: string | null = null;
+  let apptsBatchId: string | null = null;
+  try {
+    servicesBatchId = await openBatch('services', fileNames?.services);
+    clientsBatchId = await openBatch('clients', fileNames?.clients);
+    apptsBatchId = await openBatch('appointments', fileNames?.appointments);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'No se pudo registrar la importación';
+    return { ok: false, error: msg, created: empty, failedClients: 0, failedAppointments: 0 };
+  }
 
   const services = await insertServices(sb, salonId, preview.services, ids, servicesBatchId, tick);
   const clients = await insertClients(sb, salonId, preview.clients, ids, clientsBatchId, tick);

@@ -81,7 +81,7 @@ export async function listRecentImportBatches(sb: SupabaseClient): Promise<Impor
 export async function createImportBatch(
   sb: SupabaseClient,
   input: { salonId: string; userId: string; kind: ImportKind; fileName?: string | null },
-): Promise<string | null> {
+): Promise<{ id: string | null; error: string | null }> {
   const { data, error } = await sb.from('import_batches').insert({
     salon_id: input.salonId,
     kind: input.kind,
@@ -89,8 +89,78 @@ export async function createImportBatch(
     file_name: input.fileName?.trim() || null,
     rows_created: 0,
   }).select('id').single();
-  if (error || !data) return null;
-  return data.id;
+  if (error || !data) {
+    return {
+      id: null,
+      error: error?.message ?? 'No se pudo registrar el lote de importación',
+    };
+  }
+  return { id: data.id, error: null };
+}
+
+function minuteKey(iso: string) {
+  return iso.slice(0, 16);
+}
+
+async function backfillTable(
+  sb: SupabaseClient,
+  salonId: string,
+  kind: ImportKind,
+  table: 'clients' | 'appointments',
+) {
+  const since = new Date(Date.now() - RECENT_IMPORT_DAYS * 86_400_000).toISOString();
+  const { data: rows, error } = await sb
+    .from(table)
+    .select('id, created_at')
+    .eq('salon_id', salonId)
+    .is('import_batch_id', null)
+    .gte('created_at', since)
+    .order('created_at', { ascending: true });
+  const typed = (rows ?? []) as { id: string; created_at: string }[];
+  if (error || !typed.length) return 0;
+
+  const groups = new Map<string, { ids: string[]; at: string }>();
+  for (const row of typed) {
+    const key = minuteKey(row.created_at);
+    const group = groups.get(key) ?? { ids: [], at: row.created_at };
+    group.ids.push(row.id);
+    if (row.created_at < group.at) group.at = row.created_at;
+    groups.set(key, group);
+  }
+
+  let created = 0;
+  for (const group of groups.values()) {
+    if (group.ids.length === 0) continue;
+    const { data: batch, error: insErr } = await sb
+      .from('import_batches')
+      .insert({
+        salon_id: salonId,
+        kind,
+        rows_created: group.ids.length,
+        created_at: group.at,
+      })
+      .select('id')
+      .single();
+    if (insErr || !batch) continue;
+
+    for (let i = 0; i < group.ids.length; i += 100) {
+      const chunk = group.ids.slice(i, i + 100);
+      const { error: updErr } = await sb
+        .from(table)
+        .update({ import_batch_id: batch.id })
+        .in('id', chunk);
+      if (updErr) break;
+    }
+    created += 1;
+  }
+  return created;
+}
+
+/** Recupera lotes de filas importadas sin `import_batch_id` (p. ej. antes de permisos GRANT). */
+export async function backfillUntaggedImportBatches(sb: SupabaseClient, salonId: string) {
+  const clients = await backfillTable(sb, salonId, 'clients', 'clients');
+  const appts = await backfillTable(sb, salonId, 'appointments', 'appointments');
+  return clients + appts;
 }
 
 export async function finalizeImportBatch(

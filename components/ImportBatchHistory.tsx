@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { loadImportBatches } from '@/app/actions/import-batches';
 import Button from '@/components/ui/Button';
 import {
   clientBatchDeleteBlockedText,
@@ -16,13 +17,15 @@ import {
 import { createClient } from '@/lib/supabase/client';
 
 type Props = {
-  batches: ImportBatchRow[];
+  initialBatches: ImportBatchRow[];
+  loadError?: string | null;
 };
 
 type ConfirmMode = 'all' | 'partial';
 
-export default function ImportBatchHistory({ batches }: Props) {
+export default function ImportBatchHistory({ initialBatches, loadError = null }: Props) {
   const router = useRouter();
+  const [batches, setBatches] = useState(initialBatches);
   const [pending, startTransition] = useTransition();
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [confirmMode, setConfirmMode] = useState<ConfirmMode>('all');
@@ -32,6 +35,14 @@ export default function ImportBatchHistory({ batches }: Props) {
   const [msg, setMsg] = useState<string | null>(null);
 
   const confirmBatch = batches.find(b => b.id === confirmId) ?? null;
+
+  useEffect(() => {
+    setBatches(initialBatches);
+  }, [initialBatches]);
+
+  useEffect(() => {
+    void loadImportBatches().then(({ batches: next }) => setBatches(next));
+  }, []);
 
   const closeConfirm = () => {
     setConfirmId(null);
@@ -85,9 +96,9 @@ export default function ImportBatchHistory({ batches }: Props) {
       {error && <p className="mt-3 text-label font-semibold text-danger-fg">{error}</p>}
       {msg && <p className="mt-3 text-label font-semibold text-ok-fg">{msg}</p>}
 
-      {!batches.length && (
-        <p className="mt-3 text-label text-ink-3">
-          Aún no hay importaciones registradas. Aparecerán aquí cada vez que importes clientas, servicios o citas nuevas.
+      {!batches.length && !loadError && (
+        <p className="mt-3 text-label font-medium text-ink-2">
+          Aún no hay importaciones registradas. Tras importar, la última aparecerá aquí.
         </p>
       )}
 

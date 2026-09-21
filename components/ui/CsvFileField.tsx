@@ -15,20 +15,22 @@ export default function CsvFileField({
   label,
   file,
   optional,
+  accent,
   onChange,
 }: {
   label: string;
   file: File | null;
   optional?: boolean;
+  accent?: boolean;
   onChange: (file: File | null) => void;
 }) {
   const ref = useRef<HTMLInputElement>(null);
 
   return (
     <div className={optional ? 'mt-2' : 'mt-3'}>
-      <span className="mb-1 block text-caption font-bold uppercase text-ink-2">
+      <span className={`mb-1 block text-label font-bold ${accent ? 'text-v' : 'text-ink'}`}>
         {label}
-        {optional && <span className="font-semibold normal-case text-ink-3"> · opcional</span>}
+        {optional && <span className="font-semibold text-ink-3"> · opcional</span>}
       </span>
       <input
         ref={ref}

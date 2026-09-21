@@ -125,16 +125,24 @@ export default function CsvImportCard() {
 
   return (
     <div className="rounded-row bg-surface-soft p-4">
-      <ol className="list-decimal space-y-1.5 pl-5 text-label leading-snug text-ink-2">
+      <ol className="list-decimal space-y-2 pl-5 text-body font-semibold leading-snug text-ink">
         <li>Descarga el Excel o CSV desde tu otra app, si aún no lo tienes.</li>
-        <li>Súbelo aquí (clientas, servicios o citas) y revisa la vista previa.</li>
+        <li>
+          Súbelo aquí (
+          <span className="font-bold text-v">clientas</span>
+          {', '}
+          <span className="font-bold text-v">servicios</span>
+          {' o '}
+          <span className="font-bold text-v">citas</span>
+          ) y revisa la vista previa.
+        </li>
         <li>Importa.</li>
       </ol>
-      <p className="mt-2 text-caption text-ink-3">Sin plantilla — Marlén reconoce columnas habituales.</p>
+      <p className="mt-2.5 text-label font-medium text-ink-2">Sin plantilla — Marlén reconoce columnas habituales.</p>
 
-      <CsvFileField label="Servicios" file={servicesFile} optional onChange={f => { setServicesFile(f); setPreview(null); }} />
-      <CsvFileField label="Clientas" file={clientsFile} optional onChange={f => { setClientsFile(f); setPreview(null); }} />
-      <CsvFileField label="Citas" file={apptsFile} optional onChange={f => { setApptsFile(f); setPreview(null); }} />
+      <CsvFileField accent label="Servicios" file={servicesFile} optional onChange={f => { setServicesFile(f); setPreview(null); }} />
+      <CsvFileField accent label="Clientas" file={clientsFile} optional onChange={f => { setClientsFile(f); setPreview(null); }} />
+      <CsvFileField accent label="Citas" file={apptsFile} optional onChange={f => { setApptsFile(f); setPreview(null); }} />
 
       {importing && (
         <div className="mt-3" role="progressbar" aria-valuenow={importPct ?? 0} aria-valuemin={0} aria-valuemax={100}>

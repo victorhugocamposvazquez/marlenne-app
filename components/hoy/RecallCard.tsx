@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { MessageCircle } from 'lucide-react';
 import { agoLbl } from '@/lib/time';
 import { waHref, waRecallMsg } from '@/lib/phone';
+import WhatsAppLink from '@/components/ui/WhatsAppLink';
 import type { RecallRow } from '@/lib/types';
 
 export default function RecallCard({ row }: { row: RecallRow }) {
@@ -29,17 +29,7 @@ export default function RecallCard({ row }: { row: RecallRow }) {
       >
         Dar cita
       </Link>
-      {wa && (
-        <a
-          href={wa}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={`WhatsApp a ${row.full_name}`}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-icon bg-ok-bg text-ok-fg transition motion-safe:active:scale-[.96]"
-        >
-          <MessageCircle size={16} strokeWidth={2.2} />
-        </a>
-      )}
+      {wa && <WhatsAppLink href={wa} label={`WhatsApp a ${row.full_name}`} />}
     </div>
   );
 }
