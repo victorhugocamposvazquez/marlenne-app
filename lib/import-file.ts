@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { normHeader } from '@/lib/csv';
 
 const EXCEL_EXT = /\.(xlsx|xls|xlsm)$/i;
 
@@ -29,8 +30,36 @@ function excelBufferToCsv(buf: ArrayBuffer): string {
   if (!rows.length) return '';
 
   const norm = rows.map(row => row.map(cellToImportString));
-  const csvLines = norm.map(cells => cells.map(csvEscape).join(','));
+  const headerAt = findHeaderRowIndex(norm);
+  const table = norm.slice(headerAt);
+  const csvLines = table.map(cells => cells.map(csvEscape).join(','));
   return csvLines.join('\n');
+}
+
+/** SimplyBook y otros exports meten título del informe antes de la fila de cabeceras. */
+function findHeaderRowIndex(rows: string[][]): number {
+  for (let i = 0; i < Math.min(rows.length, 40); i++) {
+    const norms = rows[i].map(normHeader).filter(Boolean);
+    if (!norms.length) continue;
+    const hasName = norms.some(n =>
+      n === 'nombre'
+      || n === 'name'
+      || n === 'nombre_completo'
+      || n === 'full_name'
+      || n === 'cliente',
+    );
+    const hasContact = norms.some(n =>
+      n.includes('telefono')
+      || n.includes('phone')
+      || n.includes('movil')
+      || n.includes('mobile')
+      || n === 'email'
+      || n === 'e_mail'
+      || n === 'correo',
+    );
+    if (hasName && hasContact) return i;
+  }
+  return 0;
 }
 
 function cellToImportString(v: string | number | Date | null | undefined): string {

@@ -16,6 +16,7 @@ export type ImportApplyResult = {
   ok: boolean;
   error: string | null;
   created: { services: number; clients: number; appointments: number };
+  phonesBackfilled: number;
   failedClients: number;
   failedAppointments: number;
 };
@@ -32,6 +33,7 @@ export function countImportSteps(preview: ImportPreview): number {
   }
   for (const c of preview.clients) {
     if (c.existingId || c.action === 'create') n += 1;
+    if (c.action === 'skip' && c.existingId && c.phone?.trim()) n += 1;
   }
   for (const a of preview.appointments) {
     if (a.action === 'create' && a.starts_at) n += 1;
@@ -196,6 +198,33 @@ async function insertClients(
   return { created, failed };
 }
 
+async function backfillClientPhones(
+  sb: SupabaseClient,
+  salonId: string,
+  rows: PreviewClient[],
+  onStep?: () => void,
+) {
+  const step = makeProgress(onStep);
+  let updated = 0;
+  const pending = rows.filter(r => r.action === 'skip' && r.existingId && r.phone?.trim());
+
+  for (let i = 0; i < pending.length; i += IMPORT_INSERT_CHUNK) {
+    const chunk = pending.slice(i, i + IMPORT_INSERT_CHUNK);
+    await Promise.all(chunk.map(async row => {
+      const { data, error } = await sb
+        .from('clients')
+        .update({ phone: row.phone })
+        .eq('id', row.existingId!)
+        .eq('salon_id', salonId)
+        .or('phone.is.null,phone.eq.')
+        .select('id');
+      if (!error && data?.length) updated += 1;
+      step(1);
+    }));
+  }
+  return updated;
+}
+
 function resolveId(raw: string | undefined, ids: Map<string, string>) {
   if (!raw) return null;
   if (!isNewKey(raw)) return raw;
@@ -294,13 +323,13 @@ export async function applyCsvImport(
   const empty = { services: 0, clients: 0, appointments: 0 };
   const { user, salonId, role } = await salonOf(sb);
   if (!user || !salonId) {
-    return { ok: false, error: 'Sin sesión', created: empty, failedClients: 0, failedAppointments: 0 };
+    return { ok: false, error: 'Sin sesión', created: empty, phonesBackfilled: 0, failedClients: 0, failedAppointments: 0 };
   }
   if (role !== 'admin') {
-    return { ok: false, error: 'Solo dirección puede importar', created: empty, failedClients: 0, failedAppointments: 0 };
+    return { ok: false, error: 'Solo dirección puede importar', created: empty, phonesBackfilled: 0, failedClients: 0, failedAppointments: 0 };
   }
   if (preview.fileErrors.length) {
-    return { ok: false, error: preview.fileErrors[0], created: empty, failedClients: 0, failedAppointments: 0 };
+    return { ok: false, error: preview.fileErrors[0], created: empty, phonesBackfilled: 0, failedClients: 0, failedAppointments: 0 };
   }
 
   const ids = new Map<string, string>();
@@ -329,6 +358,7 @@ export async function applyCsvImport(
         ok: false,
         error: session.error ?? 'No se pudo registrar la importación en el historial',
         created: empty,
+        phonesBackfilled: 0,
         failedClients: 0,
         failedAppointments: 0,
       };
@@ -338,6 +368,7 @@ export async function applyCsvImport(
 
   const services = await insertServices(sb, salonId, preview.services, ids, sessionId, tick);
   const clients = await insertClients(sb, salonId, preview.clients, ids, sessionId, tick);
+  const phonesBackfilled = await backfillClientPhones(sb, salonId, preview.clients, tick);
   const appts = await insertAppointments(sb, salonId, userId, preview.appointments, ids, sessionId, tick);
 
   await finalizeImportSession(sb, sessionId, {
@@ -352,6 +383,7 @@ export async function applyCsvImport(
     ok: true,
     error: null,
     created: { services, clients: clients.created, appointments: appts.created },
+    phonesBackfilled,
     failedClients: clients.failed,
     failedAppointments: appts.failed,
   };

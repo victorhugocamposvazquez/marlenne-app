@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import * as XLSX from 'xlsx';
-import { buildPreview, previewClients, CSV_TEMPLATES } from '../lib/csv-import';
+import { buildPreview, parseImportPhone, previewClients, CSV_TEMPLATES } from '../lib/csv-import';
 import { readImportBuffer } from '../lib/import-file';
+import * as fs from 'node:fs';
 
 test('solo clientas: preview y conteos', () => {
   const preview = buildPreview({
@@ -60,6 +61,24 @@ test('lee Excel (.xlsx) y convierte a clientas', () => {
   });
   assert.equal(preview.counts.clientsNew, 1);
   assert.equal(preview.clients[0]?.full_name, 'Elena Ruiz');
+});
+
+test('parseImportPhone limpia prefijo de Excel y espacios', () => {
+  assert.equal(parseImportPhone("'+34 649 92 88 41"), '34649928841');
+  assert.equal(parseImportPhone('612 480 331'), '612480331');
+});
+
+test('SimplyBook xls: salta cabecera del informe y lee teléfonos', () => {
+  const path = '/Users/hugocamposvazquez/Downloads/5374324776ab0fc12b55243.25337096.xls';
+  if (!fs.existsSync(path)) return;
+  const buf = fs.readFileSync(path);
+  const csv = readImportBuffer(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), 'clientas.xls');
+  const clients = previewClients(csv, []);
+  const withPhone = clients.filter(c => c.phone?.trim());
+  assert.ok(clients.length >= 1800);
+  assert.ok(withPhone.length >= 1700, `solo ${withPhone.length} con teléfono`);
+  assert.equal(clients[0]?.full_name, 'Anais');
+  assert.equal(clients[0]?.phone, '34649928841');
 });
 
 test('sin ningún archivo devuelve error claro', () => {

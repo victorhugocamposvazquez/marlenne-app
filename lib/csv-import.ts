@@ -103,6 +103,18 @@ function phoneTail(s: string) {
   return d.length >= 6 ? d : '';
 }
 
+/** Limpia teléfonos de Excel/SimplyBook (`'+34 649…`, prefijo `'`, espacios). */
+export function parseImportPhone(raw: string): string | null {
+  let s = raw.trim();
+  if (!s) return null;
+  if (s.startsWith("'")) s = s.slice(1).trim();
+  const d = phoneDigits(s);
+  if (d.length < 9) return d.length >= 6 ? d : null;
+  if (d.length === 9) return d;
+  if (d.length === 11 && d.startsWith('34')) return d;
+  return d;
+}
+
 function excelSerialToDate(serial: number): string | null {
   if (serial < 30_000 || serial > 80_000) return null;
   const utc = Date.UTC(1899, 11, 30 + Math.floor(serial));
@@ -262,9 +274,11 @@ export function previewClients(csv: string, existing: ExistingClient[]): Preview
   return rows.map((row, i) => {
     const full_name = clientFullName(row);
     const phoneRaw = cell(
-      row, 'telefono', 'phone', 'movil', 'telefono_movil', 'tel', 'mobile', 'celular', 'whatsapp', 'telefono_contacto',
+      row,
+      'telefono', 'phone', 'movil', 'telefono_movil', 'tel', 'mobile', 'celular', 'whatsapp', 'telefono_contacto',
+      'telefono_movil', 'numero_de_telefono', 'numero_telefono', 'telefono_cliente',
     );
-    const phone = phoneRaw.trim() || null;
+    const phone = parseImportPhone(phoneRaw);
     const email = cell(row, 'email', 'correo', 'e_mail', 'mail').trim() || null;
     const notes = cell(row, 'notas', 'notes', 'note', 'observaciones', 'comentarios').trim() || null;
     const tags = parseTags(cell(row, 'etiquetas', 'tags', 'labels', 'grupo'));
@@ -353,7 +367,7 @@ export function previewAppointments(csv: string, cat: Catalog): PreviewAppointme
   const accepted: PreviewAppointment[] = [];
   return rows.map((row, i) => {
     const client_name = clientFullName(row) || cell(row, 'nombre_clienta').trim();
-    const phone = cell(row, 'telefono', 'phone', 'movil', 'tel', 'celular').trim() || null;
+    const phone = parseImportPhone(cell(row, 'telefono', 'phone', 'movil', 'tel', 'celular'));
     const service_name = cell(row, 'servicio', 'service', 'tratamiento', 'concepto').trim();
     const provider_name = cell(row, 'profesional', 'provider', 'staff', 'con', 'empleado', 'cabina', 'recurso').trim();
     const when = parseAppointmentWhen(row);

@@ -123,6 +123,7 @@ export default function CsvImportCard() {
         r.created.services ? `${r.created.services} servicios` : null,
         r.created.clients ? `${r.created.clients} clientas` : null,
         r.created.appointments ? `${r.created.appointments} citas` : null,
+        r.phonesBackfilled ? `${r.phonesBackfilled} teléfonos actualizados` : null,
       ].filter(Boolean);
       const fails = [
         r.failedClients ? `${r.failedClients} clientas no entraron` : null,
@@ -183,7 +184,11 @@ export default function CsvImportCard() {
             <li>Servicios: {preview.counts.servicesNew} altas, {preview.counts.servicesSkip} ya estaban o no valen</li>
           )}
           {!!preview.clients.length && (
-            <li>Clientas: {preview.counts.clientsNew} altas, {preview.counts.clientsSkip} duplicadas (teléfono o nombre)</li>
+            <li>
+              Clientas: {preview.counts.clientsNew} altas, {preview.counts.clientsSkip} duplicadas (teléfono o nombre)
+              {' · '}
+              {preview.clients.filter(c => c.phone?.trim()).length} con teléfono en el archivo
+            </li>
           )}
           {!!preview.appointments.length && (
             <li>
