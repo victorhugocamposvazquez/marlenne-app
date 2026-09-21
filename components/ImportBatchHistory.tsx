@@ -75,8 +75,6 @@ export default function ImportBatchHistory({ batches }: Props) {
     });
   };
 
-  if (!batches.length) return null;
-
   return (
     <div className="mt-4 rounded-row bg-surface-soft p-4">
       <h2 className="text-body font-bold text-ink">Importaciones recientes</h2>
@@ -86,6 +84,12 @@ export default function ImportBatchHistory({ batches }: Props) {
 
       {error && <p className="mt-3 text-label font-semibold text-danger-fg">{error}</p>}
       {msg && <p className="mt-3 text-label font-semibold text-ok-fg">{msg}</p>}
+
+      {!batches.length && (
+        <p className="mt-3 text-label text-ink-3">
+          Aún no hay importaciones registradas. Aparecerán aquí cada vez que importes clientas, servicios o citas nuevas.
+        </p>
+      )}
 
       <ul className="mt-3 space-y-2">
         {batches.map(batch => (

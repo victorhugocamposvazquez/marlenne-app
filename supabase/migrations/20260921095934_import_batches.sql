@@ -34,3 +34,6 @@ create policy import_batches_read on import_batches for select
 create policy import_batches_write on import_batches for all
   using (salon_id = my_salon() and my_role() = 'admin')
   with check (salon_id = my_salon() and my_role() = 'admin');
+
+grant usage on type import_kind to authenticated;
+grant select, insert, update, delete on table import_batches to authenticated;

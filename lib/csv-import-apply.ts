@@ -169,8 +169,14 @@ async function insertAppointments(
   return { created, failed };
 }
 
-function hasCreates<T extends { action: string }>(rows: T[]) {
+function hasCreates(rows: { action: string }[]) {
   return rows.some(r => r.action === 'create');
+}
+
+function previewRowsForKind(preview: ImportPreview, kind: ImportKind): { action: string }[] {
+  if (kind === 'services') return preview.services;
+  if (kind === 'clients') return preview.clients;
+  return preview.appointments;
 }
 
 export async function applyCsvImport(
@@ -203,12 +209,11 @@ export async function applyCsvImport(
     });
   };
   onProgress?.({ done: 0, total, pct: 0 });
+  const userId = user.id;
 
   async function openBatch(kind: ImportKind, fileName?: string | null) {
-    if (!hasCreates(
-      kind === 'services' ? preview.services : kind === 'clients' ? preview.clients : preview.appointments,
-    )) return null;
-    return createImportBatch(sb, { salonId, userId: user.id, kind, fileName });
+    if (!hasCreates(previewRowsForKind(preview, kind))) return null;
+    return createImportBatch(sb, { salonId, userId, kind, fileName });
   }
 
   const servicesBatchId = await openBatch('services', fileNames?.services);
@@ -217,7 +222,7 @@ export async function applyCsvImport(
 
   const services = await insertServices(sb, salonId, preview.services, ids, servicesBatchId, tick);
   const clients = await insertClients(sb, salonId, preview.clients, ids, clientsBatchId, tick);
-  const appts = await insertAppointments(sb, salonId, user.id, preview.appointments, ids, apptsBatchId, tick);
+  const appts = await insertAppointments(sb, salonId, userId, preview.appointments, ids, apptsBatchId, tick);
 
   await Promise.all([
     finalizeImportBatch(sb, servicesBatchId, services),

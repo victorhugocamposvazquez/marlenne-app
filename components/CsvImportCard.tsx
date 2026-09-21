@@ -125,20 +125,12 @@ export default function CsvImportCard() {
 
   return (
     <div className="rounded-row bg-surface-soft p-4">
-      <p className="text-body leading-snug text-ink-2">
-        Sube el Excel o CSV tal como te lo da la otra app — no hace falta plantilla.
-        Marlén reconoce columnas habituales (nombre, teléfono, email…). Puedes importar solo clientas.
-        Vista previa primero; luego se escribe. No crea logins ni importa packs, fotos ni consentimientos.
-      </p>
-
-      <details className="mt-3 text-label text-ink-3">
-        <summary className="cursor-pointer font-semibold text-ink-2">Columnas que reconocemos</summary>
-        <ul className="mt-2 list-inside list-disc space-y-1">
-          <li>Clientas: nombre (o nombre + apellidos), teléfono/móvil, email, notas, etiquetas</li>
-          <li>Servicios: nombre, minutos, precio, categoría (si falta, corporal)</li>
-          <li>Citas: clienta, servicio, profesional, fecha, hora (o fecha+hora juntas)</li>
-        </ul>
-      </details>
+      <ol className="list-decimal space-y-1.5 pl-5 text-label leading-snug text-ink-2">
+        <li>Descarga el Excel o CSV desde tu otra app, si aún no lo tienes.</li>
+        <li>Súbelo aquí (clientas, servicios o citas) y revisa la vista previa.</li>
+        <li>Importa.</li>
+      </ol>
+      <p className="mt-2 text-caption text-ink-3">Sin plantilla — Marlén reconoce columnas habituales.</p>
 
       <CsvFileField label="Servicios" file={servicesFile} optional onChange={f => { setServicesFile(f); setPreview(null); }} />
       <CsvFileField label="Clientas" file={clientsFile} optional onChange={f => { setClientsFile(f); setPreview(null); }} />

@@ -10,7 +10,7 @@ export default async function ImportarPage() {
 
   const sb = createClient();
   const since = new Date(Date.now() - RECENT_IMPORT_DAYS * 86_400_000).toISOString();
-  const { data: batches } = await sb
+  const { data: batches, error: batchesErr } = await sb
     .from('import_batches')
     .select('id, kind, created_at, file_name, rows_created')
     .gte('created_at', since)
@@ -20,6 +20,11 @@ export default async function ImportarPage() {
   return (
     <AjustesHeader title="Importar datos">
       <CsvImportCard />
+      {batchesErr && (
+        <p className="mt-4 rounded-row bg-surface-soft p-4 text-label font-semibold text-danger-fg">
+          No se pudo cargar el historial de importaciones. Si acabas de actualizar la base de datos, aplica también la migración de permisos (`import_batches_grants`).
+        </p>
+      )}
       <ImportBatchHistory batches={(batches ?? []) as ImportBatchRow[]} />
     </AjustesHeader>
   );
