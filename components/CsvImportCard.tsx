@@ -127,21 +127,13 @@ export default function CsvImportCard() {
     <div className="rounded-row bg-surface-soft p-4">
       <ol className="list-decimal space-y-2 pl-5 text-body font-semibold leading-snug text-ink">
         <li>Descarga el Excel o CSV desde tu otra app, si aún no lo tienes.</li>
-        <li>
-          Súbelo aquí (
-          <span className="font-bold text-v">clientas</span>
-          {', '}
-          <span className="font-bold text-v">servicios</span>
-          {' o '}
-          <span className="font-bold text-v">citas</span>
-          ) y revisa la vista previa.
-        </li>
+        <li>Súbelo aquí y revisa la vista previa.</li>
         <li>Importa.</li>
       </ol>
       <p className="mt-2.5 text-label font-medium text-ink-2">Sin plantilla — Marlén reconoce columnas habituales.</p>
 
       <CsvFileField accent label="Servicios" file={servicesFile} optional onChange={f => { setServicesFile(f); setPreview(null); }} />
-      <CsvFileField accent label="Clientas" file={clientsFile} optional onChange={f => { setClientsFile(f); setPreview(null); }} />
+      <CsvFileField accent label="Client@s" file={clientsFile} optional onChange={f => { setClientsFile(f); setPreview(null); }} />
       <CsvFileField accent label="Citas" file={apptsFile} optional onChange={f => { setApptsFile(f); setPreview(null); }} />
 
       {importing && (

@@ -37,7 +37,7 @@ export const RECENT_IMPORT_DAYS = 30;
 export const RECENT_IMPORT_LIMIT = 50;
 
 export const IMPORT_KIND_LABEL: Record<ImportKind, string> = {
-  clients: 'Clientas',
+  clients: 'Client@s',
   services: 'Servicios',
   appointments: 'Citas',
 };
@@ -98,8 +98,61 @@ export async function createImportBatch(
   return { id: data.id, error: null };
 }
 
-function minuteKey(iso: string) {
-  return iso.slice(0, 16);
+/** Altas seguidas dentro de este margen = mismo lote (una importación). */
+const IMPORT_CLUSTER_GAP_MS = 15 * 60 * 1000;
+const MIN_BACKFILL_GROUP = 2;
+
+function clusterByTimeGap(rows: { id: string; created_at: string }[], gapMs: number) {
+  if (!rows.length) return [] as { ids: string[]; at: string }[];
+  const sorted = [...rows].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const groups: { ids: string[]; at: string }[] = [];
+  let cur = {
+    ids: [sorted[0].id],
+    at: sorted[0].created_at,
+    lastMs: +new Date(sorted[0].created_at),
+  };
+  for (let i = 1; i < sorted.length; i++) {
+    const ms = +new Date(sorted[i].created_at);
+    if (ms - cur.lastMs <= gapMs) {
+      cur.ids.push(sorted[i].id);
+      cur.lastMs = ms;
+    } else {
+      groups.push({ ids: cur.ids, at: cur.at });
+      cur = { ids: [sorted[i].id], at: sorted[i].created_at, lastMs: ms };
+    }
+  }
+  groups.push({ ids: cur.ids, at: cur.at });
+  return groups;
+}
+
+async function tagRowsWithBatch(
+  sb: SupabaseClient,
+  table: 'clients' | 'appointments',
+  batchId: string,
+  ids: string[],
+) {
+  for (let i = 0; i < ids.length; i += 100) {
+    const chunk = ids.slice(i, i + 100);
+    const { error } = await sb.from(table).update({ import_batch_id: batchId }).in('id', chunk);
+    if (error) return false;
+  }
+  return true;
+}
+
+/** Quita lotes de 1 fila sin archivo (restos del backfill por minuto). */
+async function dissolveFragmentedBatches(sb: SupabaseClient, salonId: string) {
+  const { data: tiny } = await sb
+    .from('import_batches')
+    .select('id, kind')
+    .eq('salon_id', salonId)
+    .eq('rows_created', 1)
+    .is('file_name', null)
+    .in('kind', ['clients', 'appointments']);
+  for (const batch of tiny ?? []) {
+    const table = batch.kind === 'appointments' ? 'appointments' : 'clients';
+    await sb.from(table).update({ import_batch_id: null }).eq('import_batch_id', batch.id);
+    await sb.from('import_batches').delete().eq('id', batch.id);
+  }
 }
 
 async function backfillTable(
@@ -119,17 +172,10 @@ async function backfillTable(
   const typed = (rows ?? []) as { id: string; created_at: string }[];
   if (error || !typed.length) return 0;
 
-  const groups = new Map<string, { ids: string[]; at: string }>();
-  for (const row of typed) {
-    const key = minuteKey(row.created_at);
-    const group = groups.get(key) ?? { ids: [], at: row.created_at };
-    group.ids.push(row.id);
-    if (row.created_at < group.at) group.at = row.created_at;
-    groups.set(key, group);
-  }
+  const groups = clusterByTimeGap(typed, IMPORT_CLUSTER_GAP_MS).filter(g => g.ids.length >= MIN_BACKFILL_GROUP);
 
   let created = 0;
-  for (const group of groups.values()) {
+  for (const group of groups) {
     if (group.ids.length === 0) continue;
     const { data: batch, error: insErr } = await sb
       .from('import_batches')
@@ -142,22 +188,14 @@ async function backfillTable(
       .select('id')
       .single();
     if (insErr || !batch) continue;
-
-    for (let i = 0; i < group.ids.length; i += 100) {
-      const chunk = group.ids.slice(i, i + 100);
-      const { error: updErr } = await sb
-        .from(table)
-        .update({ import_batch_id: batch.id })
-        .in('id', chunk);
-      if (updErr) break;
-    }
-    created += 1;
+    if (await tagRowsWithBatch(sb, table, batch.id, group.ids)) created += 1;
   }
   return created;
 }
 
 /** Recupera lotes de filas importadas sin `import_batch_id` (p. ej. antes de permisos GRANT). */
 export async function backfillUntaggedImportBatches(sb: SupabaseClient, salonId: string) {
+  await dissolveFragmentedBatches(sb, salonId);
   const clients = await backfillTable(sb, salonId, 'clients', 'clients');
   const appts = await backfillTable(sb, salonId, 'appointments', 'appointments');
   return clients + appts;

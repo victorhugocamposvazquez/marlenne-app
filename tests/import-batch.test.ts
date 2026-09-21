@@ -26,7 +26,7 @@ test('formatImportBatchWhen usa locale español', () => {
 
 test('importBatchSummary incluye tipo, hora y archivo', () => {
   const s = importBatchSummary(sample);
-  assert.match(s, /Clientas/);
+  assert.match(s, /Client@s/);
   assert.match(s, /120 altas/);
   assert.match(s, /clientas\.xlsx/);
 });
