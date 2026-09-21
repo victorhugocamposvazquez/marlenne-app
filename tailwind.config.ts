@@ -73,6 +73,8 @@ export default {
         'body-lg': ['16px', { lineHeight: '1.4' }],
         title: ['20px', { lineHeight: '1.2' }],
         headline: ['24px', { lineHeight: '1.15' }],
+        /** Mes en cabecera agenda: ~5.45vw en móvil (24px @ 440), tope 24px (shell max-w). */
+        'agenda-month': ['clamp(18px,calc(min(100vw,440px)*0.054545),24px)', { lineHeight: '1.15' }],
         h1: ['28px', { lineHeight: '1.1' }],
         display: ['26px', { lineHeight: '1.1' }],
       },

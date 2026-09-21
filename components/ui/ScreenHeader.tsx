@@ -10,8 +10,8 @@ export const headerTitleRowCls = 'flex w-full items-center justify-between gap-3
 /** Columna derecha: calendario, +, campana… sin saltos entre pantallas. */
 export const headerActionsCls = 'flex shrink-0 items-center gap-2';
 
-/** Mes en agenda: 24px — entre title (20) y h1 (28), cabe con aire. */
-export const screenTitleCls = 'text-headline font-bold tracking-[-.03em]';
+/** Mes en agenda: fluido respecto al ancho útil (min(100vw, 440px)), ref. 24px. */
+export const screenTitleCls = 'text-agenda-month font-bold tracking-[-.03em]';
 
 export function HeaderTitleRow({
   title, actions,
