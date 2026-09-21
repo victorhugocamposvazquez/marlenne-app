@@ -1,20 +1,22 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  clientBatchDeleteBlockedText,
-  clientBatchDeletePartialConfirmText,
   deleteImportBatchConfirmText,
   formatImportBatchWhen,
   importBatchSummary,
+  importFileLabel,
   type ImportBatchRow,
 } from '../lib/import-batch';
 
 const sample: ImportBatchRow = {
   id: 'b1',
-  kind: 'clients',
+  kind: 'session',
   created_at: '2026-09-21T09:34:00.000Z',
   file_name: 'clientas.xlsx',
-  rows_created: 120,
+  rows_created: 198,
+  clients_created: 198,
+  services_created: 0,
+  appointments_created: 0,
 };
 
 test('formatImportBatchWhen usa locale español', () => {
@@ -24,40 +26,20 @@ test('formatImportBatchWhen usa locale español', () => {
   assert.match(s, /sept/i);
 });
 
-test('importBatchSummary incluye tipo, hora y archivo', () => {
+test('importBatchSummary muestra sesión unificada', () => {
   const s = importBatchSummary(sample);
-  assert.match(s, /Client@s/);
-  assert.match(s, /120 altas/);
+  assert.match(s, /Importación/);
+  assert.match(s, /198 client@s/);
   assert.match(s, /clientas\.xlsx/);
 });
 
-test('deleteImportBatchConfirmText avisa si hay citas en clientas', () => {
+test('importFileLabel junta archivos de la misma acción', () => {
+  const s = importFileLabel({ clients: 'a.xlsx', appointments: 'b.csv' });
+  assert.equal(s, 'a.xlsx · b.csv');
+});
+
+test('deleteImportBatchConfirmText avisa sobre clientas con citas', () => {
   const s = deleteImportBatchConfirmText(sample);
-  assert.match(s, /120 registros/);
-  assert.match(s, /ninguna tiene citas/);
-});
-
-test('clientBatchDeleteBlockedText ofrece borrado parcial', () => {
-  const s = clientBatchDeleteBlockedText({
-    totalClients: 120,
-    clientsWithAppointments: 15,
-    appointmentCount: 34,
-    deletableClients: 105,
-    canDeleteAll: false,
-  });
-  assert.match(s, /15 clientas/);
-  assert.match(s, /34 citas/);
-  assert.match(s, /105 clientas sin citas/);
-});
-
-test('clientBatchDeletePartialConfirmText deja claro qué se queda', () => {
-  const s = clientBatchDeletePartialConfirmText(sample, {
-    totalClients: 120,
-    clientsWithAppointments: 15,
-    appointmentCount: 34,
-    deletableClients: 105,
-    canDeleteAll: false,
-  });
-  assert.match(s, /105 clientas sin citas/);
-  assert.match(s, /15 clientas con citas se quedarán/);
+  assert.match(s, /198 client@s/);
+  assert.match(s, /citas en agenda/);
 });

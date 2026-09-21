@@ -1,6 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ImportPreview, PreviewAppointment, PreviewClient, PreviewService } from '@/lib/csv-import';
-import { createImportBatch, finalizeImportBatch, type ImportKind } from '@/lib/import-batch';
+import {
+  createImportSession,
+  finalizeImportSession,
+  importFileLabel,
+} from '@/lib/import-batch';
 
 export type ImportFileNames = {
   services?: string | null;
@@ -173,10 +177,8 @@ function hasCreates(rows: { action: string }[]) {
   return rows.some(r => r.action === 'create');
 }
 
-function previewRowsForKind(preview: ImportPreview, kind: ImportKind): { action: string }[] {
-  if (kind === 'services') return preview.services;
-  if (kind === 'clients') return preview.clients;
-  return preview.appointments;
+function willCreateAnything(preview: ImportPreview) {
+  return hasCreates(preview.services) || hasCreates(preview.clients) || hasCreates(preview.appointments);
 }
 
 export async function applyCsvImport(
@@ -211,36 +213,34 @@ export async function applyCsvImport(
   onProgress?.({ done: 0, total, pct: 0 });
   const userId = user.id;
 
-  async function openBatch(kind: ImportKind, fileName?: string | null) {
-    if (!hasCreates(previewRowsForKind(preview, kind))) return null;
-    const batch = await createImportBatch(sb, { salonId, userId, kind, fileName });
-    if (!batch.id) {
-      throw new Error(batch.error ?? 'No se pudo registrar la importación en el historial');
+  let sessionId: string | null = null;
+  if (willCreateAnything(preview)) {
+    const session = await createImportSession(sb, {
+      salonId,
+      userId,
+      fileName: importFileLabel(fileNames),
+    });
+    if (!session.id) {
+      return {
+        ok: false,
+        error: session.error ?? 'No se pudo registrar la importación en el historial',
+        created: empty,
+        failedClients: 0,
+        failedAppointments: 0,
+      };
     }
-    return batch.id;
+    sessionId = session.id;
   }
 
-  let servicesBatchId: string | null = null;
-  let clientsBatchId: string | null = null;
-  let apptsBatchId: string | null = null;
-  try {
-    servicesBatchId = await openBatch('services', fileNames?.services);
-    clientsBatchId = await openBatch('clients', fileNames?.clients);
-    apptsBatchId = await openBatch('appointments', fileNames?.appointments);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'No se pudo registrar la importación';
-    return { ok: false, error: msg, created: empty, failedClients: 0, failedAppointments: 0 };
-  }
+  const services = await insertServices(sb, salonId, preview.services, ids, sessionId, tick);
+  const clients = await insertClients(sb, salonId, preview.clients, ids, sessionId, tick);
+  const appts = await insertAppointments(sb, salonId, userId, preview.appointments, ids, sessionId, tick);
 
-  const services = await insertServices(sb, salonId, preview.services, ids, servicesBatchId, tick);
-  const clients = await insertClients(sb, salonId, preview.clients, ids, clientsBatchId, tick);
-  const appts = await insertAppointments(sb, salonId, userId, preview.appointments, ids, apptsBatchId, tick);
-
-  await Promise.all([
-    finalizeImportBatch(sb, servicesBatchId, services),
-    finalizeImportBatch(sb, clientsBatchId, clients.created),
-    finalizeImportBatch(sb, apptsBatchId, appts.created),
-  ]);
+  await finalizeImportSession(sb, sessionId, {
+    clients: clients.created,
+    services,
+    appointments: appts.created,
+  });
 
   onProgress?.({ done: total, total, pct: 100 });
 

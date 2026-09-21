@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button';
 import {
   clientBatchDeleteBlockedText,
   clientBatchDeletePartialConfirmText,
+  batchHasClientas,
   deleteImportBatch,
   deleteImportBatchConfirmText,
   importBatchSummary,
@@ -58,7 +59,7 @@ export default function ImportBatchHistory({ initialBatches, loadError = null }:
     setInspect(null);
     setConfirmId(batch.id);
 
-    if (batch.kind !== 'clients') return;
+    if (!batchHasClientas(batch)) return;
 
     setInspecting(true);
     void inspectClientBatchDelete(createClient(), batch.id).then(result => {
@@ -89,8 +90,8 @@ export default function ImportBatchHistory({ initialBatches, loadError = null }:
   return (
     <div className="mt-4 rounded-row bg-surface-soft p-4">
       <h2 className="text-body font-bold text-ink">Importaciones recientes</h2>
-      <p className="mt-1 text-label text-ink-3">
-        Últimos 30 días. Puedes deshacer una importación entera por fecha y hora.
+      <p className="mt-1 text-label font-medium text-ink-2">
+        Una línea por cada vez que pulsaste Importar. Últimos 30 días.
       </p>
 
       {error && <p className="mt-3 text-label font-semibold text-danger-fg">{error}</p>}
@@ -111,9 +112,9 @@ export default function ImportBatchHistory({ initialBatches, loadError = null }:
             <p className="min-w-0 text-label font-medium text-ink-2">{importBatchSummary(batch)}</p>
             {confirmId === batch.id && confirmBatch ? (
               <div className="flex shrink-0 flex-col gap-2 sm:max-w-sm sm:items-end">
-                {batch.kind === 'clients' && inspecting ? (
+                {batchHasClientas(batch) && inspecting ? (
                   <p className="text-caption text-ink-3">Comprobando citas en agenda…</p>
-                ) : batch.kind === 'clients' && inspect && !inspect.canDeleteAll && confirmMode === 'all' ? (
+                ) : batchHasClientas(batch) && inspect && !inspect.canDeleteAll && confirmMode === 'all' ? (
                   <>
                     <p className="text-caption font-medium text-danger-fg">{clientBatchDeleteBlockedText(inspect)}</p>
                     <div className="flex flex-wrap gap-2">
@@ -146,7 +147,7 @@ export default function ImportBatchHistory({ initialBatches, loadError = null }:
                       <Button
                         variant="danger"
                         size="sm"
-                        disabled={pending || (batch.kind === 'clients' && inspecting)}
+                        disabled={pending || (batchHasClientas(batch) && inspecting)}
                         onClick={() => remove(batch, confirmMode === 'partial')}
                       >
                         {pending ? 'Borrando…' : confirmMode === 'partial' ? 'Eliminar sin citas' : 'Eliminar'}
