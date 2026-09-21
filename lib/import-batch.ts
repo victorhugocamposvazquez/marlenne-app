@@ -17,6 +17,20 @@ export type ImportBatchDeleteResult = {
   deleted: number;
   skipped: number;
   skippedReason?: string;
+  blocked?: boolean;
+};
+
+export type ClientBatchDeleteInspect = {
+  totalClients: number;
+  clientsWithAppointments: number;
+  appointmentCount: number;
+  deletableClients: number;
+  canDeleteAll: boolean;
+};
+
+export type DeleteImportBatchOptions = {
+  /** Solo clientas del lote que no tienen citas en agenda. */
+  onlyClientsWithoutAppointments?: boolean;
 };
 
 export const RECENT_IMPORT_DAYS = 30;
@@ -92,32 +106,153 @@ export async function finalizeImportBatch(
   await sb.from('import_batches').update({ rows_created: rowsCreated }).eq('id', batchId);
 }
 
-async function deleteClientsBatch(sb: SupabaseClient, batchId: string): Promise<ImportBatchDeleteResult> {
+export async function inspectClientBatchDelete(
+  sb: SupabaseClient,
+  batchId: string,
+): Promise<ClientBatchDeleteInspect | null> {
+  const { data: clients, error } = await sb
+    .from('clients')
+    .select('id')
+    .eq('import_batch_id', batchId);
+  if (error || !clients?.length) {
+    return clients?.length === 0
+      ? { totalClients: 0, clientsWithAppointments: 0, appointmentCount: 0, deletableClients: 0, canDeleteAll: true }
+      : null;
+  }
+
+  const clientIds = clients.map(c => c.id);
+  const { data: appts, error: apptErr } = await sb
+    .from('appointments')
+    .select('client_id')
+    .in('client_id', clientIds);
+  if (apptErr) return null;
+
+  const withAppt = new Set((appts ?? []).map(a => a.client_id));
+  const clientsWithAppointments = withAppt.size;
+  const appointmentCount = appts?.length ?? 0;
+  const totalClients = clientIds.length;
+  const deletableClients = totalClients - clientsWithAppointments;
+
+  return {
+    totalClients,
+    clientsWithAppointments,
+    appointmentCount,
+    deletableClients,
+    canDeleteAll: clientsWithAppointments === 0,
+  };
+}
+
+export function clientBatchDeleteBlockedText(inspect: ClientBatchDeleteInspect): string {
+  const { clientsWithAppointments, appointmentCount, deletableClients } = inspect;
+  const who = clientsWithAppointments === 1
+    ? '1 clienta de esta importación tiene citas'
+    : `${clientsWithAppointments} clientas de esta importación tienen citas`;
+  const appts = appointmentCount === 1 ? '1 cita' : `${appointmentCount} citas`;
+  let msg = `No se puede eliminar todo el lote: ${who} en agenda (${appts}). Borra esas citas antes si quieres quitar también esas fichas.`;
+  if (deletableClients > 0) {
+    const n = deletableClients === 1 ? '1 clienta sin citas' : `${deletableClients} clientas sin citas`;
+    msg += ` Puedes eliminar solo ${n}.`;
+  }
+  return msg;
+}
+
+export function clientBatchDeletePartialConfirmText(
+  batch: ImportBatchRow,
+  inspect: ClientBatchDeleteInspect,
+): string {
+  const when = formatImportBatchWhen(batch.created_at);
+  const n = inspect.deletableClients;
+  const who = n === 1 ? '1 clienta sin citas' : `${n} clientas sin citas`;
+  const kept = inspect.clientsWithAppointments === 1
+    ? '1 clienta con citas se quedará'
+    : `${inspect.clientsWithAppointments} clientas con citas se quedarán`;
+  return `¿Eliminar ${who} de la importación del ${when}? ${kept} en la agenda.`;
+}
+
+async function deleteClientsBatch(
+  sb: SupabaseClient,
+  batchId: string,
+  options?: DeleteImportBatchOptions,
+): Promise<ImportBatchDeleteResult> {
+  const inspect = await inspectClientBatchDelete(sb, batchId);
+  if (!inspect) return { ok: false, error: 'No se pudo comprobar la importación', deleted: 0, skipped: 0 };
+  if (inspect.totalClients === 0) {
+    await sb.from('import_batches').delete().eq('id', batchId);
+    return { ok: true, error: null, deleted: 0, skipped: 0 };
+  }
+
+  const partial = options?.onlyClientsWithoutAppointments === true;
+  if (!partial && !inspect.canDeleteAll) {
+    return {
+      ok: false,
+      error: clientBatchDeleteBlockedText(inspect),
+      deleted: 0,
+      skipped: inspect.clientsWithAppointments,
+      blocked: true,
+    };
+  }
+  if (partial && inspect.deletableClients === 0) {
+    return {
+      ok: false,
+      error: 'Todas las clientas de este lote tienen citas. Borra las citas antes.',
+      deleted: 0,
+      skipped: inspect.clientsWithAppointments,
+      blocked: true,
+    };
+  }
+
   const { data: clients, error } = await sb
     .from('clients')
     .select('id')
     .eq('import_batch_id', batchId);
   if (error) return { ok: false, error: error.message, deleted: 0, skipped: 0 };
 
+  const clientIds = (clients ?? []).map(c => c.id);
+  let blockedIds = new Set<string>();
+  if (partial) {
+    const { data: appts } = await sb
+      .from('appointments')
+      .select('client_id')
+      .in('client_id', clientIds);
+    blockedIds = new Set((appts ?? []).map(a => a.client_id));
+  }
+
   let deleted = 0;
   let failed = 0;
+  let skipped = 0;
   for (const row of clients ?? []) {
+    if (partial && blockedIds.has(row.id)) {
+      skipped += 1;
+      continue;
+    }
     const r = await deleteClientRecord(sb, row.id);
     if (r.ok) deleted += 1;
     else failed += 1;
   }
 
-  if (failed === 0) {
+  const remaining = (clients?.length ?? 0) - deleted;
+  if (remaining <= 0 && failed === 0) {
     await sb.from('import_batches').delete().eq('id', batchId);
-    return { ok: true, error: null, deleted, skipped: 0 };
+    return { ok: true, error: null, deleted, skipped };
   }
 
-  await sb.from('import_batches').update({ rows_created: failed }).eq('id', batchId);
+  await sb.from('import_batches').update({ rows_created: remaining }).eq('id', batchId);
+  if (failed > 0) {
+    return {
+      ok: false,
+      error: `${failed} fichas no se pudieron borrar`,
+      deleted,
+      skipped: skipped + failed,
+    };
+  }
   return {
-    ok: false,
-    error: `${failed} fichas no se pudieron borrar`,
+    ok: true,
+    error: null,
     deleted,
-    skipped: failed,
+    skipped,
+    skippedReason: skipped
+      ? `${skipped} clientas con citas no se tocaron`
+      : undefined,
   };
 }
 
@@ -187,6 +322,7 @@ async function deleteAppointmentsBatch(sb: SupabaseClient, batchId: string): Pro
 export async function deleteImportBatch(
   sb: SupabaseClient,
   batchId: string,
+  options?: DeleteImportBatchOptions,
 ): Promise<ImportBatchDeleteResult> {
   const { salonId, role } = await salonAdmin(sb);
   if (!salonId) return { ok: false, error: 'Sin sesión', deleted: 0, skipped: 0 };
@@ -204,7 +340,7 @@ export async function deleteImportBatch(
 
   switch (batch.kind as ImportKind) {
     case 'clients':
-      return deleteClientsBatch(sb, batchId);
+      return deleteClientsBatch(sb, batchId, options);
     case 'services':
       return deleteServicesBatch(sb, batchId);
     case 'appointments':
@@ -219,7 +355,7 @@ export function deleteImportBatchConfirmText(batch: ImportBatchRow): string {
   const kind = IMPORT_KIND_LABEL[batch.kind].toLowerCase();
   const base = `¿Eliminar la importación de ${kind} del ${when}? Se borrarán ${batch.rows_created} registros.`;
   if (batch.kind === 'clients') {
-    return `${base} Las citas en agenda quedarán solo con el nombre.`;
+    return `${base} Solo si ninguna tiene citas en agenda.`;
   }
   if (batch.kind === 'services') {
     return `${base} Los que ya tengan citas no se borrarán.`;

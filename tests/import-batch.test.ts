@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  clientBatchDeleteBlockedText,
+  clientBatchDeletePartialConfirmText,
   deleteImportBatchConfirmText,
   formatImportBatchWhen,
   importBatchSummary,
@@ -29,8 +31,33 @@ test('importBatchSummary incluye tipo, hora y archivo', () => {
   assert.match(s, /clientas\.xlsx/);
 });
 
-test('deleteImportBatchConfirmText avisa sobre citas en clientas', () => {
+test('deleteImportBatchConfirmText avisa si hay citas en clientas', () => {
   const s = deleteImportBatchConfirmText(sample);
   assert.match(s, /120 registros/);
-  assert.match(s, /solo con el nombre/);
+  assert.match(s, /ninguna tiene citas/);
+});
+
+test('clientBatchDeleteBlockedText ofrece borrado parcial', () => {
+  const s = clientBatchDeleteBlockedText({
+    totalClients: 120,
+    clientsWithAppointments: 15,
+    appointmentCount: 34,
+    deletableClients: 105,
+    canDeleteAll: false,
+  });
+  assert.match(s, /15 clientas/);
+  assert.match(s, /34 citas/);
+  assert.match(s, /105 clientas sin citas/);
+});
+
+test('clientBatchDeletePartialConfirmText deja claro qué se queda', () => {
+  const s = clientBatchDeletePartialConfirmText(sample, {
+    totalClients: 120,
+    clientsWithAppointments: 15,
+    appointmentCount: 34,
+    deletableClients: 105,
+    canDeleteAll: false,
+  });
+  assert.match(s, /105 clientas sin citas/);
+  assert.match(s, /15 clientas con citas se quedarán/);
 });

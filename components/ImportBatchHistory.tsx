@@ -4,9 +4,13 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import {
+  clientBatchDeleteBlockedText,
+  clientBatchDeletePartialConfirmText,
   deleteImportBatch,
   deleteImportBatchConfirmText,
   importBatchSummary,
+  inspectClientBatchDelete,
+  type ClientBatchDeleteInspect,
   type ImportBatchRow,
 } from '@/lib/import-batch';
 import { createClient } from '@/lib/supabase/client';
@@ -15,19 +19,51 @@ type Props = {
   batches: ImportBatchRow[];
 };
 
+type ConfirmMode = 'all' | 'partial';
+
 export default function ImportBatchHistory({ batches }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [confirmMode, setConfirmMode] = useState<ConfirmMode>('all');
+  const [inspect, setInspect] = useState<ClientBatchDeleteInspect | null>(null);
+  const [inspecting, setInspecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const remove = (batch: ImportBatchRow) => {
+  const confirmBatch = batches.find(b => b.id === confirmId) ?? null;
+
+  const closeConfirm = () => {
+    setConfirmId(null);
+    setConfirmMode('all');
+    setInspect(null);
+    setInspecting(false);
+  };
+
+  const openConfirm = (batch: ImportBatchRow) => {
+    setError(null);
+    setMsg(null);
+    setConfirmMode('all');
+    setInspect(null);
+    setConfirmId(batch.id);
+
+    if (batch.kind !== 'clients') return;
+
+    setInspecting(true);
+    void inspectClientBatchDelete(createClient(), batch.id).then(result => {
+      setInspect(result);
+      setInspecting(false);
+    });
+  };
+
+  const remove = (batch: ImportBatchRow, partial: boolean) => {
     setError(null);
     setMsg(null);
     startTransition(async () => {
-      const r = await deleteImportBatch(createClient(), batch.id);
-      setConfirmId(null);
+      const r = await deleteImportBatch(createClient(), batch.id, {
+        onlyClientsWithoutAppointments: partial,
+      });
+      closeConfirm();
       if (!r.ok && r.deleted === 0) {
         setError(r.error ?? 'No se pudo eliminar la importación');
         return;
@@ -58,17 +94,51 @@ export default function ImportBatchHistory({ batches }: Props) {
             className="flex flex-col gap-2 rounded-card border border-surface-line bg-surface px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
           >
             <p className="min-w-0 text-label font-medium text-ink-2">{importBatchSummary(batch)}</p>
-            {confirmId === batch.id ? (
-              <div className="flex shrink-0 flex-col gap-2 sm:items-end">
-                <p className="max-w-xs text-caption text-ink-3">{deleteImportBatchConfirmText(batch)}</p>
-                <div className="flex gap-2">
-                  <Button variant="secondary" size="sm" disabled={pending} onClick={() => setConfirmId(null)}>
-                    Cancelar
-                  </Button>
-                  <Button variant="danger" size="sm" disabled={pending} onClick={() => remove(batch)}>
-                    {pending ? 'Borrando…' : 'Eliminar'}
-                  </Button>
-                </div>
+            {confirmId === batch.id && confirmBatch ? (
+              <div className="flex shrink-0 flex-col gap-2 sm:max-w-sm sm:items-end">
+                {batch.kind === 'clients' && inspecting ? (
+                  <p className="text-caption text-ink-3">Comprobando citas en agenda…</p>
+                ) : batch.kind === 'clients' && inspect && !inspect.canDeleteAll && confirmMode === 'all' ? (
+                  <>
+                    <p className="text-caption font-medium text-danger-fg">{clientBatchDeleteBlockedText(inspect)}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="secondary" size="sm" disabled={pending} onClick={closeConfirm}>
+                        Dejarlo
+                      </Button>
+                      {inspect.deletableClients > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={pending}
+                          onClick={() => setConfirmMode('partial')}
+                        >
+                          Eliminar {inspect.deletableClients} sin citas
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-caption text-ink-3">
+                      {confirmMode === 'partial' && inspect
+                        ? clientBatchDeletePartialConfirmText(batch, inspect)
+                        : deleteImportBatchConfirmText(batch)}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button variant="secondary" size="sm" disabled={pending} onClick={closeConfirm}>
+                        Cancelar
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        disabled={pending || (batch.kind === 'clients' && inspecting)}
+                        onClick={() => remove(batch, confirmMode === 'partial')}
+                      >
+                        {pending ? 'Borrando…' : confirmMode === 'partial' ? 'Eliminar sin citas' : 'Eliminar'}
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               <Button
@@ -76,7 +146,7 @@ export default function ImportBatchHistory({ batches }: Props) {
                 size="sm"
                 className="shrink-0 self-start sm:self-auto"
                 disabled={pending}
-                onClick={() => { setConfirmId(batch.id); setError(null); setMsg(null); }}
+                onClick={() => openConfirm(batch)}
               >
                 Eliminar importación
               </Button>
