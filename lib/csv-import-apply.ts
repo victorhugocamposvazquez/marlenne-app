@@ -5,6 +5,7 @@ export type ImportApplyResult = {
   ok: boolean;
   error: string | null;
   created: { services: number; clients: number; appointments: number };
+  failedClients: number;
   failedAppointments: number;
 };
 
@@ -60,6 +61,7 @@ async function insertClients(
   ids: Map<string, string>,
 ) {
   let created = 0;
+  let failed = 0;
   for (const row of rows) {
     if (row.existingId) {
       ids.set(`new-cli:${row.row}`, row.existingId);
@@ -74,11 +76,14 @@ async function insertClients(
       notes: row.notes,
       tags: row.tags,
     }).select('id').single();
-    if (error || !data) continue;
+    if (error || !data) {
+      failed += 1;
+      continue;
+    }
     ids.set(`new-cli:${row.row}`, data.id);
     created += 1;
   }
-  return created;
+  return { created, failed };
 }
 
 function resolveId(raw: string | undefined, ids: Map<string, string>) {
@@ -128,10 +133,14 @@ export async function applyCsvImport(
 ): Promise<ImportApplyResult> {
   const empty = { services: 0, clients: 0, appointments: 0 };
   const { user, salonId, role } = await salonOf(sb);
-  if (!user || !salonId) return { ok: false, error: 'Sin sesión', created: empty, failedAppointments: 0 };
-  if (role !== 'admin') return { ok: false, error: 'Solo dirección puede importar', created: empty, failedAppointments: 0 };
+  if (!user || !salonId) {
+    return { ok: false, error: 'Sin sesión', created: empty, failedClients: 0, failedAppointments: 0 };
+  }
+  if (role !== 'admin') {
+    return { ok: false, error: 'Solo dirección puede importar', created: empty, failedClients: 0, failedAppointments: 0 };
+  }
   if (preview.fileErrors.length) {
-    return { ok: false, error: preview.fileErrors[0], created: empty, failedAppointments: 0 };
+    return { ok: false, error: preview.fileErrors[0], created: empty, failedClients: 0, failedAppointments: 0 };
   }
 
   const ids = new Map<string, string>();
@@ -142,7 +151,8 @@ export async function applyCsvImport(
   return {
     ok: true,
     error: null,
-    created: { services, clients, appointments: appts.created },
+    created: { services, clients: clients.created, appointments: appts.created },
+    failedClients: clients.failed,
     failedAppointments: appts.failed,
   };
 }

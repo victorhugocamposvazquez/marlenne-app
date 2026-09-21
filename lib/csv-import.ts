@@ -203,8 +203,8 @@ export function previewClients(csv: string, existing: ExistingClient[]): Preview
   const { rows } = parseCsv(csv);
   const seenPhones = new Set<string>();
   return rows.map((row, i) => {
-    const full_name = cell(row, 'nombre', 'name', 'full_name', 'clienta', 'cliente').trim();
-    const phoneRaw = cell(row, 'telefono', 'phone', 'movil', 'tel');
+    const full_name = cell(row, 'nombre', 'name', 'full_name', 'nombre_completo', 'clienta', 'cliente').trim();
+    const phoneRaw = cell(row, 'telefono', 'phone', 'movil', 'telefono_movil', 'tel', 'mobile');
     const phone = phoneRaw.trim() || null;
     const email = cell(row, 'email', 'correo').trim() || null;
     const notes = cell(row, 'notas', 'notes', 'note').trim() || null;

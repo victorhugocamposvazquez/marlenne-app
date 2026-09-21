@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Download } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import CsvFileField from '@/components/ui/CsvFileField';
 import { applyCsvImport } from '@/lib/csv-import-apply';
 import {
   buildPreview, CSV_TEMPLATES, peekAppointmentDates, type ImportPreview,
@@ -37,7 +38,13 @@ export default function CsvImportCard() {
   const [pending, startTransition] = useTransition();
   const [doneMsg, setDoneMsg] = useState<string | null>(null);
 
+  const hasFile = !!(servicesFile || clientsFile || apptsFile);
+
   const runPreview = () => {
+    if (!hasFile) {
+      setError('Elige al menos un CSV.');
+      return;
+    }
     setError(null);
     setDoneMsg(null);
     startTransition(async () => {
@@ -92,12 +99,21 @@ export default function CsvImportCard() {
         r.created.clients ? `${r.created.clients} clientas` : null,
         r.created.appointments ? `${r.created.appointments} citas` : null,
       ].filter(Boolean);
-      setDoneMsg(
-        bits.length
-          ? `Listo: ${bits.join(', ')}${r.failedAppointments ? `. ${r.failedAppointments} citas no entraron.` : '.'}`
-          : 'No había nada nuevo que crear.',
-      );
+      const fails = [
+        r.failedClients ? `${r.failedClients} clientas no entraron` : null,
+        r.failedAppointments ? `${r.failedAppointments} citas no entraron` : null,
+      ].filter(Boolean);
+      if (bits.length) {
+        setDoneMsg(`Listo: ${bits.join(', ')}${fails.length ? `. ${fails.join(', ')}.` : '.'}`);
+      } else if (fails.length) {
+        setError(`Nada se guardó. ${fails.join(', ')}.`);
+      } else {
+        setDoneMsg('No había nada nuevo que crear (duplicados o filas no válidas).');
+      }
       setPreview(null);
+      setServicesFile(null);
+      setClientsFile(null);
+      setApptsFile(null);
       router.refresh();
     });
   };
@@ -105,8 +121,8 @@ export default function CsvImportCard() {
   return (
     <div className="rounded-row bg-surface-soft p-4">
       <p className="text-body leading-snug text-ink-2">
-        Una mudanza, no un sync. Tres CSV: servicios, clientas y citas. Primero el preview; luego se escribe.
-        No crea logins ni importa packs, fotos ni consentimientos.
+        Mudanza desde otra app: sube uno o varios CSV. Puedes importar solo clientas para empezar.
+        Vista previa primero; luego se escribe. No crea logins ni importa packs, fotos ni consentimientos.
       </p>
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -123,30 +139,27 @@ export default function CsvImportCard() {
         ))}
       </div>
 
-      <label className="mt-3 block">
-        <span className="mb-1 block text-caption font-bold uppercase text-ink-2">Servicios</span>
-        <input type="file" accept=".csv,text/csv" onChange={e => { setServicesFile(e.target.files?.[0] ?? null); setPreview(null); }} />
-      </label>
-      <label className="mt-2 block">
-        <span className="mb-1 block text-caption font-bold uppercase text-ink-2">Clientas</span>
-        <input type="file" accept=".csv,text/csv" onChange={e => { setClientsFile(e.target.files?.[0] ?? null); setPreview(null); }} />
-      </label>
-      <label className="mt-2 block">
-        <span className="mb-1 block text-caption font-bold uppercase text-ink-2">Citas</span>
-        <input type="file" accept=".csv,text/csv" onChange={e => { setApptsFile(e.target.files?.[0] ?? null); setPreview(null); }} />
-      </label>
+      <CsvFileField label="Servicios" file={servicesFile} optional onChange={f => { setServicesFile(f); setPreview(null); }} />
+      <CsvFileField label="Clientas" file={clientsFile} optional onChange={f => { setClientsFile(f); setPreview(null); }} />
+      <CsvFileField label="Citas" file={apptsFile} optional onChange={f => { setApptsFile(f); setPreview(null); }} />
 
       {error && <p className="mt-3 text-label font-semibold text-danger-fg">{error}</p>}
       {doneMsg && <p className="mt-3 text-label font-semibold text-ok-fg">{doneMsg}</p>}
 
       {preview && (
         <ul className="mt-3 space-y-1 text-label font-medium text-ink-2">
-          <li>Servicios: {preview.counts.servicesNew} altas, {preview.counts.servicesSkip} ya estaban o no valen</li>
-          <li>Clientas: {preview.counts.clientsNew} altas, {preview.counts.clientsSkip} duplicadas (teléfono)</li>
-          <li>
-            Citas: {preview.counts.apptsNew} a crear, {preview.counts.apptsSkip} fuera
-            {preview.counts.apptsOverlap ? ` (${preview.counts.apptsOverlap} pisan)` : ''}
-          </li>
+          {!!preview.services.length && (
+            <li>Servicios: {preview.counts.servicesNew} altas, {preview.counts.servicesSkip} ya estaban o no valen</li>
+          )}
+          {!!preview.clients.length && (
+            <li>Clientas: {preview.counts.clientsNew} altas, {preview.counts.clientsSkip} duplicadas (teléfono o nombre)</li>
+          )}
+          {!!preview.appointments.length && (
+            <li>
+              Citas: {preview.counts.apptsNew} a crear, {preview.counts.apptsSkip} fuera
+              {preview.counts.apptsOverlap ? ` (${preview.counts.apptsOverlap} pisan)` : ''}
+            </li>
+          )}
         </ul>
       )}
 
@@ -162,7 +175,7 @@ export default function CsvImportCard() {
       )}
 
       <div className="mt-3 flex gap-2">
-        <Button variant="secondary" className="flex-1" disabled={pending} onClick={runPreview}>
+        <Button variant="secondary" className="flex-1" disabled={pending || !hasFile} onClick={runPreview}>
           {pending && !preview ? 'Leyendo…' : 'Vista previa'}
         </Button>
         <Button variant="ink" className="flex-1" disabled={pending || !preview || !!preview.fileErrors.length} onClick={apply}>
