@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
-import TeamEditor from '@/components/TeamEditor';
+import EquipoAdminView from '@/components/catalog/EquipoAdminView';
 import EquipoHeaderAction from '@/components/team/EquipoHeaderAction';
+import { CatalogGroupCard } from '@/components/catalog/catalog-ui';
 import PageHeading from '@/components/ui/PageHeading';
 import { screenHeaderCls } from '@/components/ui/ScreenHeader';
 import { avatarColor } from '@/lib/categories';
@@ -46,23 +47,25 @@ export default function EquipoView({
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-6 pb-fab pt-1">
         {admin ? (
-          <TeamEditor team={team} meId={meId} initialMiembro={initialMiembro} />
+          <EquipoAdminView team={team} meId={meId} initialMiembro={initialMiembro} />
         ) : (
-          <div className="flex flex-col gap-2">
-            {team.map(p => (
-              <div key={p.id} className="flex items-center gap-3 border-b border-surface-line py-4">
-                <span
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-icon text-label font-bold text-white"
-                  style={{ background: p.color ?? avatarColor(p.full_name) }}
-                >
-                  {p.initials}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-body-lg font-bold">{p.full_name}</span>
-                  <span className="block truncate text-body text-ink-2">{p.job_title}</span>
-                </span>
-              </div>
-            ))}
+          <div className="mt-4 pb-2">
+            <CatalogGroupCard>
+              {team.map(p => (
+                <div key={p.id} className="flex items-center gap-3 border-t border-surface-line px-3.5 py-3.5 first:border-t-0">
+                  <span
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-icon text-label font-bold text-white"
+                    style={{ background: p.color ?? avatarColor(p.full_name) }}
+                  >
+                    {p.initials}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-body font-semibold text-ink">{p.full_name}</span>
+                    <span className="block truncate text-label font-medium text-ink-2">{p.job_title}</span>
+                  </span>
+                </div>
+              ))}
+            </CatalogGroupCard>
           </div>
         )}
       </div>

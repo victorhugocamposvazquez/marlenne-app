@@ -83,8 +83,39 @@ export default function Sheet({
   const close = useCloseSheet();
 
   return (
-    <SheetShell
+    <LocalSheet
+      open
       onClose={close}
+      title={title}
+      subtitle={subtitle}
+      footer={footer}
+      initialHeight={initialHeight}
+      floorDetent={floorDetent}
+    >
+      {children}
+    </LocalSheet>
+  );
+}
+
+/** Sheet controlado por estado (ajustes, catálogo) sin parámetros en la URL. */
+export function LocalSheet({
+  open, onClose, title, subtitle, children, footer,
+  initialHeight = 'mid', floorDetent,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode | ((requestClose: ReturnType<typeof useSheetShellClose>) => React.ReactNode);
+  initialHeight?: 'peek' | 'mid' | 'tall';
+  floorDetent?: 'peek' | 'mid' | 'tall';
+}) {
+  if (!open) return null;
+
+  return (
+    <SheetShell
+      onClose={onClose}
       initialHeight={initialHeight}
       floorDetent={floorDetent}
       grabHeader

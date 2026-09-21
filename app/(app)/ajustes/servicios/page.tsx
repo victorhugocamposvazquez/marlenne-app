@@ -1,7 +1,6 @@
 import { requireRole } from '@/lib/require-session';
 import { listCategories, listServices } from '@/lib/queries';
-import AjustesHeader from '@/components/ajustes/AjustesHeader';
-import CatalogEditor from '@/components/CatalogEditor';
+import ServiciosView from '@/components/catalog/ServiciosView';
 
 export default async function ServiciosPage() {
   await requireRole('admin');
@@ -10,9 +9,5 @@ export default async function ServiciosPage() {
     listServices({ includeInactive: true }),
   ]);
 
-  return (
-    <AjustesHeader title="Servicios">
-      <CatalogEditor categories={categories} services={services} />
-    </AjustesHeader>
-  );
+  return <ServiciosView categories={categories} services={services} />;
 }
