@@ -64,10 +64,10 @@ export default function AgendaHeader({
         actions={(
           <>
             <HeaderIconButton label="Calendario" onClick={() => setCal(true)}>
-              <Calendar size={22} strokeWidth={2} />
+              <Calendar strokeWidth={2} />
             </HeaderIconButton>
             <HeaderIconButton label="Nueva cita" onClick={openNew}>
-              <Plus size={22} strokeWidth={2.2} />
+              <Plus strokeWidth={2.2} />
             </HeaderIconButton>
           </>
         )}

@@ -57,15 +57,15 @@ export default function DayStrip({
         type="button"
         aria-label="Días anteriores"
         onClick={() => scrollByDays(-VISIBLE)}
-        className="grid h-12 w-5 shrink-0 place-items-center text-ink"
+        className="day-strip-arrow-w day-strip-chevron day-strip-h grid shrink-0 place-items-center text-ink"
       >
-        <ChevronLeft size={16} strokeWidth={3} />
+        <ChevronLeft strokeWidth={3} />
       </button>
       <div
         ref={scrollerRef}
-        className="relative min-w-0 flex-1 snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden"
+        className="day-strip-h relative min-w-0 flex-1 snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden"
       >
-        <div className="flex h-12">
+        <div className="flex h-full">
           {days.map(d => {
             const on = d.offset === selectedOffset;
             const short = d.dow.replace('.', '').slice(0, 3).toUpperCase();
@@ -78,7 +78,7 @@ export default function DayStrip({
                 aria-current={on ? 'date' : undefined}
                 aria-label={`${short} ${d.num}${d.isToday ? ', hoy' : ''}`}
                 onClick={() => { if (!d.isSunday) onSelect(skipSunday(d.offset, 1)); }}
-                className="flex h-12 shrink-0 snap-start flex-col items-center justify-center rounded-[14px] disabled:cursor-default"
+                className="flex h-full shrink-0 snap-start flex-col items-center justify-center rounded-[14px] disabled:cursor-default"
                 style={{
                   width: 'var(--day-cell)',
                   flex: '0 0 var(--day-cell)',
@@ -87,12 +87,12 @@ export default function DayStrip({
                 }}
               >
                 <span
-                  className="w-full truncate text-center text-[11px] font-semibold leading-none"
+                  className="day-strip-dow w-full truncate text-center font-semibold leading-none"
                   style={{ color: on ? '#FFFFFF' : d.isSunday ? 'rgb(var(--c-ink-3))' : 'rgb(var(--c-ink-2))' }}
                 >
                   {short}
                 </span>
-                <span className="mt-0.5 text-[17px] font-bold leading-none tabular-nums">{d.num}</span>
+                <span className="day-strip-num mt-0.5 font-bold leading-none tabular-nums">{d.num}</span>
                 <span
                   className="mt-0.5 h-1 w-1 shrink-0 rounded-full"
                   style={{
@@ -110,9 +110,9 @@ export default function DayStrip({
         type="button"
         aria-label="Días siguientes"
         onClick={() => scrollByDays(VISIBLE)}
-        className="grid h-12 w-5 shrink-0 place-items-center text-ink"
+        className="day-strip-arrow-w day-strip-chevron day-strip-h grid shrink-0 place-items-center text-ink"
       >
-        <ChevronRight size={16} strokeWidth={3} />
+        <ChevronRight strokeWidth={3} />
       </button>
     </div>
   );

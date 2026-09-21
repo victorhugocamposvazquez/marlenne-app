@@ -133,6 +133,35 @@
 @layer utilities {
   /* Hueco para el micrófono; la barra inferior ya está fuera del scroll. */
   .pb-fab { padding-bottom: 5.5rem; }
+
+  /*
+   * Escala fluida al ancho real del shell (@container en layout app). Ref. 440px.
+   * cqw = ancho del contenedor, no 100vw (evita saltos SE ↔ Pro Max).
+   */
+  .app-screen-x {
+    padding-left: clamp(1rem, 5.455cqw, 1.5rem);
+    padding-right: clamp(1rem, 5.455cqw, 1.5rem);
+  }
+  .text-agenda-month {
+    font-size: clamp(1.125rem, 5.909cqw, 1.625rem);
+    line-height: 1.12;
+  }
+  .app-header-icon-btn {
+    width: clamp(2.625rem, 10.909cqw, 3rem);
+    height: clamp(2.625rem, 10.909cqw, 3rem);
+  }
+  .app-header-icon-btn > svg {
+    width: clamp(1.125rem, 5cqw, 1.375rem);
+    height: clamp(1.125rem, 5cqw, 1.375rem);
+  }
+  .day-strip-h { height: clamp(2.625rem, 10.909cqw, 3rem); }
+  .day-strip-arrow-w { width: clamp(1.125rem, 4.545cqw, 1.375rem); }
+  .day-strip-dow { font-size: clamp(0.625rem, 2.5cqw, 0.6875rem); }
+  .day-strip-num { font-size: clamp(0.9375rem, 3.864cqw, 1.0625rem); }
+  .day-strip-chevron > svg {
+    width: clamp(0.875rem, 3.636cqw, 1rem);
+    height: clamp(0.875rem, 3.636cqw, 1rem);
+  }
 }
 
 /* Splash: visible en el HTML; se oculta si esta pestaña ya arrancó. */
