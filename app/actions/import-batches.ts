@@ -14,7 +14,7 @@ export async function loadImportBatches(): Promise<{
 }> {
   const me = await requireRole('admin');
   const sb = createClient();
-  await syncImportBatchHistory(sb, me.salon_id, me.id);
+  const syncErr = await syncImportBatchHistory(sb, me.salon_id, me.id);
   const batches = await listRecentImportBatches(sb);
-  return { batches, error: null };
+  return { batches, error: syncErr };
 }

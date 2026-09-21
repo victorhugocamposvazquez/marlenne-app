@@ -8,6 +8,7 @@ import { applyCsvImport } from '@/lib/csv-import-apply';
 import { buildPreview, peekAppointmentDates, type ImportPreview } from '@/lib/csv-import';
 import { readImportFile } from '@/lib/import-file';
 import { createClient } from '@/lib/supabase/client';
+import { fetchAllPages } from '@/lib/supabase/fetch-all';
 import { toTimestamp } from '@/lib/time';
 import type { CategoryId } from '@/lib/categories';
 
@@ -51,7 +52,9 @@ export default function CsvImportCard() {
         const to = range ? toTimestamp(range.to, 24 * 60 - 1) : null;
         const [services, clients, staff, appts, blocks] = await Promise.all([
           sb.from('services').select('id, name, category, duration_min, price_cents'),
-          sb.from('clients').select('id, full_name, phone'),
+          fetchAllPages((from, to) =>
+            sb.from('clients').select('id, full_name, phone').order('full_name').range(from, to),
+          ),
           sb.from('staff').select('id, full_name, is_active'),
           from && to
             ? sb.from('appointments').select('provider_id, starts_at, ends_at, status').gte('starts_at', from).lte('starts_at', to)
@@ -66,7 +69,7 @@ export default function CsvImportCard() {
           appointmentsCsv,
           existing: {
             services: (services.data ?? []) as { id: string; name: string; category: CategoryId; duration_min: number; price_cents: number }[],
-            clients: clients.data ?? [],
+            clients,
             staff: staff.data ?? [],
             appointments: appts.data ?? [],
             blocks: blocks.data ?? [],

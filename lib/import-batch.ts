@@ -200,12 +200,44 @@ export async function listRecentImportBatches(sb: SupabaseClient): Promise<Impor
   return (full.data ?? []).map(row => normalizeBatchRow(row as Record<string, unknown>));
 }
 
+async function ensureImportBatchRow(
+  sb: SupabaseClient,
+  input: {
+    batchId: string;
+    salonId: string;
+    userId: string;
+    createdAt: string;
+    fileName?: string | null;
+  },
+): Promise<string | null> {
+  const { data: existing } = await sb
+    .from('import_batches')
+    .select('id, file_name, created_by')
+    .eq('id', input.batchId)
+    .maybeSingle();
+  if (existing) return null;
+
+  const { error } = await sb.from('import_batches').insert({
+    id: input.batchId,
+    salon_id: input.salonId,
+    kind: 'session',
+    created_by: input.userId,
+    file_name: input.fileName?.trim() || null,
+    created_at: input.createdAt,
+    rows_created: 0,
+    clients_created: 0,
+    services_created: 0,
+    appointments_created: 0,
+  });
+  return error?.message ?? null;
+}
+
 /** Agrupa clientas creadas en ráfaga (con o sin lote) en un solo lote de importación. */
 export async function recoverBulkClientImportClusters(
   sb: SupabaseClient,
   salonId: string,
   userId: string,
-) {
+): Promise<string | null> {
   const since = new Date(Date.now() - RECENT_IMPORT_DAYS * 86_400_000).toISOString();
   const { data: clients, error } = await sb
     .from('clients')
@@ -213,7 +245,8 @@ export async function recoverBulkClientImportClusters(
     .eq('salon_id', salonId)
     .gte('created_at', since)
     .order('created_at', { ascending: true });
-  if (error || !clients?.length) return;
+  if (error) return error.message;
+  if (!clients?.length) return null;
 
   for (const cluster of clusterByTimeGap(clients, BULK_IMPORT_GAP_MS)) {
     if (cluster.ids.length < MIN_BULK_CLIENTS) continue;
@@ -230,11 +263,20 @@ export async function recoverBulkClientImportClusters(
       ? [...batchVotes.entries()].sort((a, b) => b[1] - a[1])[0][0]
       : crypto.randomUUID();
 
+    const ensureErr = await ensureImportBatchRow(sb, {
+      batchId,
+      salonId,
+      userId,
+      createdAt: cluster.at,
+    });
+    if (ensureErr) return ensureErr;
+
     for (let i = 0; i < cluster.ids.length; i += 100) {
-      await sb
+      const { error: tagErr } = await sb
         .from('clients')
         .update({ import_batch_id: batchId })
         .in('id', cluster.ids.slice(i, i + 100));
+      if (tagErr) return tagErr.message;
     }
 
     for (const otherId of batchVotes.keys()) {
@@ -247,33 +289,17 @@ export async function recoverBulkClientImportClusters(
 
     const counts = await countTaggedRows(sb, batchId);
     const total = counts.clients + counts.services + counts.appointments;
-    const { data: existing } = await sb
-      .from('import_batches')
-      .select('id, file_name, created_by')
-      .eq('id', batchId)
-      .maybeSingle();
-
-    const patch = {
+    const { error: patchErr } = await sb.from('import_batches').update({
       rows_created: total,
       clients_created: counts.clients,
       services_created: counts.services,
       appointments_created: counts.appointments,
-      kind: 'session' as const,
-      ...(existing?.created_by ? {} : { created_by: userId }),
-    };
-
-    if (existing) {
-      await sb.from('import_batches').update(patch).eq('id', batchId);
-    } else {
-      await sb.from('import_batches').insert({
-        id: batchId,
-        salon_id: salonId,
-        file_name: null,
-        created_at: cluster.at,
-        ...patch,
-      });
-    }
+      kind: 'session',
+    }).eq('id', batchId);
+    if (patchErr) return patchErr.message;
   }
+
+  return null;
 }
 
 /** Recrea filas en import_batches a partir de clientas/citas/servicios ya etiquetados. */
@@ -330,10 +356,12 @@ export async function syncImportBatchHistory(
   sb: SupabaseClient,
   salonId: string,
   userId: string,
-) {
-  await recoverBulkClientImportClusters(sb, salonId, userId);
+): Promise<string | null> {
+  const recoverErr = await recoverBulkClientImportClusters(sb, salonId, userId);
+  if (recoverErr) return recoverErr;
   await rebuildMissingImportBatches(sb, salonId, userId);
   await purgeInferredImportBatches(sb, salonId);
+  return null;
 }
 
 /** Borra lotes vacíos sin usuario. Los que tienen filas etiquetadas se reconstruyen, no se borran. */

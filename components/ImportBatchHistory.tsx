@@ -42,7 +42,10 @@ export default function ImportBatchHistory({ initialBatches, loadError = null }:
   }, [initialBatches]);
 
   useEffect(() => {
-    void loadImportBatches().then(({ batches: next }) => setBatches(next));
+    void loadImportBatches().then(({ batches: next, error: syncErr }) => {
+      setBatches(next);
+      if (syncErr) setError(`No se pudo sincronizar el historial: ${syncErr}`);
+    });
   }, []);
 
   const closeConfirm = () => {

@@ -1,0 +1,30 @@
+-- NO ejecutar a ciegas: el script anterior etiquetaba TODAS las clientas de 30 días.
+-- Usa solo el día (o ventana) de la importación masiva.
+--
+-- 1) Ver cuántas altas hubo por día:
+--    select date_trunc('day', created_at at time zone 'Europe/Madrid') d, count(*)
+--    from clients group by 1 order by 2 desc limit 10;
+--
+-- 2) Sustituye la fecha del import y el batch_id si corriges un lote ya creado:
+
+-- update clients set import_batch_id = null where import_batch_id = '<batch_id>';
+-- delete from import_batches where id = '<batch_id>';
+
+-- do $$
+-- declare
+--   v_salon_id uuid := '<salon_id>';
+--   v_batch_id uuid := gen_random_uuid();
+--   v_admin_id uuid;
+--   v_start timestamptz := '2026-09-21 00:00:00+02';
+--   v_end timestamptz := '2026-09-22 00:00:00+02';
+--   v_count int;
+-- begin
+--   select id into v_admin_id from staff where salon_id = v_salon_id and role = 'admin' limit 1;
+--   insert into import_batches (id, salon_id, kind, created_by, created_at, rows_created, clients_created, services_created, appointments_created)
+--   values (v_batch_id, v_salon_id, 'session', v_admin_id, v_start, 0, 0, 0, 0);
+--   update clients set import_batch_id = v_batch_id
+--   where salon_id = v_salon_id and import_batch_id is null
+--     and created_at >= v_start and created_at < v_end;
+--   get diagnostics v_count = row_count;
+--   update import_batches set rows_created = v_count, clients_created = v_count where id = v_batch_id;
+-- end $$;

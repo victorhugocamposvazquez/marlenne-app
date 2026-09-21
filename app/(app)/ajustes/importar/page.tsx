@@ -13,7 +13,7 @@ export default async function ImportarPage() {
       <CsvImportCard />
       {batchesErr && (
         <p className="mt-4 rounded-row bg-surface-soft p-4 text-label font-semibold text-danger-fg">
-          No se pudo cargar el historial. Aplica la migración de permisos en Supabase (`import_batches_grants`).
+          No se pudo sincronizar el historial: {batchesErr}
         </p>
       )}
       <ImportBatchHistory initialBatches={batches} loadError={batchesErr} />

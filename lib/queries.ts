@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { chunkIds, fetchAllPages } from '@/lib/supabase/fetch-all';
 import { toTimestamp, dateFromOffset, dayKey, offsetFromDay, weekMondayOffset, isRecallDue } from '@/lib/time';
 import { APPT_SELECT, APPT_SELECT_CORE, mapAppt } from '@/lib/agenda-appt';
 import { packExpired, packRemaining } from '@/lib/packs';
@@ -95,8 +96,9 @@ export async function listServices(opts?: { includeInactive?: boolean }): Promis
 /** Solo lo que necesita el selector del sheet de nueva cita. */
 export async function listClientOptions(): Promise<ClientOption[]> {
   const sb = createClient();
-  const { data } = await sb.from('clients').select('id, full_name, phone').order('full_name');
-  return (data ?? []) as ClientOption[];
+  return fetchAllPages((from, to) =>
+    sb.from('clients').select('id, full_name, phone').order('full_name').range(from, to),
+  ) as Promise<ClientOption[]>;
 }
 
 /** Última cita de la clienta (no cancelada): para «lo de siempre». */
@@ -233,11 +235,13 @@ export async function getBusyOffsets(providerIds: string[], startOffset: number,
 
 export async function listClients(): Promise<ClientListRow[]> {
   const sb = createClient();
-  const { data } = await sb
-    .from('clients')
-    .select('id, full_name, phone, tags, created_at, treatments(service:services(name), closed_at)')
-    .order('full_name');
-  const rows = data ?? [];
+  const rows = await fetchAllPages((from, to) =>
+    sb
+      .from('clients')
+      .select('id, full_name, phone, tags, created_at, treatments(service:services(name), closed_at)')
+      .order('full_name')
+      .range(from, to),
+  );
   const ids = rows.map((c: { id: string }) => c.id);
 
   const nextBy = new Map<string, string>();
@@ -247,23 +251,30 @@ export async function listClients(): Promise<ClientListRow[]> {
   if (ids.length) {
     const now = new Date().toISOString();
     const today = dayKey(new Date());
-    const [{ data: upcoming }, { data: past }, packsRes] = await Promise.all([
-      sb.from('appointments')
-        .select('client_id, starts_at')
-        .in('client_id', ids)
-        .in('status', ['prog', 'curso'])
-        .gte('starts_at', now)
-        .order('starts_at'),
-      sb.from('appointments')
-        .select('client_id, starts_at')
-        .in('client_id', ids)
-        .eq('status', 'done')
-        .gte('starts_at', toTimestamp(dateFromOffset(-400), 0))
-        .lt('starts_at', now)
-        .order('starts_at', { ascending: false }),
-      sb.from('client_packs')
-        .select('name, sessions_done, sessions_total, expires_at, owner_client_id, friend_client_id'),
-    ]);
+    const upcoming: { client_id: string | null; starts_at: string }[] = [];
+    const past: { client_id: string | null; starts_at: string }[] = [];
+    for (const chunk of chunkIds(ids)) {
+      const [{ data: up }, { data: done }] = await Promise.all([
+        sb.from('appointments')
+          .select('client_id, starts_at')
+          .in('client_id', chunk)
+          .in('status', ['prog', 'curso'])
+          .gte('starts_at', now)
+          .order('starts_at'),
+        sb.from('appointments')
+          .select('client_id, starts_at')
+          .in('client_id', chunk)
+          .eq('status', 'done')
+          .gte('starts_at', toTimestamp(dateFromOffset(-400), 0))
+          .lt('starts_at', now)
+          .order('starts_at', { ascending: false }),
+      ]);
+      upcoming.push(...(up ?? []));
+      past.push(...(done ?? []));
+    }
+    const packsRes = await sb
+      .from('client_packs')
+      .select('name, sessions_done, sessions_total, expires_at, owner_client_id, friend_client_id');
     for (const a of upcoming ?? []) {
       if (a.client_id && !nextBy.has(a.client_id)) nextBy.set(a.client_id, a.starts_at);
     }
