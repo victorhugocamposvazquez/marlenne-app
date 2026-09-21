@@ -2,20 +2,21 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { loadImportBatches } from '@/app/actions/import-batches';
+import {
+  inspectImportBatchDelete,
+  loadImportBatches,
+  removeImportBatch,
+} from '@/app/actions/import-batches';
 import Button from '@/components/ui/Button';
 import {
   clientBatchDeleteBlockedText,
   clientBatchDeletePartialConfirmText,
   batchHasClientas,
-  deleteImportBatch,
   deleteImportBatchConfirmText,
   importBatchSummary,
-  inspectClientBatchDelete,
   type ClientBatchDeleteInspect,
   type ImportBatchRow,
 } from '@/lib/import-batch';
-import { createClient } from '@/lib/supabase/client';
 
 type Props = {
   initialBatches: ImportBatchRow[];
@@ -65,9 +66,10 @@ export default function ImportBatchHistory({ initialBatches, loadError = null }:
     if (!batchHasClientas(batch)) return;
 
     setInspecting(true);
-    void inspectClientBatchDelete(createClient(), batch.id).then(result => {
+    void inspectImportBatchDelete(batch.id).then(result => {
       setInspect(result);
       setInspecting(false);
+      if (!result) setError('No se pudo comprobar la importación');
     });
   };
 
@@ -75,7 +77,7 @@ export default function ImportBatchHistory({ initialBatches, loadError = null }:
     setError(null);
     setMsg(null);
     startTransition(async () => {
-      const r = await deleteImportBatch(createClient(), batch.id, {
+      const r = await removeImportBatch(batch.id, {
         onlyClientsWithoutAppointments: partial,
       });
       closeConfirm();

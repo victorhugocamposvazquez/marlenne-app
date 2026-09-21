@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { deleteClientRecord } from '@/lib/client-write';
+import { chunkIds, fetchAllPages } from '@/lib/supabase/fetch-all';
 
 export type ImportKind = 'clients' | 'services' | 'appointments' | 'session';
 
@@ -418,29 +419,70 @@ export async function finalizeImportSession(
   }).eq('id', batchId);
 }
 
+async function listBatchClientIds(sb: SupabaseClient, batchId: string): Promise<string[] | null> {
+  try {
+    const rows = await fetchAllPages((from, to) =>
+      sb.from('clients').select('id').eq('import_batch_id', batchId).order('id').range(from, to),
+    );
+    return rows.map(r => r.id);
+  } catch {
+    return null;
+  }
+}
+
+async function appointmentsForClients(
+  sb: SupabaseClient,
+  clientIds: string[],
+): Promise<{ client_id: string | null }[] | null> {
+  const appts: { client_id: string | null }[] = [];
+  for (const chunk of chunkIds(clientIds)) {
+    const { data, error } = await sb
+      .from('appointments')
+      .select('client_id')
+      .in('client_id', chunk);
+    if (error) return null;
+    appts.push(...(data ?? []));
+  }
+  return appts;
+}
+
+async function deleteClientIds(
+  sb: SupabaseClient,
+  ids: string[],
+): Promise<{ deleted: number; failed: number }> {
+  let deleted = 0;
+  let failed = 0;
+  for (const chunk of chunkIds(ids, 50)) {
+    const { data, error } = await sb.from('clients').delete().in('id', chunk).select('id');
+    if (!error) {
+      deleted += data?.length ?? 0;
+      continue;
+    }
+    for (const id of chunk) {
+      const r = await deleteClientRecord(sb, id);
+      if (r.ok) deleted += 1;
+      else failed += 1;
+    }
+  }
+  return { deleted, failed };
+}
+
 export async function inspectClientBatchDelete(
   sb: SupabaseClient,
   batchId: string,
 ): Promise<ClientBatchDeleteInspect | null> {
-  const { data: clients, error } = await sb
-    .from('clients')
-    .select('id')
-    .eq('import_batch_id', batchId);
-  if (error) return null;
-  if (!clients?.length) {
+  const clientIds = await listBatchClientIds(sb, batchId);
+  if (clientIds === null) return null;
+  if (!clientIds.length) {
     return { totalClients: 0, clientsWithAppointments: 0, appointmentCount: 0, deletableClients: 0, canDeleteAll: true };
   }
 
-  const clientIds = clients.map(c => c.id);
-  const { data: appts, error: apptErr } = await sb
-    .from('appointments')
-    .select('client_id')
-    .in('client_id', clientIds);
-  if (apptErr) return null;
+  const appts = await appointmentsForClients(sb, clientIds);
+  if (appts === null) return null;
 
-  const withAppt = new Set((appts ?? []).map(a => a.client_id));
+  const withAppt = new Set(appts.map(a => a.client_id).filter(Boolean));
   const clientsWithAppointments = withAppt.size;
-  const appointmentCount = appts?.length ?? 0;
+  const appointmentCount = appts.length;
   const totalClients = clientIds.length;
 
   return {
@@ -510,34 +552,26 @@ async function deleteClientsInBatch(
     };
   }
 
-  const { data: clients, error } = await sb
-    .from('clients')
-    .select('id')
-    .eq('import_batch_id', batchId);
-  if (error) return { ok: false, error: error.message, deleted: 0, skipped: 0 };
+  const clientIds = await listBatchClientIds(sb, batchId);
+  if (clientIds === null) {
+    return { ok: false, error: 'No se pudo comprobar la importación', deleted: 0, skipped: 0 };
+  }
 
-  const clientIds = (clients ?? []).map(c => c.id);
   let blockedIds = new Set<string>();
   if (partial) {
-    const { data: appts } = await sb
-      .from('appointments')
-      .select('client_id')
-      .in('client_id', clientIds);
-    blockedIds = new Set((appts ?? []).map(a => a.client_id));
+    const appts = await appointmentsForClients(sb, clientIds);
+    if (appts === null) {
+      return { ok: false, error: 'No se pudo comprobar la importación', deleted: 0, skipped: 0 };
+    }
+    blockedIds = new Set(appts.map(a => a.client_id).filter(Boolean) as string[]);
   }
 
-  let deleted = 0;
-  let failed = 0;
-  let skipped = 0;
-  for (const row of clients ?? []) {
-    if (partial && blockedIds.has(row.id)) {
-      skipped += 1;
-      continue;
-    }
-    const r = await deleteClientRecord(sb, row.id);
-    if (r.ok) deleted += 1;
-    else failed += 1;
-  }
+  const toDelete = partial
+    ? clientIds.filter(id => !blockedIds.has(id))
+    : clientIds;
+  const skipped = partial ? clientIds.length - toDelete.length : 0;
+
+  const { deleted, failed } = await deleteClientIds(sb, toDelete);
 
   if (failed > 0) {
     return {
@@ -613,7 +647,7 @@ async function deleteSessionBatch(
   options?: DeleteImportBatchOptions,
 ): Promise<ImportBatchDeleteResult> {
   const clients = await deleteClientsInBatch(sb, batchId, options);
-  if (!clients.ok && clients.blocked) return clients;
+  if (!clients.ok) return clients;
 
   const services = await deleteServicesInBatch(sb, batchId);
   const appts = await deleteAppointmentsInBatch(sb, batchId);
