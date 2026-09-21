@@ -90,26 +90,23 @@ export default function AgendaHeader({
                 {citas === 0 ? 'Sin citas' : `${citas} ${citas === 1 ? 'cita' : 'citas'}`}
               </span>
             )}
-            {day !== 0 && (
-              <>
-                {citas != null && (
-                  <span className="text-ink-3/40" aria-hidden>·</span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => go(0, { strip: 0 })}
-                  className="inline-flex shrink-0 items-center gap-0.5 font-semibold text-v-2"
-                >
-                  Ir a hoy
-                  <ChevronRight size={13} strokeWidth={2.6} className="opacity-60" aria-hidden />
-                </button>
-              </>
+            {citas != null && (
+              <span className="text-ink-3/40" aria-hidden>·</span>
             )}
+            <button
+              type="button"
+              disabled={day === 0}
+              onClick={() => go(0, { strip: 0 })}
+              className={`inline-flex shrink-0 items-center gap-0.5 font-semibold text-v-2 ${
+                day === 0 ? 'pointer-events-none opacity-35' : ''
+              }`}
+            >
+              Ir a hoy
+              <ChevronRight size={13} strokeWidth={2.6} className="opacity-60" aria-hidden />
+            </button>
             {waiting > 0 && (
               <>
-                {(citas != null || day !== 0) && (
-                  <span className="text-ink-3/40" aria-hidden>·</span>
-                )}
+                <span className="text-ink-3/40" aria-hidden>·</span>
                 <button
                   type="button"
                   onClick={() => shallowSet({ wait: '1', new: null, appt: null })}

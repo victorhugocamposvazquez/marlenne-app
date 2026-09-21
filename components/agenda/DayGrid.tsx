@@ -183,10 +183,7 @@ export default function DayGrid({
                   className={solo ? 'min-w-0 flex-1' : 'shrink-0'}
                   style={solo ? undefined : { width: colW }}
                 >
-                  <div
-                    className="flex items-center gap-2 px-1 pb-2.5"
-                    style={{ borderBottom: `2px solid ${p.color ?? avatarColor(p.full_name)}` }}
-                  >
+                  <div className="flex items-center gap-2 border-b-2 border-ink px-1 pb-2.5">
                     <span
                       className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold text-white"
                       style={{ background: p.color ?? avatarColor(p.full_name) }}

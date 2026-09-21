@@ -73,8 +73,8 @@ export default {
         'body-lg': ['16px', { lineHeight: '1.4' }],
         title: ['20px', { lineHeight: '1.2' }],
         headline: ['24px', { lineHeight: '1.15' }],
-        /** Mes en cabecera agenda: ~6.8vw en móvil (30px @ 440), tope 30px (shell max-w). */
-        'agenda-month': ['clamp(22px,calc(min(100vw,440px)*0.068182),30px)', { lineHeight: '1.12' }],
+        /** Mes en cabecera agenda: ~5.9vw en móvil (26px @ 440), tope 26px — cabe «Noviembre 2026». */
+        'agenda-month': ['clamp(19px,calc(min(100vw,440px)*0.059091),26px)', { lineHeight: '1.12' }],
         h1: ['28px', { lineHeight: '1.1' }],
         display: ['26px', { lineHeight: '1.1' }],
       },
