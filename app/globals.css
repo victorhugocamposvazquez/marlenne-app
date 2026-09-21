@@ -143,24 +143,24 @@
     padding-right: clamp(1rem, 5.455cqw, 1.5rem);
   }
   .text-agenda-month {
-    font-size: clamp(1.125rem, 5.909cqw, 1.625rem);
+    font-size: clamp(1.1875rem, 6.364cqw, 1.75rem);
     line-height: 1.12;
   }
   .app-header-icon-btn {
-    width: clamp(2.625rem, 10.909cqw, 3rem);
-    height: clamp(2.625rem, 10.909cqw, 3rem);
+    width: clamp(2.75rem, 11.364cqw, 3.125rem);
+    height: clamp(2.75rem, 11.364cqw, 3.125rem);
   }
   .app-header-icon-btn > svg {
-    width: clamp(1.125rem, 5cqw, 1.375rem);
-    height: clamp(1.125rem, 5cqw, 1.375rem);
+    width: clamp(1.1875rem, 5.455cqw, 1.5rem);
+    height: clamp(1.1875rem, 5.455cqw, 1.5rem);
   }
-  .day-strip-h { height: clamp(2.625rem, 10.909cqw, 3rem); }
-  .day-strip-arrow-w { width: clamp(1.125rem, 4.545cqw, 1.375rem); }
-  .day-strip-dow { font-size: clamp(0.625rem, 2.5cqw, 0.6875rem); }
-  .day-strip-num { font-size: clamp(0.9375rem, 3.864cqw, 1.0625rem); }
+  .day-strip-h { height: clamp(2.75rem, 11.364cqw, 3.125rem); }
+  .day-strip-arrow-w { width: clamp(1.1875rem, 4.909cqw, 1.4375rem); }
+  .day-strip-dow { font-size: clamp(0.6875rem, 2.727cqw, 0.75rem); }
+  .day-strip-num { font-size: clamp(1rem, 4.091cqw, 1.1875rem); }
   .day-strip-chevron > svg {
-    width: clamp(0.875rem, 3.636cqw, 1rem);
-    height: clamp(0.875rem, 3.636cqw, 1rem);
+    width: clamp(0.9375rem, 3.909cqw, 1.0625rem);
+    height: clamp(0.9375rem, 3.909cqw, 1.0625rem);
   }
 }
 

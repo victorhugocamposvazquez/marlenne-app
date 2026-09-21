@@ -10,7 +10,7 @@ export const headerTitleRowCls = 'grid w-full grid-cols-[minmax(0,1fr)_auto] ite
 /** Columna derecha: calendario, +, campana… sin saltos entre pantallas. */
 export const headerActionsCls = 'flex shrink-0 items-center gap-[clamp(0.25rem,1.818cqw,0.5rem)]';
 
-/** Mes en agenda: escala con el shell (@container). Ref. 26px @ 440px. */
+/** Mes en agenda: escala con el shell (@container). Ref. 28px @ 440px. */
 export const screenTitleCls = 'text-agenda-month font-bold tracking-[-.03em]';
 
 /** Chevron del mes: escala con el título (2/3 em). */
