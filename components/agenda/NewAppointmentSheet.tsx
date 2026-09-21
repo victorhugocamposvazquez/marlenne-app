@@ -95,7 +95,7 @@ export function NewAppointmentSheetBody({
   const [returnTo, setReturnTo] = useState<Step | null>(null);
   const [cal, setCal] = useState(false);
   const [hours, setHours] = useState<number[] | null>(null);
-  const [wa, setWa] = useState(true);
+  const [wa, setWa] = useState(false);
   const [lastId, setLastId] = useState<string | null>(null);
   const [fits, setFits] = useState<Record<string, boolean>>({});
   const whenSnap = useRef({ dayOff: 0, startMin: null as number | null, providerId: '' });
