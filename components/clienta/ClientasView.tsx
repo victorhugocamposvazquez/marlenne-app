@@ -6,7 +6,7 @@ import { Check, ChevronDown, Plus, Search } from 'lucide-react';
 import NewClientSheet from '@/components/clienta/NewClientSheet';
 import Chip from '@/components/ui/Chip';
 import EmptyState from '@/components/ui/EmptyState';
-import { pillOutlineCls } from '@/components/ui/IconButton';
+import DarCitaLink from '@/components/ui/DarCitaLink';
 import Badge from '@/components/ui/Badge';
 import PageHeading from '@/components/ui/PageHeading';
 import { HeaderIconButton, screenHeaderCls } from '@/components/ui/ScreenHeader';
@@ -233,13 +233,10 @@ export default function ClientasView({
                   <span className="block truncate text-label text-ink-3">{ctx}</span>
                 </span>
               </Link>
-              <Link
+              <DarCitaLink
                 href={`/agenda?new=1&client=${c.id}`}
-                aria-label={`Dar cita a ${c.full_name}`}
-                className={`${pillOutlineCls} h-[38px] shrink-0 px-3.5 text-label font-semibold`}
-              >
-                Dar cita
-              </Link>
+                ariaLabel={`Dar cita a ${c.full_name}`}
+              />
             </div>
           );
         })}

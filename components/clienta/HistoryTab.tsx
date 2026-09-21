@@ -1,9 +1,7 @@
-import Link from 'next/link';
-import { CalendarPlus } from 'lucide-react';
 import { catStyle, STATUS } from '@/lib/categories';
 import { dateLbl, fmt, minutesOfDay, offsetFromDay } from '@/lib/time';
 import type { AgendaAppt } from '@/lib/types';
-import { buttonClass } from '@/components/ui/Button';
+import DarCitaLink from '@/components/ui/DarCitaLink';
 import { Empty } from './Tabs';
 
 export default function HistoryTab({
@@ -16,13 +14,10 @@ export default function HistoryTab({
     return (
       <div className="flex flex-col items-center gap-3">
         <Empty>No hay citas registradas todavía.</Empty>
-        <Link
+        <DarCitaLink
           href={`/agenda?new=1&client=${clientId}`}
-          className={buttonClass({ className: 'px-4' })}
-        >
-          <CalendarPlus size={16} strokeWidth={2.2} />
-          Dar cita
-        </Link>
+          ariaLabel="Dar cita a esta clienta"
+        />
       </div>
     );
   }

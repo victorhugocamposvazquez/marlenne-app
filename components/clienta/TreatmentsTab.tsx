@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CalendarPlus } from 'lucide-react';
+import DarCitaLink from '@/components/ui/DarCitaLink';
 import { catStyle } from '@/lib/categories';
 import { dateLbl } from '@/lib/time';
 import { updateTreatment } from '@/lib/client-write';
 import { createClient } from '@/lib/supabase/client';
 import AutoGrowTextarea from '@/components/AutoGrowTextarea';
-import { buttonClass } from '@/components/ui/Button';
 import { inputCls } from '@/components/Sheet';
 import type { TreatmentRow } from '@/lib/types';
 import { Empty } from './Tabs';
@@ -23,13 +23,10 @@ export default function TreatmentsTab({
     return (
       <div className="flex flex-col items-center gap-3">
         <Empty>Esta clienta todavía no tiene tratamientos. Se abren al marcar una cita como hecha.</Empty>
-        <Link
+        <DarCitaLink
           href={`/agenda?new=1&client=${clientId}`}
-          className={buttonClass({ className: 'px-4' })}
-        >
-          <CalendarPlus size={16} strokeWidth={2.2} />
-          Dar cita
-        </Link>
+          ariaLabel="Dar cita a esta clienta"
+        />
       </div>
     );
   }

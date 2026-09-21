@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { agoLbl } from '@/lib/time';
 import { waHref, waRecallMsg } from '@/lib/phone';
+import DarCitaLink from '@/components/ui/DarCitaLink';
 import WhatsAppLink from '@/components/ui/WhatsAppLink';
 import type { RecallRow } from '@/lib/types';
 
@@ -22,13 +23,10 @@ export default function RecallCard({ row }: { row: RecallRow }) {
           {row.service_name ?? 'Última visita'} · {agoLbl(row.last_at)}
         </div>
       </Link>
-      <Link
+      <DarCitaLink
         href={`/agenda?new=1&client=${row.client_id}${servicio}`}
-        aria-label={`Dar cita a ${row.full_name}`}
-        className="inline-flex h-[38px] shrink-0 items-center rounded-pill bg-v-2 px-3.5 text-label font-semibold text-white"
-      >
-        Dar cita
-      </Link>
+        ariaLabel={`Dar cita a ${row.full_name}`}
+      />
       {wa && <WhatsAppLink href={wa} label={`WhatsApp a ${row.full_name}`} />}
     </div>
   );
