@@ -15,10 +15,10 @@ export default async function SmsSettingsPage() {
 
   const setup = await ensureSmsSetupForSalon(sb, me.salon_id);
   if (!setup.ok) {
-    if (setup.reason === 'migration') return <SmsSetupNeeded kind="migration" />;
+    if (setup.reason === 'migration') return <SmsSetupNeeded />;
     return (
       <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-6 pb-fab pt-5">
-        <SmsSetupNeeded kind="migration" />
+        <SmsSetupNeeded />
         <p className="mt-4 text-body text-danger-fg">{setup.message}</p>
       </div>
     );

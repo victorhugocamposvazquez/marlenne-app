@@ -27,8 +27,8 @@ Variables cuando haya backend:
 
 ## Estado actual
 
-- **UI** según handoff `design_handoff_marlen_agenda 2/panel-saas`
-- **Datos mock** (`lib/mock/companies.ts`, 1.152 empresas deterministas)
+- **UI** según handoff `design_handoff_marlen_agenda 3/panel-saas`
+- **Datos mock** (`lib/mock/companies.ts` + `lib/mock/panel-fixtures.ts`)
 - **Sin base de datos** ni auth real
 
 ## Rutas
@@ -37,6 +37,14 @@ Variables cuando haya backend:
 |------|----------|
 | `/login` | Entrada equipo |
 | `/` | Inicio (KPI + atención) |
-| `/empresas` | Listado |
-| `/empresas/[id]` | Ficha |
-| `/planes`, `/sms`, `/pagos`, … | Placeholder |
+| `/empresas` | Listado + filtros |
+| `/empresas/[id]` | Ficha con pestañas |
+| `/planes` | Planes, bonos, referidos |
+| `/sms` | KPI, cola, fallos |
+| `/pagos` | Cobros, dunning, Stripe |
+| `/finanzas` | Ingresos vs gastos |
+| `/servicios` | Estado proveedores |
+| `/equipo` | Roles y auditoría soporte |
+| `/ajustes` | Config global SaaS |
+
+Pendiente del handoff: modales (alta empresa, editar plan…), drawer «Mi cuenta», modo soporte embebido.

@@ -12,6 +12,7 @@ function activeNav(pathname: string): NavId {
   if (pathname.startsWith('/planes')) return 'planes';
   if (pathname.startsWith('/sms')) return 'sms';
   if (pathname.startsWith('/pagos')) return 'pagos';
+  if (pathname.startsWith('/finanzas')) return 'finanzas';
   if (pathname.startsWith('/servicios')) return 'servicios';
   if (pathname.startsWith('/equipo')) return 'equipo';
   if (pathname.startsWith('/ajustes')) return 'ajustes';

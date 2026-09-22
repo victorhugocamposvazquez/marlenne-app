@@ -27,6 +27,7 @@ export type NavId =
   | 'planes'
   | 'sms'
   | 'pagos'
+  | 'finanzas'
   | 'servicios'
   | 'equipo'
   | 'ajustes';
