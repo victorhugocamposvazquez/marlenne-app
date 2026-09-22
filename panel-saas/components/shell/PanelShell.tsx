@@ -47,7 +47,7 @@ export default function PanelShell({
     <div className="flex min-h-[100dvh] bg-page">
       <aside className="sticky top-0 hidden h-[100dvh] w-[232px] shrink-0 flex-col gap-1 border-r border-line bg-white px-3.5 py-5 lg:flex">
         <div className="mb-4 flex items-center gap-2.5 px-2.5">
-          <BrandLogo size={32} />
+          <BrandLogo size={32} variant="black" />
           <div className="flex flex-col">
             <span className="text-[15px] font-bold">marlén</span>
             <span className="text-[11px] text-ink-3">Panel de gestión</span>

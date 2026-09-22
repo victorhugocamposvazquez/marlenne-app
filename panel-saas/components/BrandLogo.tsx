@@ -1,10 +1,35 @@
-export default function BrandLogo({ size = 32, light = false }: { size?: number; light?: boolean }) {
-  const fill = light ? '#ffffff' : 'url(#lgp)';
+type BrandLogoProps = {
+  size?: number;
+  /** Blanco sobre panel degradado (login lateral) */
+  light?: boolean;
+  /** Fondo negro · mismo radius que degradado · icono PWA */
+  variant?: 'gradient' | 'black';
+  className?: string;
+};
+
+export default function BrandLogo({
+  size = 32,
+  light = false,
+  variant = 'gradient',
+  className,
+}: BrandLogoProps) {
+  const fill = light
+    ? '#ffffff'
+    : variant === 'black'
+      ? '#0F0E1A'
+      : 'url(#lgp-brand)';
+
   return (
-    <svg viewBox="0 0 1024 1024" width={size} height={size} aria-hidden>
-      {!light && (
+    <svg
+      viewBox="0 0 1024 1024"
+      width={size}
+      height={size}
+      aria-hidden
+      className={className}
+    >
+      {!light && variant === 'gradient' && (
         <defs>
-          <linearGradient id="lgp" x1="0%" y1="0%" x2="100%" y2="100%">
+          <linearGradient id="lgp-brand" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#ff2455" />
             <stop offset="45%" stopColor="#d000a8" />
             <stop offset="100%" stopColor="#0879ff" />

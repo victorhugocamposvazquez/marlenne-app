@@ -193,7 +193,16 @@ export default function PanelUserZone({ compact }: { compact?: boolean }) {
                 <span className="flex-1 text-[14px] font-semibold">{status}</span>
                 <span className="text-[12px] text-ink-3">cambiar</span>
               </button>
-              <button type="button" onClick={() => toast('Sesión cerrada (mock)')} className="flex h-11 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[#B3123B] hover:bg-page">
+              <button
+                type="button"
+                onClick={async () => {
+                  closeMenus();
+                  await fetch('/api/auth/logout', { method: 'POST' });
+                  router.push('/login');
+                  router.refresh();
+                }}
+                className="flex h-11 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[#B3123B] hover:bg-page"
+              >
                 <LogOut size={18} />
                 <span className="flex-1 text-[14px] font-semibold">Cerrar sesión</span>
               </button>
