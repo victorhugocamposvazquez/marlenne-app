@@ -62,9 +62,36 @@ export default function AjustesSaasView() {
         </div>
       )}
 
-      {(tab === 'Integraciones' || tab === 'Seguridad') && (
-        <div className="rounded-card border border-dashed border-line bg-white p-10 text-center text-[14px] text-ink-2">
-          Sección <strong>{tab}</strong> según handoff · conectar en fase con BD real.
+      {tab === 'Integraciones' && (
+        <div className="space-y-3">
+          <Section title="WhatsApp Business · Meta" status="Operativo" statusColor="#22C55E">
+            <Readonly label="Número verificado" value="+34 600 00 00 00" />
+            <Secret label="Token permanente" />
+            <Toggle label="Plantilla «recordatorio_cita» aprobada" on hint="Estado en Meta: aprobada" />
+            <button type="button" onClick={() => setDirty(true)} className="rounded-pill border border-line px-3 py-1.5 text-[12px] font-semibold">Enviar mensaje de prueba</button>
+          </Section>
+          <Section title="Correo transaccional · Resend" status="Operativo" statusColor="#22C55E">
+            <Readonly label="Dominio" value="mail.marlen.app" hint="SPF, DKIM y DMARC correctos" />
+            <Secret label="Clave de API" />
+            <Readonly label="Rebotes 30 días" value="0,2 %" />
+            <button type="button" onClick={() => setDirty(true)} className="rounded-pill border border-line px-3 py-1.5 text-[12px] font-semibold">Enviar correo de prueba</button>
+          </Section>
+        </div>
+      )}
+
+      {tab === 'Seguridad' && (
+        <div className="space-y-3">
+          <Section title="Acceso al panel">
+            <Toggle label="Verificación en dos pasos obligatoria" on hint="Para todo el equipo" />
+            <Field label="Caducidad de sesión" value="12" unit="horas" />
+            <Field label="Retención de registros" value="24" unit="meses" hint="Actividad, accesos y modo soporte" />
+          </Section>
+          <Section title="Infraestructura" status="Última copia 4:00" statusColor="#22C55E">
+            <Field label="Hora de la copia diaria" value="4:00" hint="Última copia hoy · 2,1 GB" />
+            <Field label="Copias conservadas" value="30" unit="días" />
+            <Toggle label="Modo mantenimiento" hint="Muestra aviso a todas las empresas y bloquea escrituras" />
+            <button type="button" onClick={() => setDirty(true)} className="rounded-pill border border-line px-3 py-1.5 text-[12px] font-semibold">Lanzar copia ahora</button>
+          </Section>
         </div>
       )}
 

@@ -1,10 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Bell, ChevronDown } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { ChevronLeft, Eye } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
+import PanelUserZone from '@/components/shell/PanelUserZone';
+import SoporteView from '@/components/soporte/SoporteView';
 import { MOBILE_TABS, NAV } from '@/components/shell/nav';
+import { usePanelUI } from '@/context/PanelUIContext';
 import type { NavId } from '@/lib/types';
 
 function activeNav(pathname: string): NavId {
@@ -31,7 +34,14 @@ export default function PanelShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const active = activeNav(pathname);
+  const { impersonation, stopImpersonation } = usePanelUI();
+  const inSupport = !!impersonation;
+
+  const mobileTitle = inSupport ? 'Modo soporte' : title;
+  const mobileCrumb = inSupport ? 'Empresas' : crumb?.label;
+  const mobileCrumbHref = inSupport ? '/empresas' : crumb?.href;
 
   return (
     <div className="flex min-h-[100dvh] bg-page">
@@ -65,44 +75,68 @@ export default function PanelShell({
       </aside>
 
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 hidden h-16 items-center justify-end gap-2 border-b border-line bg-white px-8 lg:flex">
-          <button type="button" className="relative flex h-10 w-10 items-center justify-center rounded-pill border-[1.5px] border-line bg-white">
-            <Bell size={18} />
-            <span className="absolute right-2 top-1.5 h-2 w-2 rounded-pill border-2 border-white bg-brand-pink" />
-          </button>
-          <button type="button" className="flex h-10 items-center gap-2 rounded-pill border-[1.5px] border-line bg-white py-1 pl-1 pr-2.5">
-            <span className="relative flex h-8 w-8 items-center justify-center rounded-pill bg-ink text-[11px] font-bold text-white">
-              MG
-              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-pill border-2 border-white bg-ok" />
+        {inSupport && (
+          <div className="sticky top-0 z-[5] flex min-h-12 flex-wrap items-center justify-center gap-3.5 bg-grad px-4 py-2 text-center text-[13px] font-semibold text-white">
+            <Eye size={16} className="shrink-0" />
+            <span>
+              Modo soporte · estás dentro de la app de <strong>{impersonation.company.name}</strong> con sus datos reales. Se registra todo lo que hagas.
             </span>
-            <ChevronDown size={14} className="text-ink-2" />
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                const id = impersonation.company.id;
+                stopImpersonation();
+                router.push(`/empresas/${id}`);
+              }}
+              className="h-[30px] shrink-0 rounded-pill bg-white px-3.5 text-[12px] font-bold text-brand-pink"
+            >
+              Volver al panel
+            </button>
+          </div>
+        )}
+
+        <header className={`sticky z-10 hidden h-16 items-center justify-end border-b border-line bg-white px-8 lg:flex ${inSupport ? 'top-12' : 'top-0'}`}>
+          <PanelUserZone />
         </header>
 
-        <header className="sticky top-0 z-10 flex h-[60px] items-center gap-2.5 border-b border-line bg-white px-4 lg:hidden">
+        <header className={`sticky z-10 flex min-h-[60px] items-center gap-2.5 border-b border-line bg-white px-4 lg:hidden ${inSupport ? 'top-12' : 'top-0'}`}>
+          {(crumb || inSupport) && (
+            <button
+              type="button"
+              onClick={() => router.push(mobileCrumbHref ?? '/empresas')}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-pill bg-[#F2F2F7]"
+            >
+              <ChevronLeft size={16} />
+            </button>
+          )}
           <div className="min-w-0 flex-1">
-            {crumb && <p className="text-[11px] font-semibold text-ink-3">{crumb.label}</p>}
-            <h1 className="truncate text-[17px] font-bold tracking-tight">{title}</h1>
+            {mobileCrumb && (
+              mobileCrumbHref ? (
+                <Link href={mobileCrumbHref} className="text-[11px] font-semibold text-ink-3 hover:text-brand-pink">{mobileCrumb}</Link>
+              ) : (
+                <p className="text-[11px] font-semibold text-ink-3">{mobileCrumb}</p>
+              )
+            )}
+            <h1 className="truncate text-[17px] font-bold tracking-tight">{mobileTitle}</h1>
           </div>
-          <span className="relative flex h-9 w-9 items-center justify-center rounded-pill bg-ink text-[12px] font-bold text-white">
-            MG
-            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-pill border-2 border-white bg-ok" />
-          </span>
+          <PanelUserZone compact />
         </header>
 
         <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-5 p-4 pb-24 lg:p-8 lg:pb-8">
-          {crumb && (
+          {!inSupport && crumb && (
             <nav className="hidden items-center gap-2 text-[13px] font-semibold text-ink-3 lg:flex">
               <Link href={crumb.href} className="text-ink-2 hover:text-brand-pink">{crumb.label}</Link>
               <span className="text-ink-4">›</span>
               <span className="text-ink">{title}</span>
             </nav>
           )}
-          <div className="hidden flex-col gap-1 lg:flex">
-            <h1 className="text-display">{title}</h1>
-            {subtitle && <p className="text-[14px] text-ink-2">{subtitle}</p>}
-          </div>
-          {children}
+          {!inSupport && (
+            <div className="hidden flex-col gap-1 lg:flex">
+              <h1 className="text-[26px] font-bold tracking-[-0.03em]">{title}</h1>
+              {subtitle && <p className="text-[14px] text-ink-2">{subtitle}</p>}
+            </div>
+          )}
+          {inSupport ? <SoporteView company={impersonation.company} /> : children}
         </div>
 
         <nav className="fixed bottom-0 left-0 right-0 z-10 flex h-[76px] items-start justify-around border-t border-line bg-white pt-2.5 lg:hidden">

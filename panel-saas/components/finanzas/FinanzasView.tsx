@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import ModalTrigger from '@/components/ui/ModalTrigger';
 import KpiGrid from '@/components/ui/KpiGrid';
 import SegmentedTabs from '@/components/ui/SegmentedTabs';
 import { eur } from '@/lib/format';
@@ -171,7 +172,9 @@ export default function FinanzasView() {
           <span>Total gastos</span>
           <span>{eur(totalOut * mult)} · +{(((totalOut - prevOut) / prevOut) * 100).toFixed(1).replace('.', ',')} %</span>
         </div>
-        <button type="button" className="mt-4 h-11 rounded-pill bg-grad px-4 text-[14px] font-bold text-white shadow-brand">+ Añadir gasto</button>
+        <ModalTrigger kind="expense" className="mt-4 inline-flex h-11 items-center rounded-pill bg-grad px-4 text-[14px] font-bold text-white shadow-brand">
+          + Añadir gasto
+        </ModalTrigger>
       </div>
     </div>
   );
