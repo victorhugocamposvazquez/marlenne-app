@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
-import BrandLogo from '@/components/BrandLogo';
+import BrandLogo, { BrandWatermark } from '@/components/BrandLogo';
 
 function LoginForm() {
   const router = useRouter();
@@ -94,13 +94,16 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <div className="flex min-h-[100dvh] flex-wrap">
-      <div className="flex min-h-[320px] flex-1 flex-col justify-between gap-10 bg-grad-br p-10 text-white">
-        <BrandLogo size={52} light />
-        <div className="max-w-md space-y-3">
+      <div className="relative flex min-h-[320px] flex-1 flex-col justify-between gap-10 overflow-hidden bg-grad-br p-10 text-white">
+        <BrandWatermark className="absolute left-1/2 top-1/2 h-[min(115%,720px)] w-[min(115%,720px)] max-w-none -translate-x-1/2 -translate-y-[42%]" />
+        <div className="relative z-[1]">
+          <BrandLogo size={52} light />
+        </div>
+        <div className="relative z-[1] max-w-md space-y-3">
           <h1 className="text-[36px] font-bold leading-tight tracking-tight">Panel de gestión</h1>
           <p className="text-[16px] leading-relaxed opacity-90">Empresas, planes, SMS, cobros y estado de los servicios.</p>
         </div>
-        <p className="text-[13px] opacity-75">marlén · solo equipo</p>
+        <p className="relative z-[1] text-[13px] opacity-75">marlén · solo equipo</p>
       </div>
       <div className="flex flex-1 items-center justify-center bg-white p-6 sm:p-10">
         <Suspense fallback={<div className="text-[14px] text-ink-2">Cargando…</div>}>
