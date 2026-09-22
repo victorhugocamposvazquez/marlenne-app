@@ -1,0 +1,44 @@
+{
+  "name": "marlen-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "seed": "node scripts/seed.mjs",
+    "types:gen": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > lib/database.types.ts",
+    "voice:clips": "python3 scripts/gen-voice-clips.py",
+    "voice:manifest": "node scripts/gen-voice-manifest.mjs",
+    "voice:clips:openai": "node scripts/gen-voice-clips.mjs --openai",
+    "test": "tsx --test tests/*.test.ts",
+    "brand:assets": "python3 scripts/gen-brand-assets.py"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^1.3.22",
+    "@simplewebauthn/browser": "^14.0.0",
+    "@simplewebauthn/server": "^14.0.1",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.45.4",
+    "ai": "^4.3.16",
+    "edge-tts-universal": "^1.4.0",
+    "lucide-react": "^0.446.0",
+    "mpg123-decoder": "^1.0.3",
+    "next": "^14.2.15",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "xlsx": "^0.18.5",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "tsx": "^4.20.5",
+    "typescript": "^5.6.2"
+  }
+}

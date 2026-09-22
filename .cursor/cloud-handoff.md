@@ -8,7 +8,9 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Pendiente (hazlo en el MacBook o mergea la rama cloud)
 
-_Nada pendiente._
+- **Monorepo reorganizado:** `marlen-app/` (centro), `panel-saas/`, `main-website/`, `supabase/` en raíz. Actualizar Vercel del centro: Root Directory `marlen-app`.
+- **Panel SaaS** (`panel-saas/`): mock del handoff, puerto 3001. Segundo proyecto Vercel, Root `panel-saas`, dominio `ops.marlen.app`. En `marlen-app`, `/platform/*` → `NEXT_PUBLIC_PANEL_URL`.
+- **Web corporativa** (`main-website/`): scaffold Next :3002; tercer Vercel cuando toque.
 
 ---
 
