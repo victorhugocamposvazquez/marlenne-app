@@ -93,17 +93,19 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-[100dvh] flex-wrap">
-      <div className="relative flex min-h-[320px] flex-1 flex-col justify-between gap-10 overflow-hidden bg-grad-br p-10 text-white">
-        <BrandWatermark className="absolute left-1/2 top-1/2 h-[min(115%,720px)] w-[min(115%,720px)] max-w-none -translate-x-1/2 -translate-y-[42%]" />
-        <div className="relative z-[1]">
+    <div className="flex min-h-[100dvh] flex-col lg:flex-row">
+      <div className="relative flex h-[148px] shrink-0 flex-col justify-end overflow-hidden bg-grad-br px-6 pb-5 pt-6 text-white sm:h-[168px] lg:min-h-[320px] lg:h-auto lg:flex-1 lg:justify-between lg:gap-10 lg:p-10">
+        <BrandWatermark className="absolute right-[-8%] top-1/2 h-[200px] w-[200px] -translate-y-[46%] sm:h-[220px] sm:w-[220px] lg:left-1/2 lg:right-auto lg:top-1/2 lg:h-[min(115%,720px)] lg:w-[min(115%,720px)] lg:-translate-x-1/2 lg:-translate-y-[42%]" />
+        <div className="relative z-[1] hidden lg:block">
           <BrandLogo size={52} light />
         </div>
-        <div className="relative z-[1] max-w-md space-y-3">
-          <h1 className="text-[36px] font-bold leading-tight tracking-tight">Panel de gestión</h1>
-          <p className="text-[16px] leading-relaxed opacity-90">Empresas, planes, SMS, cobros y estado de los servicios.</p>
+        <div className="relative z-[1] max-w-md space-y-1 lg:space-y-3">
+          <h1 className="text-[24px] font-bold leading-tight tracking-tight sm:text-[26px] lg:text-[36px]">Panel de gestión</h1>
+          <p className="hidden text-[14px] leading-snug opacity-90 sm:block lg:text-[16px] lg:leading-relaxed">
+            Empresas, planes, SMS, cobros y estado de los servicios.
+          </p>
         </div>
-        <p className="relative z-[1] text-[13px] opacity-75">marlén · solo equipo</p>
+        <p className="relative z-[1] hidden text-[13px] opacity-75 lg:block">marlén · solo equipo</p>
       </div>
       <div className="flex flex-1 items-center justify-center bg-white p-6 sm:p-10">
         <Suspense fallback={<div className="text-[14px] text-ink-2">Cargando…</div>}>
