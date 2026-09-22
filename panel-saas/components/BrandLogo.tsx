@@ -44,9 +44,11 @@ export default function BrandLogo({
   }
 
   const fill = variant === 'black' ? '#0F0E1A' : 'url(#lgp-brand)';
+  // Recorte al borde del squircle · sin padding transparente que separe del texto
+  const viewBox = variant === 'black' ? '32 32 960 960' : '0 0 1024 1024';
 
   return (
-    <svg viewBox="0 0 1024 1024" width={size} height={size} aria-hidden className={className}>
+    <svg viewBox={viewBox} width={size} height={size} aria-hidden className={className}>
       {variant === 'gradient' && (
         <defs>
           <linearGradient id="lgp-brand" x1="0%" y1="0%" x2="100%" y2="100%">

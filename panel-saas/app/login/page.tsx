@@ -41,11 +41,11 @@ function LoginForm() {
 
   return (
     <form className="w-full max-w-[360px] space-y-5" onSubmit={submit}>
-      <div className="flex items-center gap-3">
-        <BrandLogo size={48} variant="black" />
-        <div className="space-y-0.5">
-          <h2 className="text-[28px] font-bold tracking-tight">Entrar</h2>
-          <p className="text-[15px] text-ink-2">Con tu cuenta del equipo.</p>
+      <div className="flex items-center gap-2.5">
+        <BrandLogo size={44} variant="black" className="shrink-0" />
+        <div className="leading-none">
+          <h2 className="text-[26px] font-bold tracking-[-0.03em]">Entrar</h2>
+          <p className="mt-1 text-[14px] leading-snug text-ink-2">Con tu cuenta del equipo.</p>
         </div>
       </div>
 
@@ -93,21 +93,22 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-[100dvh] flex-col lg:flex-row">
-      <div className="relative flex h-[148px] shrink-0 flex-col justify-end overflow-hidden bg-grad-br px-6 pb-5 pt-6 text-white sm:h-[168px] lg:min-h-[320px] lg:h-auto lg:flex-1 lg:justify-between lg:gap-10 lg:p-10">
-        <BrandWatermark className="absolute right-[-8%] top-1/2 h-[200px] w-[200px] -translate-y-[46%] sm:h-[220px] sm:w-[220px] lg:left-1/2 lg:right-auto lg:top-1/2 lg:h-[min(115%,720px)] lg:w-[min(115%,720px)] lg:-translate-x-1/2 lg:-translate-y-[42%]" />
-        <div className="relative z-[1] hidden lg:block">
+    <div className="flex min-h-[100dvh] flex-col xl:flex-row">
+      {/* Móvil/tablet: franja arriba. Solo desktop ancho: columna lateral */}
+      <div className="relative flex shrink-0 flex-col justify-end overflow-hidden bg-grad-br px-6 pb-5 pt-7 text-white xl:min-h-[100dvh] xl:w-[min(44%,520px)] xl:shrink-0 xl:justify-between xl:gap-10 xl:p-10">
+        <BrandWatermark className="absolute right-[-12%] top-[42%] h-[180px] w-[180px] -translate-y-1/2 sm:h-[210px] sm:w-[210px] xl:left-1/2 xl:right-auto xl:top-1/2 xl:h-[min(70vh,560px)] xl:w-[min(70vh,560px)] xl:-translate-x-1/2 xl:-translate-y-[42%]" />
+        <div className="relative z-[1] hidden xl:block">
           <BrandLogo size={52} light />
         </div>
-        <div className="relative z-[1] max-w-md space-y-1 lg:space-y-3">
-          <h1 className="text-[24px] font-bold leading-tight tracking-tight sm:text-[26px] lg:text-[36px]">Panel de gestión</h1>
-          <p className="hidden text-[14px] leading-snug opacity-90 sm:block lg:text-[16px] lg:leading-relaxed">
+        <div className="relative z-[1] max-w-md space-y-1.5 xl:space-y-3">
+          <h1 className="text-[26px] font-bold leading-tight tracking-tight xl:text-[36px]">Panel de gestión</h1>
+          <p className="text-[14px] leading-snug opacity-90 xl:text-[16px] xl:leading-relaxed">
             Empresas, planes, SMS, cobros y estado de los servicios.
           </p>
         </div>
-        <p className="relative z-[1] hidden text-[13px] opacity-75 lg:block">marlén · solo equipo</p>
+        <p className="relative z-[1] mt-4 text-[12px] opacity-75 xl:mt-0 xl:text-[13px]">marlén · solo equipo</p>
       </div>
-      <div className="flex flex-1 items-center justify-center bg-white p-6 sm:p-10">
+      <div className="flex flex-1 items-start justify-center bg-white px-6 pb-10 pt-8 sm:items-center sm:p-10 xl:items-center">
         <Suspense fallback={<div className="text-[14px] text-ink-2">Cargando…</div>}>
           <LoginForm />
         </Suspense>
