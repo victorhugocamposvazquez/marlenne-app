@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
 
-/** Cada 5 minutos: aviso al equipo de las citas que empiezan en media hora. */
+/** Cada minuto desde pg_cron (Supabase): aviso al equipo de las citas que empiezan en media hora. */
 export async function GET(req: Request) {
   if (!authorizeCronRequest(req)) {
     return new Response('Unauthorized', { status: 401 });
