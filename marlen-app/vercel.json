@@ -4,10 +4,6 @@
     {
       "path": "/api/cron/sms",
       "schedule": "0 8 * * *"
-    },
-    {
-      "path": "/api/cron/staff-reminders",
-      "schedule": "*/5 * * * *"
     }
   ]
 }
