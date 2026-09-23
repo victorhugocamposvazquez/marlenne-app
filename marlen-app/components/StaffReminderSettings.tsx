@@ -10,6 +10,7 @@ export default function StaffReminderSettings() {
   const [enabled, setEnabled] = useState(false);
   const [ready, setReady] = useState(false);
   const [pending, setPending] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [blocked, setBlocked] = useState(false);
 
   useEffect(() => {
@@ -77,6 +78,25 @@ export default function StaffReminderSettings() {
           Están bloqueados en el sistema. Actívalos en los ajustes del teléfono para Marlén.
         </p>
       )}
+      <button
+        type="button"
+        disabled={!ready || testing}
+        onClick={async () => {
+          if (testing) return;
+          setTesting(true);
+          const res = await fetch('/api/staff-reminders/test', { method: 'POST' });
+          const body = await res.json().catch(() => ({})) as { sent?: number; error?: string };
+          setTesting(false);
+          if (!res.ok || !body.sent) {
+            toast(body.error || 'El aviso no ha salido.');
+            return;
+          }
+          toast('Aviso enviado. Mira el teléfono.');
+        }}
+        className="flex min-h-[48px] w-full items-center border-t border-surface-line py-3 text-left text-body font-semibold text-ink-2 disabled:opacity-45"
+      >
+        {testing ? 'Enviando…' : 'Probar aviso ahora'}
+      </button>
     </AjustesSection>
   );
 }

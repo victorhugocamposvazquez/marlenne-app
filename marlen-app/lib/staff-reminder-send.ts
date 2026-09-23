@@ -29,6 +29,7 @@ export type StaffReminderResult = {
   due: number;
   sent: number;
   error?: string;
+  hint?: string;
 };
 
 function rel<T>(value: T | T[] | null | undefined): T | null {
@@ -111,6 +112,7 @@ async function pushOne(sub: PushSub, payload: string): Promise<boolean> {
 export async function dispatchStaffReminders(opts?: {
   salonId?: string;
   now?: Date;
+  appointmentIds?: string[];
 }): Promise<StaffReminderResult> {
   if (!vapidReady()) {
     return {
@@ -123,22 +125,30 @@ export async function dispatchStaffReminders(opts?: {
 
   configureWebPush();
   const now = opts?.now ?? new Date();
+  const force = Boolean(opts?.appointmentIds?.length);
   const horizon = new Date(now.getTime() + STAFF_REMINDER_LEAD_MIN * 60_000);
   const supabase = createAdminClient();
 
   let query = supabase
     .from('appointments')
     .select('id, salon_id, starts_at, client_name, client:clients(full_name), provider:staff!appointments_provider_id_fkey(full_name)')
-    .eq('status', 'prog')
-    .is('staff_reminded_at', null)
-    .gt('starts_at', now.toISOString())
-    .lte('starts_at', horizon.toISOString());
+    .eq('status', 'prog');
   if (opts?.salonId) query = query.eq('salon_id', opts.salonId);
+  if (force) {
+    query = query.in('id', opts!.appointmentIds!);
+  } else {
+    query = query
+      .is('staff_reminded_at', null)
+      .gt('starts_at', now.toISOString())
+      .lte('starts_at', horizon.toISOString());
+  }
 
   const { data, error } = await query;
   if (error) return { ok: false, due: 0, sent: 0, error: error.message };
 
-  const due = ((data ?? []) as DueRow[]).filter(row => isStaffReminderDue(new Date(row.starts_at), now));
+  const due = ((data ?? []) as DueRow[]).filter(row => (
+    force || isStaffReminderDue(new Date(row.starts_at), now)
+  ));
   if (due.length === 0) return { ok: true, due: 0, sent: 0 };
 
   const subsBySalon = new Map<string, PushSub[]>();
@@ -147,9 +157,13 @@ export async function dispatchStaffReminders(opts?: {
   }
 
   let sent = 0;
+  let skippedNoSubs = 0;
   for (const row of due) {
     const subs = subsBySalon.get(row.salon_id) ?? [];
-    if (subs.length === 0) continue;
+    if (subs.length === 0) {
+      skippedNoSubs += 1;
+      continue;
+    }
 
     const claimed = await claim(row.id, now);
     if (!claimed) continue;
@@ -176,5 +190,14 @@ export async function dispatchStaffReminders(opts?: {
     sent += 1;
   }
 
-  return { ok: true, due: due.length, sent };
+  return {
+    ok: true,
+    due: due.length,
+    sent,
+    hint: skippedNoSubs > 0
+      ? 'Hay citas a 30 minutos, pero nadie del equipo tiene avisos activados en un teléfono.'
+      : sent === 0 && due.length > 0
+        ? 'Había citas, pero el aviso no llegó a ningún teléfono.'
+        : undefined,
+  };
 }
