@@ -58,9 +58,9 @@ a propósito: `SEED_RESET_PASSWORDS=1 npm run seed`.
 En **Más** (dirección) hay un semáforo. A mano queda:
 
 1. **Auth → URL Configuration** en el proyecto Supabase:
-   - Site URL: `https://marlenne-app-three.vercel.app`
-   - Redirect URLs: `https://marlenne-app-three.vercel.app/recuperar`,
-     `https://marlenne-app-three.vercel.app/**`, `http://localhost:3000/**`
+   - Site URL: `https://marlenne-app.vercel.app`
+   - Redirect URLs: `https://marlenne-app.vercel.app/recuperar`,
+     `https://marlenne-app.vercel.app/**`, `http://localhost:3000/**`
 2. **Auth → Settings**: desactivar altas públicas (*Allow new users to sign up*).
    El equipo se da de alta desde Más, no desde `/login`.
 3. Crear el equipo con emails reales y desactivar `*@marlenne.test`. Cada

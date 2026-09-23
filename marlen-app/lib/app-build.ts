@@ -1,2 +1,2 @@
-/** Identificador de esta compilación. Tiene que coincidir con `public/app-build.txt`. */
-export const APP_BUILD = '20260923-pwa4';
+/** Lo escribe el build (`scripts/write-app-build.mjs`) y queda en el JS. */
+export const APP_BUILD = process.env.NEXT_PUBLIC_APP_BUILD || 'dev';

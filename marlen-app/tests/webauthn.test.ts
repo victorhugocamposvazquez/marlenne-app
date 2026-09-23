@@ -19,14 +19,14 @@ import { signChallenge, verifyChallenge } from '../lib/webauthn-challenge';
 
 describe('webauthn dominio', () => {
   it('saca el RP ID del origen', () => {
-    assert.equal(rpIdFromOrigin('https://marlenne-app-three.vercel.app'), 'marlenne-app-three.vercel.app');
+    assert.equal(rpIdFromOrigin('https://marlenne-app.vercel.app'), 'marlenne-app.vercel.app');
     assert.equal(rpIdFromOrigin('http://localhost:3000'), 'localhost');
   });
 
   it('resuelve el origen de la petición', () => {
     assert.equal(
-      resolveRequestOrigin({ origin: 'https://marlenne-app-three.vercel.app/' }),
-      'https://marlenne-app-three.vercel.app',
+      resolveRequestOrigin({ origin: 'https://marlenne-app.vercel.app/' }),
+      'https://marlenne-app.vercel.app',
     );
     assert.equal(
       resolveRequestOrigin({ forwardedHost: 'preview.vercel.app', forwardedProto: 'https' }),

@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
+const appBuild = (process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_GIT_COMMIT_SHA || 'dev').trim();
+
 const nextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_BUILD: appBuild,
+  },
   experimental: {
     typedRoutes: false,
     serverComponentsExternalPackages: ['edge-tts-universal', 'mpg123-decoder', 'web-push'],
