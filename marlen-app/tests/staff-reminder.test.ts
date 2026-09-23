@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { offsetFromDay } from '../lib/time';
 import {
   isStaffReminderDue,
   providerFirstName,
@@ -31,6 +32,13 @@ test('sin nombre de profesional cae en el equipo', () => {
 
 test('el toque abre la ficha de esa cita', () => {
   assert.equal(staffReminderUrl('abc-123'), '/agenda?appt=abc-123');
+});
+
+test('el toque abre el día de la cita', () => {
+  const starts = '2026-09-23T16:00:00.000Z';
+  const url = new URL(staffReminderUrl('abc-123', starts), 'https://marlenne-app.vercel.app');
+  assert.equal(url.searchParams.get('appt'), 'abc-123');
+  assert.equal(url.searchParams.get('day'), String(offsetFromDay(starts)));
 });
 
 test('la ventana es desde ahora hasta 30 minutos', () => {

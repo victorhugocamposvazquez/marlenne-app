@@ -1,4 +1,4 @@
-const CACHE = 'marlenne-shell-v23';
+const CACHE = 'marlenne-shell-v24';
 const PRECACHE = [
   '/manifest.json',
   '/logo.png',
@@ -147,17 +147,18 @@ self.addEventListener('notificationclick', event => {
   const target = new URL(path, self.location.origin).href;
   event.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    for (const client of all) {
-      if (new URL(client.url).origin !== self.location.origin) continue;
-      if (typeof client.navigate === 'function') {
-        try { await client.navigate(target); } catch { /* iOS a veces no navega */ }
-      }
-      if (typeof client.postMessage === 'function') {
-        client.postMessage({ type: 'OPEN_APPT', url: path });
-      }
-      return client.focus();
+    const client = all.find(c => {
+      try { return new URL(c.url).origin === self.location.origin; } catch { return false; }
+    });
+    // Un solo camino. Navegar y avisar a la vez recarga la agenda y la ficha se cierra en blanco.
+    if (!client) {
+      await self.clients.openWindow(target);
+      return;
     }
-    await self.clients.openWindow(target);
+    if (typeof client.postMessage === 'function') {
+      client.postMessage({ type: 'OPEN_APPT', url: path });
+    }
+    try { await client.focus(); } catch { /* */ }
   })());
 });
 

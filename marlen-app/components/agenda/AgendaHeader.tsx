@@ -9,6 +9,7 @@ import {
   HeaderIconButton, HeaderTitleRow, screenHeaderCls, screenTitleChevronCls, screenTitleCls,
 } from '@/components/ui/ScreenHeader';
 import { alignStripStart, monthTitleFromOffset, skipSunday } from '@/lib/time';
+import { pushOpenArmed } from '@/hooks/push-open';
 import { shallowSet } from '@/hooks/useShallowQuery';
 
 export default function AgendaHeader({
@@ -26,13 +27,14 @@ export default function AgendaHeader({
   const start = alignStripStart(day, strip, 5);
 
   const go = (d: number, extra?: { strip?: number; mode?: string }) => {
+    if (pushOpenArmed()) return;
     const q = new URLSearchParams();
     q.set('day', String(d));
     q.set('mode', extra?.mode ?? mode);
     q.set('strip', String(extra?.strip ?? start));
     if (typeof window !== 'undefined') {
       const live = new URLSearchParams(window.location.search);
-      for (const k of ['new', 'client', 'nombre', 'hora', 'servicio', 'con']) {
+      for (const k of ['new', 'client', 'nombre', 'hora', 'servicio', 'con', 'appt', 'close']) {
         const v = live.get(k);
         if (v) q.set(k, v);
       }
@@ -41,6 +43,7 @@ export default function AgendaHeader({
   };
 
   const openNew = () => {
+    if (pushOpenArmed()) return;
     shallowSet({
       new: '1',
       con: null, hora: null, nombre: null, servicio: null, client: null,

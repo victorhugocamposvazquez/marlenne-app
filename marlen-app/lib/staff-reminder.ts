@@ -1,3 +1,5 @@
+import { offsetFromDay } from '@/lib/time';
+
 /** Minutos de antelación del aviso al equipo. */
 export const STAFF_REMINDER_LEAD_MIN = 30;
 
@@ -18,8 +20,15 @@ export function staffReminderTitle(clientName: string, providerName: string, min
   return `Cita con ${client} en ${cuando} - con ${providerFirstName(providerName)}`;
 }
 
-export function staffReminderUrl(appointmentId: string): string {
-  return `/agenda?appt=${appointmentId}`;
+/** Abre la agenda en el día de la cita y con su ficha. Sin día, iOS deja la de hoy y la ficha se cierra. */
+export function staffReminderUrl(appointmentId: string, startsAt?: string | Date): string {
+  const q = new URLSearchParams();
+  if (startsAt) {
+    const iso = startsAt instanceof Date ? startsAt.toISOString() : startsAt;
+    q.set('day', String(offsetFromDay(iso)));
+  }
+  q.set('appt', appointmentId);
+  return `/agenda?${q.toString()}`;
 }
 
 export function minutesUntil(startsAt: Date, now: Date): number {

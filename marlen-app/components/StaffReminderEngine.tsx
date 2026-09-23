@@ -1,13 +1,27 @@
 'use client';
 
 import { useEffect } from 'react';
+import { signalPushOpen } from '@/hooks/push-open';
 import { enableStaffPush, readStaffPushEnabled } from '@/hooks/staff-push';
+import { shallowSet } from '@/hooks/useShallowQuery';
 
 function openFromPush(url: string) {
   const next = new URL(url, window.location.origin);
   if (next.origin !== window.location.origin) return;
-  if (`${next.pathname}${next.search}` === `${window.location.pathname}${window.location.search}`) return;
-  window.location.assign(`${next.pathname}${next.search}${next.hash}`);
+  signalPushOpen();
+  const appt = next.searchParams.get('appt');
+  const day = next.searchParams.get('day');
+  if (appt && next.pathname === '/agenda' && window.location.pathname === '/agenda') {
+    const hereDay = new URLSearchParams(window.location.search).get('day') ?? '0';
+    if (day == null || day === hereDay) {
+      shallowSet({ appt });
+      return;
+    }
+  }
+  const dest = `${next.pathname}${next.search}${next.hash}`;
+  const here = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (dest === here) return;
+  window.location.assign(dest);
 }
 
 const TICK_MS = 60_000;

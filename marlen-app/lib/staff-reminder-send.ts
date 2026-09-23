@@ -178,7 +178,7 @@ export async function dispatchStaffReminders(opts?: {
     const payload = JSON.stringify({
       title: BRAND_NAME,
       body: title,
-      url: staffReminderUrl(row.id),
+      url: staffReminderUrl(row.id, row.starts_at),
       tag: `staff-appt-${row.id}`,
     });
 
