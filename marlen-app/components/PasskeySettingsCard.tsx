@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { Fingerprint, ScanFace, Trash2 } from 'lucide-react';
+import { Check, Fingerprint, ScanFace, Trash2 } from 'lucide-react';
 import {
   beginPasskeyRegister,
   finishPasskeyRegister,
@@ -23,6 +23,7 @@ import {
   isAppleMobile,
   likelyHasPlatformUnlock,
   platformDeviceName,
+  platformActivatedLabel,
   platformRegisterLabel,
   platformSettingsHint,
   platformSettingsTitle,
@@ -133,7 +134,15 @@ export default function PasskeySettingsCard({
           </ul>
         )}
         {error && <p className="mt-2 text-body font-semibold text-danger-fg">{error}</p>}
-        {available ? (
+        {rows.length > 0 ? (
+          <div
+            role="status"
+            className="mt-3 inline-flex min-h-[50px] w-full items-center justify-center gap-2 rounded-pill bg-ok-strong px-4 text-[17px] font-bold text-white"
+          >
+            <Check size={18} strokeWidth={2.4} />
+            {platformActivatedLabel(ua)}
+          </div>
+        ) : available ? (
           <Button variant="ink" full className="mt-3" onClick={register} disabled={pending}>
             <FaceIcon size={18} strokeWidth={2.2} />
             {pending ? platformWaitingLabel(ua) : label}

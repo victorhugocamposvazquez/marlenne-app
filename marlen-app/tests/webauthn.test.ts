@@ -7,6 +7,7 @@ import {
   isAppleMobile,
   platformDeviceName,
   platformLoginTitle,
+  platformActivatedLabel,
   platformRegisterLabel,
   platformUnlockLabel,
   platformUnlockNoun,
@@ -49,6 +50,8 @@ describe('webauthn dominio', () => {
     assert.equal(platformUnlockLabel(iphone), 'Entrar con Face ID');
     assert.equal(platformUnlockLabel('Mozilla/5.0 (Macintosh; Intel Mac OS X 14)'), 'Entrar con Touch ID');
     assert.equal(platformRegisterLabel(iphone), 'Activar Face ID');
+    assert.equal(platformActivatedLabel(iphone), 'Face ID activado');
+    assert.equal(platformActivatedLabel(android), 'Huella o cara activada');
     assert.equal(platformLoginTitle(iphone), 'Entra con Face ID');
     assert.equal(platformLoginTitle(android), 'Entra en un toque');
     assert.equal(platformDeviceName(ipad), 'Este iPad');

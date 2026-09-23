@@ -53,6 +53,12 @@ export function platformRegisterLabel(ua: string): string {
   return 'Activar huella o cara';
 }
 
+export function platformActivatedLabel(ua: string): string {
+  if (isAppleMobile(ua)) return 'Face ID activado';
+  if (/Macintosh/i.test(ua)) return 'Touch ID activado';
+  return 'Huella o cara activada';
+}
+
 export function platformWaitingLabel(ua: string): string {
   if (isAppleMobile(ua)) return 'Esperando Face ID…';
   if (/Macintosh/i.test(ua)) return 'Esperando Touch ID…';
