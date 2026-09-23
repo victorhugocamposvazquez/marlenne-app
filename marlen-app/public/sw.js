@@ -1,4 +1,4 @@
-const CACHE = 'marlenne-shell-v19';
+const CACHE = 'marlenne-shell-v20';
 const PRECACHE = [
   '/manifest.json',
   '/logo.png',
@@ -72,6 +72,10 @@ self.addEventListener('install', event => {
   );
 });
 
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
@@ -143,6 +147,12 @@ self.addEventListener('fetch', event => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/')) return;
   if (url.searchParams.has('_rsc')) return;
+  if (url.pathname === '/sw.js' || url.pathname === '/app-build.txt') return;
+
+  if (req.mode === 'navigate') {
+    event.respondWith(fetch(req, { cache: 'reload' }).catch(() => caches.match(req)));
+    return;
+  }
 
   if (isHashedAsset(url)) {
     event.respondWith(

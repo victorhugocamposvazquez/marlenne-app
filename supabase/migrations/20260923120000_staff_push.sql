@@ -1,6 +1,11 @@
 -- Aviso al equipo (PWA) 30 minutos antes de cada cita.
 -- La suscripción la escribe el servidor. El cliente no toca estas filas.
 
+-- La base ya tiene la función de 7 argumentos (con bono). La de 6, si sigue,
+-- hace que Postgres no sepa cuál usar.
+drop function if exists public.create_appointment(uuid, text, uuid, uuid, timestamptz, text);
+drop function if exists private.create_appointment(uuid, text, uuid, uuid, timestamptz, text);
+
 alter table appointments
   add column if not exists staff_reminded_at timestamptz;
 

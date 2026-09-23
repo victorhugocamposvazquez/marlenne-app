@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import { Sora } from 'next/font/google';
 import './globals.css';
+import RegisterSW from '@/components/RegisterSW';
 import SplashScreen from '@/components/SplashScreen';
+import UpdatePrompt from '@/components/UpdatePrompt';
 import { BRAND_NAME, BRAND_UI, SPLASH_SEEN_KEY } from '@/lib/brand';
 
 const sora = Sora({
@@ -109,6 +111,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
         <script dangerouslySetInnerHTML={{ __html: SPLASH_BOOT_SCRIPT }} />
+        <RegisterSW />
+        <UpdatePrompt />
         <SplashScreen />
         {children}
       </body>
