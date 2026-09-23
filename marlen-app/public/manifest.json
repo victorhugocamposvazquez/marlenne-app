@@ -2,6 +2,7 @@
   "name": "Marlén",
   "short_name": "Marlén",
   "description": "Agenda del centro de estética",
+  "id": "/hoy",
   "start_url": "/hoy",
   "display": "standalone",
   "orientation": "portrait",

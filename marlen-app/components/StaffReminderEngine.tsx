@@ -10,6 +10,10 @@ export default function StaffReminderEngine() {
   useEffect(() => {
     let alive = true;
     void (async () => {
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        reg?.waiting?.postMessage({ type: 'SKIP_WAITING' });
+      }
       const enabled = await readStaffPushEnabled();
       if (!alive || !enabled) return;
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {

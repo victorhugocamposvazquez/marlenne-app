@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import AjustesSection from '@/components/ajustes/AjustesSection';
 import { useToast } from '@/components/Toast';
-import { disableStaffPush, enableStaffPush, readStaffPushEnabled, staffPushSupported } from '@/hooks/staff-push';
+import { disableStaffPush, enableStaffPush, readStaffPushEnabled, staffPushSupported, thisDevicePushOn } from '@/hooks/staff-push';
 
 export default function StaffReminderSettings() {
   const toast = useToast();
@@ -14,9 +14,9 @@ export default function StaffReminderSettings() {
 
   useEffect(() => {
     let alive = true;
-    void readStaffPushEnabled().then(on => {
+    void Promise.all([readStaffPushEnabled(), thisDevicePushOn()]).then(([server, here]) => {
       if (!alive) return;
-      setEnabled(on);
+      setEnabled(server && here);
       setReady(true);
       if (staffPushSupported()) setBlocked(Notification.permission === 'denied');
     });

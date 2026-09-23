@@ -34,32 +34,76 @@ export function staffPushSupported(): boolean {
     && 'PushManager' in window;
 }
 
+async function loadVapidKey(): Promise<string | null> {
+  const keyRes = await fetch('/api/push/vapid');
+  if (!keyRes.ok) return null;
+  const { publicKey } = await keyRes.json() as { publicKey?: string };
+  return publicKey || null;
+}
+
+/** El iPhone deja el worker nuevo en espera. Hay que despertarlo desde la página. */
+async function pushRegistration(): Promise<ServiceWorkerRegistration> {
+  const reg = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
+  try { await reg.update(); } catch { /* sin red */ }
+  if (reg.waiting) {
+    reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    await new Promise<void>(resolve => {
+      const timer = window.setTimeout(resolve, 1500);
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.clearTimeout(timer);
+        resolve();
+      }, { once: true });
+    });
+  }
+  return reg;
+}
+
+/** Este aparato tiene permiso y una suscripción. El interruptor de la cuenta no basta. */
+export async function thisDevicePushOn(): Promise<boolean> {
+  if (!staffPushSupported() || Notification.permission !== 'granted') return false;
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return false;
+    return Boolean(await reg.pushManager.getSubscription());
+  } catch {
+    return false;
+  }
+}
+
 /** Pide permiso, suscribe este dispositivo y lo guarda para el miembro que ha entrado. */
 export async function enableStaffPush(): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!staffPushSupported()) {
     return { ok: false, error: 'Este navegador no admite avisos.' };
   }
-  const perm = await Notification.requestPermission();
+
+  const permPromise = Notification.requestPermission();
+  const keyPromise = loadVapidKey();
+  const perm = await permPromise;
   if (perm !== 'granted') {
     return { ok: false, error: 'Los avisos están bloqueados en el sistema.' };
   }
-
-  const keyRes = await fetch('/api/push/vapid');
-  if (!keyRes.ok) {
-    return { ok: false, error: 'Los avisos aún no están configurados en el servidor.' };
-  }
-  const { publicKey } = await keyRes.json() as { publicKey?: string };
+  const publicKey = await keyPromise;
   if (!publicKey) {
     return { ok: false, error: 'Los avisos aún no están configurados en el servidor.' };
   }
 
-  const reg = await navigator.serviceWorker.ready;
+  let reg: ServiceWorkerRegistration;
+  try {
+    reg = await pushRegistration();
+  } catch {
+    return { ok: false, error: 'No se ha podido preparar la app. Ciérrala del todo y ábrela otra vez.' };
+  }
+
   let sub = await reg.pushManager.getSubscription();
   if (!sub) {
-    sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey),
-    });
+    try {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
+    } catch {
+      return { ok: false, error: 'No se ha podido activar en este teléfono. Ciérralo del todo, ábrelo y pulsa otra vez.' };
+    }
   }
 
   const saved = await fetch('/api/push/subscribe', {
