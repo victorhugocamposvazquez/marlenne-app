@@ -1,4 +1,4 @@
-const CACHE = 'marlenne-shell-v21';
+const CACHE = 'marlenne-shell-v22';
 const PRECACHE = [
   '/manifest.json',
   '/logo.png',
@@ -63,13 +63,28 @@ const PRECACHE = [
   '/voice/sin-nube.mp3',
 ];
 
+async function reloadOpenWindows() {
+  const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  await Promise.all(windows.map(client => {
+    if (typeof client.navigate !== 'function') return undefined;
+    try {
+      const url = new URL(client.url);
+      if (url.searchParams.has('_upd')) return undefined;
+      url.searchParams.set('_upd', String(Date.now()));
+      return client.navigate(url.href).catch(() => undefined);
+    } catch {
+      return undefined;
+    }
+  }));
+}
+
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE).then(async c => {
-      await Promise.all(PRECACHE.map(u => c.add(u).catch(() => undefined)));
-      await self.skipWaiting();
-    }),
-  );
+  event.waitUntil((async () => {
+    await self.skipWaiting();
+    await reloadOpenWindows();
+    const cache = await caches.open(CACHE);
+    await Promise.all(PRECACHE.map(u => cache.add(u).catch(() => undefined)));
+  })());
 });
 
 self.addEventListener('message', event => {
@@ -81,18 +96,7 @@ self.addEventListener('activate', event => {
     const keys = await caches.keys();
     await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
     await self.clients.claim();
-    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    await Promise.all(windows.map(client => {
-      if (typeof client.navigate !== 'function') return undefined;
-      try {
-        const url = new URL(client.url);
-        if (url.searchParams.get('_upd') === '1') return undefined;
-        url.searchParams.set('_upd', '1');
-        return client.navigate(url.href).catch(() => undefined);
-      } catch {
-        return undefined;
-      }
-    }));
+    await reloadOpenWindows();
     try {
       const res = await fetch('/voice/manifest.json');
       if (!res.ok) return;
