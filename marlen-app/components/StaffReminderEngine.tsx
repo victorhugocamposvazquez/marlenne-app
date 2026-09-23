@@ -3,6 +3,13 @@
 import { useEffect } from 'react';
 import { enableStaffPush, readStaffPushEnabled } from '@/hooks/staff-push';
 
+function openFromPush(url: string) {
+  const next = new URL(url, window.location.origin);
+  if (next.origin !== window.location.origin) return;
+  if (`${next.pathname}${next.search}` === `${window.location.pathname}${window.location.search}`) return;
+  window.location.assign(`${next.pathname}${next.search}${next.hash}`);
+}
+
 const TICK_MS = 60_000;
 
 /** Renueva la suscripción si ya hay permiso y pide al servidor los avisos pendientes. */
@@ -21,6 +28,17 @@ export default function StaffReminderEngine() {
       }
     })();
     return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const onMsg = (event: MessageEvent) => {
+      const data = event.data as { type?: string; url?: string } | undefined;
+      if (data?.type !== 'OPEN_APPT' || !data.url) return;
+      openFromPush(data.url);
+    };
+    navigator.serviceWorker.addEventListener('message', onMsg);
+    return () => navigator.serviceWorker.removeEventListener('message', onMsg);
   }, []);
 
   useEffect(() => {

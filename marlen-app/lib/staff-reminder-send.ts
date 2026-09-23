@@ -1,10 +1,12 @@
 import webpush from 'web-push';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { BRAND_NAME } from '@/lib/brand';
 import {
   isStaffReminderDue,
   minutesUntil,
   STAFF_REMINDER_LEAD_MIN,
   staffReminderTitle,
+  staffReminderUrl,
 } from '@/lib/staff-reminder';
 
 type PushSub = {
@@ -174,8 +176,9 @@ export async function dispatchStaffReminders(opts?: {
       minutesUntil(new Date(row.starts_at), now),
     );
     const payload = JSON.stringify({
-      title,
-      url: `/agenda?appt=${row.id}`,
+      title: BRAND_NAME,
+      body: title,
+      url: staffReminderUrl(row.id),
       tag: `staff-appt-${row.id}`,
     });
 

@@ -1,4 +1,4 @@
-const CACHE = 'marlenne-shell-v22';
+const CACHE = 'marlenne-shell-v23';
 const PRECACHE = [
   '/manifest.json',
   '/logo.png',
@@ -128,14 +128,16 @@ self.addEventListener('push', event => {
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: event.data ? event.data.text() : 'Próxima cita' };
+    data = { title: event.data ? event.data.text() : 'Marlén' };
   }
-  const title = data.title || 'Próxima cita';
+  const title = data.title || 'Marlén';
+  const path = data.url || '/hoy';
   event.waitUntil(self.registration.showNotification(title, {
     body: data.body || '',
     icon: '/icon-192.png',
+    badge: '/icon-192.png',
     tag: data.tag || 'staff-appt',
-    data: { url: data.url || '/hoy' },
+    data: { url: path },
   }));
 });
 
@@ -147,7 +149,12 @@ self.addEventListener('notificationclick', event => {
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of all) {
       if (new URL(client.url).origin !== self.location.origin) continue;
-      if (typeof client.navigate === 'function') await client.navigate(target);
+      if (typeof client.navigate === 'function') {
+        try { await client.navigate(target); } catch { /* iOS a veces no navega */ }
+      }
+      if (typeof client.postMessage === 'function') {
+        client.postMessage({ type: 'OPEN_APPT', url: path });
+      }
       return client.focus();
     }
     await self.clients.openWindow(target);

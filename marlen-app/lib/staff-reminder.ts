@@ -8,7 +8,7 @@ export function providerFirstName(fullName: string): string {
 }
 
 /**
- * Texto del aviso.
+ * Cuerpo del aviso. El título es siempre Marlén (el «from» del iPhone).
  * «Cita con Manuela Lopez en 30 minutos - con Iria»
  */
 export function staffReminderTitle(clientName: string, providerName: string, minutesLeft: number): string {
@@ -16,6 +16,10 @@ export function staffReminderTitle(clientName: string, providerName: string, min
   const cuando = mins === 1 ? '1 minuto' : `${mins} minutos`;
   const client = clientName.trim() || 'Sin nombre';
   return `Cita con ${client} en ${cuando} - con ${providerFirstName(providerName)}`;
+}
+
+export function staffReminderUrl(appointmentId: string): string {
+  return `/agenda?appt=${appointmentId}`;
 }
 
 export function minutesUntil(startsAt: Date, now: Date): number {

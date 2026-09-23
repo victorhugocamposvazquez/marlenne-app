@@ -4,6 +4,7 @@ import {
   isStaffReminderDue,
   providerFirstName,
   staffReminderTitle,
+  staffReminderUrl,
 } from '../lib/staff-reminder';
 
 test('el aviso nombra a la clienta y a quien atiende', () => {
@@ -26,6 +27,10 @@ test('sin nombre de profesional cae en el equipo', () => {
     staffReminderTitle('Ana', '', 12),
     'Cita con Ana en 12 minutos - con el equipo',
   );
+});
+
+test('el toque abre la ficha de esa cita', () => {
+  assert.equal(staffReminderUrl('abc-123'), '/agenda?appt=abc-123');
 });
 
 test('la ventana es desde ahora hasta 30 minutos', () => {
