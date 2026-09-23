@@ -6,7 +6,7 @@ export default function RegisterSW() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
     const nudge = () => {
-      void navigator.serviceWorker.register('/sw.js').then(reg => {
+      void navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(reg => {
         void reg.update().catch(() => undefined);
       }).catch(() => undefined);
     };

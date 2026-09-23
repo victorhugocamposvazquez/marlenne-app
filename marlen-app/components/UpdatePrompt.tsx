@@ -46,8 +46,9 @@ export default function UpdatePrompt() {
   useEffect(() => {
     try {
       const url = new URL(window.location.href);
-      if (url.searchParams.has('_v')) {
+      if (url.searchParams.has('_v') || url.searchParams.has('_upd')) {
         url.searchParams.delete('_v');
+        url.searchParams.delete('_upd');
         const next = `${url.pathname}${url.search}${url.hash}`;
         window.history.replaceState(window.history.state, '', next);
       }

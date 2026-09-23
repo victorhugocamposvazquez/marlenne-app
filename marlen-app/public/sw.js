@@ -1,4 +1,4 @@
-const CACHE = 'marlenne-shell-v20';
+const CACHE = 'marlenne-shell-v21';
 const PRECACHE = [
   '/manifest.json',
   '/logo.png',
@@ -81,6 +81,18 @@ self.addEventListener('activate', event => {
     const keys = await caches.keys();
     await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
     await self.clients.claim();
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    await Promise.all(windows.map(client => {
+      if (typeof client.navigate !== 'function') return undefined;
+      try {
+        const url = new URL(client.url);
+        if (url.searchParams.get('_upd') === '1') return undefined;
+        url.searchParams.set('_upd', '1');
+        return client.navigate(url.href).catch(() => undefined);
+      } catch {
+        return undefined;
+      }
+    }));
     try {
       const res = await fetch('/voice/manifest.json');
       if (!res.ok) return;
