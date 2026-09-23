@@ -11,6 +11,7 @@ import LiveRefresh from '@/components/LiveRefresh';
 import HoyApptRow from '@/components/hoy/HoyApptRow';
 import RecallCard from '@/components/hoy/RecallCard';
 import PasskeySetupBanner from '@/components/PasskeySetupBanner';
+import StaffReminderBanner from '@/components/StaffReminderBanner';
 import CreateMenu from '@/components/CreateMenu';
 import HoyHeaderActions from '@/components/hoy/HoyHeaderActions';
 import type { AgendaAppt } from '@/lib/types';
@@ -138,6 +139,7 @@ export default async function HoyPage() {
       )}
 
       <PasskeySetupBanner ua={ua} hasPasskeys={passkeyCount > 0} />
+      <StaffReminderBanner />
 
       {live.length > 0 && (
         <>

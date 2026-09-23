@@ -10,6 +10,7 @@ import PasswordForm from '@/components/PasswordForm';
 import PasskeySettingsCard from '@/components/PasskeySettingsCard';
 import IosShortcutsCard from '@/components/IosShortcutsCard';
 import VoiceSettingsCard from '@/components/VoiceSettingsCard';
+import StaffReminderSettings from '@/components/StaffReminderSettings';
 
 const ROADMAP = [
   { done: true, label: 'Agenda día y semana, arrastrar citas' },
@@ -27,6 +28,7 @@ const ROADMAP = [
   { done: true, label: 'Hablar o escribir comandos de agenda' },
   { done: true, label: 'Próximo hueco, confirmación y por volver' },
   { done: true, label: 'Bonos, pack amigo e importar CSV' },
+  { done: true, label: 'Aviso al equipo 30 minutos antes de cada cita' },
   { done: false, label: 'App offline usable (agenda del día en local)' },
 ];
 
@@ -38,6 +40,7 @@ export default async function CuentaPage() {
   return (
     <AjustesHeader title="Tu cuenta">
       <PasskeySettingsCard ua={ua} initial={passkeys} />
+      <StaffReminderSettings />
       <VoiceSettingsCard />
       <IosShortcutsCard />
       <PasswordForm />

@@ -1,4 +1,4 @@
-const CACHE = 'marlenne-shell-v18';
+const CACHE = 'marlenne-shell-v19';
 const PRECACHE = [
   '/manifest.json',
   '/logo.png',
@@ -99,7 +99,44 @@ function isHashedAsset(url) {
     || url.pathname === '/manifest.json';
 }
 
+function isLocalDev() {
+  return self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
+}
+
+self.addEventListener('push', event => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: event.data ? event.data.text() : 'Próxima cita' };
+  }
+  const title = data.title || 'Próxima cita';
+  event.waitUntil(self.registration.showNotification(title, {
+    body: data.body || '',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: data.tag || 'staff-appt',
+    data: { url: data.url || '/hoy' },
+  }));
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const path = (event.notification.data && event.notification.data.url) || '/hoy';
+  const target = new URL(path, self.location.origin).href;
+  event.waitUntil((async () => {
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of all) {
+      if (new URL(client.url).origin !== self.location.origin) continue;
+      if (typeof client.navigate === 'function') await client.navigate(target);
+      return client.focus();
+    }
+    await self.clients.openWindow(target);
+  })());
+});
+
 self.addEventListener('fetch', event => {
+  if (isLocalDev()) return;
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
