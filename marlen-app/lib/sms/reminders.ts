@@ -441,9 +441,9 @@ export async function processDueReminders(
 
   for (const appt of list) {
     const { config, plantilla, alias } = await salonBundle(appt.salon_id);
-    simulado = isTestMode(config);
-    // En prueba no se reclama la cita: SimplyBook sigue avisando y Marlén podrá enviar de verdad después.
-    if (simulado) {
+    // Ops enciende el centro poniendo test_mode en false. Mientras siga en true, no se reclama la cita.
+    simulado = false;
+    if (config.test_mode !== false || !config.enabled) {
       skipped += 1;
       continue;
     }
