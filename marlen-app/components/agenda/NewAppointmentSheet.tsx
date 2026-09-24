@@ -11,7 +11,7 @@ import { useCloseSheet } from '@/components/Sheet';
 import SheetShell, { SheetGrab, SheetHandle, useSheetShellClose } from '@/components/SheetShell';
 import { avatarColor, catStyle, initials } from '@/lib/categories';
 import { syncAppointmentReminderAction } from '@/app/actions/reminder-sync';
-import { createAppointment, updateAppointment, slotsFor } from '@/lib/agenda-write';
+import { cancelAppointment, createAppointment, updateAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import { alignStripStart, DAY_END, dateFromOffset, dayKey, durLbl, fmt, minutesOfDay, offsetFromDay, skipSunday, toTimestamp } from '@/lib/time';
 import { filterClientOptions } from '@/lib/client-pick';
@@ -97,6 +97,7 @@ export function NewAppointmentSheetBody({
   const [cal, setCal] = useState(false);
   const [hours, setHours] = useState<number[] | null>(null);
   const [wa, setWa] = useState(false);
+  const [askDelete, setAskDelete] = useState(false);
   const [lastId, setLastId] = useState<string | null>(null);
   const [fits, setFits] = useState<Record<string, boolean>>({});
   const whenSnap = useRef({ dayOff: 0, startMin: null as number | null, providerId: '' });
@@ -264,6 +265,19 @@ export function NewAppointmentSheetBody({
           treatment: service.name,
         },
       });
+      requestClose();
+    });
+  };
+
+  const remove = () => {
+    if (!editing) return;
+    startTransition(async () => {
+      const r = await cancelAppointment(createClient(), editing.id);
+      if (!r.ok) {
+        toast(r.error ?? 'No se ha podido borrar', 'err');
+        return;
+      }
+      toast('Cita borrada');
       requestClose();
     });
   };
@@ -555,11 +569,37 @@ export function NewAppointmentSheetBody({
                 <p className="mt-4 text-label text-ink-2">Sin teléfono en la ficha: no se puede abrir WhatsApp.</p>
               )}
             </div>
-            <div className="px-6 pb-[max(20px,env(safe-area-inset-bottom))] pt-4">
-              <Button size="lg" full onClick={save} disabled={pending || !service || startMin == null}>
-                <Check size={20} strokeWidth={2.8} />
-                {pending ? 'Guardando…' : editing ? 'Guardar cambios' : 'Guardar cita'}
-              </Button>
+            <div className="flex flex-col gap-2 px-6 pb-[max(20px,env(safe-area-inset-bottom))] pt-4">
+              {editing && askDelete ? (
+                <>
+                  <p className="text-center text-[15px] font-semibold">¿Borrar esta cita?</p>
+                  <div className="flex gap-2">
+                    <Button variant="secondary" className="flex-1" disabled={pending} onClick={() => setAskDelete(false)}>
+                      No, dejarla
+                    </Button>
+                    <Button variant="danger" className="flex-1" disabled={pending} onClick={remove}>
+                      {pending ? 'Borrando…' : 'Sí, borrar'}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Button size="lg" full onClick={save} disabled={pending || !service || startMin == null}>
+                    <Check size={20} strokeWidth={2.8} />
+                    {pending ? 'Guardando…' : editing ? 'Guardar cambios' : 'Guardar cita'}
+                  </Button>
+                  {editing && (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => setAskDelete(true)}
+                      className="min-h-[44px] text-[15px] font-bold text-danger-fg disabled:opacity-45"
+                    >
+                      Borrar cita
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           </>
         )}
