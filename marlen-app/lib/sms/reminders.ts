@@ -257,7 +257,7 @@ export async function sendReminderForAppointment(
   opciones: { forzarReal?: boolean } = {},
 ): Promise<EnvioPuntualResultado> {
   if (!isLabsMobileConfigured()) {
-    return { ok: false, error: 'LabsMobile no configurado' };
+    return { ok: false, error: 'Los SMS de este centro aún no están disponibles' };
   }
 
   const supabase = createAdminClient();
@@ -290,7 +290,7 @@ export async function sendReminderForAppointment(
   }
 
   if (!config.sender?.trim()) {
-    return { ok: false, error: 'Falta el remitente de este centro en LabsMobile' };
+    return { ok: false, error: 'Falta el nombre que verá la clienta' };
   }
   const simulado = opciones.forzarReal ? false : isTestMode(config);
   const cuerpo = renderReminderBody(

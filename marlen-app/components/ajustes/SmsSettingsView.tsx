@@ -115,7 +115,7 @@ export default function SmsSettingsView({
   return (
     <AjustesHeader title="SMS">
       <p className="text-body leading-snug text-ink-2">
-        Recordatorios automáticos por SMS. En modo prueba no se envía al operador real.
+        Recordatorios por SMS a las clientas. En modo prueba no sale ningún mensaje.
       </p>
 
       <AjustesSection title="Recordatorios">
@@ -136,13 +136,13 @@ export default function SmsSettingsView({
         <label className="block border-b border-surface-line py-4">
           <span className="block text-body-lg font-bold text-ink">Remitente de este centro</span>
           <span className="mt-0.5 block text-body leading-snug text-ink-2">
-            El identificador de LabsMobile de este centro. Cada centro tiene el suyo.
+            El nombre que verá la clienta, hasta 11 letras. Cada centro tiene el suyo. Hasta que esté activo, el SMS puede llegar desde un número.
           </span>
           <input
             className={`${inputCls} mt-3 uppercase`}
             value={cfg.sender}
             disabled={pending}
-            maxLength={12}
+            maxLength={11}
             autoCapitalize="characters"
             onChange={e => setCfg(c => ({ ...c, sender: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') }))}
           />
