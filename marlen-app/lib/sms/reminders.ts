@@ -443,6 +443,11 @@ export async function processDueReminders(
   for (const appt of list) {
     const { config, plantilla, alias } = await salonBundle(appt.salon_id);
     simulado = isTestMode(config);
+    // En prueba no se reclama la cita: SimplyBook sigue avisando y Marlén podrá enviar de verdad después.
+    if (simulado) {
+      skipped += 1;
+      continue;
+    }
 
     if (!plantilla) {
       errors.push(`${appt.id}: plantilla recordatorio_cita no disponible`);
