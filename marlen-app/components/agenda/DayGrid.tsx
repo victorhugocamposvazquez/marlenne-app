@@ -16,6 +16,12 @@ import { nearestStart, slotGaps, snapInGap } from '@/lib/place-slots';
 import { GripVertical } from 'lucide-react';
 
 const PLACE_ID = '__place__';
+
+function armColor(p: number) {
+  if (p >= 0.72) return '#22C55E';
+  if (p >= 0.38) return '#F59E0B';
+  return '#E11D48';
+}
 const HOUR_W = 46;
 const COL_INSET = 4;
 
@@ -343,8 +349,8 @@ export default function DayGrid({
                     onContextMenu={e => e.preventDefault()}
                   >
                     {arm?.id === a.id && (
-                      <span className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-[3px] bg-ink/10">
-                        <span className="block h-full bg-ink" style={{ width: `${Math.round(arm.p * 100)}%` }} />
+                      <span className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-1 bg-black/10">
+                        <span className="block h-full" style={{ width: `${Math.round(arm.p * 100)}%`, background: armColor(arm.p) }} />
                       </span>
                     )}
                     {canDrag && (
@@ -407,8 +413,8 @@ export default function DayGrid({
                     onContextMenu={e => e.preventDefault()}
                   >
                     {arm?.id === PLACE_ID && (
-                      <span className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-[3px] bg-white/25">
-                        <span className="block h-full bg-white" style={{ width: `${Math.round(arm.p * 100)}%` }} />
+                      <span className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-1 bg-white/25">
+                        <span className="block h-full" style={{ width: `${Math.round(arm.p * 100)}%`, background: armColor(arm.p) }} />
                       </span>
                     )}
                     <button
