@@ -33,18 +33,18 @@ export default async function SmsSettingsPage() {
       .order('created_at', { ascending: false })
       .limit(15),
     sb.from('appointments')
-      .select('id, starts_at, client:clients(full_name), service:services(name)')
+      .select('id, starts_at, client_name, client:clients(full_name), service:services(name)')
       .eq('salon_id', me.salon_id)
       .eq('status', 'prog')
       .gte('starts_at', new Date().toISOString())
       .order('starts_at', { ascending: true })
-      .limit(10),
+      .limit(80),
   ]);
 
   const testAppointments = (appts ?? []).map(a => {
     const client = a.client as unknown as { full_name: string } | null;
     const service = a.service as unknown as { name: string } | null;
-    const name = client?.full_name ?? 'Clienta';
+    const name = client?.full_name ?? a.client_name ?? 'Clienta';
     const svc = service?.name ?? 'Cita';
     return {
       id: a.id,

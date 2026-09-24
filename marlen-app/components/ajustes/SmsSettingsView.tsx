@@ -83,6 +83,7 @@ export default function SmsSettingsView({
   const [cfg, setCfg] = useState(config);
   const [cuerpo, setCuerpo] = useState(templateBody);
   const [testApptId, setTestApptId] = useState(testAppointments[0]?.id ?? '');
+  const [testQ, setTestQ] = useState('');
 
   const saveConfig = () => {
     startTransition(async () => {
@@ -235,6 +236,21 @@ export default function SmsSettingsView({
         ) : (
           <>
             <label className="block border-b border-surface-line py-4">
+              <span className="mb-1.5 block text-caption font-bold text-ink-2">Buscar clienta</span>
+              <input
+                className={inputCls}
+                value={testQ}
+                disabled={pending}
+                placeholder="Nombre"
+                onChange={e => {
+                  const q = e.target.value;
+                  setTestQ(q);
+                  const next = testAppointments.filter(a => a.label.toLowerCase().includes(q.trim().toLowerCase()));
+                  if (!next.some(a => a.id === testApptId)) setTestApptId(next[0]?.id ?? '');
+                }}
+              />
+            </label>
+            <label className="block border-b border-surface-line py-4">
               <span className="mb-1.5 block text-caption font-bold text-ink-2">Cita</span>
               <select
                 className={inputCls}
@@ -242,9 +258,11 @@ export default function SmsSettingsView({
                 disabled={pending}
                 onChange={e => setTestApptId(e.target.value)}
               >
-                {testAppointments.map(a => (
-                  <option key={a.id} value={a.id}>{a.label}</option>
-                ))}
+                {testAppointments
+                  .filter(a => a.label.toLowerCase().includes(testQ.trim().toLowerCase()))
+                  .map(a => (
+                    <option key={a.id} value={a.id}>{a.label}</option>
+                  ))}
               </select>
             </label>
             <div className="py-4">
