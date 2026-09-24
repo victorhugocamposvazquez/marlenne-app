@@ -7,8 +7,8 @@ import { haptic } from '@/hooks/haptics';
 export const COL_W = 152;
 const EDGE = 64;
 const FRAME = 16.67;
-const HOLD_MS = 350;
-const HOLD_MOVE = 12;
+const HOLD_MS = 420;
+const SCROLL_DY = 8;
 
 type Drag = { id: string; start: number; providerId: string };
 
@@ -40,8 +40,8 @@ type Start = {
 };
 
 /**
- * Asidero = arrastre inmediato. Resto de la pastilla = pulsación larga.
- * Toque corto abre la ficha. Si el dedo se mueve antes, es scroll.
+ * Mover una cita pide una pulsación corta, con barra de carga.
+ * Si el dedo se desplaza antes, es scroll. Toque corto abre la ficha.
  */
 export function useDragAppointment({
   pxPerMin, snap, providerIds, scrollRef, gridRef, onDrop, snapStart, colW = COL_W,
@@ -58,6 +58,7 @@ export function useDragAppointment({
   const colWRef = useRef(colW);
   colWRef.current = colW;
   const [drag, setDrag] = useState<Drag | null>(null);
+  const [arm, setArm] = useState<{ id: string; p: number } | null>(null);
   const session = useRef<Session | null>(null);
   const raf = useRef(0);
   const lastEv = useRef<PointerEvent | null>(null);
@@ -218,30 +219,9 @@ export function useDragAppointment({
     window.addEventListener('contextmenu', blockSelect, { capture: true });
   }, [pxPerMin, snap, providerIds, scrollRef, gridRef, onDrop, snapStart]);
 
-  const onHandleDown = useCallback(
+  const beginHold = useCallback(
     (e: React.PointerEvent, id: string, startMin: number, providerId: string, duration: number) => {
       if (e.button !== 0) return;
-      e.preventDefault();
-      e.stopPropagation();
-      startDrag({
-        pointerId: e.pointerId,
-        clientX: e.clientX,
-        clientY: e.clientY,
-        native: e.nativeEvent,
-        captureEl: e.currentTarget as HTMLElement,
-        id,
-        startMin,
-        providerId,
-        duration,
-      });
-    },
-    [startDrag],
-  );
-
-  const onCardDown = useCallback(
-    (e: React.PointerEvent, id: string, startMin: number, providerId: string, duration: number) => {
-      if (e.button !== 0) return;
-      if ((e.target as HTMLElement).closest('[data-drag-handle]')) return;
 
       const pointerId = e.pointerId;
       const x0 = e.clientX;
@@ -249,20 +229,34 @@ export function useDragAppointment({
       const captureEl = e.currentTarget as HTMLElement;
       let last: PointerEvent = e.nativeEvent;
       let timer = 0;
+      let frame = 0;
+      const t0 = performance.now();
 
       const stopHold = () => {
         if (timer) window.clearTimeout(timer);
         timer = 0;
+        if (frame) cancelAnimationFrame(frame);
+        frame = 0;
         holdStop.current = null;
+        setArm(null);
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
         window.removeEventListener('pointercancel', onUp);
       };
 
+      const paint = (now: number) => {
+        frame = 0;
+        const p = Math.min(1, (now - t0) / HOLD_MS);
+        setArm({ id, p });
+        if (p < 1) frame = requestAnimationFrame(paint);
+      };
+
       const onMove = (ev: PointerEvent) => {
         if (ev.pointerId !== pointerId) return;
         last = ev;
-        if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > HOLD_MOVE) stopHold();
+        const dy = ev.clientY - y0;
+        const dx = ev.clientX - x0;
+        if (Math.abs(dy) > SCROLL_DY && Math.abs(dy) >= Math.abs(dx)) stopHold();
       };
       const onUp = (ev: PointerEvent) => {
         if (ev.pointerId !== pointerId) return;
@@ -285,12 +279,29 @@ export function useDragAppointment({
         });
       }, HOLD_MS);
 
+      frame = requestAnimationFrame(paint);
       window.addEventListener('pointermove', onMove);
       window.addEventListener('pointerup', onUp);
       window.addEventListener('pointercancel', onUp);
       holdStop.current = stopHold;
     },
     [startDrag],
+  );
+
+  const onHandleDown = useCallback(
+    (e: React.PointerEvent, id: string, startMin: number, providerId: string, duration: number) => {
+      e.stopPropagation();
+      beginHold(e, id, startMin, providerId, duration);
+    },
+    [beginHold],
+  );
+
+  const onCardDown = useCallback(
+    (e: React.PointerEvent, id: string, startMin: number, providerId: string, duration: number) => {
+      if ((e.target as HTMLElement).closest('[data-drag-handle]')) return;
+      beginHold(e, id, startMin, providerId, duration);
+    },
+    [beginHold],
   );
 
   const onCardClick = useCallback((e: React.MouseEvent) => {
@@ -301,5 +312,5 @@ export function useDragAppointment({
     return true;
   }, []);
 
-  return { drag, onHandleDown, onCardDown, onCardClick };
+  return { drag, arm, onHandleDown, onCardDown, onCardClick };
 }

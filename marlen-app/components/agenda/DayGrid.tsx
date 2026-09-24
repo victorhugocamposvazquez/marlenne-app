@@ -84,7 +84,7 @@ export default function DayGrid({
     shallowSet({ appt: id });
   }, []);
 
-  const { drag, onHandleDown, onCardDown, onCardClick } = useDragAppointment({
+  const { drag, arm, onHandleDown, onCardDown, onCardClick } = useDragAppointment({
     pxPerMin,
     snap: 15,
     providerIds: canMoveProvider ? providers.map(p => p.id) : [providers[0]?.id],
@@ -342,12 +342,17 @@ export default function DayGrid({
                     onPointerDown={!placing && canDrag ? e => onCardDown(e, a.id, pos.start, pos.provider, a.duration_min) : undefined}
                     onContextMenu={e => e.preventDefault()}
                   >
+                    {arm?.id === a.id && (
+                      <span className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-[3px] bg-ink/10">
+                        <span className="block h-full bg-ink" style={{ width: `${Math.round(arm.p * 100)}%` }} />
+                      </span>
+                    )}
                     {canDrag && (
                       <button
                         type="button"
                         data-drag-handle
                         aria-label={`Mover cita de ${a.client_label}`}
-                        className="relative flex w-7 shrink-0 touch-none select-none cursor-grab items-center justify-center text-ink-3 before:absolute before:-inset-y-2 before:-left-2.5 before:-right-1.5 before:content-[''] [-webkit-touch-callout:none] active:cursor-grabbing"
+                        className="relative flex w-7 shrink-0 select-none cursor-grab items-center justify-center text-ink-3 before:absolute before:-inset-y-2 before:-left-2.5 before:-right-1.5 before:content-[''] [-webkit-touch-callout:none] active:cursor-grabbing"
                         draggable={false}
                         onPointerDown={e => onHandleDown(e, a.id, pos.start, pos.provider, a.duration_min)}
                         onClick={e => e.stopPropagation()}
@@ -401,11 +406,16 @@ export default function DayGrid({
                     onPointerDown={e => onCardDown(e, PLACE_ID, live.startMin, live.providerId, durationMin)}
                     onContextMenu={e => e.preventDefault()}
                   >
+                    {arm?.id === PLACE_ID && (
+                      <span className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-[3px] bg-white/25">
+                        <span className="block h-full bg-white" style={{ width: `${Math.round(arm.p * 100)}%` }} />
+                      </span>
+                    )}
                     <button
                       type="button"
                       data-drag-handle
                       aria-label="Mover la hora de la cita"
-                      className="relative flex w-7 shrink-0 touch-none select-none cursor-grab items-center justify-center text-white/80 before:absolute before:-inset-y-2 before:-left-2.5 before:-right-1.5 before:content-[''] [-webkit-touch-callout:none] active:cursor-grabbing"
+                      className="relative flex w-7 shrink-0 select-none cursor-grab items-center justify-center text-white/80 before:absolute before:-inset-y-2 before:-left-2.5 before:-right-1.5 before:content-[''] [-webkit-touch-callout:none] active:cursor-grabbing"
                       draggable={false}
                       onPointerDown={e => onHandleDown(e, PLACE_ID, live.startMin, live.providerId, durationMin)}
                       onClick={e => e.stopPropagation()}
