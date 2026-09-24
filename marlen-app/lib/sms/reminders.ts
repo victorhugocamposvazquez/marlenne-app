@@ -289,6 +289,9 @@ export async function sendReminderForAppointment(
     return { ok: false, error: `Teléfono no válido: ${telefono.label}` };
   }
 
+  if (!config.sender?.trim()) {
+    return { ok: false, error: 'Falta el remitente de este centro en LabsMobile' };
+  }
   const simulado = opciones.forzarReal ? false : isTestMode(config);
   const cuerpo = renderReminderBody(
     appt,
@@ -511,6 +514,11 @@ export async function processDueReminders(
         sent_at: nowIso,
         error_message: telefono.label,
       });
+      continue;
+    }
+
+    if (!config.sender?.trim()) {
+      skipped += 1;
       continue;
     }
 

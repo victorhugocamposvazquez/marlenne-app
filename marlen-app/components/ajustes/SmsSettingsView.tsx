@@ -15,6 +15,7 @@ type SmsConfig = {
   reminder_hours_before: number;
   reminder_send_hour: number;
   test_mode: boolean;
+  sender: string;
 };
 
 type SmsLogRow = {
@@ -132,6 +133,20 @@ export default function SmsSettingsView({
           disabled={pending}
           onToggle={() => setCfg(c => ({ ...c, test_mode: !c.test_mode }))}
         />
+        <label className="block border-b border-surface-line py-4">
+          <span className="block text-body-lg font-bold text-ink">Remitente de este centro</span>
+          <span className="mt-0.5 block text-body leading-snug text-ink-2">
+            El identificador de LabsMobile de este centro. Cada centro tiene el suyo.
+          </span>
+          <input
+            className={`${inputCls} mt-3 uppercase`}
+            value={cfg.sender}
+            disabled={pending}
+            maxLength={12}
+            autoCapitalize="characters"
+            onChange={e => setCfg(c => ({ ...c, sender: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') }))}
+          />
+        </label>
         <div className="border-b border-surface-line py-4">
           <p className="text-body-lg font-bold text-ink">Cuándo avisar</p>
           <div className="mt-2 flex flex-wrap gap-2">

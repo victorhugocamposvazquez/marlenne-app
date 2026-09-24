@@ -60,6 +60,7 @@ export default async function SmsSettingsPage() {
         reminder_hours_before: config.reminder_hours_before,
         reminder_send_hour: config.reminder_send_hour,
         test_mode: config.test_mode,
+        sender: config.sender ?? '',
       }}
       templateBody={templateBody}
       logs={logs ?? []}
