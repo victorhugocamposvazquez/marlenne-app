@@ -144,8 +144,14 @@ export default function SmsSettingsView({
             disabled={pending}
             maxLength={11}
             autoCapitalize="characters"
-            onChange={e => setCfg(c => ({ ...c, sender: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') }))}
+            onChange={e => setCfg(c => ({
+              ...c,
+              sender: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11),
+            }))}
           />
+          <span className={`mt-1.5 block text-right text-caption font-semibold ${cfg.sender.length >= 11 ? 'text-ink' : 'text-ink-2'}`}>
+            {cfg.sender.length}/11
+          </span>
         </label>
         <div className="border-b border-surface-line py-4">
           <p className="text-body-lg font-bold text-ink">Cuándo avisar</p>

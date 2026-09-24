@@ -289,9 +289,6 @@ export async function sendReminderForAppointment(
     return { ok: false, error: `Teléfono no válido: ${telefono.label}` };
   }
 
-  if (!config.sender?.trim()) {
-    return { ok: false, error: 'Falta el nombre que verá la clienta' };
-  }
   const simulado = opciones.forzarReal ? false : isTestMode(config);
   const cuerpo = renderReminderBody(
     appt,
@@ -304,7 +301,6 @@ export async function sendReminderForAppointment(
   const result = await sendSmsLabsMobile(telefono.phone, cuerpo, {
     subid,
     test: simulado,
-    sender: config.sender ?? undefined,
   });
 
   if (!result.ok) {
@@ -517,11 +513,6 @@ export async function processDueReminders(
       continue;
     }
 
-    if (!config.sender?.trim()) {
-      skipped += 1;
-      continue;
-    }
-
     const phone = telefono.phone;
     const subid = generateSubid();
 
@@ -542,7 +533,6 @@ export async function processDueReminders(
     const result = await sendSmsLabsMobile(phone, cuerpo, {
       subid,
       test: simulado,
-      sender: config.sender ?? undefined,
     });
 
     if (!result.ok) {
