@@ -19,6 +19,8 @@ export type Company = {
   stripe: string;
   avatar: string;
   mrr: number;
+  /** Empresa de verdad, usando la app en producción. El resto de la lista es muestra. */
+  live?: boolean;
 };
 
 export type NavId =

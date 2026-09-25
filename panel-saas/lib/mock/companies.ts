@@ -98,7 +98,30 @@ function generateCompanies(): Company[] {
   return out;
 }
 
-export const COMPANIES = generateCompanies();
+export const LIVE_COMPANY_ID = 90001;
+
+const ARLETT: Company = {
+  id: LIVE_COMPANY_ID,
+  name: 'Arlett Beauty',
+  city: 'Producción',
+  plan: 'Pro',
+  price: 0,
+  status: 'Activa',
+  smsTotal: 0,
+  smsLeft: 0,
+  pros: 0,
+  since: 'sep 2026',
+  next: '—',
+  contact: '—',
+  email: '—',
+  phone: '—',
+  stripe: '—',
+  avatar: '#F4487F',
+  mrr: 0,
+  live: true,
+};
+
+export const COMPANIES = [ARLETT, ...generateCompanies()];
 export const MRR = COMPANIES.reduce((a, c) => a + (c.status === 'Activa' ? c.price : 0), 0);
 
 export function getCompany(id: number) {

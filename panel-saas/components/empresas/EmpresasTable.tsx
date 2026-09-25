@@ -37,8 +37,17 @@ function smsColor(c: Company): string {
 }
 
 function smsLabel(c: Company): string {
+  if (c.live) return 'Automático en prueba';
   if (c.smsLeft === 0) return 'Sin SMS';
   return `${c.smsLeft.toLocaleString('es-ES')} / ${c.smsTotal.toLocaleString('es-ES')}`;
+}
+
+function LiveMark() {
+  return (
+    <span className="ml-2 inline-flex items-center rounded-pill bg-[#E7F8EE] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#15803D]">
+      Live
+    </span>
+  );
 }
 
 function Checkbox({ checked, onToggle }: { checked: boolean; onToggle: () => void }) {
@@ -99,6 +108,7 @@ export default function EmpresasTable({ companies }: { companies: Company[] }) {
       next: c => c.next,
     };
     list = [...list].sort((a, b) => {
+      if (!!a.live !== !!b.live) return a.live ? -1 : 1;
       const A = keyFn[sort](a);
       const B = keyFn[sort](b);
       return (A > B ? 1 : A < B ? -1 : 0) * dir;
@@ -234,8 +244,8 @@ export default function EmpresasTable({ companies }: { companies: Company[] }) {
               <Link href={`/empresas/${c.id}`} className="flex min-w-0 items-center gap-3 py-3 hover:opacity-90">
                 <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] text-[11px] font-bold text-white" style={{ background: c.avatar }}>{initials(c.name)}</span>
                 <div className="min-w-0">
-                  <p className="truncate text-[14px] font-semibold">{c.name}</p>
-                  <p className="truncate text-[12px] text-ink-2">{c.city}</p>
+                  <p className="truncate text-[14px] font-semibold">{c.name}{c.live && <LiveMark />}</p>
+                  <p className="truncate text-[12px] text-ink-2">{c.live ? 'Datos reales · el resto de la lista es muestra' : c.city}</p>
                 </div>
               </Link>
               <span className="text-[13px] font-semibold">{c.plan}</span>
@@ -265,7 +275,7 @@ export default function EmpresasTable({ companies }: { companies: Company[] }) {
             >
               <span className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-xl text-[12px] font-bold text-white" style={{ background: c.avatar }}>{initials(c.name)}</span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[14px] font-semibold">{c.name}</p>
+                <p className="truncate text-[14px] font-semibold">{c.name}{c.live && <LiveMark />}</p>
                 <p className="text-[12px] text-ink-2">{c.city} · {c.plan} · {c.status === 'Activa' ? `${eur(c.price)}/mes` : '—'}</p>
                 <p className="mt-0.5 flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: stC }}>
                   <span className="h-[7px] w-[7px] rounded-pill" style={{ background: stC }} />

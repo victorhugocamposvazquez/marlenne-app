@@ -51,7 +51,10 @@ const ICONS: Record<string, string> = {
 
 export default function PanelUserZone({ compact }: { compact?: boolean }) {
   const router = useRouter();
-  const { openDrawer, toast } = usePanelUI();
+  const { panelUser, openDrawer, toast } = usePanelUI();
+  const label = panelUser?.name ?? 'Operador';
+  const email = panelUser?.email ?? '';
+  const badge = panelUser?.initials ?? '??';
   const [userOpen, setUserOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [read, setRead] = useState(false);
@@ -131,7 +134,7 @@ export default function PanelUserZone({ compact }: { compact?: boolean }) {
         className={`flex items-center gap-2 rounded-pill border-[1.5px] border-line bg-white ${compact ? 'h-9 py-0 pl-0.5 pr-2' : 'h-10 py-1 pl-1 pr-2.5'}`}
       >
         <span className={`relative flex items-center justify-center rounded-pill bg-ink font-bold text-white ${compact ? 'h-8 w-8 text-[12px]' : 'h-8 w-8 text-[11px]'}`}>
-          HC
+          {badge}
           <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-pill border-2 border-white" style={{ background: STATUS_COLOR[status] }} />
         </span>
         {!compact && <ChevronDown size={14} className="text-ink-2" />}
@@ -143,13 +146,13 @@ export default function PanelUserZone({ compact }: { compact?: boolean }) {
           <div className={`absolute z-[8] overflow-hidden rounded-[20px] border border-line bg-white shadow-menu ${menuPos}`}>
             <div className="flex items-center gap-3 px-4 py-3.5">
               <span className="relative flex h-11 w-11 items-center justify-center rounded-pill bg-ink text-[13px] font-bold text-white">
-                HC
+                {badge}
                 <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-pill border-2 border-white" style={{ background: STATUS_COLOR[status] }} />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[15px] font-bold">Hugo Campos</p>
-                <p className="truncate text-[13px] text-ink-2">hugo@marlen.app</p>
-                <p className="mt-0.5 text-[12px] font-semibold text-brand-pink">Superadmin</p>
+                <p className="text-[15px] font-bold">{label}</p>
+                <p className="truncate text-[13px] text-ink-2">{email || 'Sin correo'}</p>
+                <p className="mt-0.5 text-[12px] font-semibold text-brand-pink">Equipo Ops</p>
               </div>
             </div>
             <div className="px-1.5 pb-1.5">

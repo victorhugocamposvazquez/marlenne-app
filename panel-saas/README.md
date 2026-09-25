@@ -13,23 +13,34 @@ npm run dev
 
 Abre [http://localhost:3001](http://localhost:3001) · login demo en `/login`.
 
-## Deploy (subdominio)
+## Deploy en Vercel (producción)
 
-Proyecto Vercel **independiente**, raíz `panel-saas/`:
+Segundo proyecto en el **mismo repo** que `marlen-app`:
 
-- Producción sugerida: `ops.marlen.app` o `panel.marlen.app`
-- App de centro: `app.marlen.app` (o el dominio actual)
+| Campo | Valor |
+|--------|--------|
+| Root Directory | `panel-saas` |
+| Framework | Next.js |
 
-Variables cuando haya backend:
+Variables de entorno en **Production** (copiar los mismos nombres que en `marlen-app`, sin commitear valores):
 
-- `NEXT_PUBLIC_APP_URL` — URL de la app de centro (modo soporte)
-- `SUPABASE_URL` / claves — si compartís BD (ver `docs/ARCHITECTURE.md`)
+| Variable | Uso |
+|----------|-----|
+| `NEXT_PUBLIC_SUPABASE_URL` | Misma URL del proyecto Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role (solo servidor Ops) |
+| `NEXT_PUBLIC_APP_URL` | `https://marlenne-app.vercel.app` (app de centro) |
+
+Sin esas dos de Supabase, Arlett y el equipo salen como “No se ha podido leer la base”.
+
+En el proyecto **marlen-app** (producción): `NEXT_PUBLIC_PANEL_URL` = URL pública de este panel.
+
+Tras añadir variables: **Redeploy** del panel (no basta con guardar en el dashboard).
 
 ## Estado actual
 
-- **UI** según handoff `design_handoff_marlen_agenda 3/panel-saas`
-- **Datos mock** (`lib/mock/companies.ts` + `lib/mock/panel-fixtures.ts`)
-- **Sin base de datos** ni auth real
+- **Arlett Beauty** cableada a Supabase (SMS, equipo, Live)
+- **Resto de empresas** y KPIs globales: mock
+- Login Ops: cookie con el correo que escribes (sin Supabase Auth aún)
 
 ## Rutas
 

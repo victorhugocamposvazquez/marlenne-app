@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ChevronLeft, X } from 'lucide-react';
+import { usePanelUI } from '@/context/PanelUIContext';
 
 export type DrawerKind = 'profile' | 'security' | 'notifPrefs' | 'sessions';
 
@@ -39,6 +40,7 @@ export default function MiCuentaDrawer({
   onBack: () => void;
   onToast: (msg: string) => void;
 }) {
+  const { panelUser } = usePanelUI();
   const [prefs, setPrefs] = useState(DEFAULT_PREFS);
   const [killedSession, setKilledSession] = useState(false);
   const hasSave = kind === 'profile' || kind === 'notifPrefs';
@@ -73,15 +75,16 @@ export default function MiCuentaDrawer({
           {kind === 'profile' && (
             <>
               <div className="flex items-center gap-3.5">
-                <span className="flex h-16 w-16 items-center justify-center rounded-pill bg-ink text-[20px] font-bold text-white">HC</span>
+                <span className="flex h-16 w-16 items-center justify-center rounded-pill bg-ink text-[20px] font-bold text-white">
+                  {panelUser?.initials ?? '??'}
+                </span>
                 <button type="button" onClick={() => onToast('Elegir foto')} className="h-[38px] rounded-pill border-[1.5px] border-line bg-white px-3.5 text-[13px] font-semibold">
                   Cambiar foto
                 </button>
               </div>
               {[
-                ['Nombre', 'Hugo Campos'],
-                ['Correo', 'hugo@marlen.app'],
-                ['Móvil (para códigos)', '+34 612 40 22 18'],
+                ['Nombre', panelUser?.name ?? ''],
+                ['Correo', panelUser?.email ?? ''],
                 ['Idioma', 'Español'],
                 ['Zona horaria', 'Europe/Madrid'],
               ].map(([label, value]) => (

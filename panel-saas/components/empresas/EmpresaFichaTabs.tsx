@@ -7,11 +7,22 @@ import ModalTrigger from '@/components/ui/ModalTrigger';
 import StatusPill from '@/components/ui/StatusPill';
 import { usePanelUI } from '@/context/PanelUIContext';
 import { eur, initials } from '@/lib/format';
+import LiveCenterCard from '@/components/sms/LiveCenterCard';
+import type { LiveCenter } from '@/lib/live-center';
+import { liveStaffRoleLabel, type LiveStaff } from '@/lib/live-staff';
 import type { Company } from '@/lib/types';
 
 const TABS = ['Resumen', 'SMS', 'Pagos', 'Su equipo', 'Ajustes'] as const;
 
-export default function EmpresaFichaTabs({ company }: { company: Company }) {
+export default function EmpresaFichaTabs({
+  company,
+  live = null,
+  liveStaff = [],
+}: {
+  company: Company;
+  live?: LiveCenter | null;
+  liveStaff?: LiveStaff[];
+}) {
   const { startImpersonation, toast } = usePanelUI();
   const [tab, setTab] = useState<(typeof TABS)[number]>('Resumen');
   const [paused, setPaused] = useState(false);
@@ -26,7 +37,14 @@ export default function EmpresaFichaTabs({ company }: { company: Company }) {
           </span>
           <div>
             <p className="text-[13px] text-ink-3">#{company.id}</p>
-            <StatusPill status={company.status} />
+            <span className="mt-1 flex flex-wrap items-center gap-2">
+              <StatusPill status={company.status} />
+              {company.live && (
+                <span className="inline-flex items-center rounded-pill bg-[#E7F8EE] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#15803D]">
+                  Live
+                </span>
+              )}
+            </span>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -57,6 +75,14 @@ export default function EmpresaFichaTabs({ company }: { company: Company }) {
 
       {tab === 'Resumen' && (
         <div className="grid gap-3 lg:grid-cols-2">
+          {company.live && liveStaff.length > 0 && (
+            <div className="space-y-2 rounded-card border border-[#BBF7D0] bg-[#F0FDF4] p-5 lg:col-span-2">
+              <h2 className="text-[16px] font-bold">App en producción</h2>
+              <p className="text-[14px] text-ink-2">
+                {liveStaff.filter(s => s.active).length} usuarios con acceso · datos reales de Supabase
+              </p>
+            </div>
+          )}
           <div className="space-y-3 rounded-card bg-white p-5">
             <h2 className="text-[16px] font-bold">Suscripción</h2>
             <p className="text-[14px]"><span className="font-semibold">{company.plan}</span> · {eur(company.price)}/mes</p>
@@ -99,10 +125,12 @@ export default function EmpresaFichaTabs({ company }: { company: Company }) {
       )}
 
       {tab === 'SMS' && (
-        <div className="space-y-2 rounded-card bg-white p-5">
-          <p className="text-[14px]">Cupo {company.smsLeft}/{company.smsTotal} · remitente configurable por empresa</p>
-          <p className="text-[13px] text-ink-2">Últimos 15 envíos mock · conectar a sms_log en fase BD.</p>
-        </div>
+        company.live ? <LiveCenterCard center={live ?? null} /> : (
+          <div className="space-y-2 rounded-card bg-white p-5">
+            <p className="text-[14px]">Cupo {company.smsLeft}/{company.smsTotal} · remitente configurable por empresa</p>
+            <p className="text-[13px] text-ink-2">Muestra. El historial real está en la empresa en producción.</p>
+          </div>
+        )
       )}
 
       {tab === 'Pagos' && (
@@ -113,20 +141,48 @@ export default function EmpresaFichaTabs({ company }: { company: Company }) {
       )}
 
       {tab === 'Su equipo' && (
-        <div className="rounded-card bg-white px-5 py-1">
-          {[[company.contact, 'Propietaria', 'hoy 9:12', '#0F0E1A'], ['Valeria Ortega', 'Profesional', 'ayer', '#8B5CF6'], ['Marco Gil', 'Profesional', 'hace 3 días', '#4F6BF6']].slice(0, Math.max(1, Math.min(3, company.pros + 1))).map(([name, role, last, color], i) => (
-            <div key={name} className={`flex flex-wrap items-center gap-3 py-3.5 ${i ? 'border-t border-line' : ''}`}>
-              <span className="flex h-9 w-9 items-center justify-center rounded-pill text-[12px] font-bold text-white" style={{ background: color }}>{initials(name)}</span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[14px] font-semibold">{name}</p>
-                <p className="text-[13px] text-ink-2">{role} · último acceso {last}</p>
+        company.live ? (
+          <div className="rounded-card bg-white px-5 py-1">
+            {liveStaff.length === 0 ? (
+              <p className="py-4 text-[14px] text-ink-2">No se ha podido leer el equipo de la app.</p>
+            ) : liveStaff.map((m, i) => (
+              <div key={m.id} className={`flex flex-wrap items-center gap-3 py-3.5 ${i ? 'border-t border-line' : ''}`}>
+                <span className="flex h-9 w-9 items-center justify-center rounded-pill bg-ink text-[12px] font-bold text-white">{initials(m.name)}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] font-semibold">{m.name}</p>
+                  <p className="text-[13px] text-ink-2">
+                    {liveStaffRoleLabel(m.role, m.jobTitle)}
+                    {m.email ? ` · ${m.email}` : ' · sin acceso'}
+                    {!m.active && ' · inactivo'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={!m.email}
+                  onClick={() => toast(m.email ? `Restablecer contraseña para ${m.email} (pendiente)` : 'Sin correo de acceso')}
+                  className="h-8 rounded-pill border border-line px-3 text-[12px] font-semibold disabled:opacity-40"
+                >
+                  Restablecer contraseña
+                </button>
               </div>
-              <button type="button" onClick={() => toast(`Correo de restablecimiento enviado a ${name}`)} className="h-8 rounded-pill border border-line px-3 text-[12px] font-semibold">
-                Restablecer contraseña
-              </button>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-card bg-white px-5 py-1">
+            {[[company.contact, 'Propietaria', 'hoy 9:12', '#0F0E1A'], ['Valeria Ortega', 'Profesional', 'ayer', '#8B5CF6'], ['Marco Gil', 'Profesional', 'hace 3 días', '#4F6BF6']].slice(0, Math.max(1, Math.min(3, company.pros + 1))).map(([name, role, last, color], i) => (
+              <div key={name} className={`flex flex-wrap items-center gap-3 py-3.5 ${i ? 'border-t border-line' : ''}`}>
+                <span className="flex h-9 w-9 items-center justify-center rounded-pill text-[12px] font-bold text-white" style={{ background: color }}>{initials(name)}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] font-semibold">{name}</p>
+                  <p className="text-[13px] text-ink-2">{role} · último acceso {last}</p>
+                </div>
+                <button type="button" onClick={() => toast(`Correo de restablecimiento enviado a ${name}`)} className="h-8 rounded-pill border border-line px-3 text-[12px] font-semibold">
+                  Restablecer contraseña
+                </button>
+              </div>
+            ))}
+          </div>
+        )
       )}
 
       {tab === 'Ajustes' && (

@@ -1,5 +1,7 @@
 import { PanelUIProvider } from '@/context/PanelUIContext';
+import { getPanelUser } from '@/lib/panel-session';
 
 export default function PanelGroupLayout({ children }: { children: React.ReactNode }) {
-  return <PanelUIProvider>{children}</PanelUIProvider>;
+  const panelUser = getPanelUser();
+  return <PanelUIProvider panelUser={panelUser}>{children}</PanelUIProvider>;
 }

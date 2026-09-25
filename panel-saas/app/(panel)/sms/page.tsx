@@ -1,12 +1,18 @@
 import PanelShell from '@/components/shell/PanelShell';
+import LiveCenterCard from '@/components/sms/LiveCenterCard';
 import KpiGrid from '@/components/ui/KpiGrid';
+import { loadLiveCenter } from '@/lib/live-center';
 import { SMS_FAILURES, SMS_KPIS, SMS_QUEUE } from '@/lib/mock/panel-fixtures';
 
-export default function SmsPage() {
+export default async function SmsPage() {
+  const live = await loadLiveCenter();
   const daily = [820, 910, 880, 950, 1020, 980, 1100, 1050, 1120, 1080, 1150, 1200, 1180, 1220];
 
   return (
-    <PanelShell title="SMS" subtitle="Envíos, cola, costes y proveedor">
+    <PanelShell title="SMS" subtitle="Arlett Beauty en producción. Debajo, datos de muestra.">
+      <LiveCenterCard center={live} />
+
+      <p className="text-[13px] font-semibold text-ink-3">Muestra</p>
       <KpiGrid items={SMS_KPIS} />
 
       <div className="grid gap-3 xl:grid-cols-2">

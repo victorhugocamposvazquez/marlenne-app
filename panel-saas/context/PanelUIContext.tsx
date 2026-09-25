@@ -5,10 +5,12 @@ import MiCuentaDrawer, { type DrawerKind } from '@/components/shell/MiCuentaDraw
 import PanelModal from '@/components/shell/PanelModal';
 import type { ModalData, ModalKind } from '@/lib/panel-modals';
 import type { Company } from '@/lib/types';
+import type { PanelUser } from '@/lib/panel-session';
 
 type Impersonation = { company: Company } | null;
 
 type PanelUIContextValue = {
+  panelUser: PanelUser | null;
   toast: (message: string) => void;
   openDrawer: (kind: DrawerKind) => void;
   openModal: (kind: ModalKind, data?: ModalData) => void;
@@ -26,7 +28,13 @@ export function usePanelUI() {
   return ctx;
 }
 
-export function PanelUIProvider({ children }: { children: React.ReactNode }) {
+export function PanelUIProvider({
+  children,
+  panelUser = null,
+}: {
+  children: React.ReactNode;
+  panelUser?: PanelUser | null;
+}) {
   const [drawer, setDrawer] = useState<DrawerKind | null>(null);
   const [reopenUserOnBack, setReopenUserOnBack] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -60,6 +68,7 @@ export function PanelUIProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(
     () => ({
+      panelUser,
       toast: showToast,
       openDrawer: openDrawerFromMenu,
       openModal,
@@ -68,7 +77,7 @@ export function PanelUIProvider({ children }: { children: React.ReactNode }) {
       startImpersonation,
       stopImpersonation,
     }),
-    [showToast, openDrawerFromMenu, openModal, closeModal, impersonation, startImpersonation, stopImpersonation],
+    [panelUser, showToast, openDrawerFromMenu, openModal, closeModal, impersonation, startImpersonation, stopImpersonation],
   );
 
   return (

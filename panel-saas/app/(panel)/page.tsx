@@ -2,9 +2,12 @@ import Link from 'next/link';
 import DashboardActions from '@/components/dashboard/DashboardActions';
 import PanelShell from '@/components/shell/PanelShell';
 import { eur, fmt } from '@/lib/format';
+import LiveEmpresaStrip from '@/components/empresas/LiveEmpresaStrip';
+import { loadLiveCenter } from '@/lib/live-center';
 import { attentionItems, COMPANIES, MRR } from '@/lib/mock/companies';
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const live = await loadLiveCenter();
   const active = COMPANIES.filter(c => c.status === 'Activa').length;
   const impago = COMPANIES.filter(c => c.status === 'Impago').length;
   const attn = attentionItems();
@@ -15,6 +18,7 @@ export default function DashboardPage() {
       subtitle={`Lunes 21 de septiembre · ${attn.length} cosas requieren atención`}
     >
       <DashboardActions />
+      <LiveEmpresaStrip center={live} />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[

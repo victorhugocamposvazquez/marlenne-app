@@ -6,6 +6,7 @@ import { ChevronLeft, Eye } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
 import PanelUserZone from '@/components/shell/PanelUserZone';
 import SoporteView from '@/components/soporte/SoporteView';
+import PullRefresh from '@/components/shell/PullRefresh';
 import { MOBILE_TABS, NAV } from '@/components/shell/nav';
 import { usePanelUI } from '@/context/PanelUIContext';
 import type { NavId } from '@/lib/types';
@@ -44,7 +45,7 @@ export default function PanelShell({
   const mobileCrumbHref = inSupport ? '/empresas' : crumb?.href;
 
   return (
-    <div className="flex min-h-[100dvh] bg-page">
+    <div className="flex h-[100dvh] overflow-hidden bg-page lg:h-auto lg:min-h-[100dvh] lg:overflow-visible">
       <aside className="sticky top-0 hidden h-[100dvh] w-[232px] shrink-0 flex-col gap-1 border-r border-line bg-white px-3.5 py-5 lg:flex">
         <div className="mb-4 flex items-center gap-2.5 px-2.5">
           <BrandLogo size={32} variant="black" />
@@ -70,11 +71,11 @@ export default function PanelShell({
           );
         })}
         <div className="mt-auto border-t border-line px-2.5 pt-3 text-[11px] text-ink-3">
-          v0.1 · mock · sin BD
+          v0.1 · Arlett en prod
         </div>
       </aside>
 
-      <main className="flex min-w-0 flex-1 flex-col">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
         {inSupport && (
           <div className="sticky top-0 z-[5] flex min-h-12 flex-wrap items-center justify-center gap-3.5 bg-grad px-4 py-2 text-center text-[13px] font-semibold text-white">
             <Eye size={16} className="shrink-0" />
@@ -122,6 +123,8 @@ export default function PanelShell({
           <PanelUserZone compact />
         </header>
 
+        <PullRefresh>
+          <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain lg:h-auto lg:overflow-visible">
         <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-5 p-4 pb-24 lg:p-8 lg:pb-8">
           {!inSupport && crumb && (
             <nav className="hidden items-center gap-2 text-[13px] font-semibold text-ink-3 lg:flex">
@@ -138,6 +141,8 @@ export default function PanelShell({
           )}
           {inSupport ? <SoporteView company={impersonation.company} /> : children}
         </div>
+          </div>
+        </PullRefresh>
 
         <nav className="fixed bottom-0 left-0 right-0 z-10 flex h-[76px] items-start justify-around border-t border-line bg-white pt-2.5 lg:hidden">
           {MOBILE_TABS.map(t => {
