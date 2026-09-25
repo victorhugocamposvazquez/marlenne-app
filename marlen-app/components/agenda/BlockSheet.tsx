@@ -8,6 +8,7 @@ import { createBlock, deleteBlock } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import { BLOCK_REASONS, type BlockReason } from '@/lib/consents';
 import { DAY_START, durLbl, fmt } from '@/lib/time';
+import { providerShortLabel } from '@/lib/team';
 import type { AgendaBlock, Provider } from '@/lib/types';
 
 const DURATIONS = [30, 45, 60, 90, 120];
@@ -95,7 +96,7 @@ export default function BlockSheet({
           <div className="flex flex-wrap gap-2">
             {providers.map(p => (
               <Chip key={p.id} active={p.id === providerId} onClick={() => setProviderId(p.id)}>
-                {p.full_name.split(' ')[0]}
+                {providerShortLabel(p.full_name)}
               </Chip>
             ))}
           </div>

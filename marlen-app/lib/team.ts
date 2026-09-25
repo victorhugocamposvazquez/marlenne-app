@@ -14,3 +14,11 @@ export function agendaColumns(staff: Provider[]): Provider[] {
 export function providerAgendaLabel(p: Provider): string {
   return p.full_name.trim();
 }
+
+/** Cabecera de columna y avisos: «Cabina 3» entero; personas solo el nombre. */
+export function providerShortLabel(fullName: string): string {
+  const s = fullName.trim();
+  if (!s) return '';
+  if (/^cabina\s+\d+$/i.test(s)) return s;
+  return s.split(/\s+/)[0] ?? s;
+}

@@ -22,6 +22,13 @@ test('un minuto va en singular', () => {
   );
 });
 
+test('cabina lleva el número en el aviso', () => {
+  assert.equal(
+    staffReminderTitle('Manuela Lopez', 'Cabina 2', 30),
+    'Cita con Manuela Lopez en 30 minutos - con Cabina 2',
+  );
+});
+
 test('sin nombre de profesional cae en el equipo', () => {
   assert.equal(providerFirstName('   '), 'el equipo');
   assert.equal(

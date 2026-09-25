@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { agendaColumns, providerAgendaLabel } from '../lib/team';
+import { agendaColumns, providerAgendaLabel, providerShortLabel } from '../lib/team';
 import type { Provider } from '../lib/types';
 
 function person(role: Provider['role'], id = role): Provider {
@@ -25,4 +25,9 @@ test('picker de agenda usa el nombre completo guardado', () => {
   const p = { ...person('provider'), full_name: 'Cabina 1', job_title: 'Esteticista' };
   assert.equal(providerAgendaLabel(p), 'Cabina 1');
   assert.equal(providerAgendaLabel({ ...p, full_name: 'Cabina 2' }), 'Cabina 2');
+});
+
+test('cabecera y avisos muestran cabina con número', () => {
+  assert.equal(providerShortLabel('Cabina 3'), 'Cabina 3');
+  assert.equal(providerShortLabel('Iria García'), 'Iria');
 });

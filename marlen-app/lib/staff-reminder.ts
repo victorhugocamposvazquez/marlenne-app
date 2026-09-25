@@ -1,12 +1,12 @@
 import { offsetFromDay } from '@/lib/time';
+import { providerShortLabel } from '@/lib/team';
 
 /** Minutos de antelación del aviso al equipo. */
 export const STAFF_REMINDER_LEAD_MIN = 30;
 
-/** Primer nombre de quien atiende: «Iria García» → «Iria». */
+/** Quien atiende en el aviso: «Iria García» → «Iria»; «Cabina 2» → «Cabina 2». */
 export function providerFirstName(fullName: string): string {
-  const first = fullName.trim().split(/\s+/)[0];
-  return first || 'el equipo';
+  return providerShortLabel(fullName) || 'el equipo';
 }
 
 /**

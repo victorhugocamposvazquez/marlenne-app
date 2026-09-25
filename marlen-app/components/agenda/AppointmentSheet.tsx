@@ -19,6 +19,7 @@ import { confirmPageUrl, waConfirmMsg, waHref, waWaiterMsg } from '@/lib/phone';
 import { goWhatsApp, reserveWhatsAppWindow } from '@/hooks/open-whatsapp';
 import { issueAppointmentLink } from '@/lib/confirm-link';
 import { shallowSet } from '@/hooks/useShallowQuery';
+import { providerShortLabel } from '@/lib/team';
 import type { AgendaAppt, Provider, Waiter } from '@/lib/types';
 import { SessionCloseActions, SessionCloseFields, useSessionClose } from './SessionCloseForm';
 import { useToast } from '@/components/Toast';
@@ -216,7 +217,7 @@ export default function AppointmentSheet({
   }
 
   const moveCita = () => {
-    const who = providers.find(p => p.id === providerId)?.full_name.split(' ')[0] ?? null;
+    const who = providerShortLabel(providers.find(p => p.id === providerId)?.full_name ?? '') || null;
     const providerChanged = providerId !== appt.provider_id;
     const prevDate = dayKey(appt.starts_at);
     const prevStart = minutesOfDay(appt.starts_at);
@@ -458,7 +459,7 @@ export default function AppointmentSheet({
                   <div className="flex flex-wrap gap-2">
                     {providers.map(p => (
                       <Chip key={p.id} active={p.id === providerId} onClick={() => setProviderId(p.id)}>
-                        {p.full_name.split(' ')[0]}
+                        {providerShortLabel(p.full_name)}
                       </Chip>
                     ))}
                   </div>

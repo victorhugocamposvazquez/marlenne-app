@@ -12,6 +12,7 @@ import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 import { shallowSet } from '@/hooks/useShallowQuery';
 import { useToast } from '@/components/Toast';
 import { usePlace } from '@/components/agenda/PlaceContext';
+import { providerShortLabel } from '@/lib/team';
 import { nearestStart, slotGaps, snapInGap } from '@/lib/place-slots';
 import { GripVertical } from 'lucide-react';
 
@@ -106,7 +107,7 @@ export default function DayGrid({
         onPick({ providerId, startMin: start });
         return;
       }
-      const who = providers.find(p => p.id === providerId)?.full_name.split(' ')[0] ?? null;
+      const who = providerShortLabel(providers.find(p => p.id === providerId)?.full_name ?? '') || null;
       const from = appointments.find(a => a.id === id);
       const prevStart = optimistic[id]?.start ?? (from ? minutesOfDay(from.starts_at) : start);
       const prevProvider = optimistic[id]?.provider ?? from?.provider_id ?? providerId;
@@ -199,7 +200,7 @@ export default function DayGrid({
                       {p.initials}
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate text-[14px] font-semibold">{p.full_name.split(' ')[0]}</span>
+                      <span className="block truncate text-[14px] font-semibold">{providerShortLabel(p.full_name)}</span>
                       <span className="block text-[12px] text-ink-3">{count ? `${count} ${count === 1 ? 'cita' : 'citas'}` : 'libre'}</span>
                     </span>
                   </div>
@@ -283,7 +284,7 @@ export default function DayGrid({
                         <button
                           key={`${p.id}-${g.first}`}
                           type="button"
-                          aria-label={`Hueco ${fmt(g.first)} con ${p.full_name.split(' ')[0]}`}
+                          aria-label={`Hueco ${fmt(g.first)} con ${providerShortLabel(p.full_name)}`}
                           onClick={e => {
                             e.stopPropagation();
                             tapGap(p.id, g.first, g.last, e.clientY, e.currentTarget);
@@ -396,7 +397,7 @@ export default function DayGrid({
                 if (!live) return null;
                 const col = providers.findIndex(p => p.id === live.providerId);
                 if (col < 0) return null;
-                const who = providers[col]?.full_name.split(' ')[0];
+                const who = providerShortLabel(providers[col]?.full_name ?? '');
                 const dragging = drag?.id === PLACE_ID;
                 return (
                   <div
