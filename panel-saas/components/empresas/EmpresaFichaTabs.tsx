@@ -36,8 +36,9 @@ export default function EmpresaFichaTabs({
             {initials(company.name)}
           </span>
           <div>
-            <p className="text-[13px] text-ink-3">#{company.id}</p>
-            <span className="mt-1 flex flex-wrap items-center gap-2">
+            <h2 className="text-[20px] font-bold tracking-tight text-ink">{company.name}</h2>
+            <p className="mt-0.5 text-[13px] text-ink-3">#{company.id}</p>
+            <span className="mt-1.5 flex flex-wrap items-center gap-2">
               <StatusPill status={company.status} />
               {company.live && (
                 <span className="inline-flex items-center rounded-pill bg-[#E7F8EE] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#15803D]">

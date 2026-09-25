@@ -5,8 +5,10 @@ import { eur, fmt } from '@/lib/format';
 import LiveEmpresaStrip from '@/components/empresas/LiveEmpresaStrip';
 import { loadLiveCenter } from '@/lib/live-center';
 import { attentionItems, COMPANIES, MRR } from '@/lib/mock/companies';
+import { getPanelUser, panelTimeGreeting, panelTodaySubtitle } from '@/lib/panel-session';
 
 export default async function DashboardPage() {
+  const panelUser = getPanelUser();
   const live = await loadLiveCenter();
   const active = COMPANIES.filter(c => c.status === 'Activa').length;
   const impago = COMPANIES.filter(c => c.status === 'Impago').length;
@@ -14,8 +16,9 @@ export default async function DashboardPage() {
 
   return (
     <PanelShell
-      title="Buenos días, Marta"
-      subtitle={`Lunes 21 de septiembre · ${attn.length} cosas requieren atención`}
+      title={panelTimeGreeting(panelUser)}
+      subtitle={`${panelTodaySubtitle()} · ${attn.length} cosas requieren atención`}
+      homeGreeting
     >
       <DashboardActions />
       <LiveEmpresaStrip center={live} />

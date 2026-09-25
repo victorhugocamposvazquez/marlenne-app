@@ -27,11 +27,14 @@ export default function PanelShell({
   title,
   subtitle,
   crumb,
+  homeGreeting,
   children,
 }: {
   title: string;
   subtitle?: string;
   crumb?: { label: string; href: string };
+  /** Logo negro junto al saludo en cabecera móvil (inicio). */
+  homeGreeting?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -110,15 +113,20 @@ export default function PanelShell({
               <ChevronLeft size={16} />
             </button>
           )}
-          <div className="min-w-0 flex-1">
-            {mobileCrumb && (
-              mobileCrumbHref ? (
-                <Link href={mobileCrumbHref} className="text-[11px] font-semibold text-ink-3 hover:text-brand-pink">{mobileCrumb}</Link>
-              ) : (
-                <p className="text-[11px] font-semibold text-ink-3">{mobileCrumb}</p>
-              )
+          <div className={`min-w-0 flex-1 ${homeGreeting && !inSupport ? 'flex items-center gap-2.5' : ''}`}>
+            {homeGreeting && !inSupport && (
+              <BrandLogo size={28} variant="black" className="shrink-0" />
             )}
-            <h1 className="truncate text-[17px] font-bold tracking-tight">{mobileTitle}</h1>
+            <div className="min-w-0 flex-1">
+              {mobileCrumb && (
+                mobileCrumbHref ? (
+                  <Link href={mobileCrumbHref} className="text-[11px] font-semibold text-ink-3 hover:text-brand-pink">{mobileCrumb}</Link>
+                ) : (
+                  <p className="text-[11px] font-semibold text-ink-3">{mobileCrumb}</p>
+                )
+              )}
+              <h1 className="truncate text-[17px] font-bold tracking-tight">{mobileTitle}</h1>
+            </div>
           </div>
           <PanelUserZone compact />
         </header>

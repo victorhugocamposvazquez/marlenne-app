@@ -2,6 +2,8 @@
 
 Cuadro de mandos del **equipo interno Marlén** (empresas, planes, SMS, pagos, soporte). Proyecto **desacoplado** de [`marlen-app`](../marlen-app/).
 
+**Producción:** [https://marlen-panel-saas.vercel.app](https://marlen-panel-saas.vercel.app) (no confundir con `marlenne-app.vercel.app`, que es la app del salón).
+
 ## Arrancar
 
 Desde esta carpeta (`panel-saas/`):

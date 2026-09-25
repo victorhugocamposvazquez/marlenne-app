@@ -24,3 +24,30 @@ export function getPanelUser(): PanelUser | null {
   const name = displayNameFromEmail(raw);
   return { email: raw, name, initials: initials(name) };
 }
+
+const MADRID = 'Europe/Madrid';
+
+export function panelFirstName(user: PanelUser | null): string {
+  const name = user?.name?.trim();
+  if (!name) return 'Operador';
+  return name.split(/\s+/)[0] ?? name;
+}
+
+/** Saludo del dashboard según hora (Madrid) y quien ha iniciado sesión. */
+export function panelTimeGreeting(user: PanelUser | null): string {
+  const h = Number(
+    new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hour12: false, timeZone: MADRID }).format(new Date()),
+  );
+  const part = h < 13 ? 'Buenos días' : h < 20 ? 'Buenas tardes' : 'Buenas noches';
+  return `${part}, ${panelFirstName(user)}`;
+}
+
+export function panelTodaySubtitle(): string {
+  const raw = new Intl.DateTimeFormat('es-ES', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: MADRID,
+  }).format(new Date());
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
