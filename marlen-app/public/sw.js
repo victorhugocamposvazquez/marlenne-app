@@ -1,4 +1,4 @@
-const CACHE = 'marlenne-shell-v25';
+const CACHE = 'marlenne-shell-v26';
 const PRECACHE = [
   '/manifest.json',
   '/logo.png',
@@ -123,11 +123,11 @@ function isLocalDev() {
   return self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
 }
 
-/** Auth y ops: sin interceptar (redirects, cookies, PKCE). */
-function bypassServiceWorker(url, req) {
-  if (req.mode === 'navigate') {
-    if (/^\/(login|ops\/|auth\/|recuperar|registro)(\/|$)/.test(url.pathname)) return true;
-  }
+/** Auth y ops: sin interceptar (redirects, cookies, iframe soporte). */
+function bypassServiceWorker(url) {
+  if (url.pathname === '/ops-embed.html') return true;
+  if (url.pathname.startsWith('/ops/')) return true;
+  if (/^\/(login|auth\/|recuperar|registro)(\/|$)/.test(url.pathname)) return true;
   return false;
 }
 
@@ -209,7 +209,7 @@ self.addEventListener('fetch', event => {
   if (url.pathname.startsWith('/api/')) return;
   if (url.searchParams.has('_rsc')) return;
   if (url.pathname === '/sw.js' || url.pathname === '/app-build.txt') return;
-  if (bypassServiceWorker(url, req)) return;
+  if (bypassServiceWorker(url)) return;
 
   if (req.mode === 'navigate') {
     event.respondWith(networkOrCache(req));

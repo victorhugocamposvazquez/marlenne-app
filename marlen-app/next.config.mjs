@@ -20,6 +20,10 @@ const nextConfig = {
         source: '/app-build.txt',
         headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
       },
+      {
+        source: '/ops-embed.html',
+        headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
+      },
     ];
   },
 };
