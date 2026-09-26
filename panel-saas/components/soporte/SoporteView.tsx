@@ -29,8 +29,10 @@ function applyEntryUrls(
   setIframeSrc: (u: string) => void,
 ) {
   setTabUrl(rawUrl);
-  const embed = new URL(rawUrl);
-  embed.pathname = '/ops/embed';
+  const enter = new URL(rawUrl);
+  const embed = new URL('/ops-embed.html', enter.origin);
+  const token = enter.searchParams.get('t');
+  if (token) embed.searchParams.set('t', token);
   embed.searchParams.set('embed', '1');
   setIframeSrc(embed.toString());
 }
