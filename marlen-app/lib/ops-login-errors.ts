@@ -4,7 +4,7 @@ const OPS_LOGIN_ERRORS: Record<string, string> = {
   ops_used: 'Ese enlace ya se usó. Genera uno nuevo desde el panel (cambia de pestaña Agenda/Clientas).',
   ops_config: 'La app no tiene service role en el servidor. Revisa Vercel (marlenne-app).',
   ops_staff: 'No hay cuenta de recepción/admin activa en el centro.',
-  ops_session: 'No se pudo abrir la sesión automática. Revisa service role y redeploy de la app.',
+  ops_session: 'No se pudo abrir la sesión automática. Revisa SUPABASE_SERVICE_ROLE_KEY en la app y en Supabase Auth añade tu dominio con /auth/callback (URL absoluta).',
 };
 
 export function opsLoginErrorMessage(code: string | undefined): string | null {
