@@ -19,7 +19,6 @@ import { createClient } from '@/lib/supabase/server';
 import { signChallenge, verifyChallenge } from '@/lib/webauthn-challenge';
 import {
   CHALLENGE_TTL_MS,
-  MAX_PASSKEYS,
   fromBase64Url,
   platformDeviceName,
   platformUnavailable,
@@ -218,15 +217,12 @@ export async function beginPasskeyRegister(): Promise<
     return { ok: false, error: unavailable() };
   }
 
-  const { data: existing, error, count } = await admin
+  const { data: existing, error } = await admin
     .from('staff_passkeys')
-    .select('credential_id, transports', { count: 'exact' })
+    .select('credential_id, transports')
     .eq('user_id', me.id);
 
   if (error) return { ok: false, error: tableMissing(error.message) ? unavailable() : `No se han podido leer los accesos con ${unlockName()}.` };
-  if ((count ?? existing?.length ?? 0) >= MAX_PASSKEYS) {
-    return { ok: false, error: `Como mucho ${MAX_PASSKEYS} móviles. Borra uno para añadir otro.` };
-  }
 
   const { data: userData } = await admin.auth.admin.getUserById(me.id);
   const email = userData.user?.email ?? me.full_name;
@@ -297,6 +293,8 @@ export async function finishPasskeyRegister(
   } catch {
     return { ok: false, error: unavailable() };
   }
+
+  await admin.from('staff_passkeys').delete().eq('user_id', me.id);
 
   const { error } = await admin.from('staff_passkeys').insert({
     user_id: me.id,

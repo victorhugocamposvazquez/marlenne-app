@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
+import { loadSimilarClients } from '@/app/actions/client-list';
 import { useRouter } from 'next/navigation';
 import Sheet, { Field, inputCls } from '@/components/Sheet';
 import { useSheetShellClose } from '@/components/SheetShell';
@@ -34,7 +35,7 @@ function ExistingMatch({ c }: { c: ClientOption }) {
   );
 }
 
-function NewClientBody({ existing }: { existing: ClientOption[] }) {
+function NewClientBody() {
   const router = useRouter();
   const toast = useToast();
   const requestClose = useSheetShellClose();
@@ -47,19 +48,28 @@ function NewClientBody({ existing }: { existing: ClientOption[] }) {
   const [salud, setSalud] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dupId, setDupId] = useState<string | null>(null);
+  const [matches, setMatches] = useState<ClientOption[]>([]);
 
-  const matches = useMemo(() => {
+  const matchKey = useMemo(() => `${fold(name)}|${digits(phone)}`, [name, phone]);
+
+  useEffect(() => {
     const q = fold(name);
     const tel = digits(phone);
-    if (q.length < 3 && tel.length < 6) return [];
-    return existing
-      .filter(c => {
-        const sameName = q.length >= 3 && fold(c.full_name).includes(q);
-        const samePhone = tel.length >= 6 && digits(c.phone ?? '').endsWith(tel.slice(-9));
-        return sameName || samePhone;
-      })
-      .slice(0, 4);
-  }, [name, phone, existing]);
+    if (q.length < 3 && tel.length < 6) {
+      setMatches([]);
+      return;
+    }
+    let alive = true;
+    const t = window.setTimeout(() => {
+      loadSimilarClients(name, phone).then(rows => {
+        if (alive) setMatches(rows.slice(0, 4));
+      });
+    }, 220);
+    return () => {
+      alive = false;
+      window.clearTimeout(t);
+    };
+  }, [matchKey, name, phone]);
 
   const canSave = name.trim().length >= 2 && !pending;
 
@@ -190,7 +200,7 @@ function NewClientBody({ existing }: { existing: ClientOption[] }) {
   );
 }
 
-export default function NewClientSheet({ existing = [] }: { existing?: ClientOption[] }) {
+export default function NewClientSheet() {
   return (
     <Sheet
       title="Nueva Client@"
@@ -198,7 +208,7 @@ export default function NewClientSheet({ existing = [] }: { existing?: ClientOpt
       initialHeight="tall"
       floorDetent="tall"
     >
-      <NewClientBody existing={existing} />
+      <NewClientBody />
     </Sheet>
   );
 }

@@ -5,6 +5,9 @@ Agenda, clientas, voz y ajustes del centro. Parte del monorepo **Marlén**
 
 Mapa del repo: [`../README.md`](../README.md).
 
+**Panel de Ops (equipo Marlén)** no vive en esta carpeta: está en [`../panel-saas/`](../panel-saas/) y en producción es **[https://marlen-panel-saas.vercel.app](https://marlen-panel-saas.vercel.app)**.  
+Desplegar o editar solo `marlen-app/` actualiza la app del salón (`marlenne-app.vercel.app`), no el panel.
+
 El diseño de referencia es `../design_handoff_marlenne/Marlenne.dc.html`
 (prototipo completo) y su `README.md` lleva tokens y specs pantalla a pantalla.
 

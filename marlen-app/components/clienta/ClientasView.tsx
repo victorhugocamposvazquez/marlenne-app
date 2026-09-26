@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { Check, ChevronDown, Plus, Search } from 'lucide-react';
+import { Check, ChevronDown, Loader2, Plus, Search } from 'lucide-react';
+import { loadClientsPage } from '@/app/actions/client-list';
 import NewClientSheet from '@/components/clienta/NewClientSheet';
 import Chip from '@/components/ui/Chip';
 import EmptyState from '@/components/ui/EmptyState';
@@ -55,18 +56,93 @@ function clientListMeta(c: ClientListRow) {
   return { phone, ctx, hasPhone: !!c.phone?.trim() };
 }
 
+function mergeClients(prev: ClientListRow[], next: ClientListRow[]) {
+  const seen = new Set(prev.map(c => c.id));
+  const out = [...prev];
+  for (const c of next) {
+    if (!seen.has(c.id)) {
+      seen.add(c.id);
+      out.push(c);
+    }
+  }
+  return out;
+}
+
 export default function ClientasView({
-  clients, initialAlta,
+  initialClients,
+  initialTotal,
+  initialAlta,
 }: {
-  clients: ClientListRow[];
+  initialClients: ClientListRow[];
+  initialTotal: number;
   initialAlta?: boolean;
 }) {
   const alta = useShallowParam('alta', initialAlta ? '1' : null);
+  const [clients, setClients] = useState(initialClients);
+  const [total, setTotal] = useState(initialTotal);
+  const [nextOffset, setNextOffset] = useState(initialClients.length);
   const [q, setQ] = useState('');
+  const [debouncedQ, setDebouncedQ] = useState('');
   const [filter, setFilter] = useState<Filter>('todas');
   const [sort, setSort] = useState<Sort>('az');
   const [sortOpen, setSortOpen] = useState(false);
+  const [loadingMore, startLoadMore] = useTransition();
   const sortRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const searchGen = useRef(0);
+  const prevSearch = useRef('');
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedQ(q.trim()), 280);
+    return () => window.clearTimeout(t);
+  }, [q]);
+
+  const resetAndFetch = useCallback((query: string) => {
+    const gen = ++searchGen.current;
+    startLoadMore(async () => {
+      const page = await loadClientsPage(0, undefined, query);
+      if (gen !== searchGen.current) return;
+      setClients(page.rows);
+      setTotal(page.total);
+      setNextOffset(page.nextOffset);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (debouncedQ.length >= 2) {
+      resetAndFetch(debouncedQ);
+    } else if (prevSearch.current.length >= 2 && debouncedQ.length === 0) {
+      setClients(initialClients);
+      setTotal(initialTotal);
+      setNextOffset(initialClients.length);
+    }
+    prevSearch.current = debouncedQ;
+  }, [debouncedQ, resetAndFetch, initialClients, initialTotal]);
+
+  const hasMore = nextOffset < total;
+
+  const loadMore = useCallback(() => {
+    if (!hasMore || loadingMore) return;
+    startLoadMore(async () => {
+      const page = await loadClientsPage(nextOffset, undefined, debouncedQ.length >= 2 ? debouncedQ : undefined);
+      setClients(prev => mergeClients(prev, page.rows));
+      setTotal(page.total);
+      setNextOffset(page.nextOffset);
+    });
+  }, [hasMore, loadingMore, nextOffset, debouncedQ]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const obs = new IntersectionObserver(
+      entries => {
+        if (entries[0]?.isIntersecting) loadMore();
+      },
+      { rootMargin: '240px' },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [hasMore, loadMore]);
 
   useEffect(() => {
     if (!sortOpen) return;
@@ -96,6 +172,7 @@ export default function ClientasView({
       if (filter === 'tratamiento' && !c.open_treatments.length) return false;
       if (filter === 'bono' && !c.open_packs.length) return false;
       if (filter === 'volver' && !isRecallDue(c.last_at, c.next_at)) return false;
+      if (debouncedQ.length >= 2) return true;
       if (!needle && tel.length < 3) return true;
       const nameHit = needle && fold(c.full_name).includes(needle);
       const phoneHit = tel.length >= 3 && phoneDigits(c.phone ?? '').includes(tel);
@@ -113,11 +190,17 @@ export default function ClientasView({
       }
       return byName(a, b);
     });
-  }, [clients, q, filter, sort]);
+  }, [clients, q, debouncedQ, filter, sort]);
 
-  const titleCount = shown.length === clients.length
-    ? `${clients.length} fichas`
-    : `${shown.length} de ${clients.length}`;
+  const titleCount = debouncedQ.length >= 2
+    ? `${shown.length} encontradas`
+    : clients.length < total
+      ? `${clients.length} de ${total} fichas`
+      : `${total} fichas`;
+
+  const partialHint = filter !== 'todas' && clients.length < total
+    ? 'Filtro sobre las fichas ya cargadas. Baja para traer más.'
+    : null;
 
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
@@ -192,18 +275,21 @@ export default function ClientasView({
             </Chip>
           ))}
         </div>
+        {partialHint && (
+          <p className="mt-2 text-label font-medium text-ink-3">{partialHint}</p>
+        )}
       </header>
 
       <div className="min-h-0 flex-1 overflow-auto px-6 pb-fab pt-1">
-        {shown.length === 0 && (
+        {shown.length === 0 && !loadingMore && (
           <EmptyState
             icon={Search}
-            title={clients.length === 0
+            title={total === 0
               ? 'Todavía no hay clientas.'
               : q
                 ? 'Ninguna clienta coincide con esa búsqueda.'
                 : 'Ninguna clienta en este filtro.'}
-            hint={clients.length === 0 ? 'El alta está arriba, a la derecha.' : undefined}
+            hint={total === 0 ? 'El alta está arriba, a la derecha.' : undefined}
           />
         )}
         {shown.map(c => {
@@ -240,10 +326,14 @@ export default function ClientasView({
             </div>
           );
         })}
+        <div ref={sentinelRef} className="flex min-h-[48px] items-center justify-center py-3">
+          {loadingMore && <Loader2 size={22} className="animate-spin text-ink-3" aria-label="Cargando más" />}
+          {!loadingMore && hasMore && debouncedQ.length < 2 && (
+            <span className="text-label text-ink-3">Desplázate para cargar más</span>
+          )}
+        </div>
       </div>
-      {alta === '1' && (
-        <NewClientSheet existing={clients.map(c => ({ id: c.id, full_name: c.full_name, phone: c.phone }))} />
-      )}
+      {alta === '1' && <NewClientSheet />}
     </div>
   );
 }

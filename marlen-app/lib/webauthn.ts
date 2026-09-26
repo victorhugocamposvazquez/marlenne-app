@@ -2,7 +2,8 @@
 
 export const PASSKEY_HINT_KEY = 'marlenne-passkey';
 export const PASSKEY_LATER_KEY = 'marlenne-passkey-later';
-export const MAX_PASSKEYS = 5;
+/** Un solo registro por usuario: al activar de nuevo en el mismo móvil, se sustituye el anterior. */
+export const MAX_PASSKEYS = 1;
 export const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 
 export function isAppleMobile(ua: string): boolean {
