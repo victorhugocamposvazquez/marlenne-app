@@ -31,7 +31,9 @@ export default function BottomNav({
         className="flex min-h-[44px] flex-col items-center justify-center gap-px no-underline"
         style={{ color: active ? 'rgb(var(--c-ink))' : 'rgb(var(--c-ink-3))' }}
       >
-        <Icon size={22} strokeWidth={active ? 2.2 : 1.8} />
+        <span className="grid h-7 w-7 place-items-center">
+          <Icon size={28} strokeWidth={active ? 2.2 : 1.8} />
+        </span>
         <span className={`text-[12px] ${active ? 'font-bold' : 'font-medium'}`}>{label}</span>
       </Link>
     );
