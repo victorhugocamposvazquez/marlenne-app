@@ -124,10 +124,12 @@ export default function SoporteView({ company }: { company: Company }) {
           )}
           {!loadingEntry && iframeSrc && (
             <iframe
+              key={iframeSrc}
               title={`App de ${company.name}`}
               src={iframeSrc}
               className="h-full min-h-[480px] w-full flex-1 border-0"
               allow="clipboard-read; clipboard-write"
+              referrerPolicy="no-referrer-when-downgrade"
             />
           )}
         </div>
