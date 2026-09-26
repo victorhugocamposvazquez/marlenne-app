@@ -6,8 +6,20 @@ import {
   startAuthentication,
   startRegistration,
 } from '@simplewebauthn/browser';
-import { beginPasskeyRegister, finishPasskeyRegister } from '@/app/actions/webauthn';
-import { PASSKEY_HINT_KEY, PASSKEY_LATER_KEY, platformDeviceName } from '@/lib/webauthn';
+import {
+  beginPasskeyLogin,
+  beginPasskeyRegister,
+  finishPasskeyLogin,
+  finishPasskeyRegister,
+} from '@/app/actions/webauthn';
+import { isNextRedirect } from '@/lib/next-navigation-error';
+import {
+  isAndroidMobile,
+  likelyHasPlatformUnlock,
+  PASSKEY_HINT_KEY,
+  PASSKEY_LATER_KEY,
+  platformDeviceName,
+} from '@/lib/webauthn';
 
 let passkeyCeremonies = 0;
 
@@ -44,13 +56,39 @@ export function postponedPasskeySetup() {
 export async function platformUnlockAvailable(): Promise<boolean> {
   if (typeof window === 'undefined') return false;
   if (!browserSupportsWebAuthn()) return false;
+  const ua = navigator.userAgent;
+  // Chrome/Android + GPM: a veces UV platform es false pero la huella/cara sí funciona.
+  if (isAndroidMobile(ua)) return true;
   try {
     if (typeof PublicKeyCredential !== 'undefined'
       && PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
-      return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+      const uv = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+      if (uv) return true;
     }
   } catch { /* ignore */ }
-  return false;
+  return likelyHasPlatformUnlock(ua);
+}
+
+export async function runPasskeyLogin(): Promise<
+  { ok: true } | { ok: false; error: string; aborted?: boolean }
+> {
+  const endCeremony = beginPasskeyCeremony();
+  try {
+    const started = await beginPasskeyLogin();
+    if (!started.ok) return started;
+    try {
+      const assertion = await startAuthentication({ optionsJSON: started.options });
+      const done = await finishPasskeyLogin(assertion, started.token);
+      if (done && !done.ok) return done;
+      return { ok: true };
+    } catch (err) {
+      if (isNextRedirect(err)) throw err;
+      if (isPasskeyAbort(err)) return { ok: false, error: '', aborted: true };
+      throw err;
+    }
+  } finally {
+    endCeremony();
+  }
 }
 
 export async function runPasskeyRegistration(
@@ -69,6 +107,7 @@ export async function runPasskeyRegistration(
         started.token,
       );
     } catch (err) {
+      if (isNextRedirect(err)) throw err;
       if (isPasskeyAbort(err)) return { ok: false, error: '', aborted: true };
       return { ok: false, error: 'No se ha podido guardar. Prueba otra vez.' };
     }

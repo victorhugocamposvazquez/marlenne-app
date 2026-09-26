@@ -20,6 +20,7 @@ import { signChallenge, verifyChallenge } from '@/lib/webauthn-challenge';
 import {
   CHALLENGE_TTL_MS,
   fromBase64Url,
+  isAndroidMobile,
   platformDeviceName,
   platformUnavailable,
   platformUnlockNoun,
@@ -103,6 +104,14 @@ function readRegisterChallenge(ceremonyToken?: string) {
   return readChallenge();
 }
 
+function readLoginChallenge(ceremonyToken?: string) {
+  if (ceremonyToken) {
+    const fromClient = verifyChallenge(ceremonyToken, hmacSecret());
+    if (fromClient?.k === 'a') return fromClient;
+  }
+  return readChallenge();
+}
+
 function clearChallenge() {
   cookies().set(COOKIE, '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 0 });
 }
@@ -128,7 +137,7 @@ async function requireActiveStaff(userId: string) {
 }
 
 export async function beginPasskeyLogin(): Promise<
-  { ok: true; options: PublicKeyCredentialRequestOptionsJSON } | { ok: false; error: string }
+  { ok: true; options: PublicKeyCredentialRequestOptionsJSON; token: string } | { ok: false; error: string }
 > {
   try {
     const origin = currentOrigin();
@@ -136,16 +145,20 @@ export async function beginPasskeyLogin(): Promise<
       rpID: rpIdFromOrigin(origin),
       userVerification: 'required',
     });
-    setChallenge({ c: options.challenge, k: 'a', e: Date.now() + CHALLENGE_TTL_MS });
-    return { ok: true, options };
+    const payload = { c: options.challenge, k: 'a' as const, e: Date.now() + CHALLENGE_TTL_MS };
+    setChallenge(payload);
+    return { ok: true, options, token: signChallenge(payload, hmacSecret()) };
   } catch (err) {
     const message = err instanceof Error ? err.message : '';
     return { ok: false, error: tableMissing(message) ? unavailable() : `No se ha podido preparar el acceso con ${unlockName()}.` };
   }
 }
 
-export async function finishPasskeyLogin(response: AuthenticationResponseJSON): Promise<{ ok: false; error: string } | void> {
-  const challenge = readChallenge();
+export async function finishPasskeyLogin(
+  response: AuthenticationResponseJSON,
+  ceremonyToken?: string,
+): Promise<{ ok: false; error: string } | void> {
+  const challenge = readLoginChallenge(ceremonyToken);
   clearChallenge();
   if (!challenge || challenge.k !== 'a') {
     return { ok: false, error: `El acceso con ${unlockName()} ha caducado. Prueba otra vez.` };
@@ -236,6 +249,8 @@ export async function beginPasskeyRegister(): Promise<
   const { data: userData } = await admin.auth.admin.getUserById(me.id);
   const email = userData.user?.email ?? me.full_name;
   const origin = currentOrigin();
+  const ua = requestUa();
+  const android = isAndroidMobile(ua);
 
   try {
     const options = await generateRegistrationOptions({
@@ -249,13 +264,21 @@ export async function beginPasskeyRegister(): Promise<
         id: row.credential_id as string,
         transports: asTransports(row.transports as string[] | null),
       })),
-      preferredAuthenticatorType: 'localDevice',
-      authenticatorSelection: {
-        authenticatorAttachment: 'platform',
-        residentKey: 'required',
-        requireResidentKey: true,
-        userVerification: 'required',
-      },
+      ...(android
+        ? {}
+        : { preferredAuthenticatorType: 'localDevice' as const }),
+      authenticatorSelection: android
+        ? {
+          residentKey: 'required',
+          requireResidentKey: true,
+          userVerification: 'required',
+        }
+        : {
+          authenticatorAttachment: 'platform',
+          residentKey: 'required',
+          requireResidentKey: true,
+          userVerification: 'required',
+        },
     });
     const payload = { c: options.challenge, k: 'r' as const, u: me.id, e: Date.now() + CHALLENGE_TTL_MS };
     setChallenge(payload);

@@ -1,16 +1,14 @@
 'use client';
 
-import { useEffect, useRef, useState, useTransition } from 'react';
+import { useEffect, useState } from 'react';
 import { Fingerprint, ScanFace } from 'lucide-react';
-import { beginPasskeyLogin, finishPasskeyLogin } from '@/app/actions/webauthn';
 import Button from '@/components/ui/Button';
 import {
-  browserSupportsWebAuthnAutofill,
-  isPasskeyAbort,
   platformUnlockAvailable,
   rememberPasskeyHint,
-  startAuthentication,
+  runPasskeyLogin,
 } from '@/hooks/platform-auth';
+import { isNextRedirect } from '@/lib/next-navigation-error';
 import {
   isAppleMobile,
   likelyHasPlatformUnlock,
@@ -21,7 +19,6 @@ import {
 } from '@/lib/webauthn';
 
 function loginErrorMessage(err: unknown, ua: string): string | null {
-  if (isPasskeyAbort(err)) return null;
   const msg = err instanceof Error ? err.message : '';
   if (/no available|not found|unknown credential|no passkey/i.test(msg)) {
     return platformMissingCredential(ua);
@@ -37,9 +34,7 @@ export default function PasskeyLoginButton({
   onError: (message: string | null) => void;
 }) {
   const [available, setAvailable] = useState(likelyHasPlatformUnlock(ua));
-  const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
-  const conditionalStarted = useRef(false);
   const label = platformUnlockLabel(ua);
   const FaceIcon = isAppleMobile(ua) ? ScanFace : Fingerprint;
 
@@ -49,41 +44,24 @@ export default function PasskeyLoginButton({
     return () => { alive = false; };
   }, []);
 
-  const run = (autofill: boolean) => {
+  const run = async () => {
     onError(null);
-    startTransition(async () => {
-      const started = await beginPasskeyLogin();
-      if (!started.ok) {
-        if (!autofill) onError(started.error);
+    setBusy(true);
+    try {
+      const done = await runPasskeyLogin();
+      if ('aborted' in done && done.aborted) return;
+      if (!done.ok) {
+        onError(done.error);
         return;
       }
-      try {
-        setBusy(true);
-        const assertion = await startAuthentication({
-          optionsJSON: started.options,
-          useBrowserAutofill: autofill,
-        });
-        const done = await finishPasskeyLogin(assertion);
-        if (done && !done.ok) onError(done.error);
-        else rememberPasskeyHint();
-      } catch (err) {
-        const message = loginErrorMessage(err, ua);
-        if (message && !autofill) onError(message);
-      } finally {
-        setBusy(false);
-      }
-    });
+      rememberPasskeyHint();
+    } catch (err) {
+      if (isNextRedirect(err)) throw err;
+      onError(loginErrorMessage(err, ua));
+    } finally {
+      setBusy(false);
+    }
   };
-
-  useEffect(() => {
-    if (!available || conditionalStarted.current) return;
-    // En iOS el sheet de Face ID es lo fiable; el autofill condicional a menudo no abre la cara.
-    if (isAppleMobile(ua) || !browserSupportsWebAuthnAutofill()) return;
-    conditionalStarted.current = true;
-    run(true);
-    // Solo al montar, cuando Android ya puede huella/cara.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [available, ua]);
 
   if (!available) return null;
 
@@ -92,11 +70,11 @@ export default function PasskeyLoginButton({
       <Button
         size="lg"
         full
-        disabled={pending || busy}
-        onClick={() => run(false)}
+        disabled={busy}
+        onClick={() => void run()}
       >
         <FaceIcon size={20} strokeWidth={2.2} />
-        {pending || busy ? platformWaitingLabel(ua) : label}
+        {busy ? platformWaitingLabel(ua) : label}
       </Button>
       <div className="flex items-center gap-3 pt-1">
         <span className="h-px flex-1 bg-surface-line" />

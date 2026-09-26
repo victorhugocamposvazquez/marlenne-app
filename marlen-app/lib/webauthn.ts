@@ -10,6 +10,10 @@ export function isAppleMobile(ua: string): boolean {
   return /iPhone|iPad|iPod|CriOS|FxiOS|EdgiOS/i.test(ua);
 }
 
+export function isAndroidMobile(ua: string): boolean {
+  return /Android/i.test(ua);
+}
+
 export function likelyHasPlatformUnlock(ua: string): boolean {
   return isAppleMobile(ua) || /Android/i.test(ua);
 }

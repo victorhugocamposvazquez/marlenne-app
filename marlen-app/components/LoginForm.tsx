@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { signIn } from '@/app/actions/auth';
+import { isNextRedirect } from '@/lib/next-navigation-error';
 import AuthLinks from '@/components/AuthLinks';
 import PasskeyLoginButton from '@/components/PasskeyLoginButton';
 import { inputCls } from '@/components/Sheet';
@@ -19,8 +20,13 @@ export default function LoginForm({ ua }: { ua: string }) {
     fd.set('email', email);
     fd.set('password', password);
     startTransition(async () => {
-      const r = await signIn(fd);
-      if (r && !r.ok) setError(r.error ?? 'No se ha podido entrar');
+      try {
+        const r = await signIn(fd);
+        if (r && !r.ok) setError(r.error ?? 'No se ha podido entrar');
+      } catch (err) {
+        if (isNextRedirect(err)) throw err;
+        setError('No se ha podido entrar');
+      }
     });
   };
 
