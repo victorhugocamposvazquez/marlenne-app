@@ -9,6 +9,7 @@ import {
   createClientRecord as createWrite,
   updateClientRecord as updateWrite,
 } from '@/lib/client-write';
+import { recordOpsAudit } from '@/lib/ops-support-audit';
 
 export async function createClientRecord(input: {
   full_name: string;
@@ -17,6 +18,7 @@ export async function createClientRecord(input: {
   tags?: string[];
 }) {
   const r = await createWrite(createClient(), input);
+  if (r.ok && r.id) void recordOpsAudit('client.create', { id: r.id, full_name: input.full_name });
   revalidatePath('/clientas');
   return r;
 }
@@ -45,7 +47,10 @@ export async function updateClientRecord(input: {
   prevPhone?: string | null;
 }) {
   const r = await updateWrite(createClient(), input);
-  if (r.ok) void syncClientRemindersAction(input.id, input.prevPhone);
+  if (r.ok) {
+    void syncClientRemindersAction(input.id, input.prevPhone);
+    void recordOpsAudit('client.update', { id: input.id, full_name: input.full_name });
+  }
   revalidatePath('/clientas');
   revalidatePath(`/clientas/${input.id}`);
   return r;

@@ -38,7 +38,7 @@ function OpsSupportBannerInner() {
       role="status"
       className="shrink-0 border-b border-[#FCD34D] bg-[#FFFBEB] px-4 py-2 text-center text-[12px] font-semibold leading-snug text-[#92400E]"
     >
-      Modo soporte · Ops ({session.by}) usa la app de {session.company}. Los cambios son reales.
+      Modo soporte · Ops ({session.by}) dentro de {session.company}. Los cambios son reales y quedan registrados.
     </div>
   );
 }

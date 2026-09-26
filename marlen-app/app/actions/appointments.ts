@@ -12,6 +12,7 @@ import {
 } from '@/lib/agenda-write';
 import { moveAppointment as moveAppointmentRpc } from '@/lib/move-appointment';
 import { syncAppointmentReminderAction } from '@/app/actions/reminder-sync';
+import { recordOpsAudit } from '@/lib/ops-support-audit';
 
 function touchAgenda() {
   revalidatePath('/agenda');
@@ -23,7 +24,10 @@ export async function moveAppointment({
   id, date, startMin, providerId,
 }: { id: string; date: string; startMin: number; providerId: string }) {
   const r = await moveAppointmentRpc(createClient(), { id, date, startMin, providerId });
-  if (r.ok) void syncAppointmentReminderAction(id);
+  if (r.ok) {
+    void syncAppointmentReminderAction(id);
+    void recordOpsAudit('appointment.move', { id, date, startMin, providerId });
+  }
   touchAgenda();
   return r;
 }
@@ -59,6 +63,7 @@ export async function setStatus(formData: FormData) {
 /** La misma cosa desde voz, que necesita saber si ha fallado. */
 export async function updateStatus(id: string, status: string) {
   const r = await statusWrite(createClient(), id, status);
+  if (r.ok) void recordOpsAudit('appointment.status', { id, status });
   touchAgenda();
   return r;
 }
@@ -69,7 +74,10 @@ export async function createAppointment(input: {
   note?: string;
 }) {
   const r = await createWrite(createClient(), input);
-  if (r.ok && r.id) void syncAppointmentReminderAction(r.id);
+  if (r.ok && r.id) {
+    void syncAppointmentReminderAction(r.id);
+    void recordOpsAudit('appointment.create', { id: r.id, ...input });
+  }
   touchAgenda();
   revalidatePath('/clientas');
   return r;
@@ -77,6 +85,7 @@ export async function createAppointment(input: {
 
 export async function cancelAppointment(id: string) {
   const r = await cancelWrite(createClient(), id);
+  if (r.ok) void recordOpsAudit('appointment.cancel', { id });
   touchAgenda();
   return r;
 }
