@@ -1,4 +1,4 @@
-const CACHE = 'marlenne-shell-v24';
+const CACHE = 'marlenne-shell-v25';
 const PRECACHE = [
   '/manifest.json',
   '/logo.png',
@@ -123,6 +123,44 @@ function isLocalDev() {
   return self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
 }
 
+/** Auth y ops: sin interceptar (redirects, cookies, PKCE). */
+function bypassServiceWorker(url, req) {
+  if (req.mode === 'navigate') {
+    if (/^\/(login|ops\/|auth\/|recuperar|registro)(\/|$)/.test(url.pathname)) return true;
+  }
+  return false;
+}
+
+async function networkOrCache(req) {
+  try {
+    const res = await fetch(req);
+    return res;
+  } catch {
+    const cached = await caches.match(req);
+    if (cached) return cached;
+    return new Response('Sin conexión', {
+      status: 503,
+      statusText: 'Offline',
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    });
+  }
+}
+
+async function cacheFirstAsset(req) {
+  const cached = await caches.match(req);
+  try {
+    const res = await fetch(req);
+    if (res.ok) {
+      const copy = res.clone();
+      caches.open(CACHE).then(c => c.put(req, copy));
+    }
+    return res;
+  } catch {
+    if (cached) return cached;
+    return new Response('', { status: 504, statusText: 'Gateway Timeout' });
+  }
+}
+
 self.addEventListener('push', event => {
   let data = {};
   try {
@@ -171,27 +209,17 @@ self.addEventListener('fetch', event => {
   if (url.pathname.startsWith('/api/')) return;
   if (url.searchParams.has('_rsc')) return;
   if (url.pathname === '/sw.js' || url.pathname === '/app-build.txt') return;
+  if (bypassServiceWorker(url, req)) return;
 
   if (req.mode === 'navigate') {
-    event.respondWith(fetch(req, { cache: 'reload' }).catch(() => caches.match(req)));
+    event.respondWith(networkOrCache(req));
     return;
   }
 
   if (isHashedAsset(url)) {
-    event.respondWith(
-      caches.match(req).then(cached => {
-        const fetched = fetch(req).then(res => {
-          if (res.ok) {
-            const copy = res.clone();
-            caches.open(CACHE).then(c => c.put(req, copy));
-          }
-          return res;
-        }).catch(() => cached);
-        return cached || fetched;
-      }),
-    );
+    event.respondWith(cacheFirstAsset(req));
     return;
   }
 
-  event.respondWith(fetch(req).catch(() => caches.match(req)));
+  event.respondWith(networkOrCache(req));
 });

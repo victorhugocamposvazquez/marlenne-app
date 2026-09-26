@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isEmbedPanelRequest, opsContextCookieOptions } from '@/lib/embed-panel';
 import { OPS_PENDING_COOKIE, OPS_SESSION_COOKIE } from '@/lib/ops-support-audit';
 import { createClientOnResponse } from '@/lib/supabase/server';
 import { signOpsSession, verifyOpsPending } from '@/lib/ops-support-token';
@@ -25,9 +26,13 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const code = url.searchParams.get('code');
   const origin = url.origin;
+  const embed = isEmbedPanelRequest(req);
 
   if (!code) {
-    return NextResponse.redirect(new URL('/login?error=ops_session', origin));
+    const fail = new URL('/login', origin);
+    fail.searchParams.set('error', 'ops_session');
+    if (embed) fail.searchParams.set('embed', '1');
+    return NextResponse.redirect(fail);
   }
 
   const nextUrl = safeNext(url.searchParams.get('next'), origin);
@@ -42,26 +47,26 @@ export async function GET(req: Request) {
   if (fromOps && opsCompany && opsBy) {
     applyOpsToUrl(nextUrl, { companyName: opsCompany, opsEmail: opsBy });
   }
+  if (embed) nextUrl.searchParams.set('embed', '1');
 
   const res = NextResponse.redirect(nextUrl);
-  const sb = createClientOnResponse(res);
+  const sb = createClientOnResponse(res, embed);
   const { error } = await sb.auth.exchangeCodeForSession(code);
   if (error) {
-    return NextResponse.redirect(new URL('/login?error=ops_session', origin));
+    const fail = new URL('/login', origin);
+    fail.searchParams.set('error', 'ops_session');
+    if (embed) fail.searchParams.set('embed', '1');
+    return NextResponse.redirect(fail);
   }
 
   if (fromOps && opsCompany && opsBy && salonId && staffUserId) {
-    const secure = process.env.NODE_ENV === 'production';
     res.cookies.set(OPS_SESSION_COOKIE, signOpsSession({
       salonId,
       staffUserId,
       opsEmail: opsBy,
       companyName: opsCompany,
     }), {
-      httpOnly: true,
-      secure,
-      sameSite: 'lax',
-      path: '/',
+      ...opsContextCookieOptions(embed),
       maxAge: 8 * 60 * 60,
     });
     res.cookies.set(OPS_PENDING_COOKIE, '', { path: '/', maxAge: 0 });

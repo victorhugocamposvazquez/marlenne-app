@@ -21,8 +21,17 @@ export function createClient() {
   );
 }
 
+function mergeEmbedCookies(options: CookieOptions, crossSiteEmbed: boolean): CookieOptions {
+  if (!crossSiteEmbed) return options;
+  return {
+    ...options,
+    secure: true,
+    sameSite: 'none',
+  };
+}
+
 /** Route Handlers: copia las cookies de sesión al redirect (iframe / ops enter). */
-export function createClientOnResponse(response: NextResponse) {
+export function createClientOnResponse(response: NextResponse, crossSiteEmbed = false) {
   const store = cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,12 +40,14 @@ export function createClientOnResponse(response: NextResponse) {
       cookies: {
         get: (name: string) => store.get(name)?.value,
         set: (name: string, value: string, options: CookieOptions) => {
-          try { store.set({ name, value, ...options }); } catch { /* layout read-only */ }
-          response.cookies.set({ name, value, ...options });
+          const merged = mergeEmbedCookies(options, crossSiteEmbed);
+          try { store.set({ name, value, ...merged }); } catch { /* layout read-only */ }
+          response.cookies.set({ name, value, ...merged });
         },
         remove: (name: string, options: CookieOptions) => {
-          try { store.set({ name, value: '', ...options }); } catch { /* layout read-only */ }
-          response.cookies.set({ name, value: '', ...options, maxAge: 0 });
+          const merged = mergeEmbedCookies(options, crossSiteEmbed);
+          try { store.set({ name, value: '', ...merged }); } catch { /* layout read-only */ }
+          response.cookies.set({ name, value: '', ...merged, maxAge: 0 });
         },
       },
     },

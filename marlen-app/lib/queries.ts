@@ -4,6 +4,8 @@ import { toTimestamp, dateFromOffset, dayKey, offsetFromDay, weekMondayOffset, i
 import { APPT_SELECT, APPT_SELECT_CORE, mapAppt } from '@/lib/agenda-appt';
 import { packExpired, packRemaining } from '@/lib/packs';
 import { listClientPacks, listPackTemplates, listSalonPacks } from '@/lib/pack-write';
+import { DEFAULT_VOICE_PREFS } from '@/hooks/voice-prefs';
+import { voiceFromStaffPrefs } from '@/lib/staff-app-prefs';
 import type {
   AgendaAppt, AgendaBlock, ClientListRow, ClientOption, ClientPack, ClientRow, Consent, PackTemplate, Provider,
   RecallRow, ServiceCategory, ServiceOption, TreatmentRow, WaitItem, WeekDay,
@@ -20,6 +22,21 @@ export async function getSession() {
       .eq('id', user.id)
       .maybeSingle();
     return data;
+  } catch {
+    return null;
+  }
+}
+
+export async function getStaffVoicePrefs(staffId: string) {
+  try {
+    const sb = createClient();
+    const { data } = await sb
+      .from('staff')
+      .select('app_prefs')
+      .eq('id', staffId)
+      .maybeSingle();
+    const voice = voiceFromStaffPrefs(data?.app_prefs);
+    return voice ? { ...DEFAULT_VOICE_PREFS, ...voice } : null;
   } catch {
     return null;
   }

@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { EMBED_PANEL_STORAGE } from '@/lib/embed-panel';
 import { OPS_SUPPORT_STORAGE, parseOpsSupportSession, type OpsSupportSession } from '@/lib/ops-support';
 
 function OpsSupportBannerInner() {
@@ -16,12 +17,16 @@ function OpsSupportBannerInner() {
         since: Date.now(),
       };
       sessionStorage.setItem(OPS_SUPPORT_STORAGE, JSON.stringify(next));
+      if (sp.get('embed') === '1') {
+        try { sessionStorage.setItem(EMBED_PANEL_STORAGE, '1'); } catch { /* ignore */ }
+      }
       setSession(next);
       try {
         const url = new URL(window.location.href);
         url.searchParams.delete('ops_support');
         url.searchParams.delete('ops_company');
         url.searchParams.delete('ops_by');
+        url.searchParams.delete('embed');
         window.history.replaceState(null, '', url.pathname + url.search + url.hash);
       } catch {
         /* ignore */

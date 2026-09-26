@@ -1,5 +1,6 @@
 import { headers } from 'next/headers';
 import { LogOut } from 'lucide-react';
+import { getStaffVoicePrefs } from '@/lib/queries';
 import { requireSession } from '@/lib/require-session';
 import { signOut } from '@/app/actions/auth';
 import { listMyPasskeys } from '@/app/actions/webauthn';
@@ -33,15 +34,16 @@ const ROADMAP = [
 ];
 
 export default async function CuentaPage() {
-  await requireSession();
+  const me = await requireSession();
   const passkeys = await listMyPasskeys();
   const ua = headers().get('user-agent') ?? '';
+  const initialVoice = await getStaffVoicePrefs(me.id);
 
   return (
     <AjustesHeader title="Tu cuenta">
       <PasskeySettingsCard ua={ua} initial={passkeys} />
       <StaffReminderSettings />
-      <VoiceSettingsCard />
+      <VoiceSettingsCard initialVoice={initialVoice} />
       <IosShortcutsCard />
       <PasswordForm />
       <section className="mt-8">

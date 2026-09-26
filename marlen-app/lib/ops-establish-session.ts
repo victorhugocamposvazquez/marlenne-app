@@ -71,8 +71,9 @@ export async function sessionFromAdminMagicLink(
 export async function attachSessionToResponse(
   response: NextResponse,
   session: Session,
+  crossSiteEmbed = false,
 ): Promise<boolean> {
-  const sb = createClientOnResponse(response);
+  const sb = createClientOnResponse(response, crossSiteEmbed);
   const { error } = await sb.auth.setSession({
     access_token: session.access_token,
     refresh_token: session.refresh_token,

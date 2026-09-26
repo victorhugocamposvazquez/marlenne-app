@@ -345,14 +345,17 @@ export default function VoiceFab() {
         window.setTimeout(() => startWakeRef.current(), 400);
       }
     });
+    const hushMarlen = () => {
+      genRef.current += 1;
+      killRec();
+      wakeRef.current = false;
+      setWakeOn(false);
+      setOpen(false);
+    };
     const onPrefs = () => {
       syncPrefs();
       if (prefsRef.current.off) {
-        genRef.current += 1;
-        killRec();
-        wakeRef.current = false;
-        setWakeOn(false);
-        setOpen(false);
+        hushMarlen();
         return;
       }
       if (wakeWanted(prefsRef.current) && micRef.current === 'granted') {
