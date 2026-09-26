@@ -2,9 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import type { MouseEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Home, Calendar, Users, Settings, Plus } from 'lucide-react';
-import { circleOutlineCls } from '@/components/ui/IconButton';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 
 export default function BottomNav({
@@ -24,74 +23,33 @@ export default function BottomNav({
   const on = (p: string) => path.startsWith(p);
   if (creating === '1' || editing || addingMember === '1' || task) return null;
 
-  const Item = ({ href, icon: Icon, label }: { href: string; icon: typeof Home; label: string }) => (
-    <Link
-      href={href}
-      className="flex flex-col items-center gap-0.5 text-[11px] font-bold leading-none"
-      style={{ color: on(href) ? 'rgb(var(--c-ink))' : 'rgb(var(--c-ink-3))' }}
-    >
-      <Icon size={20} strokeWidth={2.2} />
-      {label}
-    </Link>
-  );
-
-  const bar = 'flex items-start justify-center gap-3 px-3 pb-2 pt-2.5';
-  const plusCls = `h-9 w-9 shrink-0 self-center ${circleOutlineCls}`;
-
-  if (workspace === 'personal') {
-    const openTask = (e: MouseEvent<HTMLAnchorElement>) => {
-      e.preventDefault();
-      shallowSet({ tarea: '1' });
-    };
+  const Item = ({ href, icon: Icon, label }: { href: string; icon: typeof Home; label: string }) => {
+    const active = on(href);
     return (
-      <nav className="relative z-40 shrink-0 border-t border-surface-line bg-white pb-[env(safe-area-inset-bottom)] standalone:pb-[max(6px,calc(env(safe-area-inset-bottom)-12px))]">
-        <div className={bar}>
-          <Item href="/hoy" icon={Home} label="Hoy" />
-          <Item href="/calendario" icon={Calendar} label="Calendario" />
-          <Link
-            href="/hoy?tarea=1"
-            onClick={openTask}
-            aria-label="Nueva tarea"
-            className={plusCls}
-          >
-            <Plus size={18} strokeWidth={2.2} />
-          </Link>
-          <Item href="/ajustes" icon={Settings} label="Ajustes" />
-          {account}
-        </div>
-      </nav>
+      <Link
+        href={href}
+        className="flex min-h-[52px] flex-col items-center justify-center gap-[3px] no-underline"
+        style={{ color: active ? 'rgb(var(--c-ink))' : 'rgb(var(--c-ink-3))' }}
+      >
+        <Icon size={26} strokeWidth={active ? 2.2 : 1.8} />
+        <span className={`text-[12px] ${active ? 'font-bold' : 'font-medium'}`}>{label}</span>
+      </Link>
     );
-  }
+  };
 
-  const onClientas = on('/clientas');
-  const onEquipo = on('/ajustes/equipo');
-  const fabHref = onClientas
-    ? '/clientas?alta=1'
-    : onEquipo && role === 'admin'
-      ? '/ajustes/equipo?miembro=1'
-      : '/agenda?new=1';
-  const fabLabel = onClientas
-    ? 'Nueva clienta'
-    : onEquipo && role === 'admin'
-      ? 'Nueva persona'
-      : 'Nueva cita';
+  const showClientas = workspace !== 'personal' && role !== 'provider';
+  const cols = (workspace === 'personal' ? 4 : showClientas ? 5 : 4);
 
-  const openFab = (e: MouseEvent<HTMLAnchorElement>) => {
-    if (!on('/agenda') && !onClientas && !(onEquipo && role === 'admin')) return;
-    e.preventDefault();
-    if (onClientas) {
+  const create = () => {
+    if (workspace === 'personal') {
+      shallowSet({ tarea: '1' });
+      return;
+    }
+    if (on('/clientas')) {
       shallowSet({
         alta: '1',
         new: null, con: null, hora: null, nombre: null, servicio: null, client: null,
         wait: null, block: null, bloqueo: null, appt: null, close: null, miembro: null,
-      });
-      return;
-    }
-    if (onEquipo && role === 'admin') {
-      shallowSet({
-        miembro: '1',
-        new: null, con: null, hora: null, nombre: null, servicio: null, client: null,
-        wait: null, block: null, bloqueo: null, appt: null, close: null, alta: null,
       });
       return;
     }
@@ -102,20 +60,33 @@ export default function BottomNav({
     });
   };
 
+  const showFab = workspace === 'personal'
+    ? on('/hoy') || on('/calendario')
+    : on('/agenda') || on('/clientas');
+  const fabLabel = workspace === 'personal'
+    ? 'Nueva tarea'
+    : on('/clientas')
+      ? 'Nueva clienta'
+      : 'Nueva cita';
+
   return (
-    <nav className="relative z-40 shrink-0 border-t border-surface-line bg-white pb-[env(safe-area-inset-bottom)] standalone:pb-[max(6px,calc(env(safe-area-inset-bottom)-12px))]">
-      <div className={bar}>
-        <Item href="/hoy" icon={Home} label="Hoy" />
-        <Item href="/agenda" icon={Calendar} label="Agenda" />
-        <Link
-          href={fabHref}
-          onClick={openFab}
+    <nav className="relative z-40 shrink-0 border-t border-surface-line bg-white px-2 pt-1.5 pb-[max(4px,env(safe-area-inset-bottom))] standalone:pb-[max(6px,calc(env(safe-area-inset-bottom)-12px))]">
+      {showFab && (
+        <button
+          type="button"
           aria-label={fabLabel}
-          className={plusCls}
+          onClick={create}
+          className="absolute bottom-[calc(100%+12px)] left-4 grid h-14 w-14 place-items-center rounded-full bg-grad text-white shadow-[0_10px_24px_rgba(200,30,143,0.45)] motion-safe:active:scale-[.96]"
         >
-          <Plus size={18} strokeWidth={2.2} />
-        </Link>
-        {role !== 'provider' && <Item href="/clientas" icon={Users} label="Clientas" />}
+          <Plus size={26} strokeWidth={2.4} />
+        </button>
+      )}
+      <div className="grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+        <Item href="/hoy" icon={Home} label="Hoy" />
+        {workspace === 'personal'
+          ? <Item href="/calendario" icon={Calendar} label="Calendario" />
+          : <Item href="/agenda" icon={Calendar} label="Agenda" />}
+        {showClientas && <Item href="/clientas" icon={Users} label="Clientas" />}
         <Item href="/ajustes" icon={Settings} label="Ajustes" />
         {account}
       </div>

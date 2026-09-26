@@ -12,7 +12,6 @@ const SWITCH_MS = 280;
 
 export default function AccountMenu({
   initials,
-  color,
   fullName,
   email,
   companyName,
@@ -20,7 +19,6 @@ export default function AccountMenu({
   hasPersonal,
 }: {
   initials: string;
-  color: string | null;
   fullName: string;
   email: string;
   companyName: string;
@@ -101,16 +99,20 @@ export default function AccountMenu({
   );
 
   return (
-    <div ref={root} className="relative grid h-[22px] w-[22px] place-items-center" data-no-pull>
+    <div ref={root} className="relative flex min-h-[52px] flex-col items-center justify-center gap-[3px]" data-no-pull>
       <button
         type="button"
-        aria-label="Tu cuenta"
+        aria-label="Perfil"
         aria-expanded={open}
         onPointerUp={onPointerUp}
-        className="grid h-[22px] w-[22px] place-items-center rounded-full text-[8px] font-extrabold leading-none text-white motion-safe:active:scale-[.96]"
-        style={{ background: color || '#8B5CF6' }}
+        className="flex min-h-[52px] w-full flex-col items-center justify-center gap-[3px]"
       >
-        {initials.slice(0, 2)}
+        <span
+          className="grid h-7 w-7 place-items-center rounded-full border border-[#cbe7f5] bg-[#e8f4fb] text-[11px] font-bold text-[#1d9bd1]"
+        >
+          {initials.slice(0, 2)}
+        </span>
+        <span className={`text-[12px] ${open ? 'font-bold text-ink' : 'font-medium text-ink-3'}`}>Perfil</span>
       </button>
       {open && (
         <div className="absolute bottom-full right-0 z-40 mb-2 w-[min(calc(100vw-1.5rem),280px)] rounded-card border border-surface-line bg-white p-3 shadow-popup">

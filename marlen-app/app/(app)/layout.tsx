@@ -59,7 +59,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           account={(
             <AccountMenu
               initials={me.initials?.trim() || initials(me.full_name)}
-              color={me.color}
               fullName={me.full_name}
               email={me.email}
               companyName={me.salon_name}
