@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ChevronLeft, Eye } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
 import PanelUserZone from '@/components/shell/PanelUserZone';
 import SoporteView from '@/components/soporte/SoporteView';
@@ -80,11 +80,8 @@ export default function PanelShell({
 
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
         {inSupport && (
-          <div className="sticky top-0 z-[5] flex min-h-12 flex-wrap items-center justify-center gap-3.5 bg-grad px-4 py-2 text-center text-[13px] font-semibold text-white">
-            <Eye size={16} className="shrink-0" />
-            <span>
-              Modo soporte · estás dentro de la app de <strong>{impersonation.company.name}</strong> con sus datos reales. Se registra todo lo que hagas.
-            </span>
+          <div className="z-[5] flex shrink-0 items-center justify-between gap-2 bg-grad px-3 py-2 text-[12px] font-semibold text-white lg:px-4">
+            <span className="truncate">Soporte · {impersonation.company.name}</span>
             <button
               type="button"
               onClick={() => {
@@ -92,18 +89,21 @@ export default function PanelShell({
                 stopImpersonation();
                 router.push(`/empresas/${id}`);
               }}
-              className="h-[30px] shrink-0 rounded-pill bg-white px-3.5 text-[12px] font-bold text-brand-pink"
+              className="h-8 shrink-0 rounded-pill bg-white px-3 text-[12px] font-bold text-brand-pink"
             >
-              Volver al panel
+              Salir
             </button>
           </div>
         )}
 
-        <header className={`sticky z-10 hidden h-16 items-center justify-end border-b border-line bg-white px-8 lg:flex ${inSupport ? 'top-12' : 'top-0'}`}>
+        {!inSupport && (
+        <header className="sticky top-0 z-10 hidden h-16 items-center justify-end border-b border-line bg-white px-8 lg:flex">
           <PanelUserZone />
         </header>
+        )}
 
-        <header className={`sticky z-10 flex min-h-[60px] items-center gap-2.5 border-b border-line bg-white px-4 lg:hidden ${inSupport ? 'top-12' : 'top-0'}`}>
+        {!inSupport && (
+        <header className="sticky top-0 z-10 flex min-h-[60px] items-center gap-2.5 border-b border-line bg-white px-4 lg:hidden">
           {(crumb || inSupport) && (
             <button
               type="button"
@@ -130,28 +130,34 @@ export default function PanelShell({
           </div>
           <PanelUserZone compact />
         </header>
+        )}
 
+        {inSupport ? (
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <SoporteView company={impersonation.company} />
+          </div>
+        ) : (
         <PullRefresh>
-          <div className={`h-0 min-h-0 flex-1 overscroll-y-contain lg:h-auto lg:overflow-visible ${inSupport ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'}`}>
-        <div className={`mx-auto flex w-full max-w-[1280px] flex-col gap-5 p-4 pb-24 lg:flex-1 lg:min-h-0 lg:p-8 ${inSupport ? 'min-h-0 flex-1 pb-4' : 'lg:pb-8'}`}>
-          {!inSupport && crumb && (
+          <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain lg:h-auto lg:overflow-visible">
+        <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-5 p-4 pb-24 lg:p-8 lg:pb-8">
+          {crumb && (
             <nav className="hidden items-center gap-2 text-[13px] font-semibold text-ink-3 lg:flex">
               <Link href={crumb.href} className="text-ink-2 hover:text-brand-pink">{crumb.label}</Link>
               <span className="text-ink-4">›</span>
               <span className="text-ink">{title}</span>
             </nav>
           )}
-          {!inSupport && (
-            <div className="hidden flex-col gap-1 lg:flex">
-              <h1 className="text-[26px] font-bold tracking-[-0.03em]">{title}</h1>
-              {subtitle && <p className="text-[14px] text-ink-2">{subtitle}</p>}
-            </div>
-          )}
-          {inSupport ? <SoporteView company={impersonation.company} /> : children}
+          <div className="hidden flex-col gap-1 lg:flex">
+            <h1 className="text-[26px] font-bold tracking-[-0.03em]">{title}</h1>
+            {subtitle && <p className="text-[14px] text-ink-2">{subtitle}</p>}
+          </div>
+          {children}
         </div>
           </div>
         </PullRefresh>
+        )}
 
+        {!inSupport && (
         <nav className="fixed bottom-0 left-0 right-0 z-10 flex h-[76px] items-start justify-around border-t border-line bg-white pt-2.5 lg:hidden">
           {MOBILE_TABS.map(t => {
             const on = active === t.id;
@@ -163,6 +169,7 @@ export default function PanelShell({
             );
           })}
         </nav>
+        )}
       </main>
     </div>
   );
