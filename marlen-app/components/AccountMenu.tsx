@@ -18,7 +18,6 @@ export default function AccountMenu({
   companyName,
   workspace,
   hasPersonal,
-  compact = false,
 }: {
   initials: string;
   color: string | null;
@@ -27,7 +26,6 @@ export default function AccountMenu({
   companyName: string;
   workspace: WorkspaceKind;
   hasPersonal: boolean;
-  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -103,18 +101,17 @@ export default function AccountMenu({
   );
 
   return (
-    <div ref={root} className={`relative flex flex-col items-center ${compact ? 'w-11' : 'min-w-0 flex-1'}`} data-no-pull>
+    <div ref={root} className="relative grid h-[22px] w-[22px] place-items-center" data-no-pull>
       <button
         type="button"
         aria-label="Tu cuenta"
         aria-expanded={open}
         onPointerUp={onPointerUp}
-        className={`grid place-items-center rounded-full font-extrabold text-white motion-safe:active:scale-[.96] ${compact ? 'h-7 w-7 text-[10px]' : 'h-8 w-8 text-[12px]'}`}
+        className="grid h-[22px] w-[22px] place-items-center rounded-full text-[8px] font-extrabold leading-none text-white motion-safe:active:scale-[.96]"
         style={{ background: color || '#8B5CF6' }}
       >
         {initials.slice(0, 2)}
       </button>
-      <span className={`font-bold ${compact ? 'text-[10px] leading-none' : 'text-[12px]'}`} style={{ color: 'rgb(var(--c-ink-3))' }}>Tú</span>
       {open && (
         <div className="absolute bottom-full right-0 z-40 mb-2 w-[min(calc(100vw-1.5rem),280px)] rounded-card border border-surface-line bg-white p-3 shadow-popup">
           <div className="px-2 pb-2">

@@ -24,17 +24,19 @@ export default function BottomNav({
   const on = (p: string) => path.startsWith(p);
   if (creating === '1' || editing || addingMember === '1' || task) return null;
 
-  const tight = workspace === 'company';
   const Item = ({ href, icon: Icon, label }: { href: string; icon: typeof Home; label: string }) => (
     <Link
       href={href}
-      className={`flex flex-col items-center font-bold ${tight ? 'w-11 gap-0.5 text-[10px] leading-none' : 'min-w-0 flex-1 gap-1 py-1 text-[12px]'}`}
+      className="flex flex-col items-center gap-0.5 text-[11px] font-bold leading-none"
       style={{ color: on(href) ? 'rgb(var(--c-ink))' : 'rgb(var(--c-ink-3))' }}
     >
-      <Icon size={tight ? 18 : 22} strokeWidth={2.2} />
+      <Icon size={20} strokeWidth={2.2} />
       {label}
     </Link>
   );
+
+  const bar = 'flex items-start justify-center gap-3 px-3 pb-2 pt-2.5';
+  const plusCls = `h-9 w-9 shrink-0 self-center ${circleOutlineCls}`;
 
   if (workspace === 'personal') {
     const openTask = (e: MouseEvent<HTMLAnchorElement>) => {
@@ -43,16 +45,16 @@ export default function BottomNav({
     };
     return (
       <nav className="relative z-40 shrink-0 border-t border-surface-line bg-white pb-[env(safe-area-inset-bottom)] standalone:pb-[max(6px,calc(env(safe-area-inset-bottom)-12px))]">
-        <div className="flex items-start px-2 pb-2 pt-3">
+        <div className={bar}>
           <Item href="/hoy" icon={Home} label="Hoy" />
           <Item href="/calendario" icon={Calendar} label="Calendario" />
           <Link
             href="/hoy?tarea=1"
             onClick={openTask}
             aria-label="Nueva tarea"
-            className={`mx-1 h-11 w-11 ${circleOutlineCls}`}
+            className={plusCls}
           >
-            <Plus size={20} strokeWidth={2.2} />
+            <Plus size={18} strokeWidth={2.2} />
           </Link>
           <Item href="/ajustes" icon={Settings} label="Ajustes" />
           {account}
@@ -102,14 +104,14 @@ export default function BottomNav({
 
   return (
     <nav className="relative z-40 shrink-0 border-t border-surface-line bg-white pb-[env(safe-area-inset-bottom)] standalone:pb-[max(6px,calc(env(safe-area-inset-bottom)-12px))]">
-      <div className="flex items-start justify-center gap-1 px-1 pb-1.5 pt-2">
+      <div className={bar}>
         <Item href="/hoy" icon={Home} label="Hoy" />
         <Item href="/agenda" icon={Calendar} label="Agenda" />
         <Link
           href={fabHref}
           onClick={openFab}
           aria-label={fabLabel}
-          className={`mx-0.5 h-9 w-9 ${circleOutlineCls}`}
+          className={plusCls}
         >
           <Plus size={18} strokeWidth={2.2} />
         </Link>

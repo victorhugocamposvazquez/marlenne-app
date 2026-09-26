@@ -65,7 +65,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               companyName={me.salon_name}
               workspace={me.workspace}
               hasPersonal={me.has_personal}
-              compact={!personal}
             />
           )}
         />
