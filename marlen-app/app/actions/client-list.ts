@@ -3,7 +3,9 @@
 import {
   CLIENT_LIST_PAGE,
   findSimilarClients,
+  getClientPickerOption,
   listClientsPage,
+  searchClientPicker,
   searchClientsPage,
 } from '@/lib/clients-list-page';
 import type { ClientListRow, ClientOption } from '@/lib/types';
@@ -23,4 +25,12 @@ export async function loadClientsPage(
 
 export async function loadSimilarClients(name: string, phone: string): Promise<ClientOption[]> {
   return findSimilarClients(name, phone);
+}
+
+export async function loadClientPickerSearch(query: string): Promise<ClientOption[]> {
+  return searchClientPicker(query);
+}
+
+export async function loadClientPickerById(id: string): Promise<ClientOption | null> {
+  return getClientPickerOption(id);
 }

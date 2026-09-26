@@ -220,16 +220,32 @@ export async function getWeekCounts(providerIds: string[], dayOffset = 0): Promi
   }));
 }
 
-/** Días de la tira (o un rango) que tienen al menos una cita. */
+/** Días del rango [startOffset, startOffset+n) con al menos una cita (no cancelada). */
 export async function getBusyOffsets(providerIds: string[], startOffset: number, n = 5): Promise<number[]> {
-  if (providerIds.length === 0) return [];
+  if (providerIds.length === 0 || n <= 0) return [];
   const sb = createClient();
-  const from = dateFromOffset(startOffset);
-  const to = dateFromOffset(startOffset + n - 1);
+  const fromTs = toTimestamp(dateFromOffset(startOffset), 0);
+  const toTs = toTimestamp(dateFromOffset(startOffset + n - 1), 24 * 60 - 1);
+
+  const { data: dayKeys, error: rpcErr } = await sb.rpc('agenda_busy_day_keys', {
+    p_from: fromTs,
+    p_to: toTs,
+    p_provider_ids: providerIds,
+  });
+
+  if (!rpcErr && dayKeys?.length) {
+    const busy = new Set<number>();
+    for (const key of dayKeys as string[]) {
+      const off = offsetFromDay(key);
+      if (off >= startOffset && off < startOffset + n) busy.add(off);
+    }
+    return [...busy];
+  }
+
   const { data } = await sb.from('appointments')
     .select('starts_at')
-    .gte('starts_at', toTimestamp(from, 0))
-    .lte('starts_at', toTimestamp(to, 24 * 60 - 1))
+    .gte('starts_at', fromTs)
+    .lte('starts_at', toTs)
     .in('provider_id', providerIds);
   const busy = new Set<number>();
   for (const row of data ?? []) {

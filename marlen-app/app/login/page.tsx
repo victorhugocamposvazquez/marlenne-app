@@ -8,11 +8,17 @@ import LoginForm from '@/components/LoginForm';
 import PublicHero from '@/components/PublicHero';
 import PublicShell from '@/components/PublicShell';
 import { BRAND_NAME } from '@/lib/brand';
+import { opsLoginErrorMessage } from '@/lib/ops-login-errors';
 import { platformLoginHint, platformLoginTitle } from '@/lib/webauthn';
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams?: { error?: string };
+}) {
   const me = await getSession();
   if (me) redirect('/hoy');
+  const opsError = opsLoginErrorMessage(searchParams?.error);
   const h = madridNow().h;
   const hello = h < 13 ? 'Buenos días.' : h < 20 ? 'Buenas tardes.' : 'Buenas noches.';
   const ua = headers().get('user-agent') ?? '';
@@ -24,6 +30,11 @@ export default async function LoginPage() {
           {platformLoginHint(ua)}
         </p>
       </PublicHero>
+      {opsError && (
+        <p className="mx-6 mb-2 rounded-field border border-warn-line bg-warn-bg px-3 py-2.5 text-body font-semibold text-warn-fg">
+          {opsError}
+        </p>
+      )}
       <LoginForm ua={ua} />
     </PublicShell>
   );

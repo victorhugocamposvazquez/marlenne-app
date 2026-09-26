@@ -9,6 +9,10 @@ import BlockSheetHost from '@/components/agenda/BlockSheetHost';
 import { requireSession } from '@/lib/require-session';
 import { listStaff, getDayAgenda, getWeekCounts, getBusyOffsets, peekWaitlist } from '@/lib/queries';
 import { agendaColumns } from '@/lib/team';
+import {
+  agendaBusyInitialCount,
+  agendaBusyInitialStart,
+} from '@/lib/agenda-busy-range';
 import { alignStripStart, dateFromOffset, dayKey } from '@/lib/time';
 import { activeAppts } from '@/lib/week-view';
 
@@ -49,16 +53,17 @@ export default async function AgendaPage({
 
   const teamIds = team.map(p => p.id);
   const stripStart = alignStripStart(day, strip, 5);
+  const busyProviderIds = providers.map(p => p.id);
   const [waitingPeek, dayAgenda, weekDays, stripBusy] = await Promise.all([
     peekWaitlist(),
     mode === 'dia'
       ? getDayAgenda(dateFromOffset(day), teamIds)
       : Promise.resolve({ appointments: [], blocks: [] }),
     mode === 'semana'
-      ? getWeekCounts(providers.map(p => p.id), day)
+      ? getWeekCounts(busyProviderIds, day)
       : Promise.resolve([]),
     mode === 'dia'
-      ? getBusyOffsets(providers.map(p => p.id), stripStart - 90, 270)
+      ? getBusyOffsets(busyProviderIds, agendaBusyInitialStart(day), agendaBusyInitialCount())
       : Promise.resolve([]),
   ]);
   const dayStr = dayKey(dateFromOffset(day));
@@ -75,6 +80,7 @@ export default async function AgendaPage({
         waiting={waitingPeek.count}
         citas={mode === 'dia' ? citas : undefined}
         busyOffsets={stripBusy}
+        busyProviderIds={mode === 'dia' ? busyProviderIds : []}
       />
       {mode === 'dia' ? (
         <DayGrid

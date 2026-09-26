@@ -36,7 +36,7 @@ export default function ClientPicker({
             ref={inputRef}
             autoFocus
             className={`${inputCls} pl-9 py-2`}
-            placeholder={query.trim() ? 'Nombre o teléfono' : `${clients.length} en la agenda`}
+            placeholder={query.trim() ? 'Nombre o teléfono' : 'Busca por nombre o teléfono'}
             aria-label="Buscar clienta o cliente"
             value={query}
             onChange={e => onQuery(e.target.value)}

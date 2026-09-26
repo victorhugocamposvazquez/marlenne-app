@@ -1,7 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { loadAgendaBusyOffsets } from '@/app/actions/agenda-busy';
+import {
+  agendaBusyStripCount,
+  agendaBusyStripStart,
+} from '@/lib/agenda-busy-range';
 import { Calendar, ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import DayStrip from '@/components/agenda/DayStrip';
 import MonthCalendar from '@/components/agenda/MonthCalendar';
@@ -13,7 +18,7 @@ import { pushOpenArmed } from '@/hooks/push-open';
 import { shallowSet } from '@/hooks/useShallowQuery';
 
 export default function AgendaHeader({
-  day, strip, mode, waiting, citas, busyOffsets = [],
+  day, strip, mode, waiting, citas, busyOffsets = [], busyProviderIds = [],
 }: {
   day: number;
   strip: number;
@@ -21,10 +26,33 @@ export default function AgendaHeader({
   waiting: number;
   citas?: number;
   busyOffsets?: number[];
+  busyProviderIds?: string[];
 }) {
   const router = useRouter();
   const [cal, setCal] = useState(false);
   const start = alignStripStart(day, strip, 5);
+  const [busy, setBusy] = useState(busyOffsets);
+
+  useEffect(() => {
+    setBusy(busyOffsets);
+  }, [busyOffsets]);
+
+  const stripBusyKey = useMemo(
+    () => `${day}:${start}:${busyProviderIds.join(',')}`,
+    [day, start, busyProviderIds],
+  );
+
+  useEffect(() => {
+    if (mode !== 'dia' || busyProviderIds.length === 0) return;
+    let alive = true;
+    const from = agendaBusyStripStart(day, start);
+    const count = agendaBusyStripCount(day, start);
+    void loadAgendaBusyOffsets(busyProviderIds, from, count).then(extra => {
+      if (!alive || !extra.length) return;
+      setBusy(prev => [...new Set([...prev, ...extra])]);
+    });
+    return () => { alive = false; };
+  }, [mode, stripBusyKey, day, start, busyProviderIds]);
 
   const go = (d: number, extra?: { strip?: number; mode?: string }) => {
     if (pushOpenArmed()) return;
@@ -82,7 +110,7 @@ export default function AgendaHeader({
             <DayStrip
               selectedOffset={day}
               startOffset={start}
-              busyOffsets={busyOffsets}
+              busyOffsets={busy}
               onSelect={offset => go(skipSunday(offset, 1))}
             />
           </div>

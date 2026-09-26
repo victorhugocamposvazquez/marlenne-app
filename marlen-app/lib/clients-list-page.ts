@@ -134,6 +134,38 @@ export async function searchClientsPage(
   return { rows, total: count ?? rows.length };
 }
 
+/** Búsqueda ligera para el picker de nueva cita (sin enriquecer citas/bonos). */
+export async function searchClientPicker(query: string, limit = 40): Promise<ClientOption[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const sb = createClient();
+  const digits = q.replace(/\D/g, '');
+  const safe = q.replace(/[%_,]/g, ' ').trim();
+  let builder = sb.from('clients').select('id, full_name, phone').limit(limit);
+  if (digits.length >= 3) {
+    builder = builder.or(`full_name.ilike.%${safe}%,phone.ilike.%${digits}%`);
+  } else {
+    builder = builder.ilike('full_name', `%${safe}%`);
+  }
+  const { data } = await builder.order('full_name');
+  return (data ?? []).map(r => ({
+    id: r.id as string,
+    full_name: r.full_name as string,
+    phone: (r.phone as string | null) ?? null,
+  }));
+}
+
+export async function getClientPickerOption(id: string): Promise<ClientOption | null> {
+  const sb = createClient();
+  const { data } = await sb.from('clients').select('id, full_name, phone').eq('id', id).maybeSingle();
+  if (!data) return null;
+  return {
+    id: data.id as string,
+    full_name: data.full_name as string,
+    phone: (data.phone as string | null) ?? null,
+  };
+}
+
 export async function findSimilarClients(name: string, phone: string): Promise<ClientOption[]> {
   const sb = createClient();
   const folded = name.trim();

@@ -10,6 +10,7 @@ import MonthCalendar from '@/components/agenda/MonthCalendar';
 import { useCloseSheet } from '@/components/Sheet';
 import SheetShell, { SheetGrab, SheetHandle, useSheetShellClose } from '@/components/SheetShell';
 import { avatarColor, catStyle, initials } from '@/lib/categories';
+import { loadClientPickerSearch } from '@/app/actions/client-list';
 import { syncAppointmentReminderAction } from '@/app/actions/reminder-sync';
 import { cancelAppointment, createAppointment, updateAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
@@ -101,8 +102,52 @@ export function NewAppointmentSheetBody({
   const [lastId, setLastId] = useState<string | null>(null);
   const [fits, setFits] = useState<Record<string, boolean>>({});
   const whenSnap = useRef({ dayOff: 0, startMin: null as number | null, providerId: '' });
+  const [clientPool, setClientPool] = useState<ClientOption[]>(clients);
+
+  useEffect(() => { setClientPool(clients); }, [clients]);
 
   useEffect(() => { setLastId(readLastServiceId()); }, []);
+
+  const clientSearchKey = fold(query);
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) return;
+    let alive = true;
+    const t = window.setTimeout(() => {
+      void loadClientPickerSearch(q).then(rows => {
+        if (!alive || !rows.length) return;
+        setClientPool(prev => {
+          const seen = new Set(prev.map(c => c.id));
+          const out = [...prev];
+          for (const c of rows) {
+            if (!seen.has(c.id)) {
+              seen.add(c.id);
+              out.push(c);
+            }
+          }
+          return out;
+        });
+      });
+    }, 220);
+    return () => {
+      alive = false;
+      window.clearTimeout(t);
+    };
+  }, [clientSearchKey, query]);
+
+  useEffect(() => {
+    const q = initialName.trim();
+    if (!q || q.length < 2 || client) return;
+    void loadClientPickerSearch(q).then(rows => {
+      if (!rows.length) return;
+      setClientPool(prev => {
+        const seen = new Set(prev.map(c => c.id));
+        return [...prev, ...rows.filter(c => !seen.has(c.id))];
+      });
+      const hit = bestNameMatches(rows, q, c => c.full_name)[0];
+      if (hit) setClient(hit);
+    });
+  }, [initialName, client]);
 
   const service = services.find(s => s.id === serviceId) ?? null;
   const who = client?.full_name ?? query.trim();
@@ -113,8 +158,8 @@ export function NewAppointmentSheetBody({
   }).replace('.', '');
 
   const matches = useMemo(
-    () => filterClientOptions(clients, query),
-    [query, clients],
+    () => filterClientOptions(clientPool, query),
+    [query, clientPool],
   );
 
   const catalog = useMemo(

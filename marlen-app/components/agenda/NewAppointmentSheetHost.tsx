@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react';
 import { NewAppointmentSheetBody } from '@/components/agenda/NewAppointmentSheet';
 import SheetShell from '@/components/SheetShell';
 import { useCloseSheet } from '@/components/Sheet';
-import { loadClientOptions, loadSalonPacks, loadServiceCounts, loadServices } from '@/lib/agenda-catalog';
+import { loadClientPickerById } from '@/app/actions/client-list';
+import { loadSalonPacks, loadServiceCounts, loadServices } from '@/lib/agenda-catalog';
 import { createClient } from '@/lib/supabase/client';
 import { useShallowParam } from '@/hooks/useShallowQuery';
-import { bestNameMatches } from '@/lib/voice';
 import type { ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
 
 export default function NewAppointmentSheetHost({
@@ -41,24 +41,27 @@ export default function NewAppointmentSheetHost({
     if (open !== '1') return;
     let alive = true;
     setLoading(true);
+    setClients([]);
     const sb = createClient();
     void Promise.all([
-      loadServices(sb), loadClientOptions(sb), loadSalonPacks(sb), loadServiceCounts(sb),
-    ]).then(([s, c, p, counts]) => {
+      loadServices(sb),
+      loadSalonPacks(sb),
+      loadServiceCounts(sb),
+      clientId ? loadClientPickerById(clientId) : Promise.resolve(null),
+    ]).then(([s, p, counts, picked]) => {
       if (!alive) return;
       setServices(s);
-      setClients(c);
       setPacks(p);
       setServiceCounts(counts);
+      if (picked) setClients([picked]);
       setLoading(false);
     });
     return () => { alive = false; };
-  }, [open]);
+  }, [open, clientId]);
 
   if (open !== '1') return null;
 
-  const preselected = clients.find(c => c.id === clientId)
-    ?? (nombre ? bestNameMatches(clients, nombre, c => c.full_name)[0] ?? null : null);
+  const preselected = clients.find(c => c.id === clientId) ?? clients[0] ?? null;
 
   return (
     <SheetShell onClose={close} initialHeight="tall" grabHeader>
