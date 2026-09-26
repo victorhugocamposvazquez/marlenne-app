@@ -16,7 +16,7 @@ export default function SubpageHeader({
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
       <header className="shrink-0 bg-surface-bg px-4 pb-2 pt-4">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 pr-12">
           <Link
             href={href}
             aria-label={back}

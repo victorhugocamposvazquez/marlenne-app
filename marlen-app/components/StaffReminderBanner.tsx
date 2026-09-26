@@ -16,7 +16,13 @@ function iosNeedsInstall(): boolean {
   return ios && !standalone;
 }
 
-export default function StaffReminderBanner() {
+export default function StaffReminderBanner({
+  title = 'Aviso 30 minutos antes',
+  body = 'Sale la cita de todo el equipo, y dice quién atiende. Por ejemplo: Cita con Manuela Lopez en 30 minutos - con Iria.',
+}: {
+  title?: string;
+  body?: string;
+}) {
   const [show, setShow] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,10 +58,8 @@ export default function StaffReminderBanner() {
     <div className="mb-5 rounded-row bg-surface-soft p-4">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <div className="text-body font-extrabold tracking-[-.01em]">Aviso 30 minutos antes</div>
-          <p className="mt-1 text-label font-medium leading-snug text-ink-2">
-            Sale la cita de todo el equipo, y dice quién atiende. Por ejemplo: Cita con Manuela Lopez en 30 minutos - con Iria.
-          </p>
+          <div className="text-body font-extrabold tracking-[-.01em]">{title}</div>
+          <p className="mt-1 text-label font-medium leading-snug text-ink-2">{body}</p>
           {iosHint && (
             <p className="mt-1 text-label font-medium leading-snug text-ink-2">
               En el iPhone, añade Marlén a inicio para que llegue con la app cerrada.

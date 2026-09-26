@@ -9,6 +9,7 @@ export default async function AjustesPage() {
     <AjustesIndex
       me={{ full_name: me.full_name, job_title: me.job_title, role: me.role }}
       ready={ready}
+      personal={me.workspace === 'personal'}
     />
   );
 }

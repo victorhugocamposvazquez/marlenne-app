@@ -204,3 +204,93 @@ export async function dispatchStaffReminders(opts?: {
         : undefined,
   };
 }
+
+type DueTask = {
+  id: string;
+  user_id: string;
+  title: string;
+  remind_at: string;
+};
+
+async function claimTask(id: string, now: Date): Promise<boolean> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('personal_tasks')
+    .update({ reminded_at: now.toISOString() })
+    .eq('id', id)
+    .is('reminded_at', null)
+    .select('id');
+  if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
+}
+
+async function unclaimTask(id: string) {
+  const supabase = createAdminClient();
+  await supabase.from('personal_tasks').update({ reminded_at: null }).eq('id', id);
+}
+
+async function loadSubsForStaff(staffId: string): Promise<PushSub[]> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('staff_push_subscriptions')
+    .select('id, endpoint, p256dh, auth, staff_id')
+    .eq('staff_id', staffId);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PushSub[];
+}
+
+/** Aviso de tareas personales cuyo remind_at ya ha pasado. */
+export async function dispatchPersonalTaskReminders(opts?: {
+  userId?: string;
+  now?: Date;
+}): Promise<StaffReminderResult> {
+  if (!vapidReady()) {
+    return { ok: false, due: 0, sent: 0, error: 'Faltan VAPID_PUBLIC_KEY y VAPID_PRIVATE_KEY' };
+  }
+  configureWebPush();
+  const now = opts?.now ?? new Date();
+  const supabase = createAdminClient();
+  let query = supabase
+    .from('personal_tasks')
+    .select('id, user_id, title, remind_at')
+    .is('done_at', null)
+    .is('reminded_at', null)
+    .lte('remind_at', now.toISOString())
+    .limit(80);
+  if (opts?.userId) query = query.eq('user_id', opts.userId);
+
+  const { data, error } = await query;
+  if (error) {
+    if (/personal_tasks|does not exist|schema cache/i.test(error.message)) {
+      return { ok: true, due: 0, sent: 0 };
+    }
+    return { ok: false, due: 0, sent: 0, error: error.message };
+  }
+
+  const due = (data ?? []) as DueTask[];
+  if (due.length === 0) return { ok: true, due: 0, sent: 0 };
+
+  let sent = 0;
+  for (const row of due) {
+    const subs = await loadSubsForStaff(row.user_id);
+    if (subs.length === 0) continue;
+    const claimed = await claimTask(row.id, now);
+    if (!claimed) continue;
+    const payload = JSON.stringify({
+      title: BRAND_NAME,
+      body: row.title,
+      url: '/hoy',
+      tag: `personal-task-${row.id}`,
+    });
+    let delivered = 0;
+    for (const sub of subs) {
+      if (await pushOne(sub, payload)) delivered += 1;
+    }
+    if (delivered === 0) {
+      await unclaimTask(row.id);
+      continue;
+    }
+    sent += 1;
+  }
+  return { ok: true, due: due.length, sent };
+}

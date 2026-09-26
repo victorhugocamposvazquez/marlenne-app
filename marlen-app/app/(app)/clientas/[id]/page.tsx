@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import ClientaFicha from '@/components/clienta/ClientaFicha';
-import { requireSession } from '@/lib/require-session';
+import { requireCompany } from '@/lib/require-session';
 import { getClient, listClientAppointments, listConsents, listSalonPackTemplates, listServices } from '@/lib/queries';
 
 export default async function ClientaPage({
@@ -9,7 +9,7 @@ export default async function ClientaPage({
   params: { id: string };
   searchParams: { tab?: string; editar?: string };
 }) {
-  const [me, data] = await Promise.all([requireSession(), getClient(params.id)]);
+  const [me, data] = await Promise.all([requireCompany(), getClient(params.id)]);
   const canEdit = me.role === 'admin' || me.role === 'reception';
   const { client, treatments, packs } = data;
   if (!client) notFound();

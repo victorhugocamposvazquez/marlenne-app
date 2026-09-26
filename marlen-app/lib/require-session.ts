@@ -9,8 +9,15 @@ export async function requireSession() {
   return me;
 }
 
-export async function requireRole(...roles: StaffRole[]) {
+/** Rutas del centro: en la cuenta personal vuelven a Hoy. */
+export async function requireCompany() {
   const me = await requireSession();
+  if (me.workspace === 'personal') redirect('/hoy');
+  return me;
+}
+
+export async function requireRole(...roles: StaffRole[]) {
+  const me = await requireCompany();
   if (!roles.includes(me.role)) redirect('/ajustes');
   return me;
 }

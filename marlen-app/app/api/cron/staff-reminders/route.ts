@@ -1,5 +1,5 @@
 import { authorizeCronRequest } from '@/lib/sms/auth-cron';
-import { dispatchStaffReminders } from '@/lib/staff-reminder-send';
+import { dispatchPersonalTaskReminders, dispatchStaffReminders } from '@/lib/staff-reminder-send';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
@@ -12,11 +12,12 @@ export async function GET(req: Request) {
 
   try {
     const result = await dispatchStaffReminders();
+    const personal = await dispatchPersonalTaskReminders();
     const supabase = createAdminClient();
     await supabase.from('platform_cron_runs').insert({
       job: 'staff-reminders',
       ok: result.ok,
-      summary: result,
+      summary: { ...result, personal },
     });
     const missingKeys = result.error?.startsWith('Faltan VAPID');
     return Response.json(result, { status: result.ok || missingKeys ? 200 : 500 });

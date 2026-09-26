@@ -2,6 +2,8 @@ import type { VoicePrefs } from '@/hooks/voice-prefs';
 
 export type StaffAppPrefs = {
   voice?: Partial<VoicePrefs>;
+  workspace?: 'company' | 'personal';
+  personal_salon_id?: string;
 };
 
 export function voiceFromStaffPrefs(raw: unknown): VoicePrefs | null {

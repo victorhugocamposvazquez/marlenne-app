@@ -33,10 +33,11 @@ function Group({ title, rows }: { title: string; rows: Destino[] }) {
 }
 
 export default function AjustesIndex({
-  me, ready,
+  me, ready, personal = false,
 }: {
   me: { full_name: string; job_title: string | null; role: StaffRole };
   ready: ReadyItem[];
+  personal?: boolean;
 }) {
   const admin = me.role === 'admin';
   const desk = admin || me.role === 'reception';
@@ -77,12 +78,14 @@ export default function AjustesIndex({
       <PageHeading
         title="Ajustes"
         subtitle={
-          <span className="text-body-lg text-ink-2">{`${me.full_name} · ${me.job_title ?? me.role}`}</span>
+          <span className="text-body-lg text-ink-2">
+            {personal ? 'Cuenta personal' : `${me.full_name} · ${me.job_title ?? me.role}`}
+          </span>
         }
       />
-      <Group title="Centro" rows={centro} />
+      {!personal && <Group title="Centro" rows={centro} />}
       <Group title="Cuenta" rows={cuenta} />
-      {admin && <ReadyList items={ready} />}
+      {admin && !personal && <ReadyList items={ready} />}
     </div>
   );
 }

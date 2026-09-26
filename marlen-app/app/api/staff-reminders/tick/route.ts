@@ -1,5 +1,5 @@
 import { getSession } from '@/lib/queries';
-import { dispatchStaffReminders } from '@/lib/staff-reminder-send';
+import { dispatchPersonalTaskReminders, dispatchStaffReminders } from '@/lib/staff-reminder-send';
 
 export const runtime = 'nodejs';
 
@@ -14,6 +14,7 @@ export async function POST() {
 
   try {
     const result = await dispatchStaffReminders({ salonId: me.salon_id });
+    await dispatchPersonalTaskReminders({ userId: me.id });
     const missingKeys = result.error?.startsWith('Faltan VAPID');
     return Response.json(result, { status: result.ok || missingKeys ? 200 : 500 });
   } catch (e) {

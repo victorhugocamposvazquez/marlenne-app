@@ -6,7 +6,7 @@ import AppointmentSheetHost from '@/components/agenda/AppointmentSheetHost';
 import NewAppointmentSheetHost from '@/components/agenda/NewAppointmentSheetHost';
 import WaitlistSheetHost from '@/components/agenda/WaitlistSheetHost';
 import BlockSheetHost from '@/components/agenda/BlockSheetHost';
-import { requireSession } from '@/lib/require-session';
+import { requireCompany } from '@/lib/require-session';
 import { listStaff, getDayAgenda, getWeekCounts, getBusyOffsets, peekWaitlist } from '@/lib/queries';
 import { agendaColumns } from '@/lib/team';
 import {
@@ -30,7 +30,7 @@ export default async function AgendaPage({
   const stripParsed = Number(searchParams.strip ?? day);
   const strip = Number.isFinite(stripParsed) ? stripParsed : day;
   const mode = searchParams.mode === 'semana' ? 'semana' : 'dia';
-  const [me, staff] = await Promise.all([requireSession(), listStaff()]);
+  const [me, staff] = await Promise.all([requireCompany(), listStaff()]);
   const all = agendaColumns(staff);
   // Una profesional solo ve su propia columna.
   const visible = me.role === 'provider' ? all.filter(p => p.id === me.id) : all;

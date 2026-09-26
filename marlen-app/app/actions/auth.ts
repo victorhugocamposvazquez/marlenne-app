@@ -30,7 +30,12 @@ export async function ensureStaff(userId: string, fullName: string): Promise<{ o
     const { data: existing } = await admin.from('staff').select('id').eq('id', userId).maybeSingle();
     if (existing) return { ok: true };
 
-    const { data: salon } = await admin.from('salons').select('id').limit(1).maybeSingle();
+    const { data: salon } = await admin
+      .from('salons')
+      .select('id')
+      .eq('kind', 'company')
+      .limit(1)
+      .maybeSingle();
     if (!salon) return { ok: false, error: 'No hay centro configurado' };
 
     const { count } = await admin

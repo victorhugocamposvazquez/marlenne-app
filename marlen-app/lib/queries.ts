@@ -5,6 +5,7 @@ import { APPT_SELECT, APPT_SELECT_CORE, mapAppt } from '@/lib/agenda-appt';
 import { packExpired, packRemaining } from '@/lib/packs';
 import { listClientPacks, listPackTemplates, listSalonPacks } from '@/lib/pack-write';
 import { DEFAULT_VOICE_PREFS } from '@/hooks/voice-prefs';
+import { personalSalonIdFromPrefs, workspaceFromPrefs } from '@/lib/personal-tasks';
 import { voiceFromStaffPrefs } from '@/lib/staff-app-prefs';
 import type {
   AgendaAppt, AgendaBlock, ClientListRow, ClientOption, ClientPack, ClientRow, Consent, PackTemplate, Provider,
@@ -18,10 +19,28 @@ export async function getSession() {
     if (!user) return null;
     const { data } = await sb
       .from('staff')
-      .select('id, full_name, role, salon_id, initials, color, job_title')
+      .select('id, full_name, role, salon_id, initials, color, job_title, app_prefs')
       .eq('id', user.id)
       .maybeSingle();
-    return data;
+    if (!data) return null;
+    const { data: salon } = await sb
+      .from('salons')
+      .select('name')
+      .eq('id', data.salon_id)
+      .maybeSingle();
+    return {
+      id: data.id as string,
+      full_name: data.full_name as string,
+      role: data.role as 'admin' | 'reception' | 'provider',
+      salon_id: data.salon_id as string,
+      initials: (data.initials as string | null) ?? null,
+      color: (data.color as string | null) ?? null,
+      job_title: (data.job_title as string | null) ?? null,
+      email: user.email ?? '',
+      salon_name: (salon?.name as string | undefined) ?? 'Tu centro',
+      workspace: workspaceFromPrefs(data.app_prefs),
+      has_personal: Boolean(personalSalonIdFromPrefs(data.app_prefs)),
+    };
   } catch {
     return null;
   }

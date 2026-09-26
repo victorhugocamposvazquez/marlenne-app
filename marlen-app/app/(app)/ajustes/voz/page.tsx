@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { requireSession } from '@/lib/require-session';
+import { requireCompany } from '@/lib/require-session';
 import { VOICE_OUTCOMES, listVoiceEvents, topSaidFor } from '@/lib/voice-events';
 import { TZ } from '@/lib/time';
 import AjustesHeader from '@/components/ajustes/AjustesHeader';
@@ -24,7 +24,7 @@ function PhraseList({ title, rows }: { title: string; rows: [string, number][] }
 }
 
 export default async function VozPage() {
-  const me = await requireSession();
+  const me = await requireCompany();
   if (me.role !== 'admin') redirect('/ajustes');
   const rows = await listVoiceEvents();
 

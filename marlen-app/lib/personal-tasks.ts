@@ -1,0 +1,108 @@
+/** Tareas de la cuenta personal. Sin DOM ni next/*. */
+
+import { dayKey, toTimestamp } from '@/lib/time';
+
+export type WorkspaceKind = 'company' | 'personal';
+export type TaskBucket = 'hoy' | 'manana' | 'semana' | 'despues' | 'hechas';
+export type RemindChoice = 'none' | 'at' | '15' | '60' | 'day';
+
+export type PersonalTask = {
+  id: string;
+  title: string;
+  note: string | null;
+  due_at: string | null;
+  done_at: string | null;
+  remind_at: string | null;
+  reminded_at: string | null;
+  sort_order: number;
+};
+
+export const TASK_BUCKETS: { id: TaskBucket; title: string }[] = [
+  { id: 'hoy', title: 'Hoy' },
+  { id: 'manana', title: 'Mañana' },
+  { id: 'semana', title: 'Esta semana' },
+  { id: 'despues', title: 'Más adelante' },
+  { id: 'hechas', title: 'Hechas' },
+];
+
+export function workspaceFromPrefs(raw: unknown): WorkspaceKind {
+  if (!raw || typeof raw !== 'object') return 'company';
+  return (raw as { workspace?: unknown }).workspace === 'personal' ? 'personal' : 'company';
+}
+
+export function personalSalonIdFromPrefs(raw: unknown): string | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const id = (raw as { personal_salon_id?: unknown }).personal_salon_id;
+  return typeof id === 'string' && id.length > 0 ? id : null;
+}
+
+function addDays(day: string, n: number): string {
+  const [y, m, d] = day.split('-').map(Number);
+  const utc = new Date(Date.UTC(y, m - 1, d + n));
+  return utc.toISOString().slice(0, 10);
+}
+
+function mondayKey(day: string): string {
+  const [y, m, d] = day.split('-').map(Number);
+  const utc = new Date(Date.UTC(y, m - 1, d));
+  const dow = (utc.getUTCDay() + 6) % 7;
+  return addDays(day, -dow);
+}
+
+export function taskBucket(
+  task: { due_at: string | null; done_at: string | null },
+  todayKey: string,
+): TaskBucket {
+  if (task.done_at) return 'hechas';
+  if (!task.due_at) return 'semana';
+  const key = dayKey(task.due_at);
+  if (key <= todayKey) return 'hoy';
+  if (key === addDays(todayKey, 1)) return 'manana';
+  if (key <= addDays(mondayKey(todayKey), 6)) return 'semana';
+  return 'despues';
+}
+
+export function dueTimestamp(date: string, time: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const match = /^(\d{1,2}):(\d{2})$/.exec(time.trim());
+  const mins = match ? Number(match[1]) * 60 + Number(match[2]) : 0;
+  if (mins < 0 || mins >= 24 * 60) return null;
+  return toTimestamp(date, mins);
+}
+
+export function remindTimestamp(dueAt: string | null, choice: RemindChoice, hasTime: boolean): string | null {
+  if (!dueAt || choice === 'none') return null;
+  const due = new Date(dueAt).getTime();
+  if (Number.isNaN(due)) return null;
+  if (!hasTime && (choice === '15' || choice === '60' || choice === 'at')) {
+    const atNine = toTimestamp(dayKey(dueAt), 9 * 60);
+    if (choice === 'at') return atNine;
+    return choice === '15'
+      ? new Date(new Date(atNine).getTime() - 15 * 60_000).toISOString()
+      : new Date(new Date(atNine).getTime() - 60 * 60_000).toISOString();
+  }
+  if (choice === 'at') return new Date(due).toISOString();
+  if (choice === '15') return new Date(due - 15 * 60_000).toISOString();
+  if (choice === '60') return new Date(due - 60 * 60_000).toISOString();
+  return new Date(due - 24 * 60 * 60_000).toISOString();
+}
+
+export function monthCells(year: number, month: number): { key: string; inMonth: boolean }[] {
+  const first = `${year}-${String(month).padStart(2, '0')}-01`;
+  const start = mondayKey(first);
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const last = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  const cells: { key: string; inMonth: boolean }[] = [];
+  let cursor = start;
+  while (cells.length < 42) {
+    cells.push({ key: cursor, inMonth: cursor.slice(0, 7) === first.slice(0, 7) });
+    cursor = addDays(cursor, 1);
+    if (cells.length >= 35 && cursor > last && cells.length % 7 === 0) break;
+  }
+  return cells;
+}
+
+export function shiftMonth(year: number, month: number, delta: number): { year: number; month: number } {
+  const utc = new Date(Date.UTC(year, month - 1 + delta, 1));
+  return { year: utc.getUTCFullYear(), month: utc.getUTCMonth() + 1 };
+}

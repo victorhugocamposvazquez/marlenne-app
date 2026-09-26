@@ -1,4 +1,4 @@
-import { requireSession } from '@/lib/require-session';
+import { requireCompany } from '@/lib/require-session';
 import { listStaff } from '@/lib/queries';
 import EquipoView from '@/components/team/EquipoView';
 
@@ -7,7 +7,7 @@ export default async function EquipoPage({
 }: {
   searchParams: { miembro?: string };
 }) {
-  const me = await requireSession();
+  const me = await requireCompany();
   const team = await listStaff({ includeInactive: me.role === 'admin' });
 
   return (

@@ -7,13 +7,14 @@ import { Home, Calendar, Users, Settings, Plus } from 'lucide-react';
 import { circleOutlineCls } from '@/components/ui/IconButton';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 
-export default function BottomNav({ role }: { role: string }) {
+export default function BottomNav({ role, workspace = 'company' }: { role: string; workspace?: 'company' | 'personal' }) {
   const path = usePathname();
   const creating = useShallowParam('new');
   const editing = useShallowParam('appt');
   const addingMember = useShallowParam('miembro');
+  const task = useShallowParam('tarea');
   const on = (p: string) => path.startsWith(p);
-  if (creating === '1' || editing || addingMember === '1') return null;
+  if (creating === '1' || editing || addingMember === '1' || task) return null;
 
   const Item = ({ href, icon: Icon, label }: { href: string; icon: typeof Home; label: string }) => (
     <Link
@@ -25,6 +26,30 @@ export default function BottomNav({ role }: { role: string }) {
       {label}
     </Link>
   );
+
+  if (workspace === 'personal') {
+    const openTask = (e: MouseEvent<HTMLAnchorElement>) => {
+      e.preventDefault();
+      shallowSet({ tarea: '1' });
+    };
+    return (
+      <nav className="relative z-10 shrink-0 border-t border-surface-line bg-white pb-[env(safe-area-inset-bottom)] standalone:pb-[max(6px,calc(env(safe-area-inset-bottom)-12px))]">
+        <div className="flex items-start px-2 pb-2 pt-3">
+          <Item href="/hoy" icon={Home} label="Hoy" />
+          <Item href="/calendario" icon={Calendar} label="Calendario" />
+          <Link
+            href="/hoy?tarea=1"
+            onClick={openTask}
+            aria-label="Nueva tarea"
+            className={`mx-1.5 h-12 w-12 ${circleOutlineCls}`}
+          >
+            <Plus size={22} strokeWidth={2.2} />
+          </Link>
+          <Item href="/ajustes" icon={Settings} label="Ajustes" />
+        </div>
+      </nav>
+    );
+  }
 
   const onClientas = on('/clientas');
   const onEquipo = on('/ajustes/equipo');
