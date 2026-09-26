@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { passkeyCeremonyActive } from '@/hooks/platform-auth';
 
 /** Recepción y cabina miran la misma agenda: un cambio en Postgres refresca la vista. */
 export function useRealtimeRefresh(tables: string[]) {
@@ -13,7 +14,7 @@ export function useRealtimeRefresh(tables: string[]) {
     const channel = sb.channel(`live:${tables.join(',')}`);
     let t: number | undefined;
     const bump = () => {
-      if (document.hidden) return;
+      if (document.hidden || passkeyCeremonyActive()) return;
       window.clearTimeout(t);
       t = window.setTimeout(() => router.refresh(), 160);
     };

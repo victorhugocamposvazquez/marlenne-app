@@ -94,6 +94,15 @@ function readChallenge() {
   return verifyChallenge(raw, hmacSecret());
 }
 
+/** Cookie + token: en Hoy el realtime refresca la RSC y a veces el 2.º server action no ve la cookie. */
+function readRegisterChallenge(ceremonyToken?: string) {
+  if (ceremonyToken) {
+    const fromClient = verifyChallenge(ceremonyToken, hmacSecret());
+    if (fromClient?.k === 'r') return fromClient;
+  }
+  return readChallenge();
+}
+
 function clearChallenge() {
   cookies().set(COOKIE, '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 0 });
 }
@@ -205,7 +214,7 @@ export async function finishPasskeyLogin(response: AuthenticationResponseJSON): 
 }
 
 export async function beginPasskeyRegister(): Promise<
-  { ok: true; options: PublicKeyCredentialCreationOptionsJSON } | { ok: false; error: string }
+  { ok: true; options: PublicKeyCredentialCreationOptionsJSON; token: string } | { ok: false; error: string }
 > {
   const me = await getSession();
   if (!me) return { ok: false, error: 'Entra primero con email y contraseña.' };
@@ -248,8 +257,9 @@ export async function beginPasskeyRegister(): Promise<
         userVerification: 'required',
       },
     });
-    setChallenge({ c: options.challenge, k: 'r', u: me.id, e: Date.now() + CHALLENGE_TTL_MS });
-    return { ok: true, options };
+    const payload = { c: options.challenge, k: 'r' as const, u: me.id, e: Date.now() + CHALLENGE_TTL_MS };
+    setChallenge(payload);
+    return { ok: true, options, token: signChallenge(payload, hmacSecret()) };
   } catch {
     return { ok: false, error: 'No se ha podido preparar el registro.' };
   }
@@ -258,11 +268,12 @@ export async function beginPasskeyRegister(): Promise<
 export async function finishPasskeyRegister(
   response: RegistrationResponseJSON,
   friendlyName?: string,
+  ceremonyToken?: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const me = await getSession();
   if (!me) return { ok: false, error: 'Entra primero con email y contraseña.' };
 
-  const challenge = readChallenge();
+  const challenge = readRegisterChallenge(ceremonyToken);
   clearChallenge();
   if (!challenge || challenge.k !== 'r' || challenge.u !== me.id) {
     return { ok: false, error: 'El registro ha caducado. Prueba otra vez.' };

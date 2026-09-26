@@ -3,8 +3,6 @@
 import { useEffect, useState, useTransition } from 'react';
 import { Check, Fingerprint, ScanFace, Trash2 } from 'lucide-react';
 import {
-  beginPasskeyRegister,
-  finishPasskeyRegister,
   listMyPasskeys,
   removePasskey,
   type PasskeyRow,
@@ -14,15 +12,13 @@ import Button from '@/components/ui/Button';
 import { useToast } from '@/components/Toast';
 import {
   forgetPasskeyHint,
-  isPasskeyAbort,
   platformUnlockAvailable,
   rememberPasskeyHint,
-  startRegistration,
+  runPasskeyRegistration,
 } from '@/hooks/platform-auth';
 import {
   isAppleMobile,
   likelyHasPlatformUnlock,
-  platformDeviceName,
   platformActivatedLabel,
   platformRegisterLabel,
   platformSettingsHint,
@@ -70,24 +66,15 @@ export default function PasskeySettingsCard({
   const register = () => {
     setError(null);
     startTransition(async () => {
-      const started = await beginPasskeyRegister();
-      if (!started.ok) {
-        setError(started.error);
+      const done = await runPasskeyRegistration(ua);
+      if ('aborted' in done && done.aborted) return;
+      if (!done.ok) {
+        setError(done.error);
         return;
       }
-      try {
-        const attestation = await startRegistration({ optionsJSON: started.options });
-        const done = await finishPasskeyRegister(attestation, platformDeviceName(ua));
-        if (!done.ok) {
-          setError(done.error);
-          return;
-        }
-        rememberPasskeyHint();
-        await refresh();
-        toast('Listo. La próxima vez entra con un toque.');
-      } catch (err) {
-        if (!isPasskeyAbort(err)) setError('No se ha podido guardar. Prueba otra vez.');
-      }
+      rememberPasskeyHint();
+      await refresh();
+      toast('Listo. La próxima vez entra con un toque.');
     });
   };
 

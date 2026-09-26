@@ -1,27 +1,24 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useState } from 'react';
 import { Fingerprint, ScanFace, X } from 'lucide-react';
-import { beginPasskeyRegister, finishPasskeyRegister } from '@/app/actions/webauthn';
 import {
   dismissPasskeyLater,
-  isPasskeyAbort,
   platformUnlockAvailable,
   postponedPasskeySetup,
   rememberPasskeyHint,
-  startRegistration,
+  runPasskeyRegistration,
 } from '@/hooks/platform-auth';
 import {
   isAppleMobile,
   platformBannerHint,
-  platformDeviceName,
   platformRegisterLabel,
   platformWaitingLabel,
 } from '@/lib/webauthn';
 
 export default function PasskeySetupBanner({ ua, hasPasskeys }: { ua: string; hasPasskeys: boolean }) {
   const [show, setShow] = useState(false);
-  const [pending, startTransition] = useTransition();
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const label = platformRegisterLabel(ua);
   const FaceIcon = isAppleMobile(ua) ? ScanFace : Fingerprint;
@@ -40,31 +37,22 @@ export default function PasskeySetupBanner({ ua, hasPasskeys }: { ua: string; ha
     setShow(false);
   };
 
-  const register = () => {
+  const register = async () => {
     setError(null);
-    startTransition(async () => {
-      const started = await beginPasskeyRegister();
-      if (!started.ok) {
-        setError(started.error);
-        return;
-      }
-      try {
-        const attestation = await startRegistration({ optionsJSON: started.options });
-        const done = await finishPasskeyRegister(attestation, platformDeviceName(ua));
-        if (!done.ok) {
-          setError(done.error);
-          return;
-        }
-        rememberPasskeyHint();
-        setShow(false);
-      } catch (err) {
-        if (!isPasskeyAbort(err)) setError('No se ha podido guardar. Prueba otra vez.');
-      }
-    });
+    setBusy(true);
+    const done = await runPasskeyRegistration(ua);
+    setBusy(false);
+    if ('aborted' in done && done.aborted) return;
+    if (!done.ok) {
+      setError(done.error);
+      return;
+    }
+    rememberPasskeyHint();
+    setShow(false);
   };
 
   return (
-    <div className="mb-5 rounded-row bg-surface-soft p-4">
+    <div className="mb-5 rounded-row bg-surface-soft p-4" data-no-pull>
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <div className="text-body font-extrabold tracking-[-.01em]">
@@ -86,12 +74,12 @@ export default function PasskeySetupBanner({ ua, hasPasskeys }: { ua: string; ha
       {error && <p className="mt-2 text-label font-semibold text-danger-fg">{error}</p>}
       <button
         type="button"
-        disabled={pending}
-        onClick={register}
+        disabled={busy}
+        onClick={() => void register()}
         className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-field bg-grad px-4 text-body font-extrabold text-white motion-safe:active:scale-[.98] disabled:opacity-40"
       >
         <FaceIcon size={18} strokeWidth={2.2} />
-        {pending ? platformWaitingLabel(ua) : label}
+        {busy ? platformWaitingLabel(ua) : label}
       </button>
     </div>
   );
