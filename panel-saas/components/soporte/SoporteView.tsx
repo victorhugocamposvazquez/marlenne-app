@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ExternalLink, Eye, Loader2 } from 'lucide-react';
 import { createSupportEntryUrl } from '@/app/actions/support-entry';
+import { listSupportStaffOptions, type SupportStaffOption } from '@/app/actions/support-staff';
 import { usePanelUI } from '@/context/PanelUIContext';
 import type { Company } from '@/lib/types';
 
@@ -22,44 +23,102 @@ function supportReason(co: Company): { reason: string; showFix: boolean } {
   return { reason: 'Sin incidencias abiertas.', showFix: false };
 }
 
+function applyEntryUrls(
+  rawUrl: string,
+  setTabUrl: (u: string) => void,
+  setIframeSrc: (u: string) => void,
+) {
+  setTabUrl(rawUrl);
+  const embed = new URL(rawUrl);
+  embed.pathname = '/ops/embed';
+  embed.searchParams.set('embed', '1');
+  setIframeSrc(embed.toString());
+}
+
 export default function SoporteView({ company }: { company: Company }) {
   const { openModal } = usePanelUI();
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
+  const [tabUrl, setTabUrl] = useState<string | null>(null);
   const [entryError, setEntryError] = useState<string | null>(null);
   const [loadingEntry, setLoadingEntry] = useState(false);
+  const [staffOptions, setStaffOptions] = useState<SupportStaffOption[]>([]);
+  const [staffUserId, setStaffUserId] = useState<string>('');
+  const [actingAs, setActingAs] = useState('');
   const { reason, showFix } = supportReason(company);
 
   useEffect(() => {
     if (!company.live) return;
     let alive = true;
-    setLoadingEntry(true);
-    setEntryError(null);
-    setIframeSrc(null);
-    createSupportEntryUrl(company.id, '/agenda').then(r => {
-      if (!alive) return;
-      setLoadingEntry(false);
-      if (r.ok) setIframeSrc(r.url);
-      else setEntryError(r.error);
+    void listSupportStaffOptions(company.id).then(r => {
+      if (!alive || !r.ok) return;
+      setStaffOptions(r.staff);
+      setStaffUserId(prev => prev || r.staff[0]?.id || '');
     });
     return () => { alive = false; };
   }, [company.id, company.live]);
 
+  const loadEntry = useCallback((userId: string) => {
+    if (!userId) return;
+    let alive = true;
+    setLoadingEntry(true);
+    setEntryError(null);
+    setIframeSrc(null);
+    setTabUrl(null);
+    createSupportEntryUrl(company.id, '/agenda', userId).then(r => {
+      if (!alive) return;
+      setLoadingEntry(false);
+      if (r.ok) {
+        setActingAs(r.staffName);
+        applyEntryUrls(r.url, setTabUrl, setIframeSrc);
+      } else setEntryError(r.error);
+    });
+    return () => { alive = false; };
+  }, [company.id]);
+
+  useEffect(() => {
+    if (!company.live || !staffUserId) return;
+    return loadEntry(staffUserId) ?? undefined;
+  }, [company.live, staffUserId, loadEntry]);
+
   if (company.live) {
     return (
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden" data-no-pull>
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-line bg-white px-3 py-2 lg:px-4">
-          <p className="text-[13px] font-semibold text-brand-pink">App real · entrada automática</p>
-          {iframeSrc && (
-            <a
-              href={iframeSrc}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-pill bg-ink px-3 text-[12px] font-semibold text-white"
-            >
-              <ExternalLink size={14} />
-              Pestaña
-            </a>
+        <div className="flex shrink-0 flex-col gap-2 border-b border-line bg-white px-3 py-2 lg:px-4">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[13px] font-semibold text-brand-pink">
+              App real · como {actingAs || '…'}
+            </p>
+            {tabUrl && (
+              <a
+                href={tabUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-pill bg-ink px-3 text-[12px] font-semibold text-white"
+              >
+                <ExternalLink size={14} />
+                Pestaña
+              </a>
+            )}
+          </div>
+          {staffOptions.length > 0 && (
+            <label className="flex flex-wrap items-center gap-2 text-[12px] text-ink-2">
+              <span className="font-semibold text-ink">Entrar como</span>
+              <select
+                value={staffUserId}
+                onChange={e => setStaffUserId(e.target.value)}
+                className="h-9 min-w-[200px] flex-1 rounded-pill border border-line bg-page px-3 text-[13px] font-semibold text-ink"
+              >
+                {staffOptions.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} · {s.roleLabel}
+                  </option>
+                ))}
+              </select>
+            </label>
           )}
+          <p className="text-[11px] leading-snug text-ink-3">
+            Elige la misma persona que tiene la sesión abierta en el móvil del centro. Lo que hagas es su cuenta, en tiempo real.
+          </p>
         </div>
 
         {entryError && (
@@ -79,7 +138,7 @@ export default function SoporteView({ company }: { company: Company }) {
               title={`App de ${company.name}`}
               src={iframeSrc}
               className="absolute inset-0 h-full w-full border-0"
-              allow="clipboard-read; clipboard-write"
+              allow="storage-access; clipboard-read; clipboard-write"
             />
           )}
         </div>

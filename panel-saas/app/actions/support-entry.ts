@@ -4,7 +4,7 @@ import { getPanelUser } from '@/lib/panel-session';
 import { getCompany, LIVE_COMPANY_ID } from '@/lib/mock/companies';
 import { loadLiveCenter } from '@/lib/live-center';
 import { marlenAppUrl } from '@/lib/marlen-app-url';
-import { pickSupportStaffUserId } from '@/lib/ops-support-staff';
+import { pickSupportStaffUserId, resolveSupportStaff } from '@/lib/ops-support-staff';
 import { signOpsEnterToken } from '@/lib/ops-support-token';
 import { panelAdmin } from '@/lib/supabase-admin';
 
@@ -16,6 +16,7 @@ function safePath(path: string) {
 export async function createSupportEntryUrl(
   companyId: number,
   path: string,
+  staffUserId?: string,
 ): Promise<{ ok: true; url: string; staffName: string } | { ok: false; error: string }> {
   const ops = getPanelUser();
   if (!ops?.email) {
@@ -36,7 +37,9 @@ export async function createSupportEntryUrl(
     return { ok: false, error: 'Este centro Live aún no está cableado.' };
   }
 
-  const staff = await pickSupportStaffUserId(live.salonId);
+  let staff = staffUserId
+    ? await resolveSupportStaff(live.salonId, staffUserId)
+    : await pickSupportStaffUserId(live.salonId);
   if (!staff) {
     return { ok: false, error: 'No hay recepción o admin activa en ese centro.' };
   }
