@@ -2,21 +2,19 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Check, LogOut } from 'lucide-react';
+import { Check, LogOut, User } from 'lucide-react';
 import { signOut } from '@/app/actions/auth';
 import { setWorkspace } from '@/app/actions/workspace';
 import { isNextRedirect } from '@/lib/next-navigation-error';
 import type { WorkspaceKind } from '@/lib/personal-tasks';
 
 export default function AccountMenu({
-  initials,
   fullName,
   email,
   companyName,
   workspace,
   hasPersonal,
 }: {
-  initials: string;
   fullName: string;
   email: string;
   companyName: string;
@@ -84,14 +82,12 @@ export default function AccountMenu({
         aria-label="Perfil"
         aria-expanded={open}
         onClick={() => setOpen(v => !v)}
-        className="flex min-h-[44px] w-full flex-col items-center justify-center gap-px"
+        className={`flex min-h-[44px] w-full flex-col items-center justify-center gap-px ${open ? 'text-ink' : 'text-ink-3'}`}
       >
-        <span
-          className="grid h-7 w-7 place-items-center rounded-full border border-[#cbe7f5] bg-[#e8f4fb] text-[11px] font-bold text-[#1d9bd1]"
-        >
-          {initials.slice(0, 2)}
+        <span className="grid h-7 w-7 place-items-center">
+          <User size={28} strokeWidth={open ? 2.2 : 1.8} />
         </span>
-        <span className={`text-[12px] ${open ? 'font-bold text-ink' : 'font-medium text-ink-3'}`}>Perfil</span>
+        <span className={`text-[12px] ${open ? 'font-bold' : 'font-medium'}`}>Perfil</span>
       </button>
       {open && (
         <div className="absolute bottom-full right-0 z-40 mb-2 w-[min(calc(100vw-1.5rem),280px)] rounded-card border border-surface-line bg-white p-3 shadow-popup">

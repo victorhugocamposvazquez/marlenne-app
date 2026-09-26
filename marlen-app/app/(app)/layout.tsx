@@ -9,7 +9,6 @@ import EmbedPanelHint from '@/components/EmbedPanelHint';
 import OpsSupportBanner from '@/components/OpsSupportBanner';
 import TaskSheetHost from '@/components/personal/TaskSheetHost';
 import StaffPrefsSync from '@/components/StaffPrefsSync';
-import { initials } from '@/lib/categories';
 import { getStaffVoicePrefs } from '@/lib/queries';
 import { readOpsSession } from '@/lib/ops-support-audit';
 import { staffRoleLabel } from '@/lib/ops-support';
@@ -58,7 +57,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           workspace={me.workspace}
           account={(
             <AccountMenu
-              initials={me.initials?.trim() || initials(me.full_name)}
               fullName={me.full_name}
               email={me.email}
               companyName={me.salon_name}
