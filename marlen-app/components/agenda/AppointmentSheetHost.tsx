@@ -7,7 +7,8 @@ import AppointmentSheet from '@/components/agenda/AppointmentSheet';
 import { PUSH_OPEN, armPushOpen } from '@/hooks/push-open';
 import { useCloseSheet } from '@/components/Sheet';
 import SheetShell from '@/components/SheetShell';
-import { loadClientOptions, loadSalonPacks, loadServiceCounts, loadServices } from '@/lib/agenda-catalog';
+import { loadClientPickerById, loadClientPickerInitial } from '@/app/actions/client-list';
+import { loadSalonPacks, loadServiceCounts, loadServices } from '@/lib/agenda-catalog';
 import { createClient } from '@/lib/supabase/client';
 import { APPT_SELECT, APPT_SELECT_CORE, mapAppt } from '@/lib/agenda-appt';
 import { useShallowParam } from '@/hooks/useShallowQuery';
@@ -132,16 +133,24 @@ export default function AppointmentSheetHost({
           .eq('appointment_id', id)
           .order('created_at', { ascending: false }).limit(1).maybeSingle(),
         Promise.all([
-          loadServices(sb), loadClientOptions(sb), loadSalonPacks(sb), loadServiceCounts(sb),
+          loadServices(sb), loadSalonPacks(sb), loadServiceCounts(sb),
         ]),
+      ]);
+      if (!alive) return;
+      const apptRow = seed ?? row;
+      const [initialClients, pickedClient] = await Promise.all([
+        loadClientPickerInitial(),
+        apptRow?.client_id ? loadClientPickerById(apptRow.client_id) : Promise.resolve(null),
       ]);
       if (!alive) return;
       if (!seed) setFetched(row);
       setSms(smsRes.data ?? null);
       setServices(catalog[0]);
-      setClients(catalog[1]);
-      setPacks(catalog[2]);
-      setServiceCounts(catalog[3]);
+      const pool = [...initialClients];
+      if (pickedClient && !pool.some(c => c.id === pickedClient.id)) pool.unshift(pickedClient);
+      setClients(pool);
+      setPacks(catalog[1]);
+      setServiceCounts(catalog[2]);
       setLoading(false);
     })();
     return () => { alive = false; };

@@ -4,6 +4,7 @@ import {
   CLIENT_LIST_PAGE,
   findSimilarClients,
   getClientPickerOption,
+  listClientPickerInitial,
   listClientsPage,
   searchClientPicker,
   searchClientsPage,
@@ -29,6 +30,10 @@ export async function loadSimilarClients(name: string, phone: string): Promise<C
 
 export async function loadClientPickerSearch(query: string): Promise<ClientOption[]> {
   return searchClientPicker(query);
+}
+
+export async function loadClientPickerInitial(limit = 40): Promise<ClientOption[]> {
+  return listClientPickerInitial(limit);
 }
 
 export async function loadClientPickerById(id: string): Promise<ClientOption | null> {

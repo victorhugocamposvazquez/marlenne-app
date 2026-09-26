@@ -134,6 +134,28 @@ export async function searchClientsPage(
   return { rows, total: count ?? rows.length };
 }
 
+const PICKER_SELECT = 'id, full_name, phone';
+
+function mapPickerRows(data: { id: string; full_name: string; phone: string | null }[]): ClientOption[] {
+  return data.map(r => ({
+    id: r.id,
+    full_name: r.full_name,
+    phone: r.phone ?? null,
+  }));
+}
+
+/** Primeras clientas alfabéticas (picker nueva cita / editar sin cargar toda la BD). */
+export async function listClientPickerInitial(limit = 40): Promise<ClientOption[]> {
+  const sb = createClient();
+  const { data, error } = await sb
+    .from('clients')
+    .select(PICKER_SELECT)
+    .order('full_name')
+    .limit(limit);
+  if (error || !data?.length) return [];
+  return mapPickerRows(data as { id: string; full_name: string; phone: string | null }[]);
+}
+
 /** Búsqueda ligera para el picker de nueva cita (sin enriquecer citas/bonos). */
 export async function searchClientPicker(query: string, limit = 40): Promise<ClientOption[]> {
   const q = query.trim();
@@ -141,7 +163,7 @@ export async function searchClientPicker(query: string, limit = 40): Promise<Cli
   const sb = createClient();
   const digits = q.replace(/\D/g, '');
   const safe = q.replace(/[%_,]/g, ' ').trim();
-  let builder = sb.from('clients').select('id, full_name, phone').limit(limit);
+  let builder = sb.from('clients').select(PICKER_SELECT).limit(limit);
   if (digits.length >= 3) {
     builder = builder.or(`full_name.ilike.%${safe}%,phone.ilike.%${digits}%`);
   } else {

@@ -6,6 +6,16 @@ export type OpsSupportSession = {
   company: string;
   by: string;
   since: number;
+  staffName?: string;
+  staffRole?: string;
+};
+
+/** Banner desde cookie httpOnly (servidor). */
+export type OpsActingAs = {
+  staffName: string;
+  staffRole: string;
+  opsEmail: string;
+  company: string;
 };
 
 export function parseOpsSupportSession(raw: string | null): OpsSupportSession | null {
@@ -17,4 +27,14 @@ export function parseOpsSupportSession(raw: string | null): OpsSupportSession | 
   } catch {
     return null;
   }
+}
+
+const ROLE_LABEL: Record<string, string> = {
+  admin: 'Admin',
+  reception: 'Recepción',
+  provider: 'Profesional',
+};
+
+export function staffRoleLabel(role: string) {
+  return ROLE_LABEL[role] ?? role;
 }

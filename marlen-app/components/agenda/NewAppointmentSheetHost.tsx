@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { NewAppointmentSheetBody } from '@/components/agenda/NewAppointmentSheet';
 import SheetShell from '@/components/SheetShell';
 import { useCloseSheet } from '@/components/Sheet';
-import { loadClientPickerById } from '@/app/actions/client-list';
+import { loadClientPickerById, loadClientPickerInitial } from '@/app/actions/client-list';
 import { loadSalonPacks, loadServiceCounts, loadServices } from '@/lib/agenda-catalog';
 import { createClient } from '@/lib/supabase/client';
 import { useShallowParam } from '@/hooks/useShallowQuery';
@@ -47,13 +47,16 @@ export default function NewAppointmentSheetHost({
       loadServices(sb),
       loadSalonPacks(sb),
       loadServiceCounts(sb),
+      loadClientPickerInitial(),
       clientId ? loadClientPickerById(clientId) : Promise.resolve(null),
-    ]).then(([s, p, counts, picked]) => {
+    ]).then(([s, p, counts, initial, picked]) => {
       if (!alive) return;
       setServices(s);
       setPacks(p);
       setServiceCounts(counts);
-      if (picked) setClients([picked]);
+      const pool = [...initial];
+      if (picked && !pool.some(c => c.id === picked.id)) pool.unshift(picked);
+      setClients(pool);
       setLoading(false);
     });
     return () => { alive = false; };

@@ -40,9 +40,7 @@ function Row({
 
 function persistVoice(patch: Partial<VoicePrefs>, startTransition: (fn: () => void) => void) {
   setVoicePrefs(patch);
-  startTransition(() => {
-    void saveStaffVoicePrefs(patch);
-  });
+  startTransition(() => { void saveStaffVoicePrefs(patch); });
 }
 
 export default function VoiceSettingsCard({
@@ -51,7 +49,6 @@ export default function VoiceSettingsCard({
   initialVoice?: VoicePrefs | null;
 }) {
   const [prefs, setPrefs] = useState<VoicePrefs>(initialVoice ?? DEFAULT_VOICE_PREFS);
-  const [note, setNote] = useState('');
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -66,7 +63,6 @@ export default function VoiceSettingsCard({
       <p className="pb-2 text-body text-ink-2">
         Se guarda en tu cuenta: el mismo cambio llega al móvil del centro si está con la misma usuaria.
       </p>
-      {note && <p className="pb-2 text-body font-semibold text-danger-fg">{note}</p>}
       <Row
         title="Desactivar Marlén"
         hint="Oculta el micro flotante. La agenda y el resto siguen igual."

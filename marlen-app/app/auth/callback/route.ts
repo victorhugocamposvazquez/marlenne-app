@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { isEmbedPanelRequest, opsContextCookieOptions } from '@/lib/embed-panel';
 import { OPS_PENDING_COOKIE, OPS_SESSION_COOKIE } from '@/lib/ops-support-audit';
 import { createClientOnResponse } from '@/lib/supabase/server';
+import { staffRoleLabel } from '@/lib/ops-support';
 import { signOpsSession, verifyOpsPending } from '@/lib/ops-support-token';
 
 export const dynamic = 'force-dynamic';
@@ -13,13 +14,29 @@ function safeNext(raw: string | null, origin: string) {
   return new URL(path, origin);
 }
 
-function applyOpsToUrl(
+async function applyOpsToUrl(
   nextUrl: URL,
-  meta: { companyName: string; opsEmail: string },
+  meta: { companyName: string; opsEmail: string; staffUserId?: string },
 ) {
   nextUrl.searchParams.set('ops_support', '1');
   nextUrl.searchParams.set('ops_company', meta.companyName);
   nextUrl.searchParams.set('ops_by', meta.opsEmail);
+  if (meta.staffUserId) {
+    try {
+      const admin = createAdminClient();
+      const { data: staffRow } = await admin
+        .from('staff')
+        .select('full_name, role')
+        .eq('id', meta.staffUserId)
+        .maybeSingle();
+      if (staffRow?.full_name) {
+        nextUrl.searchParams.set('ops_staff', staffRow.full_name as string);
+        nextUrl.searchParams.set('ops_staff_role', staffRoleLabel(String(staffRow.role)));
+      }
+    } catch {
+      /* optional */
+    }
+  }
 }
 
 export async function GET(req: Request) {
@@ -45,7 +62,11 @@ export async function GET(req: Request) {
   const fromOps = url.searchParams.get('from_ops') === '1' || !!pending;
 
   if (fromOps && opsCompany && opsBy) {
-    applyOpsToUrl(nextUrl, { companyName: opsCompany, opsEmail: opsBy });
+    await applyOpsToUrl(nextUrl, {
+      companyName: opsCompany,
+      opsEmail: opsBy,
+      staffUserId: staffUserId ?? undefined,
+    });
   }
   if (embed) nextUrl.searchParams.set('embed', '1');
 

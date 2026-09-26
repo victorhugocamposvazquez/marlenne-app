@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { OPS_PENDING_COOKIE, OPS_SESSION_COOKIE } from '@/lib/ops-support-audit';
 import { attachSessionToResponse, sessionFromAdminMagicLink } from '@/lib/ops-establish-session';
 import { isEmbedPanelRequest, opsContextCookieOptions } from '@/lib/embed-panel';
+import { staffRoleLabel } from '@/lib/ops-support';
 import { appOriginFromRequest } from '@/lib/app-origin';
 import {
   signOpsPending,
@@ -72,6 +73,7 @@ function finishRedirect(
   payload: OpsEnterPayload,
   response: NextResponse,
   staffName: string,
+  staffRole: string,
   admin: SupabaseClient,
   via: string,
   embed: boolean,
@@ -80,6 +82,8 @@ function finishRedirect(
   redirectUrl.searchParams.set('ops_support', '1');
   redirectUrl.searchParams.set('ops_company', payload.companyName);
   redirectUrl.searchParams.set('ops_by', payload.opsEmail);
+  redirectUrl.searchParams.set('ops_staff', staffName);
+  redirectUrl.searchParams.set('ops_staff_role', staffRoleLabel(staffRole));
   if (embed) redirectUrl.searchParams.set('embed', '1');
   response.headers.set('Location', redirectUrl.toString());
 
@@ -128,7 +132,7 @@ export async function GET(req: Request) {
 
   const { data: staff } = await admin
     .from('staff')
-    .select('id, full_name, salon_id, is_active')
+    .select('id, full_name, role, salon_id, is_active')
     .eq('id', payload.staffUserId)
     .eq('salon_id', payload.salonId)
     .maybeSingle();
@@ -166,6 +170,7 @@ export async function GET(req: Request) {
         payload,
         res,
         staff.full_name as string,
+        staff.role as string,
         admin,
         'admin_verifyOtp',
         embed,
