@@ -35,12 +35,15 @@ export async function listSupportStaffOptions(
 
   if (error) return { ok: false, error: 'No se ha podido leer el equipo.' };
 
-  const staff = (data ?? []).map(row => ({
-    id: row.id as string,
-    name: row.full_name as string,
-    roleLabel: liveStaffRoleLabel(row.role as string, row.job_title as string | null),
-    email: null as string | null,
-  }));
+  const rank = (role: string) => (role === 'reception' ? 0 : role === 'admin' ? 1 : 2);
+  const staff = [...(data ?? [])]
+    .sort((a, b) => rank(String(a.role)) - rank(String(b.role)))
+    .map(row => ({
+      id: row.id as string,
+      name: row.full_name as string,
+      roleLabel: liveStaffRoleLabel(row.role as string, row.job_title as string | null),
+      email: null as string | null,
+    }));
 
   const ids = staff.map(s => s.id);
   if (ids.length) {
