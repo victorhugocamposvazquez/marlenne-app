@@ -28,10 +28,10 @@ export default function BottomNav({
     return (
       <Link
         href={href}
-        className="flex min-h-[52px] flex-col items-center justify-center gap-[3px] no-underline"
+        className="flex min-h-[44px] flex-col items-center justify-center gap-px no-underline"
         style={{ color: active ? 'rgb(var(--c-ink))' : 'rgb(var(--c-ink-3))' }}
       >
-        <Icon size={26} strokeWidth={active ? 2.2 : 1.8} />
+        <Icon size={22} strokeWidth={active ? 2.2 : 1.8} />
         <span className={`text-[12px] ${active ? 'font-bold' : 'font-medium'}`}>{label}</span>
       </Link>
     );
@@ -70,13 +70,13 @@ export default function BottomNav({
       : 'Nueva cita';
 
   return (
-    <nav className="relative z-40 shrink-0 border-t border-surface-line bg-white px-2 pt-1.5 pb-[max(4px,env(safe-area-inset-bottom))] standalone:pb-[max(6px,calc(env(safe-area-inset-bottom)-12px))]">
+    <nav className="relative z-40 shrink-0 border-t border-surface-line bg-white px-1 pt-1 pb-[max(2px,env(safe-area-inset-bottom))] standalone:pb-[max(4px,calc(env(safe-area-inset-bottom)-12px))]">
       {showFab && (
         <button
           type="button"
           aria-label={fabLabel}
           onClick={create}
-          className="absolute bottom-[calc(100%+12px)] left-4 grid h-14 w-14 place-items-center rounded-full bg-grad text-white shadow-[0_10px_24px_rgba(200,30,143,0.45)] motion-safe:active:scale-[.96]"
+          className="absolute bottom-[calc(100%+10px)] right-4 grid h-14 w-14 place-items-center rounded-full bg-grad text-white shadow-[0_10px_24px_rgba(200,30,143,0.45)] motion-safe:active:scale-[.96]"
         >
           <Plus size={26} strokeWidth={2.4} />
         </button>

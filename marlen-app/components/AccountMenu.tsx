@@ -99,13 +99,13 @@ export default function AccountMenu({
   );
 
   return (
-    <div ref={root} className="relative flex min-h-[52px] flex-col items-center justify-center gap-[3px]" data-no-pull>
+    <div ref={root} className="relative flex min-h-[44px] flex-col items-center justify-center" data-no-pull>
       <button
         type="button"
         aria-label="Perfil"
         aria-expanded={open}
         onPointerUp={onPointerUp}
-        className="flex min-h-[52px] w-full flex-col items-center justify-center gap-[3px]"
+        className="flex min-h-[44px] w-full flex-col items-center justify-center gap-px"
       >
         <span
           className="grid h-7 w-7 place-items-center rounded-full border border-[#cbe7f5] bg-[#e8f4fb] text-[11px] font-bold text-[#1d9bd1]"

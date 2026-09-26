@@ -910,7 +910,11 @@ export default function VoiceFab() {
   return (
     <div
       ref={rootRef}
-      className={`pointer-events-none absolute inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] standalone:bottom-[calc(5.25rem+max(6px,calc(env(safe-area-inset-bottom)-12px)))] z-30 flex flex-col items-end px-3${searchParams.get('new') === '1' && panel.mode === 'idle' ? ' hidden' : ''}`}
+      className={`pointer-events-none absolute inset-x-0 z-30 flex flex-col items-end px-3 ${
+        pathname.startsWith('/agenda') || pathname.startsWith('/clientas')
+          ? 'bottom-[calc(9.25rem+env(safe-area-inset-bottom))] standalone:bottom-[calc(8.75rem+max(6px,calc(env(safe-area-inset-bottom)-12px)))]'
+          : 'bottom-[calc(5.75rem+env(safe-area-inset-bottom))] standalone:bottom-[calc(5.25rem+max(6px,calc(env(safe-area-inset-bottom)-12px)))]'
+      }${searchParams.get('new') === '1' && panel.mode === 'idle' ? ' hidden' : ''}`}
     >
       {open && (
         <div className="pointer-events-auto mb-2 max-h-[min(68dvh,32rem)] w-full max-w-[360px] overflow-y-auto overscroll-contain rounded-row border border-surface-line bg-surface-card p-3 shadow-toast">
