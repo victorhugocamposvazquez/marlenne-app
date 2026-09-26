@@ -8,7 +8,9 @@ import StatusPill from '@/components/ui/StatusPill';
 import { usePanelUI } from '@/context/PanelUIContext';
 import { eur, initials } from '@/lib/format';
 import LiveCenterCard from '@/components/sms/LiveCenterCard';
+import OpsSupportAuditList from '@/components/empresas/OpsSupportAuditList';
 import type { LiveCenter } from '@/lib/live-center';
+import type { OpsAuditRow } from '@/lib/ops-support-audit';
 import { liveStaffRoleLabel, type LiveStaff } from '@/lib/live-staff';
 import type { Company } from '@/lib/types';
 
@@ -18,10 +20,12 @@ export default function EmpresaFichaTabs({
   company,
   live = null,
   liveStaff = [],
+  opsAudit = [],
 }: {
   company: Company;
   live?: LiveCenter | null;
   liveStaff?: LiveStaff[];
+  opsAudit?: OpsAuditRow[];
 }) {
   const { startImpersonation, toast } = usePanelUI();
   const [tab, setTab] = useState<(typeof TABS)[number]>('Resumen');
@@ -118,6 +122,15 @@ export default function EmpresaFichaTabs({
             <button type="button" onClick={() => toast('Editar contacto')} className="text-[13px] font-semibold text-brand-pink">Editar contacto</button>
             <Link href="#" className="block text-[13px] font-semibold text-brand-pink">Ver en Stripe ({company.stripe})</Link>
           </div>
+          {company.live && (
+            <div className="rounded-card bg-white p-5 lg:col-span-2">
+              <h2 className="mb-2 text-[16px] font-bold">Registro de soporte (Live)</h2>
+              <p className="mb-3 text-[13px] text-ink-2">
+                Entradas desde Ops y cambios en citas o fichas mientras la sesión de soporte está activa.
+              </p>
+              <OpsSupportAuditList rows={opsAudit} />
+            </div>
+          )}
           <div className="rounded-card bg-white p-5 lg:col-span-2">
             <h2 className="mb-2 text-[16px] font-bold">Uso de la app (30 días)</h2>
             <p className="text-[14px] text-ink-2">142 citas · 38 clientas nuevas · 89 % recordatorios enviados</p>

@@ -1,10 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { ExternalLink, Eye } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ExternalLink, Eye, Loader2 } from 'lucide-react';
+import { createSupportEntryUrl } from '@/app/actions/support-entry';
 import SegmentedTabs from '@/components/ui/SegmentedTabs';
 import { usePanelUI } from '@/context/PanelUIContext';
-import { supportAppPath } from '@/lib/marlen-app-url';
 import type { Company } from '@/lib/types';
 
 const APPTS = [
@@ -53,51 +53,87 @@ function appPathForTab(tab: (typeof APP_TABS)[number]) {
 }
 
 export default function SoporteView({ company }: { company: Company }) {
-  const { openModal, panelUser } = usePanelUI();
+  const { openModal } = usePanelUI();
   const [tab, setTab] = useState<(typeof APP_TABS)[number]>('Agenda');
+  const [iframeSrc, setIframeSrc] = useState<string | null>(null);
+  const [staffName, setStaffName] = useState<string | null>(null);
+  const [entryError, setEntryError] = useState<string | null>(null);
+  const [loadingEntry, setLoadingEntry] = useState(false);
   const { reason, showFix } = supportReason(company);
 
-  const opsEmail = panelUser?.email ?? 'ops@marlen.com';
-  const liveEmbed = company.live;
+  useEffect(() => {
+    if (!company.live) return;
+    let alive = true;
+    setLoadingEntry(true);
+    setEntryError(null);
+    setIframeSrc(null);
+    createSupportEntryUrl(company.id, appPathForTab(tab)).then(r => {
+      if (!alive) return;
+      setLoadingEntry(false);
+      if (r.ok) {
+        setIframeSrc(r.url);
+        setStaffName(r.staffName);
+      } else {
+        setEntryError(r.error);
+      }
+    });
+    return () => { alive = false; };
+  }, [company.id, company.live, tab]);
 
-  const iframeSrc = useMemo(() => {
-    if (!liveEmbed) return null;
-    return supportAppPath(company.name, opsEmail, appPathForTab(tab));
-  }, [liveEmbed, company.name, opsEmail, tab]);
-
-  if (liveEmbed && iframeSrc) {
+  if (company.live) {
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-[200px] flex-1">
-            <p className="text-[13px] font-semibold text-brand-pink">App real · {company.name}</p>
-            <p className="text-[15px] font-bold text-ink-2">
-              Misma PWA que en el salón. Consume lo mismo que abrirla en Safari; no duplica datos.
+            <p className="text-[13px] font-semibold text-brand-pink">App real · entrada automática</p>
+            <p className="text-[15px] font-bold leading-snug text-ink-2">
+              Ops entra con un enlace firmado (5 min, un solo uso). Ves la PWA igual que en el salón y puedes tocar citas y fichas.
             </p>
+            {staffName && (
+              <p className="mt-1 text-[13px] text-ink-3">
+                Sesión como <strong>{staffName}</strong> (recepción/admin del centro). La franja amarilla avisa al equipo.
+              </p>
+            )}
           </div>
           <SegmentedTabs tabs={[...APP_TABS]} active={tab} onChange={t => setTab(t as (typeof APP_TABS)[number])} />
-          <a
-            href={iframeSrc}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-10 items-center gap-2 rounded-pill border border-line bg-white px-3.5 text-[13px] font-semibold"
-          >
-            <ExternalLink size={15} />
-            Abrir en pestaña
-          </a>
+          {iframeSrc && (
+            <a
+              href={iframeSrc}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-10 items-center gap-2 rounded-pill border border-line bg-white px-3.5 text-[13px] font-semibold"
+            >
+              <ExternalLink size={15} />
+              Abrir en pestaña
+            </a>
+          )}
         </div>
 
+        {entryError && (
+          <div className="rounded-card border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 text-[14px] text-[#991B1B]">
+            {entryError}
+          </div>
+        )}
+
         <div className="flex min-h-[min(72vh,820px)] flex-1 flex-col overflow-hidden rounded-card border border-line bg-white shadow-sm">
-          <iframe
-            title={`App de ${company.name}`}
-            src={iframeSrc}
-            className="h-full min-h-[480px] w-full flex-1 border-0"
-            allow="clipboard-read; clipboard-write"
-          />
+          {loadingEntry && (
+            <div className="flex flex-1 items-center justify-center gap-2 text-[14px] text-ink-3">
+              <Loader2 size={20} className="animate-spin" />
+              Preparando entrada segura…
+            </div>
+          )}
+          {!loadingEntry && iframeSrc && (
+            <iframe
+              title={`App de ${company.name}`}
+              src={iframeSrc}
+              className="h-full min-h-[480px] w-full flex-1 border-0"
+              allow="clipboard-read; clipboard-write"
+            />
+          )}
         </div>
 
         <p className="text-[12px] leading-relaxed text-ink-3">
-          Debes tener sesión en la app en este navegador (misma cuenta de staff). La franja amarilla en la PWA avisa al equipo de que Ops está dentro. Si el iframe no carga el login, usa «Abrir en pestaña».
+          Cada enlace y cada cambio relevante (citas, fichas) queda en el registro de soporte de la ficha Live. No hace falta tener sesión previa en Safari.
         </p>
       </div>
     );
@@ -143,7 +179,7 @@ export default function SoporteView({ company }: { company: Company }) {
           <div className="rounded-card bg-white p-5">
             <p className="text-[14px] font-bold">Empresas Live</p>
             <p className="mt-2.5 text-[13px] leading-relaxed text-ink-2">
-              Solo Arlett (producción) abre la PWA real aquí. El resto del catálogo sigue en mock hasta que haya centro en prod.
+              Solo Arlett (producción) abre la PWA real con login automático. El resto del catálogo sigue en mock.
             </p>
           </div>
         </div>
