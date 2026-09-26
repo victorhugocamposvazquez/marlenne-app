@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createClientOnResponse } from '@/lib/supabase/server';
-import { OPS_SESSION_COOKIE } from '@/lib/ops-support-audit';
+import { OPS_PENDING_COOKIE, OPS_SESSION_COOKIE } from '@/lib/ops-support-audit';
+import { attachSessionToResponse, sessionFromAdminMagicLink } from '@/lib/ops-establish-session';
 import { appOriginFromRequest } from '@/lib/app-origin';
-import { signOpsSession, verifyOpsEnterToken, type OpsEnterPayload } from '@/lib/ops-support-token';
+import {
+  signOpsPending,
+  signOpsSession,
+  verifyOpsEnterToken,
+  type OpsEnterPayload,
+} from '@/lib/ops-support-token';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,14 +24,9 @@ function loginRedirect(origin: string, code: string) {
   return NextResponse.redirect(new URL(`/login?error=${code}`, origin));
 }
 
-function callbackUrl(origin: string, next: string, payload: OpsEnterPayload) {
+function authCallbackRedirectTo(origin: string, next: string) {
   const u = new URL('/auth/callback', origin);
   u.searchParams.set('next', next);
-  u.searchParams.set('from_ops', '1');
-  u.searchParams.set('ops_company', payload.companyName);
-  u.searchParams.set('ops_by', payload.opsEmail);
-  u.searchParams.set('salon_id', payload.salonId);
-  u.searchParams.set('staff_user_id', payload.staffUserId);
   return u.toString();
 }
 
@@ -136,7 +136,7 @@ export async function GET(req: Request) {
   if (userError || !email) return loginRedirect(origin, 'ops_staff');
 
   const next = safeNext(payload.next);
-  const redirectTo = callbackUrl(origin, next, payload);
+  const redirectTo = authCallbackRedirectTo(origin, next);
 
   const { data: link, error: linkError } = await admin.auth.admin.generateLink({
     type: 'magiclink',
@@ -144,45 +144,51 @@ export async function GET(req: Request) {
     options: { redirectTo },
   });
 
-  const tokenHash = link?.properties?.hashed_token;
-  const actionLink = link?.properties?.action_link;
-  const verType = link?.properties?.verification_type;
+  const props = link?.properties;
+  const actionLink = props?.action_link;
 
-  if (linkError || (!tokenHash && !actionLink)) {
+  if (linkError || (!props?.hashed_token && !props?.email_otp && !actionLink)) {
     return loginRedirect(origin, 'ops_session');
   }
 
-  if (tokenHash) {
-    const otpTypes = [verType, 'magiclink', 'email'].filter(
-      (t): t is string => typeof t === 'string' && t.length > 0,
-    );
-    const seen = new Set<string>();
-    for (const type of otpTypes) {
-      if (seen.has(type)) continue;
-      seen.add(type);
-      const res = NextResponse.redirect(new URL('/agenda', origin));
-      const sb = createClientOnResponse(res);
-      const { error: otpError } = await sb.auth.verifyOtp({
-        type: type as 'email' | 'magiclink',
-        token_hash: tokenHash,
-        email,
-      });
-      if (!otpError) {
-        return finishRedirect(
-          origin,
-          next,
-          payload,
-          res,
-          staff.full_name as string,
-          admin,
-          `verifyOtp:${type}`,
-        );
-      }
+  const session = await sessionFromAdminMagicLink(admin, email, props);
+  if (session) {
+    const res = NextResponse.redirect(new URL('/agenda', origin));
+    const ok = await attachSessionToResponse(res, session);
+    if (ok) {
+      return finishRedirect(
+        origin,
+        next,
+        payload,
+        res,
+        staff.full_name as string,
+        admin,
+        'admin_verifyOtp',
+      );
     }
   }
 
   if (actionLink) {
-    return NextResponse.redirect(actionLink);
+    const res = NextResponse.redirect(actionLink);
+    const secure = process.env.NODE_ENV === 'production';
+    res.cookies.set(
+      OPS_PENDING_COOKIE,
+      signOpsPending({
+        salonId: payload.salonId,
+        staffUserId: payload.staffUserId,
+        opsEmail: payload.opsEmail,
+        companyName: payload.companyName,
+        next,
+      }),
+      {
+        httpOnly: true,
+        secure,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 10 * 60,
+      },
+    );
+    return res;
   }
 
   return loginRedirect(origin, 'ops_session');

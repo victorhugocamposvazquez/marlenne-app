@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { verifyOpsSession } from '@/lib/ops-support-token';
 
 export const OPS_SESSION_COOKIE = 'marlenne_ops_ctx';
+export const OPS_PENDING_COOKIE = 'marlenne_ops_pending';
 
 export function readOpsSession() {
   return verifyOpsSession(cookies().get(OPS_SESSION_COOKIE)?.value);

@@ -78,6 +78,50 @@ export function signOpsSession(input: Omit<OpsSessionPayload, 'e'> & { exp?: num
   return `${body}.${sig}`;
 }
 
+/** Contexto Ops entre generateLink y /auth/callback (redirectTo sin query larga). */
+export type OpsPendingPayload = {
+  salonId: string;
+  staffUserId: string;
+  opsEmail: string;
+  companyName: string;
+  next: string;
+  e: number;
+};
+
+const PENDING_MS = 10 * 60 * 1000;
+
+export function signOpsPending(input: Omit<OpsPendingPayload, 'e'> & { exp?: number }): string {
+  const payload: OpsPendingPayload = {
+    ...input,
+    opsEmail: input.opsEmail.trim().toLowerCase(),
+    next: input.next.startsWith('/') ? input.next : '/agenda',
+    e: input.exp ?? Date.now() + PENDING_MS,
+  };
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig = createHmac('sha256', opsSupportSecret()).update(body).digest('base64url');
+  return `${body}.${sig}`;
+}
+
+export function verifyOpsPending(token: string | undefined, now = Date.now()): OpsPendingPayload | null {
+  if (!token) return null;
+  const i = token.lastIndexOf('.');
+  if (i <= 0) return null;
+  const body = token.slice(0, i);
+  const sig = token.slice(i + 1);
+  const expected = createHmac('sha256', opsSupportSecret()).update(body).digest('base64url');
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString()) as OpsPendingPayload;
+    if (!payload.salonId || !payload.staffUserId || !payload.opsEmail || payload.e < now) return null;
+    if (!payload.next.startsWith('/')) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
 export function verifyOpsSession(token: string | undefined, now = Date.now()): OpsSessionPayload | null {
   if (!token) return null;
   const i = token.lastIndexOf('.');
