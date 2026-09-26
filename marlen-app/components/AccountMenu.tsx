@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Check, LogOut, User } from 'lucide-react';
+import { Building2, Check, ListTodo, LogOut, Settings, User, UserPlus } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { signOut } from '@/app/actions/auth';
 import { setWorkspace } from '@/app/actions/workspace';
 import { isNextRedirect } from '@/lib/next-navigation-error';
@@ -60,18 +61,25 @@ export default function AccountMenu({
     }
   };
 
-  const row = (kind: WorkspaceKind, label: string, hint: string) => (
+  const glyph = (Icon: LucideIcon) => (
+    <span className="grid h-7 w-7 shrink-0 place-items-center text-ink-2">
+      <Icon size={22} strokeWidth={1.8} />
+    </span>
+  );
+
+  const row = (kind: WorkspaceKind, label: string, hint: string, Icon: LucideIcon) => (
     <button
       type="button"
       disabled={busy}
       onClick={() => { void go(kind); }}
       className="flex w-full items-center gap-2 rounded-field px-2 py-2 text-left motion-safe:active:scale-[.99] disabled:opacity-50"
     >
+      {glyph(Icon)}
       <span className="min-w-0 flex-1">
         <span className="block text-body font-bold">{label}</span>
         <span className="block truncate text-label text-ink-2">{hint}</span>
       </span>
-      {workspace === kind && <Check size={16} strokeWidth={2.4} className="shrink-0 text-ink" />}
+      {workspace === kind && <Check size={18} strokeWidth={2.2} className="shrink-0 text-ink" />}
     </button>
   );
 
@@ -91,24 +99,28 @@ export default function AccountMenu({
       </button>
       {open && (
         <div className="absolute bottom-full right-0 z-40 mb-2 w-[min(calc(100vw-1.5rem),280px)] rounded-card border border-surface-line bg-white p-3 shadow-popup">
-          <div className="px-2 pb-2">
-            <div className="truncate text-body font-extrabold">{fullName}</div>
-            {email && <div className="truncate text-label text-ink-2">{email}</div>}
-            <div className="mt-1 text-caption font-bold uppercase tracking-[.03em] text-ink-3">
-              {workspace === 'personal' ? 'Personal' : companyName}
+          <div className="flex items-center gap-2 px-2 pb-2">
+            {glyph(User)}
+            <div className="min-w-0">
+              <div className="truncate text-body font-extrabold">{fullName}</div>
+              {email && <div className="truncate text-label text-ink-2">{email}</div>}
+              <div className="mt-1 text-caption font-bold uppercase tracking-[.03em] text-ink-3">
+                {workspace === 'personal' ? 'Personal' : companyName}
+              </div>
             </div>
           </div>
           <div className="border-t border-surface-line pt-1">
-            {row('company', 'Empresa', companyName)}
+            {row('company', 'Empresa', companyName, Building2)}
             {hasPersonal
-              ? row('personal', 'Personal', 'Tareas, sin clientas')
+              ? row('personal', 'Personal', 'Tareas, sin clientas', ListTodo)
               : (
                 <button
                   type="button"
                   disabled={busy}
                   onClick={() => { void go('personal'); }}
-                  className="flex w-full rounded-field px-2 py-2 text-left text-body font-bold motion-safe:active:scale-[.99] disabled:opacity-50"
+                  className="flex w-full items-center gap-2 rounded-field px-2 py-2 text-left text-body font-bold motion-safe:active:scale-[.99] disabled:opacity-50"
                 >
+                  {glyph(UserPlus)}
                   Crear cuenta personal
                 </button>
               )}
@@ -118,8 +130,9 @@ export default function AccountMenu({
             <Link
               href="/ajustes/cuenta"
               onClick={() => setOpen(false)}
-              className="block rounded-field px-2 py-2 text-body font-bold text-ink no-underline"
+              className="flex items-center gap-2 rounded-field px-2 py-2 text-body font-bold text-ink no-underline"
             >
+              {glyph(Settings)}
               Tu cuenta
             </Link>
             <form action={signOut}>
@@ -127,7 +140,7 @@ export default function AccountMenu({
                 type="submit"
                 className="flex w-full items-center gap-2 rounded-field px-2 py-2 text-body font-bold text-ink"
               >
-                <LogOut size={16} strokeWidth={2.2} />
+                {glyph(LogOut)}
                 Cerrar sesión
               </button>
             </form>
