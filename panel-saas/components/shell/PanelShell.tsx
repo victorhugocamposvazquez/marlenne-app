@@ -132,8 +132,8 @@ export default function PanelShell({
         </header>
 
         <PullRefresh>
-          <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain lg:h-auto lg:overflow-visible">
-        <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-5 p-4 pb-24 lg:p-8 lg:pb-8">
+          <div className={`h-0 min-h-0 flex-1 overscroll-y-contain lg:h-auto lg:overflow-visible ${inSupport ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'}`}>
+        <div className={`mx-auto flex w-full max-w-[1280px] flex-col gap-5 p-4 pb-24 lg:flex-1 lg:min-h-0 lg:p-8 ${inSupport ? 'min-h-0 flex-1 pb-4' : 'lg:pb-8'}`}>
           {!inSupport && crumb && (
             <nav className="hidden items-center gap-2 text-[13px] font-semibold text-ink-3 lg:flex">
               <Link href={crumb.href} className="text-ink-2 hover:text-brand-pink">{crumb.label}</Link>
