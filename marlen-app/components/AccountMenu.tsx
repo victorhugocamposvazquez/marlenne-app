@@ -8,8 +8,6 @@ import { setWorkspace } from '@/app/actions/workspace';
 import { isNextRedirect } from '@/lib/next-navigation-error';
 import type { WorkspaceKind } from '@/lib/personal-tasks';
 
-const SWITCH_MS = 280;
-
 export default function AccountMenu({
   initials,
   fullName,
@@ -28,7 +26,6 @@ export default function AccountMenu({
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const wait = useRef<number | null>(null);
   const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -47,10 +44,6 @@ export default function AccountMenu({
     };
   }, [open]);
 
-  useEffect(() => () => {
-    if (wait.current) window.clearTimeout(wait.current);
-  }, []);
-
   const go = async (next: WorkspaceKind) => {
     if (busy || next === workspace) {
       setOpen(false);
@@ -67,20 +60,6 @@ export default function AccountMenu({
     } finally {
       setBusy(false);
     }
-  };
-
-  const onPointerUp = () => {
-    if (wait.current) {
-      window.clearTimeout(wait.current);
-      wait.current = null;
-      if (hasPersonal) void go(workspace === 'personal' ? 'company' : 'personal');
-      else setOpen(true);
-      return;
-    }
-    wait.current = window.setTimeout(() => {
-      wait.current = null;
-      setOpen(true);
-    }, SWITCH_MS);
   };
 
   const row = (kind: WorkspaceKind, label: string, hint: string) => (
@@ -104,7 +83,7 @@ export default function AccountMenu({
         type="button"
         aria-label="Perfil"
         aria-expanded={open}
-        onPointerUp={onPointerUp}
+        onClick={() => setOpen(v => !v)}
         className="flex min-h-[44px] w-full flex-col items-center justify-center gap-px"
       >
         <span

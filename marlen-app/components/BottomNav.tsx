@@ -70,7 +70,7 @@ export default function BottomNav({
       : 'Nueva cita';
 
   return (
-    <nav className="relative z-40 shrink-0 border-t border-surface-line bg-white px-1 pt-1 pb-[max(2px,env(safe-area-inset-bottom))] standalone:pb-[max(4px,calc(env(safe-area-inset-bottom)-12px))]">
+    <nav className="relative z-40 shrink-0 border-t border-surface-line bg-white px-1 pt-2.5 pb-[max(2px,env(safe-area-inset-bottom))] standalone:pb-[max(4px,calc(env(safe-area-inset-bottom)-12px))]">
       {showFab && (
         <button
           type="button"
