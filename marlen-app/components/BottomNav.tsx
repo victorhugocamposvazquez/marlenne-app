@@ -2,12 +2,20 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import type { MouseEvent } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { Home, Calendar, Users, Settings, Plus } from 'lucide-react';
 import { circleOutlineCls } from '@/components/ui/IconButton';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 
-export default function BottomNav({ role, workspace = 'company' }: { role: string; workspace?: 'company' | 'personal' }) {
+export default function BottomNav({
+  role,
+  workspace = 'company',
+  account,
+}: {
+  role: string;
+  workspace?: 'company' | 'personal';
+  account?: ReactNode;
+}) {
   const path = usePathname();
   const creating = useShallowParam('new');
   const editing = useShallowParam('appt');
@@ -16,13 +24,14 @@ export default function BottomNav({ role, workspace = 'company' }: { role: strin
   const on = (p: string) => path.startsWith(p);
   if (creating === '1' || editing || addingMember === '1' || task) return null;
 
+  const tight = workspace === 'company';
   const Item = ({ href, icon: Icon, label }: { href: string; icon: typeof Home; label: string }) => (
     <Link
       href={href}
-      className="flex flex-1 flex-col items-center gap-1 py-1 text-[12px] font-bold"
+      className={`flex flex-col items-center font-bold ${tight ? 'w-11 gap-0.5 text-[10px] leading-none' : 'min-w-0 flex-1 gap-1 py-1 text-[12px]'}`}
       style={{ color: on(href) ? 'rgb(var(--c-ink))' : 'rgb(var(--c-ink-3))' }}
     >
-      <Icon size={22} strokeWidth={2.2} />
+      <Icon size={tight ? 18 : 22} strokeWidth={2.2} />
       {label}
     </Link>
   );
@@ -33,7 +42,7 @@ export default function BottomNav({ role, workspace = 'company' }: { role: strin
       shallowSet({ tarea: '1' });
     };
     return (
-      <nav className="relative z-10 shrink-0 border-t border-surface-line bg-white pb-[env(safe-area-inset-bottom)] standalone:pb-[max(6px,calc(env(safe-area-inset-bottom)-12px))]">
+      <nav className="relative z-40 shrink-0 border-t border-surface-line bg-white pb-[env(safe-area-inset-bottom)] standalone:pb-[max(6px,calc(env(safe-area-inset-bottom)-12px))]">
         <div className="flex items-start px-2 pb-2 pt-3">
           <Item href="/hoy" icon={Home} label="Hoy" />
           <Item href="/calendario" icon={Calendar} label="Calendario" />
@@ -41,11 +50,12 @@ export default function BottomNav({ role, workspace = 'company' }: { role: strin
             href="/hoy?tarea=1"
             onClick={openTask}
             aria-label="Nueva tarea"
-            className={`mx-1.5 h-12 w-12 ${circleOutlineCls}`}
+            className={`mx-1 h-11 w-11 ${circleOutlineCls}`}
           >
-            <Plus size={22} strokeWidth={2.2} />
+            <Plus size={20} strokeWidth={2.2} />
           </Link>
           <Item href="/ajustes" icon={Settings} label="Ajustes" />
+          {account}
         </div>
       </nav>
     );
@@ -91,20 +101,21 @@ export default function BottomNav({ role, workspace = 'company' }: { role: strin
   };
 
   return (
-    <nav className="relative z-10 shrink-0 border-t border-surface-line bg-white pb-[env(safe-area-inset-bottom)] standalone:pb-[max(6px,calc(env(safe-area-inset-bottom)-12px))]">
-      <div className="flex items-start px-2 pb-2 pt-3">
+    <nav className="relative z-40 shrink-0 border-t border-surface-line bg-white pb-[env(safe-area-inset-bottom)] standalone:pb-[max(6px,calc(env(safe-area-inset-bottom)-12px))]">
+      <div className="flex items-start justify-center gap-1 px-1 pb-1.5 pt-2">
         <Item href="/hoy" icon={Home} label="Hoy" />
         <Item href="/agenda" icon={Calendar} label="Agenda" />
         <Link
           href={fabHref}
           onClick={openFab}
           aria-label={fabLabel}
-          className={`mx-1.5 h-12 w-12 ${circleOutlineCls}`}
+          className={`mx-0.5 h-9 w-9 ${circleOutlineCls}`}
         >
-          <Plus size={22} strokeWidth={2.2} />
+          <Plus size={18} strokeWidth={2.2} />
         </Link>
         {role !== 'provider' && <Item href="/clientas" icon={Users} label="Clientas" />}
         <Item href="/ajustes" icon={Settings} label="Ajustes" />
+        {account}
       </div>
     </nav>
   );

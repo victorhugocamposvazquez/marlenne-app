@@ -5,7 +5,7 @@ import { circleOutlineCls } from '@/components/ui/IconButton';
 export const screenHeaderCls = 'app-screen-x shrink-0 pb-2 pt-5';
 
 /** Título a la izquierda, iconos a la derecha; gap mínimo sin hueco muerto en medio. */
-export const headerTitleRowCls = 'grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-[clamp(0.375rem,2cqw,0.75rem)] pr-14';
+export const headerTitleRowCls = 'grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-[clamp(0.375rem,2cqw,0.75rem)]';
 
 /** Columna derecha: calendario, +, campana… sin saltos entre pantallas. */
 export const headerActionsCls = 'flex shrink-0 items-center gap-[clamp(0.25rem,1.818cqw,0.5rem)]';

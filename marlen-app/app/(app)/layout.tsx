@@ -40,15 +40,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="@container relative mx-auto flex h-[100dvh] w-full max-w-[440px] flex-col overflow-hidden bg-surface-bg pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
         <OpsSupportBanner serverOps={serverOps} />
         <EmbedPanelHint />
-        <AccountMenu
-          initials={me.initials?.trim() || initials(me.full_name)}
-          color={me.color}
-          fullName={me.full_name}
-          email={me.email}
-          companyName={me.salon_name}
-          workspace={me.workspace}
-          hasPersonal={me.has_personal}
-        />
         <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
           <PullRefresh>{children}</PullRefresh>
         </div>
@@ -62,7 +53,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <VoiceFab />
           </Suspense>
         )}
-        <BottomNav role={me.role} workspace={me.workspace} />
+        <BottomNav
+          role={me.role}
+          workspace={me.workspace}
+          account={(
+            <AccountMenu
+              initials={me.initials?.trim() || initials(me.full_name)}
+              color={me.color}
+              fullName={me.full_name}
+              email={me.email}
+              companyName={me.salon_name}
+              workspace={me.workspace}
+              hasPersonal={me.has_personal}
+              compact={!personal}
+            />
+          )}
+        />
       </div>
     </ToastProvider>
   );
