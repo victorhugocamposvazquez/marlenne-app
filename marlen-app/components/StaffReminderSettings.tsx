@@ -5,7 +5,11 @@ import AjustesSection from '@/components/ajustes/AjustesSection';
 import { useToast } from '@/components/Toast';
 import { disableStaffPush, enableStaffPush, readStaffPushEnabled, staffPushSupported, thisDevicePushOn } from '@/hooks/staff-push';
 
-export default function StaffReminderSettings() {
+export default function StaffReminderSettings({
+  personal = false,
+}: {
+  personal?: boolean;
+}) {
   const toast = useToast();
   const [enabled, setEnabled] = useState(false);
   const [ready, setReady] = useState(false);
@@ -55,7 +59,7 @@ export default function StaffReminderSettings() {
   };
 
   return (
-    <AjustesSection title="Avisos de citas">
+    <AjustesSection title={personal ? 'Avisos de tareas' : 'Avisos de citas'}>
       <button
         type="button"
         disabled={!ready || pending}
@@ -64,9 +68,13 @@ export default function StaffReminderSettings() {
         className="flex min-h-[52px] w-full items-center gap-3 py-4 text-left disabled:opacity-45"
       >
         <span className="min-w-0 flex-1">
-          <span className="block text-body-lg font-bold text-ink">Citas próximas</span>
+          <span className="block text-body-lg font-bold text-ink">
+            {personal ? 'Push en el teléfono' : 'Citas próximas'}
+          </span>
           <span className="mt-0.5 block text-body leading-snug text-ink-2">
-            Media hora antes te llega la cita de todo el equipo, y quién atiende. Por ejemplo: Cita con Manuela Lopez en 30 minutos - con Iria.
+            {personal
+              ? 'Cuando llega la hora del aviso de una tarea, te llega una notificación aunque la app esté cerrada (en iPhone, añádela a inicio).'
+              : 'Media hora antes te llega la cita de todo el equipo, y quién atiende. Por ejemplo: Cita con Manuela Lopez en 30 minutos - con Iria.'}
           </span>
         </span>
         <span className={`h-7 w-12 shrink-0 rounded-full p-0.5 ${enabled ? 'bg-v-2' : 'bg-surface-line'}`}>

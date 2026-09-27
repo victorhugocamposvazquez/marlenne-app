@@ -42,7 +42,7 @@ export default async function CuentaPage() {
   return (
     <AjustesHeader title="Tu cuenta">
       <PasskeySettingsCard ua={ua} initial={passkeys} />
-      <StaffReminderSettings />
+      <StaffReminderSettings personal={me.workspace === 'personal'} />
       <VoiceSettingsCard initialVoice={initialVoice} />
       <IosShortcutsCard />
       <PasswordForm />

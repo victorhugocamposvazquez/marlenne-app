@@ -8,6 +8,7 @@ import { deletePersonalTask, getPersonalTask, savePersonalTask } from '@/app/act
 import PersonalChip from '@/components/personal/PersonalChip';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 import {
+  inferRemindChoice,
   monthCells,
   remindChoiceLabel,
   remindFromLabel,
@@ -35,7 +36,7 @@ export default function TaskSheetHost() {
   const [note, setNote] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
-  const [remind, setRemind] = useState<RemindChoice>('none');
+  const [remind, setRemind] = useState<RemindChoice>('60');
   const [dayOff, setDayOff] = useState(0);
   const [stripStart, setStripStart] = useState(0);
   const [shCal, setShCal] = useState(false);
@@ -57,7 +58,7 @@ export default function TaskSheetHost() {
       setNote('');
       setDate(d);
       setTime('');
-      setRemind('none');
+      setRemind('60');
       const off = offsetFromDay(d);
       setDayOff(off);
       setStripStart(pickStripStart(off));
@@ -84,7 +85,7 @@ export default function TaskSheetHost() {
         setDayOff(0);
         setStripStart(0);
       }
-      setRemind(task.remind_at ? 'at' : 'none');
+      setRemind(inferRemindChoice(task.due_at, task.remind_at));
     });
     return () => { alive = false; };
   }, [open, editing, todayKey]);

@@ -172,3 +172,20 @@ export function remindFromLabel(label: string, hasTime: boolean): RemindChoice {
   if (label === 'A la hora' || label === 'Ese día a las 9:00') return 'at';
   return 'none';
 }
+
+/** Reconstruye el chip de aviso a partir de due_at / remind_at guardados. */
+export function inferRemindChoice(
+  dueAt: string | null,
+  remindAt: string | null,
+): RemindChoice {
+  if (!dueAt || !remindAt) return 'none';
+  const due = new Date(dueAt).getTime();
+  const rem = new Date(remindAt).getTime();
+  if (Number.isNaN(due) || Number.isNaN(rem)) return 'none';
+  const delta = due - rem;
+  if (Math.abs(delta) < 90_000) return 'at';
+  if (Math.abs(delta - 15 * 60_000) < 90_000) return '15';
+  if (Math.abs(delta - 60 * 60_000) < 90_000) return '60';
+  if (Math.abs(delta - 24 * 60 * 60_000) < 90_000) return 'day';
+  return 'at';
+}
