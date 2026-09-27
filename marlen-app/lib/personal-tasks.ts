@@ -36,7 +36,7 @@ export function personalSalonIdFromPrefs(raw: unknown): string | null {
   return typeof id === 'string' && id.length > 0 ? id : null;
 }
 
-function addDays(day: string, n: number): string {
+export function addDays(day: string, n: number): string {
   const [y, m, d] = day.split('-').map(Number);
   const utc = new Date(Date.UTC(y, m - 1, d + n));
   return utc.toISOString().slice(0, 10);
@@ -105,4 +105,70 @@ export function monthCells(year: number, month: number): { key: string; inMonth:
 export function shiftMonth(year: number, month: number, delta: number): { year: number; month: number } {
   const utc = new Date(Date.UTC(year, month - 1 + delta, 1));
   return { year: utc.getUTCFullYear(), month: utc.getUTCMonth() + 1 };
+}
+
+const MESES_C = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'];
+
+/** Etiqueta corta de cuándo vence la tarea (estilo referencia personal). */
+export function taskWhenLabel(dueAt: string | null, todayKey: string, time?: string | null): string {
+  if (!dueAt) return '';
+  const key = dayKey(dueAt);
+  const [y, m, d] = key.split('-').map(Number);
+  const [ty, tm, td] = todayKey.split('-').map(Number);
+  const diff = Math.round((Date.UTC(y, m - 1, d) - Date.UTC(ty, tm - 1, td)) / 86_400_000);
+  const base = diff === 0 ? 'Hoy' : diff === 1 ? 'Mañana' : diff === -1 ? 'Ayer'
+    : `${d} ${MESES_C[m - 1]}${String(y) !== todayKey.slice(0, 4) ? ` ${y}` : ''}`;
+  return time ? `${base} · ${time}` : base;
+}
+
+export type PersonalHomeSection = {
+  id: string;
+  title: string;
+  tasks: PersonalTask[];
+  emptyMsg?: string;
+};
+
+export function personalHomeSections(tasks: PersonalTask[], todayKey: string): PersonalHomeSection[] {
+  const pend = tasks.filter(t => !t.done_at);
+  const past = pend
+    .filter(t => t.due_at && dayKey(t.due_at) < todayKey)
+    .sort((a, b) => (a.due_at ?? '').localeCompare(b.due_at ?? ''));
+  const today = pend
+    .filter(t => !t.due_at || dayKey(t.due_at) === todayKey)
+    .sort((a, b) => (a.due_at ?? '9999').localeCompare(b.due_at ?? '9999'));
+  const fut = pend
+    .filter(t => t.due_at && dayKey(t.due_at) > todayKey)
+    .sort((a, b) => (a.due_at ?? '').localeCompare(b.due_at ?? ''));
+  const done = tasks
+    .filter(t => t.done_at)
+    .sort((a, b) => (b.done_at ?? '').localeCompare(a.done_at ?? ''));
+
+  const secs: PersonalHomeSection[] = [];
+  if (past.length) secs.push({ id: 'past', title: 'Pendientes de días pasados', tasks: past });
+  secs.push({
+    id: 'hoy',
+    title: 'Hoy',
+    tasks: today,
+    emptyMsg: 'Nada para hoy. El + de arriba crea una tarea.',
+  });
+  if (fut.length) secs.push({ id: 'fut', title: 'Más adelante', tasks: fut });
+  if (done.length) secs.push({ id: 'hechas', title: 'Hechas', tasks: done });
+  return secs;
+}
+
+export function remindChoiceLabel(remind: RemindChoice, hasTime: boolean): string {
+  if (remind === 'none') return 'Sin aviso';
+  if (remind === '15') return '15 min antes';
+  if (remind === '60') return '1 h antes';
+  if (remind === 'day') return '1 día antes';
+  return hasTime ? 'A la hora' : 'Ese día a las 9:00';
+}
+
+export function remindFromLabel(label: string, hasTime: boolean): RemindChoice {
+  if (label === 'Sin aviso') return 'none';
+  if (label === '15 min antes') return '15';
+  if (label === '1 h antes') return '60';
+  if (label === '1 día antes') return 'day';
+  if (label === 'A la hora' || label === 'Ese día a las 9:00') return 'at';
+  return 'none';
 }

@@ -1,42 +1,54 @@
 'use client';
 
 import { useTransition } from 'react';
-import { Check } from 'lucide-react';
+import { Bell, Check } from 'lucide-react';
 import { setPersonalTaskDone } from '@/app/actions/personal-tasks';
 import { shallowSet } from '@/hooks/useShallowQuery';
-import { dateLbl, dayKey, fmt, minutesOfDay } from '@/lib/time';
+import { taskWhenLabel } from '@/lib/personal-tasks';
+import { fmt, minutesOfDay } from '@/lib/time';
 import type { PersonalTask } from '@/lib/personal-tasks';
 
 export default function TaskRow({ task, todayKey }: { task: PersonalTask; todayKey: string }) {
   const [pending, startTransition] = useTransition();
   const done = Boolean(task.done_at);
-  const time = task.due_at && minutesOfDay(task.due_at) > 0 ? fmt(minutesOfDay(task.due_at)) : null;
-  const day = task.due_at ? dayKey(task.due_at) : null;
-  const showDay = day && day !== todayKey;
+  const mins = task.due_at ? minutesOfDay(task.due_at) : 0;
+  const time = mins > 0 ? fmt(mins) : null;
+  const when = task.due_at ? taskWhenLabel(task.due_at, todayKey, time) : '';
+  const hasRemind = Boolean(task.remind_at && !done);
 
   return (
-    <div className="flex items-start gap-2 border-b border-surface-line py-3 last:border-0">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => shallowSet({ tarea: task.id })}
+      onKeyDown={e => { if (e.key === 'Enter') shallowSet({ tarea: task.id }); }}
+      className="flex cursor-pointer items-center gap-3 rounded-row bg-surface-soft px-3.5 py-[13px] motion-safe:active:scale-[.99]"
+    >
       <button
         type="button"
         aria-label={done ? 'Marcar pendiente' : 'Marcar hecha'}
         disabled={pending}
-        onClick={() => startTransition(() => { void setPersonalTaskDone(task.id, !done); })}
-        className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border ${done ? 'border-ink bg-ink text-white' : 'border-ink-3 text-transparent'}`}
+        onClick={e => {
+          e.stopPropagation();
+          startTransition(() => { void setPersonalTaskDone(task.id, !done); });
+        }}
+        className={`grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full p-0 ${
+          done ? 'border-0 bg-v-2 text-white' : 'border-2 border-[#D9D8E0] bg-white text-transparent'
+        }`}
       >
-        <Check size={14} strokeWidth={2.6} />
+        {done && <Check size={12} strokeWidth={3.4} />}
       </button>
-      <button
-        type="button"
-        onClick={() => shallowSet({ tarea: task.id })}
-        className="min-w-0 flex-1 text-left"
-      >
-        <span className={`block text-body font-bold ${done ? 'text-ink-3 line-through' : ''}`}>{task.title}</span>
-        {(time || showDay) && (
-          <span className="mt-0.5 block text-label font-medium text-ink-2">
-            {showDay ? dateLbl(task.due_at!) : ''}{showDay && time ? ' · ' : ''}{time ?? ''}
-          </span>
+      <div className="min-w-0 flex-1">
+        <span className={`block text-[15px] font-semibold ${done ? 'text-ink-3 line-through' : 'text-ink'}`}>
+          {task.title}
+        </span>
+        {when && (
+          <span className="mt-px block text-[12.5px] text-ink-3">{when}</span>
         )}
-      </button>
+      </div>
+      {hasRemind && (
+        <Bell size={15} strokeWidth={2} className="shrink-0 text-ink-3" aria-hidden />
+      )}
     </div>
   );
 }

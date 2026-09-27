@@ -33,11 +33,12 @@ function Group({ title, rows }: { title: string; rows: Destino[] }) {
 }
 
 export default function AjustesIndex({
-  me, ready, personal = false,
+  me, ready, personal = false, embedded = false,
 }: {
   me: { full_name: string; job_title: string | null; role: StaffRole };
   ready: ReadyItem[];
   personal?: boolean;
+  embedded?: boolean;
 }) {
   const admin = me.role === 'admin';
   const desk = admin || me.role === 'reception';
@@ -73,19 +74,29 @@ export default function AjustesIndex({
     { href: '/ajustes/cuenta', title: 'Tu cuenta', hint: 'Voz, atajos, contraseña y salir' },
   ];
 
-  return (
-    <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-6 pb-fab pt-5">
-      <PageHeading
-        title="Ajustes"
-        subtitle={
-          <span className="text-body-lg text-ink-2">
-            {personal ? 'Cuenta personal' : `${me.full_name} · ${me.job_title ?? me.role}`}
-          </span>
-        }
-      />
+  const body = (
+    <>
+      {!embedded && (
+        <PageHeading
+          title="Ajustes"
+          subtitle={
+            <span className="text-body-lg text-ink-2">
+              {personal ? 'Cuenta personal' : `${me.full_name} · ${me.job_title ?? me.role}`}
+            </span>
+          }
+        />
+      )}
       {!personal && <Group title="Centro" rows={centro} />}
       <Group title="Cuenta" rows={cuenta} />
       {admin && !personal && <ReadyList items={ready} />}
+    </>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-6 pb-fab pt-5">
+      {body}
     </div>
   );
 }

@@ -1,48 +1,47 @@
-import PageHeading from '@/components/ui/PageHeading';
-import StaffReminderBanner from '@/components/StaffReminderBanner';
 import PersonalDueBanner from '@/components/personal/PersonalDueBanner';
+import PersonalHeader from '@/components/personal/PersonalHeader';
 import TaskRow from '@/components/personal/TaskRow';
+import StaffReminderBanner from '@/components/StaffReminderBanner';
 import { listPersonalTasks } from '@/app/actions/personal-tasks';
-import { TASK_BUCKETS, taskBucket } from '@/lib/personal-tasks';
+import { personalHomeSections } from '@/lib/personal-tasks';
+import { requireSession } from '@/lib/require-session';
 import { dayKey } from '@/lib/time';
 
 export default async function PersonalHome() {
+  const me = await requireSession();
   const tasks = await listPersonalTasks();
   const todayKey = dayKey(new Date());
-  const groups = TASK_BUCKETS.map(bucket => ({
-    ...bucket,
-    tasks: tasks
-      .filter(task => taskBucket(task, todayKey) === bucket.id)
-      .sort((a, b) => {
-        if (bucket.id === 'hechas') return (b.done_at ?? '').localeCompare(a.done_at ?? '');
-        return (a.due_at ?? '9999').localeCompare(b.due_at ?? '9999');
-      }),
-  })).filter(group => group.id === 'hoy' || group.tasks.length > 0);
+  const first = me.full_name.trim().split(/\s+/)[0] ?? me.full_name;
+  const sections = personalHomeSections(tasks, todayKey);
 
   return (
-    <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-6 pb-fab pt-5">
-      <div className="mb-[18px]">
-        <PageHeading title="Hoy" kicker={<span className="text-body font-medium text-ink-2">Personal</span>} />
-      </div>
+    <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-[22px] pb-fab pt-7">
+      <PersonalHeader greeting={`Hola ${first}`} title="Hoy" dateIso={todayKey} />
       <PersonalDueBanner tasks={tasks} />
       <StaffReminderBanner
         title="Avisos de tus tareas"
         body="Te avisamos a la hora que elijas, también con la app cerrada si activas las notificaciones."
       />
-      <div className="flex flex-col gap-6">
-        {groups.map(group => (
-          <section key={group.id}>
-            <h2 className="mb-1 text-body-lg font-bold tracking-[-.02em]">{group.title}</h2>
-            {group.tasks.length === 0 ? (
-              <p className="text-label font-medium text-ink-2">Nada para hoy. El + crea una tarea.</p>
-            ) : (
-              <div className="rounded-row bg-surface-soft px-4">
-                {group.tasks.map(task => <TaskRow key={task.id} task={task} todayKey={todayKey} />)}
-              </div>
+      {sections.map(sec => (
+        <section key={sec.id} className="mt-[26px] first:mt-0">
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-[17px] font-bold tracking-[-.02em]">{sec.title}</h2>
+            {sec.tasks.length > 0 && (
+              <span className="text-[13px] font-semibold text-ink-3">{sec.tasks.length}</span>
             )}
-          </section>
-        ))}
-      </div>
+          </div>
+          {sec.tasks.length === 0 && sec.emptyMsg && (
+            <p className="mt-2.5 text-[14px] text-ink-2">{sec.emptyMsg}</p>
+          )}
+          {sec.tasks.length > 0 && (
+            <div className="mt-2.5 flex flex-col gap-2">
+              {sec.tasks.map(task => (
+                <TaskRow key={task.id} task={task} todayKey={todayKey} />
+              ))}
+            </div>
+          )}
+        </section>
+      ))}
     </div>
   );
 }

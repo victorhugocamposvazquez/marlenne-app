@@ -23,13 +23,18 @@ export default function BottomNav({
   const on = (p: string) => path.startsWith(p);
   if (creating === '1' || editing || addingMember === '1' || task) return null;
 
+  const personalAccent = workspace === 'personal';
+
   const Item = ({ href, icon: Icon, label }: { href: string; icon: typeof Home; label: string }) => {
     const active = on(href);
+    const color = active
+      ? (personalAccent ? 'rgb(var(--c-brand-2))' : 'rgb(var(--c-ink))')
+      : 'rgb(var(--c-ink-3))';
     return (
       <Link
         href={href}
         className="flex min-h-[44px] flex-col items-center justify-center gap-px no-underline"
-        style={{ color: active ? 'rgb(var(--c-ink))' : 'rgb(var(--c-ink-3))' }}
+        style={{ color }}
       >
         <span className="grid h-7 w-7 place-items-center">
           <Icon size={28} strokeWidth={active ? 2.2 : 1.8} />
@@ -63,7 +68,7 @@ export default function BottomNav({
   };
 
   const showFab = workspace === 'personal'
-    ? on('/hoy') || on('/calendario')
+    ? false
     : on('/agenda') || on('/clientas');
   const fabLabel = workspace === 'personal'
     ? 'Nueva tarea'
