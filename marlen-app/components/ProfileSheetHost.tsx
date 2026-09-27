@@ -44,8 +44,8 @@ export default function ProfileSheetHost({
     setError(null);
     try {
       const result = await setWorkspace(next);
+      // Éxito → redirect('/hoy') en el server action (lanza NEXT_REDIRECT).
       if (result && !result.ok) setError(result.error);
-      else close();
     } catch (err) {
       if (isNextRedirect(err)) throw err;
       setError('No se ha podido cambiar de cuenta.');

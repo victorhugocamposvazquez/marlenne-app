@@ -28,6 +28,16 @@ export async function getSession() {
       .select('name')
       .eq('id', data.salon_id)
       .maybeSingle();
+    let hasPersonal = Boolean(personalSalonIdFromPrefs(data.app_prefs));
+    if (!hasPersonal) {
+      const { data: personalSalon } = await sb
+        .from('salons')
+        .select('id')
+        .eq('kind', 'personal')
+        .eq('owner_user_id', user.id)
+        .maybeSingle();
+      hasPersonal = Boolean(personalSalon?.id);
+    }
     return {
       id: data.id as string,
       full_name: data.full_name as string,
@@ -39,7 +49,7 @@ export async function getSession() {
       email: user.email ?? '',
       salon_name: (salon?.name as string | undefined) ?? 'Tu centro',
       workspace: workspaceFromPrefs(data.app_prefs),
-      has_personal: Boolean(personalSalonIdFromPrefs(data.app_prefs)),
+      has_personal: hasPersonal,
     };
   } catch {
     return null;

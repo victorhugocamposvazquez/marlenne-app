@@ -42,13 +42,25 @@ async function ensurePersonalSalon(userId: string, fullName: string): Promise<st
   throw new Error(error?.message ?? 'No se ha podido crear la cuenta personal.');
 }
 
-export async function setWorkspace(next: WorkspaceKind): Promise<{ ok: false; error: string } | void> {
+export async function setWorkspace(
+  next: WorkspaceKind,
+): Promise<{ ok: false; error: string } | void> {
   const me = await getSession();
   if (!me) return { ok: false, error: 'Sesión caducada.' };
 
   const sb = createClient();
   const { data: row } = await sb.from('staff').select('app_prefs').eq('id', me.id).maybeSingle();
   let personalId = personalSalonIdFromPrefs(row?.app_prefs);
+
+  if (!personalId) {
+    const { data: existingPersonal } = await sb
+      .from('salons')
+      .select('id')
+      .eq('kind', 'personal')
+      .eq('owner_user_id', me.id)
+      .maybeSingle();
+    if (existingPersonal?.id) personalId = existingPersonal.id as string;
+  }
 
   if (next === 'personal') {
     try {
@@ -65,5 +77,9 @@ export async function setWorkspace(next: WorkspaceKind): Promise<{ ok: false; er
   if (error) return { ok: false, error: 'No se ha podido cambiar de cuenta.' };
 
   revalidatePath('/', 'layout');
+  revalidatePath('/hoy');
+  revalidatePath('/calendario');
+  revalidatePath('/agenda');
+  revalidatePath('/ajustes');
   redirect('/hoy');
 }
