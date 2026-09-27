@@ -13,11 +13,14 @@ export default function DayStrip({
   selectedOffset,
   startOffset,
   busyOffsets = [],
+  allowSundays = false,
   onSelect,
 }: {
   selectedOffset: number;
   startOffset: number;
   busyOffsets?: number[];
+  /** Tareas personales: domingos seleccionables. Agenda de trabajo: se saltan. */
+  allowSundays?: boolean;
   onSelect: (offset: number) => void;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -74,10 +77,13 @@ export default function DayStrip({
                 key={d.offset}
                 data-off={d.offset}
                 type="button"
-                disabled={d.isSunday}
+                disabled={!allowSundays && d.isSunday}
                 aria-current={on ? 'date' : undefined}
                 aria-label={`${short} ${d.num}${d.isToday ? ', hoy' : ''}`}
-                onClick={() => { if (!d.isSunday) onSelect(skipSunday(d.offset, 1)); }}
+                onClick={() => {
+                  if (!allowSundays && d.isSunday) return;
+                  onSelect(allowSundays ? d.offset : skipSunday(d.offset, 1));
+                }}
                 className="flex h-full shrink-0 snap-start flex-col items-center justify-center rounded-[14px] disabled:cursor-default"
                 style={{
                   width: 'var(--day-cell)',

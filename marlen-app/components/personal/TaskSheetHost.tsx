@@ -3,38 +3,26 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, ChevronLeft, ChevronRight, Trash2, X } from 'lucide-react';
+import DayStrip from '@/components/agenda/DayStrip';
 import { deletePersonalTask, getPersonalTask, savePersonalTask } from '@/app/actions/personal-tasks';
 import PersonalChip from '@/components/personal/PersonalChip';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 import {
-  addDays,
   monthCells,
   remindChoiceLabel,
   remindFromLabel,
   shiftMonth,
   type RemindChoice,
 } from '@/lib/personal-tasks';
-import { dayKey, minutesOfDay } from '@/lib/time';
+import { alignStripStart, dateFromOffset, dayKey, minutesOfDay, offsetFromDay } from '@/lib/time';
 
-const DIAS = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
+const pickStripStart = (off: number) => alignStripStart(off, off, 5);
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const QUICK_TIMES = ['09:00', '12:00', '17:00'];
 const REMIND_LABELS = ['Sin aviso', '15 min antes', '1 h antes', '1 día antes'] as const;
 
 function close() {
   shallowSet({ tarea: null, dia: null });
-}
-
-function offFor(dateIso: string, todayKey: string) {
-  const [y, m, d] = dateIso.split('-').map(Number);
-  const [ty, tm, td] = todayKey.split('-').map(Number);
-  const diff = Math.round((Date.UTC(y, m - 1, d) - Date.UTC(ty, tm - 1, td)) / 86_400_000);
-  return Math.floor(diff / 5) * 5;
-}
-
-function weekdayLabel(iso: string) {
-  const dow = (new Date(`${iso}T12:00:00Z`).getUTCDay() + 6) % 7;
-  return DIAS[dow];
 }
 
 export default function TaskSheetHost() {
@@ -48,7 +36,8 @@ export default function TaskSheetHost() {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [remind, setRemind] = useState<RemindChoice>('none');
-  const [dOff, setDOff] = useState(0);
+  const [dayOff, setDayOff] = useState(0);
+  const [stripStart, setStripStart] = useState(0);
   const [shCal, setShCal] = useState(false);
   const [shCalM, setShCalM] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +58,9 @@ export default function TaskSheetHost() {
       setDate(d);
       setTime('');
       setRemind('none');
-      setDOff(offFor(d, todayKey));
+      const off = offsetFromDay(d);
+      setDayOff(off);
+      setStripStart(pickStripStart(off));
       return;
     }
     let alive = true;
@@ -80,7 +71,9 @@ export default function TaskSheetHost() {
       if (task.due_at) {
         const d = dayKey(task.due_at);
         setDate(d);
-        setDOff(offFor(d, todayKey));
+        const off = offsetFromDay(d);
+        setDayOff(off);
+        setStripStart(pickStripStart(off));
         const mins = minutesOfDay(task.due_at);
         setTime(mins > 0
           ? `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`
@@ -88,7 +81,8 @@ export default function TaskSheetHost() {
       } else {
         setDate('');
         setTime('');
-        setDOff(0);
+        setDayOff(0);
+        setStripStart(0);
       }
       setRemind(task.remind_at ? 'at' : 'none');
     });
@@ -140,7 +134,11 @@ export default function TaskSheetHost() {
 
   if (!open || !mounted) return null;
 
-  const stripDays = Array.from({ length: 5 }, (_, i) => addDays(todayKey, dOff + i));
+  const pickDay = (off: number) => {
+    setDayOff(off);
+    setDate(dayKey(dateFromOffset(off)));
+    setStripStart(prev => alignStripStart(off, prev, 5));
+  };
 
   const sheet = (
     <>
@@ -177,39 +175,22 @@ export default function TaskSheetHost() {
 
           <div className="mt-[18px] flex flex-col gap-2">
             <span className="text-[13px] font-semibold text-ink-2">Día</span>
-            <div className="flex items-center gap-1">
-              <button type="button" onClick={() => setDOff(o => o - 5)} className="grid h-11 w-[26px] shrink-0 place-items-center">
-                <ChevronLeft size={13} strokeWidth={2.8} />
-              </button>
-              <div className="grid flex-1 grid-cols-5 gap-1.5">
-                {stripDays.map(dIso => {
-                  const on = date === dIso;
-                  return (
-                    <button
-                      key={dIso}
-                      type="button"
-                      onClick={() => setDate(dIso)}
-                      className={`flex flex-col items-center rounded-row border-none py-[7px] ${on ? 'bg-v-2' : 'bg-transparent'}`}
-                    >
-                      <span className={`text-[10px] font-bold tracking-[.04em] ${on ? 'text-white/80' : 'text-ink-3'}`}>
-                        {weekdayLabel(dIso)}
-                      </span>
-                      <span className={`text-[16px] font-bold ${on ? 'text-white' : 'text-ink'}`}>
-                        {Number(dIso.slice(8))}
-                      </span>
-                    </button>
-                  );
-                })}
+            <div className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <DayStrip
+                  allowSundays
+                  selectedOffset={dayOff}
+                  startOffset={alignStripStart(dayOff, stripStart, 5)}
+                  onSelect={pickDay}
+                />
               </div>
-              <button type="button" onClick={() => setDOff(o => o + 5)} className="grid h-11 w-[26px] shrink-0 place-items-center">
-                <ChevronRight size={13} strokeWidth={2.8} />
-              </button>
               <button
                 type="button"
                 onClick={() => { setShCal(o => !o); setShCalM(0); }}
-                className={`grid h-11 w-11 shrink-0 place-items-center rounded-pill border-2 ${shCal ? 'border-v-2 bg-[#E8F2FF]' : 'border-ink bg-white'}`}
+                className={`grid h-12 w-12 shrink-0 place-items-center rounded-pill border-2 ${shCal ? 'border-v-2 bg-[#E8F2FF]' : 'border-ink bg-white'}`}
+                aria-label="Calendario"
               >
-                <Calendar size={18} strokeWidth={2} className={shCal ? 'text-[#0463D1]' : 'text-ink'} />
+                <Calendar size={20} strokeWidth={2} className={shCal ? 'text-[#0463D1]' : 'text-ink'} />
               </button>
             </div>
           </div>
@@ -309,8 +290,7 @@ export default function TaskSheetHost() {
                     key={cell.key}
                     type="button"
                     onClick={() => {
-                      setDate(cell.key);
-                      setDOff(offFor(cell.key, todayKey));
+                      pickDay(offsetFromDay(cell.key));
                       setShCal(false);
                     }}
                     className="flex h-11 items-center justify-center"
@@ -329,8 +309,7 @@ export default function TaskSheetHost() {
             <button
               type="button"
               onClick={() => {
-                setDate(todayKey);
-                setDOff(0);
+                pickDay(0);
                 setShCalM(0);
                 setShCal(false);
               }}
