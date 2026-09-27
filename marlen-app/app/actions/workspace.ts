@@ -1,8 +1,6 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/queries';
 import { personalSalonIdFromPrefs } from '@/lib/personal-tasks';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -42,29 +40,27 @@ async function ensurePersonalSalon(userId: string, fullName: string): Promise<st
   throw new Error(error?.message ?? 'No se ha podido crear la cuenta personal.');
 }
 
+/** Cambia trabajo ↔ personal. Rápido: sin getSession ni ensure si ya hay personal_salon_id. */
 export async function setWorkspace(
   next: WorkspaceKind,
-): Promise<{ ok: false; error: string } | void> {
-  const me = await getSession();
-  if (!me) return { ok: false, error: 'Sesión caducada.' };
-
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const sb = createClient();
-  const { data: row } = await sb.from('staff').select('app_prefs').eq('id', me.id).maybeSingle();
-  let personalId = personalSalonIdFromPrefs(row?.app_prefs);
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return { ok: false, error: 'Sesión caducada.' };
 
-  if (!personalId) {
-    const { data: existingPersonal } = await sb
-      .from('salons')
-      .select('id')
-      .eq('kind', 'personal')
-      .eq('owner_user_id', me.id)
-      .maybeSingle();
-    if (existingPersonal?.id) personalId = existingPersonal.id as string;
-  }
+  const { data: row } = await sb
+    .from('staff')
+    .select('full_name, app_prefs')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (!row) return { ok: false, error: 'Sesión caducada.' };
 
-  if (next === 'personal') {
+  let personalId = personalSalonIdFromPrefs(row.app_prefs);
+
+  // Solo crear/buscar salón personal la primera vez que se entra a personal.
+  if (next === 'personal' && !personalId) {
     try {
-      personalId = await ensurePersonalSalon(me.id, me.full_name);
+      personalId = await ensurePersonalSalon(user.id, (row.full_name as string) ?? '');
     } catch {
       return { ok: false, error: 'No se ha podido abrir la cuenta personal.' };
     }
@@ -77,9 +73,5 @@ export async function setWorkspace(
   if (error) return { ok: false, error: 'No se ha podido cambiar de cuenta.' };
 
   revalidatePath('/', 'layout');
-  revalidatePath('/hoy');
-  revalidatePath('/calendario');
-  revalidatePath('/agenda');
-  revalidatePath('/ajustes');
-  redirect('/hoy');
+  return { ok: true };
 }

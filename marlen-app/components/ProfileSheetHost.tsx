@@ -8,7 +8,6 @@ import { signOut } from '@/app/actions/auth';
 import { setWorkspace } from '@/app/actions/workspace';
 import { LocalSheet } from '@/components/Sheet';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
-import { isNextRedirect } from '@/lib/next-navigation-error';
 import type { WorkspaceKind } from '@/lib/personal-tasks';
 
 function close() {
@@ -42,16 +41,13 @@ export default function ProfileSheetHost({
     }
     setBusy(true);
     setError(null);
-    try {
-      const result = await setWorkspace(next);
-      // Éxito → redirect('/hoy') en el server action (lanza NEXT_REDIRECT).
-      if (result && !result.ok) setError(result.error);
-    } catch (err) {
-      if (isNextRedirect(err)) throw err;
-      setError('No se ha podido cambiar de cuenta.');
-    } finally {
+    const result = await setWorkspace(next);
+    if (!result.ok) {
       setBusy(false);
+      setError(result.error);
+      return;
     }
+    window.location.assign('/hoy');
   };
 
   const workspaceRow = (kind: WorkspaceKind, label: string, hint: string, Icon: LucideIcon) => {
