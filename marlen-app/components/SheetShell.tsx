@@ -154,15 +154,18 @@ export default function SheetShell({
     <SheetGrabContext.Provider value={grabCtx}>
       <SheetCloseContext.Provider value={requestClose}>
         <div className="fixed inset-x-0 bottom-0 z-[60]" style={OVERLAY_STYLE}>
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 bg-[rgba(15,14,26,.18)]"
+          <button
+            type="button"
+            aria-label="Cerrar"
+            onClick={() => requestClose()}
+            className="absolute inset-0 border-0 bg-[rgba(15,14,26,.18)] p-0"
           />
 
           <div className="absolute inset-x-0 bottom-0 flex justify-center">
             <div
               ref={panelRef}
               role="presentation"
+              onClick={e => e.stopPropagation()}
               className={`relative z-10 flex w-full max-w-[440px] flex-col overflow-hidden rounded-t-sheet bg-white shadow-[0_-20px_60px_rgba(15,14,26,.18)] ${closing ? 'animate-sheetExit' : ''} ${className}`}
               style={{
                 height,

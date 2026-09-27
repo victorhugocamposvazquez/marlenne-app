@@ -113,18 +113,16 @@ export default function ProfileSheetHost({
       open
       onClose={close}
       title="Perfil"
-      subtitle={email || fullName}
-      initialHeight="tall"
-      floorDetent="mid"
+      initialHeight="mid"
     >
-      <div className="flex flex-col gap-5 pb-2">
-        <div className="flex items-center gap-4 rounded-row bg-surface-soft px-5 py-4">
-          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-pill bg-white text-ink-2">
-            <User size={28} strokeWidth={1.8} />
+      <div className="flex flex-col gap-4 pb-2">
+        <div className="flex items-center gap-3 rounded-row bg-surface-soft px-4 py-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-pill bg-white text-ink-2">
+            <User size={22} strokeWidth={1.8} />
           </span>
           <div className="min-w-0">
-            <div className="truncate text-h1 font-extrabold leading-tight tracking-[-.02em]">{fullName}</div>
-            {email && <div className="truncate text-body font-medium text-ink-2">{email}</div>}
+            <div className="truncate text-[15px] font-bold leading-tight">{fullName}</div>
+            {email && <div className="truncate text-[13px] font-medium text-ink-2">{email}</div>}
           </div>
         </div>
 
