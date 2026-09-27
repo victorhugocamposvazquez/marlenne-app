@@ -520,32 +520,33 @@ export function NewAppointmentSheetBody({
               </button>
             </div>
             {providers.length > 1 && (
-              <div className="mb-6">
-                <p className="mb-2 text-label font-semibold text-ink-2">Equipo</p>
-                <div
-                  className="-mx-6 overflow-x-auto px-6 pb-2 [scrollbar-gutter:stable] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-ink-3 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-surface-line"
-                >
-                  <div className="flex w-max min-w-full snap-x snap-mandatory gap-2.5">
-                    {providers.map(p => {
-                      const on = p.id === providerId;
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => { setProviderId(p.id); setStartMin(null); }}
-                          className={`${pillOutlineCls} h-[38px] shrink-0 snap-start whitespace-nowrap px-4 text-label ${
-                            on ? 'font-extrabold' : 'font-semibold text-ink-2'
-                          }`}
-                        >
-                          {providerAgendaLabel(p)}
-                        </button>
-                      );
-                    })}
-                  </div>
+              <div
+                className="-mx-6 mb-4 overflow-x-auto px-6 pb-2 [scrollbar-gutter:stable] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-ink-3 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-surface-line"
+              >
+                <div className="flex w-max min-w-full snap-x snap-mandatory gap-2.5">
+                  {providers.map(p => {
+                    const on = p.id === providerId;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => { setProviderId(p.id); setStartMin(null); }}
+                        className={`inline-flex h-[38px] shrink-0 snap-start items-center justify-center whitespace-nowrap rounded-pill px-4 text-label transition motion-safe:active:scale-[.97] ${
+                          on
+                            ? 'bg-[rgb(var(--c-brand-2))] font-extrabold text-white'
+                            : `${pillOutlineCls} font-semibold text-ink-2`
+                        }`}
+                      >
+                        {providerAgendaLabel(p)}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
-            <p className="mb-3 text-label font-semibold text-ink-2">Hora</p>
+            <p className="mb-3 text-label font-semibold text-ink-2">
+              Horas disponibles{provider ? `: ${providerAgendaLabel(provider)}` : ''}
+            </p>
             {hours == null && <p className="py-6 text-body text-ink-2">Buscando huecos…</p>}
             {hours && hours.length === 0 && (
               <p className="rounded-row bg-surface-soft px-4 py-5 text-body text-ink-2">
