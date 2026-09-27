@@ -7,6 +7,7 @@ import StaffReminderEngine from '@/components/StaffReminderEngine';
 import ToastProvider from '@/components/Toast';
 import EmbedPanelHint from '@/components/EmbedPanelHint';
 import OpsSupportBanner from '@/components/OpsSupportBanner';
+import ProfileSheetHost from '@/components/ProfileSheetHost';
 import TaskSheetHost from '@/components/personal/TaskSheetHost';
 import StaffPrefsSync from '@/components/StaffPrefsSync';
 import { getStaffVoicePrefs } from '@/lib/queries';
@@ -42,6 +43,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
           <PullRefresh>{children}</PullRefresh>
         </div>
+        <Suspense fallback={null}>
+          <ProfileSheetHost
+            fullName={me.full_name}
+            email={me.email}
+            companyName={me.salon_name}
+            workspace={me.workspace}
+            hasPersonal={me.has_personal}
+          />
+        </Suspense>
         {personal && (
           <Suspense fallback={null}>
             <TaskSheetHost />
@@ -56,13 +66,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           role={me.role}
           workspace={me.workspace}
           account={(
-            <AccountMenu
-              fullName={me.full_name}
-              email={me.email}
-              companyName={me.salon_name}
-              workspace={me.workspace}
-              hasPersonal={me.has_personal}
-            />
+            <AccountMenu workspace={me.workspace} hasPersonal={me.has_personal} />
           )}
         />
       </div>

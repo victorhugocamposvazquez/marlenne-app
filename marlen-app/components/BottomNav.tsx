@@ -20,8 +20,9 @@ export default function BottomNav({
   const editing = useShallowParam('appt');
   const addingMember = useShallowParam('miembro');
   const task = useShallowParam('tarea');
+  const perfil = useShallowParam('perfil');
   const on = (p: string) => path.startsWith(p);
-  if (creating === '1' || editing || addingMember === '1' || task) return null;
+  if (creating === '1' || editing || addingMember === '1' || task || perfil === '1') return null;
 
   const personalAccent = workspace === 'personal';
 
