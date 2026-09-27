@@ -64,7 +64,7 @@ export default function NewAppointmentSheetHost({
 
   if (open !== '1') return null;
 
-  const preselected = clients.find(c => c.id === clientId) ?? clients[0] ?? null;
+  const preselected = clientId ? (clients.find(c => c.id === clientId) ?? null) : null;
 
   return (
     <SheetShell onClose={close} initialHeight="tall" grabHeader>
