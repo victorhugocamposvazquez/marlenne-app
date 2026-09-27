@@ -8,9 +8,6 @@ export default function AccountMenu({
   workspace,
   hasPersonal,
 }: {
-  fullName: string;
-  email: string;
-  companyName: string;
   workspace: WorkspaceKind;
   hasPersonal: boolean;
 }) {
