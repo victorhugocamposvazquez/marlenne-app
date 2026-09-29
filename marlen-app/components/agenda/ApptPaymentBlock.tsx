@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
-import { Check, ChevronDown } from 'lucide-react';
+import { useEffect, useRef, useState, useTransition } from 'react';
+import { Check, ChevronDown, X } from 'lucide-react';
 import { inputCls } from '@/components/Sheet';
 import { updateAppointmentPayment } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
@@ -50,6 +50,19 @@ function inputsToSplit(inputs: Record<SplitMethod, string>): PaymentSplit {
   return out;
 }
 
+function scrollParentOf(el: HTMLElement | null): HTMLElement | null {
+  let node: HTMLElement | null = el?.parentElement ?? null;
+  while (node) {
+    const { overflowY } = getComputedStyle(node);
+    if ((overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay')
+      && node.scrollHeight > node.clientHeight + 1) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return null;
+}
+
 export default function ApptPaymentBlock({
   appt,
   onError,
@@ -57,6 +70,8 @@ export default function ApptPaymentBlock({
   appt: AgendaAppt;
   onError?: (msg: string | null) => void;
 }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const savedScroll = useRef<{ box: HTMLElement; top: number } | null>(null);
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [paidInput, setPaidInput] = useState(centsToEurosInput(appt.paid_cents));
@@ -77,6 +92,42 @@ export default function ApptPaymentBlock({
     setMethod(appt.payment_method);
     setSplitInputs(splitToInputs(appt.payment_split));
   }, [appt.id, appt.paid_cents, appt.payment_method, appt.payment_split]);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    if (open) {
+      const box = scrollParentOf(root);
+      if (box && !savedScroll.current) {
+        savedScroll.current = { box, top: box.scrollTop };
+      }
+      let cancelled = false;
+      const id = window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          if (cancelled) return;
+          root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+      return () => {
+        cancelled = true;
+        window.cancelAnimationFrame(id);
+      };
+    }
+
+    const saved = savedScroll.current;
+    if (saved) {
+      savedScroll.current = null;
+      const id = window.requestAnimationFrame(() => {
+        saved.box.scrollTo({ top: saved.top, behavior: 'smooth' });
+      });
+      return () => window.cancelAnimationFrame(id);
+    }
+  }, [open]);
+
+  const toggleOpen = () => {
+    setOpen(v => !v);
+  };
 
   const save = (
     nextPaid: number,
@@ -105,6 +156,15 @@ export default function ApptPaymentBlock({
     save(sumSplit(split), 'mixed', split);
   };
 
+  const clearPayment = () => {
+    setPaidInput('');
+    setMethod(null);
+    setSplitInputs(emptySplitInputs());
+    save(0, null, null);
+  };
+
+  const hasPayment = paidLive > 0 || method != null || appt.paid_cents > 0 || appt.payment_method != null;
+
   const previstoLbl = appt.client_pack_id
     ? (appt.pack_name ? `Bono · ${appt.pack_name}` : 'Bono')
     : eurosLbl(priceCents);
@@ -122,37 +182,51 @@ export default function ApptPaymentBlock({
   })();
 
   return (
-    <div className="overflow-hidden rounded-[14px] border border-surface-line bg-white">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen(v => !v)}
-        className="flex w-full items-center gap-3 px-4 py-3.5 text-left"
-      >
-        <span
-          className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${
-            paidOk ? 'bg-ok-bg text-ok-strong' : dueLive > 0 && paidLive > 0 ? 'bg-warn-bg text-warn-fg' : 'bg-surface-soft text-ink-3'
-          }`}
+    <div ref={rootRef} className="scroll-mt-3 overflow-hidden rounded-[14px] border border-surface-line bg-white">
+      <div className="flex items-center gap-1.5 pr-2">
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={toggleOpen}
+          className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3.5 text-left"
         >
-          {paidOk ? <Check size={16} strokeWidth={2.8} /> : (
-            <span className="text-[11px] font-extrabold tabular-nums">€</span>
-          )}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-bold tracking-[-.01em] text-ink">Cobro</span>
-          <span className={`mt-0.5 block truncate text-[13px] font-medium ${
-            paidOk ? 'text-ok-strong' : dueLive > 0 && paidLive > 0 ? 'text-warn-fg' : 'text-ink-2'
-          }`}>
-            {summary}
+          <span
+            className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${
+              paidOk ? 'bg-ok-bg text-ok-strong' : dueLive > 0 && paidLive > 0 ? 'bg-warn-bg text-warn-fg' : 'bg-surface-soft text-ink-3'
+            }`}
+          >
+            {paidOk ? <Check size={16} strokeWidth={2.8} /> : (
+              <span className="text-[11px] font-extrabold tabular-nums">€</span>
+            )}
           </span>
-        </span>
-        <ChevronDown
-          size={18}
-          strokeWidth={2.4}
-          className={`shrink-0 text-ink-3 transition-transform ${open ? 'rotate-180' : ''}`}
-          aria-hidden
-        />
-      </button>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-bold tracking-[-.01em] text-ink">Cobro</span>
+            <span className={`mt-0.5 block truncate text-[13px] font-medium ${
+              paidOk ? 'text-ok-strong' : dueLive > 0 && paidLive > 0 ? 'text-warn-fg' : 'text-ink-2'
+            }`}>
+              {summary}
+            </span>
+          </span>
+          <ChevronDown
+            size={18}
+            strokeWidth={2.4}
+            className={`shrink-0 text-ink-3 transition-transform ${open ? 'rotate-180' : ''}`}
+            aria-hidden
+          />
+        </button>
+        {hasPayment && (
+          <button
+            type="button"
+            aria-label="Borrar cobro"
+            title="Borrar cobro"
+            disabled={pending}
+            onClick={clearPayment}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-danger-fg hover:bg-danger-bg disabled:opacity-45"
+          >
+            <X size={17} strokeWidth={2.6} />
+          </button>
+        )}
+      </div>
 
       {open && (
         <div className="border-t border-surface-line px-4 pb-4 pt-3.5">
