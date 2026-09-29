@@ -18,7 +18,8 @@ import { createClient } from '@/lib/supabase/client';
 import { alignStripStart, DAY_END, dateFromOffset, dayKey, durLbl, fmt, minutesOfDay, offsetFromDay, skipSunday, toTimestamp } from '@/lib/time';
 import { filterClientOptions } from '@/lib/client-pick';
 import { bestNameMatches, fold, parseClock } from '@/lib/voice';
-import { packFitsService, packIsOpen, packLabel, packUsableBy, pickPackForService } from '@/lib/packs';
+import { packFitsService, packIsOpen, packLabel, packUsableBy, packsForSection, pickPackForService, usableOpenPacksForClient } from '@/lib/packs';
+import { listClientPacks } from '@/lib/pack-write';
 import { servicePickSections } from '@/lib/service-pick';
 import { readLastServiceId, writeLastServiceId } from '@/hooks/last-service';
 import { shallowSet } from '@/hooks/useShallowQuery';
@@ -120,6 +121,33 @@ export function NewAppointmentSheetBody({
 
   useEffect(() => { setClientPool(clients); }, [clients]);
 
+  useEffect(() => {
+    if (editing?.client_id) {
+      const c = clients.find(x => x.id === editing.client_id)
+        ?? (editing.client_id
+          ? { id: editing.client_id, full_name: editing.client_label, phone: editing.client_phone }
+          : null);
+      if (c) setClient(prev => (prev?.id === c.id ? prev : c));
+      return;
+    }
+    if (preselected) setClient(prev => (prev?.id === preselected.id ? prev : preselected));
+  }, [editing?.client_id, editing?.client_label, editing?.client_phone, preselected, clients]);
+
+  const [clientPacks, setClientPacks] = useState<ClientPack[]>([]);
+  useEffect(() => {
+    if (!client?.id) {
+      setClientPacks([]);
+      return;
+    }
+    let alive = true;
+    void listClientPacks(createClient(), client.id).then(rows => {
+      if (alive) setClientPacks(rows);
+    });
+    return () => { alive = false; };
+  }, [client?.id]);
+
+  const packsForPick = clientPacks.length ? clientPacks : packs;
+
   useEffect(() => { setLastId(readLastServiceId()); }, []);
 
   const clientSearchKey = fold(query);
@@ -164,7 +192,7 @@ export function NewAppointmentSheetBody({
   }, [initialName, client]);
 
   const service = services.find(s => s.id === serviceId) ?? null;
-  const selectedPack = packs.find(p => p.id === packId) ?? null;
+  const selectedPack = packsForPick.find(p => p.id === packId) ?? null;
   const who = client?.full_name ?? query.trim();
   const provider = providers.find(p => p.id === providerId);
   const bookDay = dayKey(dateFromOffset(dayOff));
@@ -177,21 +205,23 @@ export function NewAppointmentSheetBody({
     [query, clientPool],
   );
 
-  const clientOpenPacks = useMemo(() => {
-    if (!client) return [] as ClientPack[];
-    const q = fold(serviceQ);
-    return packs
-      .filter(p => packUsableBy(p, client.id) && packIsOpen(p))
-      .filter(p => {
-        if (!q) return true;
-        return fold(p.name).includes(q) || fold(p.service_name ?? '').includes(q);
-      });
-  }, [client, packs, serviceQ]);
+  const clientOpenPacks = useMemo(
+    () => (client ? usableOpenPacksForClient(packsForPick, client.id, serviceQ) : []),
+    [client, packsForPick, serviceQ],
+  );
 
   const catalog = useMemo(
     () => servicePickSections(services, { lastId, counts: serviceCounts, query: serviceQ }),
     [services, lastId, serviceCounts, serviceQ],
   );
+
+  const sectionsForUi = useMemo(() => {
+    if (catalog.length > 0) return catalog;
+    if (client && clientOpenPacks.length > 0) {
+      return [{ key: 'bonos', title: 'Bonos', items: [] as ServiceOption[] }];
+    }
+    return catalog;
+  }, [catalog, client, clientOpenPacks.length]);
 
   useEffect(() => {
     if (step !== 'service' || startMin == null || !providerId) { setFits({}); return; }
@@ -291,7 +321,7 @@ export function NewAppointmentSheetBody({
     if (keepPackId !== undefined) {
       setPackId(keepPackId);
     } else if (packId) {
-      const p = packs.find(x => x.id === packId);
+      const p = packsForPick.find(x => x.id === packId);
       if (p && !packFitsService(p, s.id)) setPackId('');
     }
     if (backToConfirm || startMin != null) {
@@ -346,7 +376,7 @@ export function NewAppointmentSheetBody({
     const pack = (() => {
       if (!client) return null;
       if (packId) {
-        const chosen = packs.find(p => p.id === packId);
+        const chosen = packsForPick.find(p => p.id === packId);
         if (
           chosen
           && packUsableBy(chosen, client.id)
@@ -355,7 +385,7 @@ export function NewAppointmentSheetBody({
         ) return chosen;
       }
       return pickPackForService(
-        packs.filter(p => packUsableBy(p, client.id) && packFitsService(p, service.id) && packIsOpen(p)),
+        packsForPick.filter(p => packUsableBy(p, client.id) && packFitsService(p, service.id) && packIsOpen(p)),
         client.id,
         service.id,
       );
@@ -571,25 +601,45 @@ export function NewAppointmentSheetBody({
               />
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-3">
-              {clientOpenPacks.length > 0 && (
-                <div className="mb-3.5">
-                  <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">
-                    Bonos de {client?.full_name.split(' ')[0] ?? 'la clienta'}
-                  </p>
+              {!client && (
+                <p className="mb-3 rounded-row bg-surface-soft px-3.5 py-2.5 text-label font-semibold text-ink-2">
+                  Elige clienta arriba para ver sus bonos en cada categoría.
+                </p>
+              )}
+              {selectedPack && !selectedPack.service_id && (
+                <p className="mb-3 rounded-row bg-v-tint/60 px-3.5 py-2.5 text-label font-semibold text-v-d">
+                  Bono «{selectedPack.name}» · elige el tratamiento de esta sesión
+                </p>
+              )}
+              {client && catalog.length === 0 && clientOpenPacks.length === 0 && serviceQ.trim() && (
+                <p className="py-4 text-center text-body text-ink-2">
+                  No hay tratamiento ni bono con «{serviceQ.trim()}».
+                </p>
+              )}
+              {sectionsForUi.map(sec => {
+                const sectionPacks = client
+                  ? (sec.key === 'bonos' && sec.items.length === 0
+                    ? clientOpenPacks
+                    : packsForSection(packsForPick, client.id, sec.items.map(s => s.id), serviceQ))
+                  : [];
+                if (!sectionPacks.length && !sec.items.length) return null;
+                return (
+                <div key={sec.key} className="mb-3.5 last:mb-0">
+                  <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">{sec.title}</p>
                   <div className="flex flex-col gap-2">
-                    {clientOpenPacks.map(p => {
+                    {sectionPacks.map(p => {
                       const on = packId === p.id;
                       const used = p.sessions_done;
                       const left = p.remaining;
                       return (
                         <button
-                          key={p.id}
+                          key={`pack-${p.id}`}
                           type="button"
                           onClick={() => pickPack(p)}
                           className="flex w-full items-center gap-3.5 rounded-row px-4 py-2.5 text-left"
                           style={{
                             background: on ? '#fff' : 'rgb(var(--c-soft))',
-                            boxShadow: on ? 'inset 0 0 0 1.5px rgb(var(--c-ink))' : undefined,
+                            boxShadow: on ? 'inset 0 0 0 2px rgb(var(--c-brand-2))' : 'inset 0 0 0 1px rgb(var(--c-brand-2) / 0.25)',
                           }}
                         >
                           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-v-tint text-v-d">
@@ -598,11 +648,11 @@ export function NewAppointmentSheetBody({
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-body-lg font-semibold">{p.name}</span>
                             <span className="block text-label text-ink-2">
-                              {[
-                                p.service_name ?? 'Cualquier tratamiento',
-                                `usadas ${used} · quedan ${left}`,
-                              ].join(' · ')}
+                              Bono · {p.service_name ?? 'cualquier tratamiento'} · usadas {used} · quedan {left}
                             </span>
+                          </span>
+                          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 border-v/40 bg-white">
+                            {on ? <Check size={14} strokeWidth={3} className="text-v-d" /> : null}
                           </span>
                           <span className="shrink-0 text-[13px] font-bold tabular-nums text-v-d">
                             {left}/{p.sessions_total}
@@ -610,33 +660,25 @@ export function NewAppointmentSheetBody({
                         </button>
                       );
                     })}
-                  </div>
-                </div>
-              )}
-              {selectedPack && !selectedPack.service_id && (
-                <p className="mb-3 rounded-row bg-v-tint/60 px-3.5 py-2.5 text-label font-semibold text-v-d">
-                  Bono «{selectedPack.name}» · elige el tratamiento de esta sesión
-                </p>
-              )}
-              {catalog.map(sec => (
-                <div key={sec.key} className="mb-3.5 last:mb-0">
-                  <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">{sec.title}</p>
-                  <div className="flex flex-col gap-2">
                     {sec.items.map(s => {
                       const cat = catStyle(s.category, { color: s.category_color });
                       const ok = startMin == null || fits[s.id] !== false;
                       const end = startMin != null ? fmt(startMin + s.duration_min) : null;
                       const habitual = lastId === s.id;
                       const first = client?.full_name.split(' ')[0];
+                      const svcOn = !packId && serviceId === s.id;
                       return (
                         <button
                           key={s.id}
                           type="button"
-                          onClick={() => pickService(s)}
+                          onClick={() => {
+                            setPackId('');
+                            pickService(s);
+                          }}
                           className="flex w-full items-center gap-3.5 rounded-row px-4 py-2.5 text-left"
                           style={{
-                            background: habitual ? '#fff' : 'rgb(var(--c-soft))',
-                            boxShadow: habitual ? 'inset 0 0 0 1.5px rgb(var(--c-ink))' : undefined,
+                            background: svcOn || habitual ? '#fff' : 'rgb(var(--c-soft))',
+                            boxShadow: svcOn || habitual ? 'inset 0 0 0 1.5px rgb(var(--c-ink))' : undefined,
                             opacity: ok ? 1 : 0.45,
                           }}
                         >
@@ -657,7 +699,8 @@ export function NewAppointmentSheetBody({
                     })}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}

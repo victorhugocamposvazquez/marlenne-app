@@ -84,3 +84,40 @@ export function draftFromTemplate(t: PackTemplate): PackDraft {
     valid_days: t.valid_days,
   };
 }
+
+/** Búsqueda en el selector de tratamientos/bonos. */
+export function packMatchesSearch(p: { name: string; service_name?: string | null }, query: string) {
+  const q = fold(query);
+  if (!q) return true;
+  if (/(^|\s)(bono|bonos|pack)(\s|$)/.test(q) || q === 'bono' || q === 'bonos') return true;
+  return fold(p.name).includes(q) || fold(p.service_name ?? '').includes(q);
+}
+
+export function usableOpenPacksForClient(
+  packs: ClientPack[],
+  clientId: string,
+  query = '',
+): ClientPack[] {
+  return packs.filter(
+    p => packUsableBy(p, clientId) && packIsOpen(p) && packMatchesSearch(p, query),
+  );
+}
+
+/** Bonos que van primero en una sección (categoría, último, más pedidos…). */
+export function packsForSection(
+  packs: ClientPack[],
+  clientId: string,
+  sectionServiceIds: string[],
+  query = '',
+): ClientPack[] {
+  const ids = new Set(sectionServiceIds);
+  const open = usableOpenPacksForClient(packs, clientId, query);
+  return open
+    .filter(p => p.service_id == null || ids.has(p.service_id))
+    .sort((a, b) => {
+      const ae = a.expires_at ?? '9999-12-31';
+      const be = b.expires_at ?? '9999-12-31';
+      if (ae !== be) return ae.localeCompare(be);
+      return b.sessions_done - a.sessions_done;
+    });
+}
