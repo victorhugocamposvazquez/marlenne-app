@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useTransition } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, ChevronDown, X } from 'lucide-react';
 import { inputCls } from '@/components/Sheet';
@@ -64,11 +64,12 @@ function scrollParentOf(el: HTMLElement | null): HTMLElement | null {
   return null;
 }
 
-export default function ApptPaymentBlock({
-  appt,
-  onError,
-  onSaved,
-}: {
+export type ApptPaymentHandle = {
+  flush: () => void;
+  close: () => void;
+};
+
+const ApptPaymentBlock = forwardRef<ApptPaymentHandle, {
   appt: AgendaAppt;
   onError?: (msg: string | null) => void;
   onSaved?: (patch: {
@@ -76,11 +77,12 @@ export default function ApptPaymentBlock({
     payment_method: PaymentMethod | null;
     payment_split: PaymentSplit | null;
   }) => void;
-}) {
+  onOpenChange?: (open: boolean) => void;
+}>(function ApptPaymentBlock({ appt, onError, onSaved, onOpenChange }, ref) {
   const router = useRouter();
   const rootRef = useRef<HTMLDivElement>(null);
   const savedScroll = useRef<{ box: HTMLElement; top: number } | null>(null);
-  const holdSync = useRef(false);
+  const holdSync = useRef<{ paid: number; method: PaymentMethod | null } | null>(null);
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [paidInput, setPaidInput] = useState(centsToEurosInput(appt.paid_cents));
@@ -96,18 +98,33 @@ export default function ApptPaymentBlock({
   const methodName = methodLabel(method);
   const mixedLbl = splitSummary(splitLive);
 
+  const setOpenAndNotify = (next: boolean) => {
+    setOpen(next);
+    onOpenChange?.(next);
+  };
+
+  useEffect(() => {
+    holdSync.current = null;
+    setPaidInput(centsToEurosInput(appt.paid_cents));
+    setMethod(appt.payment_method);
+    setSplitInputs(splitToInputs(appt.payment_split));
+  }, [appt.id]);
+
   useEffect(() => {
     if (holdSync.current) {
-      const matches =
-        appt.paid_cents === (isMixed ? sumSplit(inputsToSplit(splitInputs)) : eurosInputToCents(paidInput))
-        && appt.payment_method === method;
-      if (matches) holdSync.current = false;
-      else return;
+      if (
+        appt.paid_cents === holdSync.current.paid
+        && appt.payment_method === holdSync.current.method
+      ) {
+        holdSync.current = null;
+      } else {
+        return;
+      }
     }
     setPaidInput(centsToEurosInput(appt.paid_cents));
     setMethod(appt.payment_method);
     setSplitInputs(splitToInputs(appt.payment_split));
-  }, [appt.id, appt.paid_cents, appt.payment_method, appt.payment_split]);
+  }, [appt.paid_cents, appt.payment_method, appt.payment_split]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -141,10 +158,6 @@ export default function ApptPaymentBlock({
     }
   }, [open]);
 
-  const toggleOpen = () => {
-    setOpen(v => !v);
-  };
-
   const save = (
     nextPaid: number,
     nextMethod: PaymentMethod | null,
@@ -153,8 +166,7 @@ export default function ApptPaymentBlock({
     const sameSplit = JSON.stringify(nextSplit ?? null) === JSON.stringify(appt.payment_split ?? null);
     if (nextPaid === appt.paid_cents && nextMethod === appt.payment_method && sameSplit) return;
     onError?.(null);
-    // Optimistic: que el resumen del modal no se pise con props viejos
-    holdSync.current = true;
+    holdSync.current = { paid: nextPaid, method: nextMethod };
     setPaidInput(centsToEurosInput(nextPaid));
     setMethod(nextMethod);
     setSplitInputs(splitToInputs(nextSplit));
@@ -165,7 +177,7 @@ export default function ApptPaymentBlock({
         paymentSplit: nextMethod === 'mixed' ? nextSplit : null,
       });
       if (!r.ok) {
-        holdSync.current = false;
+        holdSync.current = null;
         setPaidInput(centsToEurosInput(appt.paid_cents));
         setMethod(appt.payment_method);
         setSplitInputs(splitToInputs(appt.payment_split));
@@ -190,11 +202,19 @@ export default function ApptPaymentBlock({
     save(sumSplit(split), 'mixed', split);
   };
 
+  useImperativeHandle(ref, () => ({
+    flush: () => {
+      if (method === 'mixed') saveMixed(splitInputs);
+      else saveSingle(eurosInputToCents(paidInput), method);
+    },
+    close: () => setOpenAndNotify(false),
+  }), [method, splitInputs, paidInput, appt.paid_cents, appt.payment_method, appt.payment_split]);
+
+  const toggleOpen = () => {
+    setOpenAndNotify(!open);
+  };
+
   const clearPayment = () => {
-    holdSync.current = true;
-    setPaidInput('');
-    setMethod(null);
-    setSplitInputs(emptySplitInputs());
     save(0, null, null);
   };
 
@@ -424,4 +444,6 @@ export default function ApptPaymentBlock({
       )}
     </div>
   );
-}
+});
+
+export default ApptPaymentBlock;

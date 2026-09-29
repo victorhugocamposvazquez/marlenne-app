@@ -26,7 +26,7 @@ import { useToast } from '@/components/Toast';
 import { confirmPageUrl, waConfirmMsg, waHref } from '@/lib/phone';
 import { goWhatsApp, reserveWhatsAppWindow } from '@/hooks/open-whatsapp';
 import { issueAppointmentLink } from '@/lib/confirm-link';
-import ApptPaymentBlock from '@/components/agenda/ApptPaymentBlock';
+import ApptPaymentBlock, { type ApptPaymentHandle } from '@/components/agenda/ApptPaymentBlock';
 import type { AgendaAppt, ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
 import type { PlacePick } from '@/components/agenda/PlaceContext';
 
@@ -110,6 +110,8 @@ export function NewAppointmentSheetBody({
   const [hours, setHours] = useState<number[] | null>(null);
   const [wa, setWa] = useState(false);
   const [askDelete, setAskDelete] = useState(false);
+  const [payOpen, setPayOpen] = useState(false);
+  const payRef = useRef<ApptPaymentHandle>(null);
   const [lastId, setLastId] = useState<string | null>(null);
   const [fits, setFits] = useState<Record<string, boolean>>({});
   const whenSnap = useRef({ dayOff: 0, startMin: null as number | null, providerId: '' });
@@ -659,7 +661,13 @@ export function NewAppointmentSheetBody({
               </div>
               {editing && showPayment && (
                 <div className="mt-4">
-                  <ApptPaymentBlock appt={editing} onError={setPayError} onSaved={onPaymentSaved} />
+                  <ApptPaymentBlock
+                    ref={payRef}
+                    appt={editing}
+                    onError={setPayError}
+                    onSaved={onPaymentSaved}
+                    onOpenChange={setPayOpen}
+                  />
                   {payError && (
                     <p className="mt-2 text-label font-semibold text-danger-fg">{payError}</p>
                   )}
@@ -697,9 +705,27 @@ export function NewAppointmentSheetBody({
                 </>
               ) : (
                 <>
-                  <Button size="lg" full onClick={save} disabled={pending || !service || startMin == null}>
+                  <Button
+                    size="lg"
+                    full
+                    onClick={() => {
+                      if (payOpen) {
+                        payRef.current?.flush();
+                        payRef.current?.close();
+                        return;
+                      }
+                      save();
+                    }}
+                    disabled={pending || !service || startMin == null}
+                  >
                     <Check size={20} strokeWidth={2.8} />
-                    {pending ? 'Guardando…' : editing ? 'Guardar cambios' : 'Guardar cita'}
+                    {pending
+                      ? 'Guardando…'
+                      : payOpen
+                        ? 'Guardar pago'
+                        : editing
+                          ? 'Guardar cambios'
+                          : 'Guardar cita'}
                   </Button>
                   {editing && (
                     <button
