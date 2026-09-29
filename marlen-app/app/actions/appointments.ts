@@ -99,7 +99,11 @@ export async function updateAppointmentNote(id: string, note: string) {
 
 export async function updateAppointmentPayment(
   id: string,
-  input: { paidCents: number; paymentMethod: string | null },
+  input: {
+    paidCents: number;
+    paymentMethod: string | null;
+    paymentSplit?: Record<string, number> | null;
+  },
 ) {
   const r = await paymentWrite(createClient(), id, input);
   if (r.ok) void recordOpsAudit('appointment.payment', { id, ...input });

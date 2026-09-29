@@ -49,7 +49,7 @@ function TapShield({ active }: { active: boolean }) {
 
 async function loadAppt(sb: SupabaseClient, id: string): Promise<AgendaAppt | null> {
   let { data, error } = await sb.from('appointments').select(APPT_SELECT).eq('id', id).maybeSingle();
-  if (error && /confirmed_at|client_pack|color|paid_cents|payment_method/i.test(error.message)) {
+  if (error && /confirmed_at|client_pack|color|paid_cents|payment_method|payment_split/i.test(error.message)) {
     ({ data, error } = await sb.from('appointments').select(APPT_SELECT_CORE).eq('id', id).maybeSingle());
   }
   if (error || !data) return null;

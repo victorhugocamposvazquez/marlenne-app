@@ -6,7 +6,16 @@ import { inputCls } from '@/components/Sheet';
 import { updateAppointmentPayment } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import {
-  PAYMENT_METHODS, centsToEurosInput, eurosInputToCents, owedCents, type PaymentMethod,
+  PAYMENT_METHODS,
+  SPLIT_METHODS,
+  centsToEurosInput,
+  eurosInputToCents,
+  owedCents,
+  splitSummary,
+  sumSplit,
+  type PaymentMethod,
+  type PaymentSplit,
+  type SplitMethod,
 } from '@/lib/payment';
 import type { AgendaAppt } from '@/lib/types';
 
@@ -17,6 +26,28 @@ function eurosLbl(cents: number) {
 
 function methodLabel(id: PaymentMethod | null) {
   return PAYMENT_METHODS.find(m => m.id === id)?.label ?? null;
+}
+
+function emptySplitInputs(): Record<SplitMethod, string> {
+  return { cash: '', card: '', bizum: '' };
+}
+
+function splitToInputs(split: PaymentSplit | null): Record<SplitMethod, string> {
+  const out = emptySplitInputs();
+  if (!split) return out;
+  for (const m of SPLIT_METHODS) {
+    out[m.id] = centsToEurosInput(split[m.id] ?? 0);
+  }
+  return out;
+}
+
+function inputsToSplit(inputs: Record<SplitMethod, string>): PaymentSplit {
+  const out: PaymentSplit = {};
+  for (const m of SPLIT_METHODS) {
+    const c = eurosInputToCents(inputs[m.id]);
+    if (c > 0) out[m.id] = c;
+  }
+  return out;
 }
 
 export default function ApptPaymentBlock({
@@ -30,28 +61,48 @@ export default function ApptPaymentBlock({
   const [open, setOpen] = useState(false);
   const [paidInput, setPaidInput] = useState(centsToEurosInput(appt.paid_cents));
   const [method, setMethod] = useState<PaymentMethod | null>(appt.payment_method);
+  const [splitInputs, setSplitInputs] = useState(() => splitToInputs(appt.payment_split));
 
   const priceCents = appt.price_cents ?? 0;
-  const paidLive = eurosInputToCents(paidInput);
+  const isMixed = method === 'mixed';
+  const splitLive = inputsToSplit(splitInputs);
+  const paidLive = isMixed ? sumSplit(splitLive) : eurosInputToCents(paidInput);
   const dueLive = owedCents(priceCents, paidLive);
   const paidOk = priceCents > 0 ? paidLive >= priceCents : paidLive > 0;
   const methodName = methodLabel(method);
+  const mixedLbl = splitSummary(splitLive);
 
   useEffect(() => {
     setPaidInput(centsToEurosInput(appt.paid_cents));
     setMethod(appt.payment_method);
-  }, [appt.id, appt.paid_cents, appt.payment_method]);
+    setSplitInputs(splitToInputs(appt.payment_split));
+  }, [appt.id, appt.paid_cents, appt.payment_method, appt.payment_split]);
 
-  const save = (nextPaid: number, nextMethod: PaymentMethod | null) => {
-    if (nextPaid === appt.paid_cents && nextMethod === appt.payment_method) return;
+  const save = (
+    nextPaid: number,
+    nextMethod: PaymentMethod | null,
+    nextSplit: PaymentSplit | null,
+  ) => {
+    const sameSplit = JSON.stringify(nextSplit ?? null) === JSON.stringify(appt.payment_split ?? null);
+    if (nextPaid === appt.paid_cents && nextMethod === appt.payment_method && sameSplit) return;
     onError?.(null);
     startTransition(async () => {
       const r = await updateAppointmentPayment(createClient(), appt.id, {
         paidCents: nextPaid,
         paymentMethod: nextMethod,
+        paymentSplit: nextMethod === 'mixed' ? nextSplit : null,
       });
       if (!r.ok) onError?.(r.error ?? 'No se ha podido guardar el cobro');
     });
+  };
+
+  const saveSingle = (nextPaid: number, nextMethod: PaymentMethod | null) => {
+    save(nextPaid, nextMethod, null);
+  };
+
+  const saveMixed = (inputs: Record<SplitMethod, string>) => {
+    const split = inputsToSplit(inputs);
+    save(sumSplit(split), 'mixed', split);
   };
 
   const previstoLbl = appt.client_pack_id
@@ -60,6 +111,9 @@ export default function ApptPaymentBlock({
 
   const summary = (() => {
     if (paidLive <= 0) return 'Sin cobrar';
+    if (isMixed && mixedLbl) {
+      return paidOk ? `Pagado · ${mixedLbl}` : `${mixedLbl} · faltan ${eurosLbl(dueLive)}`;
+    }
     if (paidOk) return methodName ? `Pagado · ${methodName}` : 'Pagado';
     const bits = [eurosLbl(paidLive)];
     if (methodName) bits.push(methodName);
@@ -127,41 +181,6 @@ export default function ApptPaymentBlock({
 
           <label className="mb-3 block">
             <span className="mb-1.5 block text-[12px] font-bold uppercase tracking-[.03em] text-ink-2">
-              Cobrado
-            </span>
-            <div className="flex items-stretch gap-2">
-              <div className="relative min-w-0 flex-1">
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  className={`${inputCls} pr-10`}
-                  placeholder="0"
-                  value={paidInput}
-                  onChange={e => setPaidInput(e.target.value)}
-                  onBlur={() => save(eurosInputToCents(paidInput), method)}
-                />
-                <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[15px] font-semibold text-ink-3">
-                  €
-                </span>
-              </div>
-              {priceCents > 0 && paidLive < priceCents && (
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => {
-                    setPaidInput(centsToEurosInput(priceCents));
-                    save(priceCents, method);
-                  }}
-                  className="shrink-0 rounded-field border border-surface-line bg-surface-card px-3.5 text-[13px] font-bold text-v-d disabled:opacity-45"
-                >
-                  Todo
-                </button>
-              )}
-            </div>
-          </label>
-
-          <label className="block">
-            <span className="mb-1.5 block text-[12px] font-bold uppercase tracking-[.03em] text-ink-2">
               Forma de pago
             </span>
             <div className="relative">
@@ -172,7 +191,17 @@ export default function ApptPaymentBlock({
                 onChange={e => {
                   const next = (e.target.value || null) as PaymentMethod | null;
                   setMethod(next);
-                  save(eurosInputToCents(paidInput), next);
+                  if (next === 'mixed') {
+                    const seeded = emptySplitInputs();
+                    if (eurosInputToCents(paidInput) > 0 && method && method !== 'mixed') {
+                      seeded[method as SplitMethod] = paidInput;
+                    }
+                    setSplitInputs(seeded);
+                    setOpen(true);
+                    saveMixed(seeded);
+                  } else {
+                    saveSingle(eurosInputToCents(paidInput), next);
+                  }
                 }}
               >
                 <option value="">Sin indicar</option>
@@ -188,6 +217,99 @@ export default function ApptPaymentBlock({
               />
             </div>
           </label>
+
+          {isMixed ? (
+            <div className="space-y-2.5">
+              <p className="text-[12px] font-bold uppercase tracking-[.03em] text-ink-2">
+                Importe por forma
+              </p>
+              {SPLIT_METHODS.map(m => (
+                <label key={m.id} className="flex items-center gap-2.5">
+                  <span className="w-[4.5rem] shrink-0 text-[14px] font-semibold text-ink">{m.label}</span>
+                  <div className="relative min-w-0 flex-1">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      className={`${inputCls} pr-10`}
+                      placeholder="0"
+                      value={splitInputs[m.id]}
+                      onChange={e => setSplitInputs(prev => ({ ...prev, [m.id]: e.target.value }))}
+                      onBlur={e => {
+                        const next = { ...splitInputs, [m.id]: e.target.value };
+                        setSplitInputs(next);
+                        saveMixed(next);
+                      }}
+                    />
+                    <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[15px] font-semibold text-ink-3">
+                      €
+                    </span>
+                  </div>
+                </label>
+              ))}
+              {Object.keys(splitLive).length === 1 && (
+                <p className="text-[12px] font-medium text-ink-2">
+                  Añade otro importe para que sea mixto de verdad.
+                </p>
+              )}
+              <div className="flex items-center justify-between pt-1 text-[13px] font-semibold">
+                <span className="text-ink-2">Total cobrado</span>
+                <span className="tabular-nums text-ink">{eurosLbl(paidLive)}</span>
+              </div>
+              {priceCents > 0 && paidLive < priceCents && (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => {
+                    const remaining = priceCents - paidLive;
+                    const next = { ...splitInputs };
+                    // Completar en efectivo si no hay preferencia
+                    const base = eurosInputToCents(next.cash);
+                    next.cash = centsToEurosInput(base + remaining);
+                    setSplitInputs(next);
+                    saveMixed(next);
+                  }}
+                  className="w-full rounded-field border border-surface-line bg-surface-card py-2.5 text-[13px] font-bold text-v-d disabled:opacity-45"
+                >
+                  Completar previsto en efectivo
+                </button>
+              )}
+            </div>
+          ) : (
+            <label className="block">
+              <span className="mb-1.5 block text-[12px] font-bold uppercase tracking-[.03em] text-ink-2">
+                Cobrado
+              </span>
+              <div className="flex items-stretch gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    className={`${inputCls} pr-10`}
+                    placeholder="0"
+                    value={paidInput}
+                    onChange={e => setPaidInput(e.target.value)}
+                    onBlur={() => saveSingle(eurosInputToCents(paidInput), method)}
+                  />
+                  <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[15px] font-semibold text-ink-3">
+                    €
+                  </span>
+                </div>
+                {priceCents > 0 && paidLive < priceCents && (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => {
+                      setPaidInput(centsToEurosInput(priceCents));
+                      saveSingle(priceCents, method);
+                    }}
+                    className="shrink-0 rounded-field border border-surface-line bg-surface-card px-3.5 text-[13px] font-bold text-v-d disabled:opacity-45"
+                  >
+                    Todo
+                  </button>
+                )}
+              </div>
+            </label>
+          )}
         </div>
       )}
     </div>

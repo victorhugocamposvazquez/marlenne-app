@@ -188,7 +188,7 @@ export async function lastAppointmentOf(clientId: string) {
 export async function getAppointment(id: string): Promise<AgendaAppt | null> {
   const sb = createClient();
   let { data, error } = await sb.from('appointments').select(APPT_SELECT).eq('id', id).maybeSingle();
-  if (error && /confirmed_at|client_pack|color|paid_cents|payment_method/i.test(error.message)) {
+  if (error && /confirmed_at|client_pack|color|paid_cents|payment_method|payment_split/i.test(error.message)) {
     ({ data, error } = await sb.from('appointments').select(APPT_SELECT_CORE).eq('id', id).maybeSingle());
   }
   return data ? mapAppt(data) : null;
@@ -231,7 +231,7 @@ export async function getDayAgenda(date: Date, providerIds: string[]) {
 
   let rows = appts.data;
   if (appts.error) {
-    const retry = /confirmed_at|client_pack|color|paid_cents|payment_method/i.test(appts.error.message) ? await load(APPT_SELECT_CORE) : null;
+    const retry = /confirmed_at|client_pack|color|paid_cents|payment_method|payment_split/i.test(appts.error.message) ? await load(APPT_SELECT_CORE) : null;
     rows = retry?.data ?? null;
     if (!rows) console.error('getDayAgenda', appts.error.message);
   }

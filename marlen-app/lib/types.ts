@@ -1,7 +1,7 @@
 import type { CategoryId, StatusId } from './categories';
-import type { PaymentMethod } from './payment';
+import type { PaymentMethod, PaymentSplit } from './payment';
 
-export type { PaymentMethod };
+export type { PaymentMethod, PaymentSplit };
 
 export type StaffRole = 'admin' | 'reception' | 'provider';
 
@@ -32,6 +32,7 @@ export type AgendaAppt = {
   price_cents: number | null;
   paid_cents: number;
   payment_method: PaymentMethod | null;
+  payment_split: PaymentSplit | null;
   treatment_id: string | null;
   session_no: number | null;
   note: string | null;

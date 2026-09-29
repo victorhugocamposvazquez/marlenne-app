@@ -158,15 +158,34 @@ export async function updateAppointmentNote(sb: SupabaseClient, id: string, note
 export async function updateAppointmentPayment(
   sb: SupabaseClient,
   id: string,
-  input: { paidCents: number; paymentMethod: string | null },
+  input: {
+    paidCents: number;
+    paymentMethod: string | null;
+    paymentSplit?: Record<string, number> | null;
+  },
 ): Promise<WriteResult> {
-  const paid = Math.max(0, Math.round(input.paidCents));
   const method = input.paymentMethod && ['cash', 'card', 'bizum', 'mixed'].includes(input.paymentMethod)
     ? input.paymentMethod
     : null;
+
+  let paid = Math.max(0, Math.round(input.paidCents));
+  let split: Record<string, number> | null = null;
+
+  if (method === 'mixed') {
+    split = {};
+    const src = input.paymentSplit ?? {};
+    for (const key of ['cash', 'card', 'bizum'] as const) {
+      const n = Math.max(0, Math.round(Number(src[key]) || 0));
+      if (n > 0) split[key] = n;
+    }
+    paid = Object.values(split).reduce((s, n) => s + n, 0);
+    if (Object.keys(split).length === 0) split = null;
+  }
+
   const { error } = await sb.from('appointments').update({
     paid_cents: paid,
     payment_method: method,
+    payment_split: method === 'mixed' ? split : null,
   }).eq('id', id);
   return { ok: !error, error: error?.message ?? null };
 }

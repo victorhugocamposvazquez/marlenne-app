@@ -1,4 +1,5 @@
 import type { AgendaAppt, PaymentMethod } from '@/lib/types';
+import { normalizeSplit } from '@/lib/payment';
 
 export const APPT_SELECT_CORE = `
   id, provider_id, client_id, client_name, starts_at, ends_at, duration_min,
@@ -8,7 +9,7 @@ export const APPT_SELECT_CORE = `
   client:clients(full_name, phone)
 `;
 
-export const APPT_SELECT = `${APPT_SELECT_CORE}, paid_cents, payment_method, confirmed_at, client_pack_id, client_pack:client_packs(name)`;
+export const APPT_SELECT = `${APPT_SELECT_CORE}, paid_cents, payment_method, payment_split, confirmed_at, client_pack_id, client_pack:client_packs(name)`;
 
 const METHODS = new Set<PaymentMethod>(['cash', 'card', 'bizum', 'mixed']);
 
@@ -29,6 +30,7 @@ export function mapAppt(row: unknown): AgendaAppt {
     price_cents: number | null;
     paid_cents?: number | null;
     payment_method?: string | null;
+    payment_split?: unknown;
     treatment_id: string | null;
     session_no: number | null;
     service_id: string;
@@ -57,6 +59,7 @@ export function mapAppt(row: unknown): AgendaAppt {
     price_cents: r.price_cents,
     paid_cents: Math.max(0, r.paid_cents ?? 0),
     payment_method: asMethod(r.payment_method),
+    payment_split: normalizeSplit(r.payment_split),
     treatment_id: r.treatment_id,
     session_no: r.session_no,
     note: r.note ?? null,
