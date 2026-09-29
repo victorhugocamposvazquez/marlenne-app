@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Check, ChevronDown, X } from 'lucide-react';
 import { inputCls } from '@/components/Sheet';
 import { updateAppointmentPayment } from '@/lib/agenda-write';
@@ -66,12 +67,20 @@ function scrollParentOf(el: HTMLElement | null): HTMLElement | null {
 export default function ApptPaymentBlock({
   appt,
   onError,
+  onSaved,
 }: {
   appt: AgendaAppt;
   onError?: (msg: string | null) => void;
+  onSaved?: (patch: {
+    paid_cents: number;
+    payment_method: PaymentMethod | null;
+    payment_split: PaymentSplit | null;
+  }) => void;
 }) {
+  const router = useRouter();
   const rootRef = useRef<HTMLDivElement>(null);
   const savedScroll = useRef<{ box: HTMLElement; top: number } | null>(null);
+  const holdSync = useRef(false);
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [paidInput, setPaidInput] = useState(centsToEurosInput(appt.paid_cents));
@@ -88,6 +97,13 @@ export default function ApptPaymentBlock({
   const mixedLbl = splitSummary(splitLive);
 
   useEffect(() => {
+    if (holdSync.current) {
+      const matches =
+        appt.paid_cents === (isMixed ? sumSplit(inputsToSplit(splitInputs)) : eurosInputToCents(paidInput))
+        && appt.payment_method === method;
+      if (matches) holdSync.current = false;
+      else return;
+    }
     setPaidInput(centsToEurosInput(appt.paid_cents));
     setMethod(appt.payment_method);
     setSplitInputs(splitToInputs(appt.payment_split));
@@ -137,13 +153,31 @@ export default function ApptPaymentBlock({
     const sameSplit = JSON.stringify(nextSplit ?? null) === JSON.stringify(appt.payment_split ?? null);
     if (nextPaid === appt.paid_cents && nextMethod === appt.payment_method && sameSplit) return;
     onError?.(null);
+    // Optimistic: que el resumen del modal no se pise con props viejos
+    holdSync.current = true;
+    setPaidInput(centsToEurosInput(nextPaid));
+    setMethod(nextMethod);
+    setSplitInputs(splitToInputs(nextSplit));
     startTransition(async () => {
       const r = await updateAppointmentPayment(createClient(), appt.id, {
         paidCents: nextPaid,
         paymentMethod: nextMethod,
         paymentSplit: nextMethod === 'mixed' ? nextSplit : null,
       });
-      if (!r.ok) onError?.(r.error ?? 'No se ha podido guardar el cobro');
+      if (!r.ok) {
+        holdSync.current = false;
+        setPaidInput(centsToEurosInput(appt.paid_cents));
+        setMethod(appt.payment_method);
+        setSplitInputs(splitToInputs(appt.payment_split));
+        onError?.(r.error ?? 'No se ha podido guardar el cobro');
+        return;
+      }
+      onSaved?.({
+        paid_cents: nextPaid,
+        payment_method: nextMethod,
+        payment_split: nextMethod === 'mixed' ? nextSplit : null,
+      });
+      router.refresh();
     });
   };
 
@@ -157,6 +191,7 @@ export default function ApptPaymentBlock({
   };
 
   const clearPayment = () => {
+    holdSync.current = true;
     setPaidInput('');
     setMethod(null);
     setSplitInputs(emptySplitInputs());
@@ -170,7 +205,8 @@ export default function ApptPaymentBlock({
     : eurosLbl(priceCents);
 
   const summary = (() => {
-    if (paidLive <= 0) return 'Sin cobrar';
+    if (paidLive <= 0 && !methodName) return 'Sin cobrar';
+    if (paidLive <= 0 && methodName) return `${methodName} · sin importe`;
     if (isMixed && mixedLbl) {
       return paidOk ? `Pagado · ${mixedLbl}` : `${mixedLbl} · faltan ${eurosLbl(dueLive)}`;
     }

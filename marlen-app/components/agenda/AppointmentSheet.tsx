@@ -60,7 +60,7 @@ function smsBadgeCls(sms: {
 }
 
 export default function AppointmentSheet({
-  appt, providers, canMoveProvider, startClosing = false, sms = null, showPayment = true,
+  appt, providers, canMoveProvider, startClosing = false, sms = null, showPayment = true, onPaymentSaved,
 }: {
   appt: AgendaAppt;
   providers: Provider[];
@@ -74,6 +74,11 @@ export default function AppointmentSheet({
     error_message: string | null;
   } | null;
   showPayment?: boolean;
+  onPaymentSaved?: (patch: {
+    paid_cents: number;
+    payment_method: AgendaAppt['payment_method'];
+    payment_split: AgendaAppt['payment_split'];
+  }) => void;
 }) {
   const requestClose = useSheetShellClose();
   const toast = useToast();
@@ -394,7 +399,7 @@ export default function AppointmentSheet({
 
           {showPayment && (
             <div className="mb-3.5">
-              <ApptPaymentBlock appt={appt} onError={msg => setError(msg)} />
+              <ApptPaymentBlock appt={appt} onError={msg => setError(msg)} onSaved={onPaymentSaved} />
             </div>
           )}
 

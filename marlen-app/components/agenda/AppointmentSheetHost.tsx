@@ -10,7 +10,7 @@ import SheetShell from '@/components/SheetShell';
 import { loadClientPickerById, loadClientPickerInitial } from '@/app/actions/client-list';
 import { loadSalonPacks, loadServiceCounts, loadServices } from '@/lib/agenda-catalog';
 import { createClient } from '@/lib/supabase/client';
-import { APPT_SELECT, APPT_SELECT_CORE, mapAppt } from '@/lib/agenda-appt';
+import { APPT_SELECT, APPT_SELECT_CORE, APPT_SELECT_PAID, mapAppt } from '@/lib/agenda-appt';
 import { useShallowParam } from '@/hooks/useShallowQuery';
 import { dayKey, offsetFromDay } from '@/lib/time';
 import type { AgendaAppt, ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
@@ -49,7 +49,10 @@ function TapShield({ active }: { active: boolean }) {
 
 async function loadAppt(sb: SupabaseClient, id: string): Promise<AgendaAppt | null> {
   let { data, error } = await sb.from('appointments').select(APPT_SELECT).eq('id', id).maybeSingle();
-  if (error && /confirmed_at|client_pack|color|paid_cents|payment_method|payment_split/i.test(error.message)) {
+  if (error && /payment_split/i.test(error.message)) {
+    ({ data, error } = await sb.from('appointments').select(APPT_SELECT_PAID).eq('id', id).maybeSingle());
+  }
+  if (error && /confirmed_at|client_pack|color|paid_cents|payment_method/i.test(error.message)) {
     ({ data, error } = await sb.from('appointments').select(APPT_SELECT_CORE).eq('id', id).maybeSingle());
   }
   if (error || !data) return null;
@@ -83,6 +86,11 @@ export default function AppointmentSheetHost({
   const closeQ = useShallowParam('close', startClosing ? '1' : null);
   const seed = id ? appointments.find(a => a.id === id) ?? null : null;
   const [fetched, setFetched] = useState<AgendaAppt | null>(null);
+  const [paymentPatch, setPaymentPatch] = useState<{
+    paid_cents: number;
+    payment_method: AgendaAppt['payment_method'];
+    payment_split: AgendaAppt['payment_split'];
+  } | null>(null);
   const [sms, setSms] = useState<{
     status: string;
     sent_at: string | null;
@@ -98,11 +106,16 @@ export default function AppointmentSheetHost({
   const [shield, setShield] = useState(Boolean(initialId));
   const armedFor = useRef<string | null>(null);
   const aligned = useRef('');
-  const appt = seed ?? fetched;
+  const base = seed ?? fetched;
+  const appt = base && paymentPatch ? { ...base, ...paymentPatch } : base;
   if (typeof window !== 'undefined' && id && armedFor.current !== id) {
     armedFor.current = id;
     armPushOpen();
   }
+
+  useEffect(() => {
+    setPaymentPatch(null);
+  }, [id]);
 
   useEffect(() => {
     const arm = () => setShield(true);
@@ -209,6 +222,7 @@ export default function AppointmentSheetHost({
           startClosing
           sms={sms}
           showPayment={showPayment}
+          onPaymentSaved={setPaymentPatch}
         />
       </>
     );
@@ -260,6 +274,7 @@ export default function AppointmentSheetHost({
           initialProviderId={appt.provider_id}
           editing={appt}
           showPayment={showPayment}
+          onPaymentSaved={setPaymentPatch}
         />
       </SheetShell>
     </>

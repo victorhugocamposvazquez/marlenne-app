@@ -55,12 +55,17 @@ export type NewAppointmentSheetBodyProps = {
   initialProviderId?: string;
   editing?: AgendaAppt | null;
   showPayment?: boolean;
+  onPaymentSaved?: (patch: {
+    paid_cents: number;
+    payment_method: AgendaAppt['payment_method'];
+    payment_split: AgendaAppt['payment_split'];
+  }) => void;
 };
 
 export function NewAppointmentSheetBody({
   day, providers, services, clients, packs = [], serviceCounts = {}, preselected = null,
   initialName = '', initialHora = '', initialServiceQ = '', initialProviderId,
-  editing = null, showPayment = true,
+  editing = null, showPayment = true, onPaymentSaved,
 }: NewAppointmentSheetBodyProps) {
   const requestClose = useSheetShellClose();
   const toast = useToast();
@@ -654,7 +659,7 @@ export function NewAppointmentSheetBody({
               </div>
               {editing && showPayment && (
                 <div className="mt-4">
-                  <ApptPaymentBlock appt={editing} onError={setPayError} />
+                  <ApptPaymentBlock appt={editing} onError={setPayError} onSaved={onPaymentSaved} />
                   {payError && (
                     <p className="mt-2 text-label font-semibold text-danger-fg">{payError}</p>
                   )}

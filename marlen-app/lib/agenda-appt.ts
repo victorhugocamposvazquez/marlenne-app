@@ -9,6 +9,9 @@ export const APPT_SELECT_CORE = `
   client:clients(full_name, phone)
 `;
 
+/** Con cobro, sin desglose mixto (migración intermedia). */
+export const APPT_SELECT_PAID = `${APPT_SELECT_CORE}, paid_cents, payment_method, confirmed_at, client_pack_id, client_pack:client_packs(name)`;
+
 export const APPT_SELECT = `${APPT_SELECT_CORE}, paid_cents, payment_method, payment_split, confirmed_at, client_pack_id, client_pack:client_packs(name)`;
 
 const METHODS = new Set<PaymentMethod>(['cash', 'card', 'bizum', 'mixed']);

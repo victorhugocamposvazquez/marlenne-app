@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { chunkIds, fetchAllPages } from '@/lib/supabase/fetch-all';
 import { toTimestamp, dateFromOffset, dayKey, offsetFromDay, weekMondayOffset, isRecallDue } from '@/lib/time';
-import { APPT_SELECT, APPT_SELECT_CORE, mapAppt } from '@/lib/agenda-appt';
+import { APPT_SELECT, APPT_SELECT_CORE, APPT_SELECT_PAID, mapAppt } from '@/lib/agenda-appt';
 import { packExpired, packRemaining } from '@/lib/packs';
 import { listClientPacks, listPackTemplates, listSalonPacks } from '@/lib/pack-write';
 import { DEFAULT_VOICE_PREFS } from '@/hooks/voice-prefs';
@@ -188,7 +188,10 @@ export async function lastAppointmentOf(clientId: string) {
 export async function getAppointment(id: string): Promise<AgendaAppt | null> {
   const sb = createClient();
   let { data, error } = await sb.from('appointments').select(APPT_SELECT).eq('id', id).maybeSingle();
-  if (error && /confirmed_at|client_pack|color|paid_cents|payment_method|payment_split/i.test(error.message)) {
+  if (error && /payment_split/i.test(error.message)) {
+    ({ data, error } = await sb.from('appointments').select(APPT_SELECT_PAID).eq('id', id).maybeSingle());
+  }
+  if (error && /confirmed_at|client_pack|color|paid_cents|payment_method/i.test(error.message)) {
     ({ data, error } = await sb.from('appointments').select(APPT_SELECT_CORE).eq('id', id).maybeSingle());
   }
   return data ? mapAppt(data) : null;
@@ -231,7 +234,12 @@ export async function getDayAgenda(date: Date, providerIds: string[]) {
 
   let rows = appts.data;
   if (appts.error) {
-    const retry = /confirmed_at|client_pack|color|paid_cents|payment_method|payment_split/i.test(appts.error.message) ? await load(APPT_SELECT_CORE) : null;
+    const msg = appts.error.message;
+    let retry = null;
+    if (/payment_split/i.test(msg)) retry = await load(APPT_SELECT_PAID);
+    if ((!retry || retry.error) && /confirmed_at|client_pack|color|paid_cents|payment_method|payment_split/i.test(msg)) {
+      retry = await load(APPT_SELECT_CORE);
+    }
     rows = retry?.data ?? null;
     if (!rows) console.error('getDayAgenda', appts.error.message);
   }

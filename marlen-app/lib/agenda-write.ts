@@ -187,6 +187,15 @@ export async function updateAppointmentPayment(
     payment_method: method,
     payment_split: method === 'mixed' ? split : null,
   }).eq('id', id);
+
+  if (error && /payment_split/i.test(error.message)) {
+    const retry = await sb.from('appointments').update({
+      paid_cents: paid,
+      payment_method: method === 'mixed' ? 'mixed' : method,
+    }).eq('id', id);
+    return { ok: !retry.error, error: retry.error?.message ?? null };
+  }
+
   return { ok: !error, error: error?.message ?? null };
 }
 
