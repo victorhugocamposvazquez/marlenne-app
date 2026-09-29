@@ -26,7 +26,7 @@ export default function WideShell({
   children: ReactNode;
 }) {
   return (
-    <div className="flex h-[100dvh] w-full overflow-hidden bg-surface-bg pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+    <div className="flex h-[100dvh] w-full overflow-hidden border-surface-line bg-surface-bg pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] standalone:border-t">
       <SideNav
         role={session.role}
         account={

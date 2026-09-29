@@ -7,7 +7,7 @@
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#FFFFFF",
-  "theme_color": "#B621C8",
+  "theme_color": "#F7F7FA",
   "shortcuts": [
     {
       "name": "Hoy",

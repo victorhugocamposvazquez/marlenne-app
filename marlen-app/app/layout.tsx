@@ -99,7 +99,12 @@ export const viewport: Viewport = {
   userScalable: false,
   viewportFit: 'cover',
   interactiveWidget: 'overlays-content',
-  themeColor: '#FFFFFF',
+  themeColor: [
+    // PWA instalada: title bar un pelín gris para no fundirse con el header blanco.
+    { media: '(display-mode: standalone)', color: '#F7F7FA' },
+    { media: '(display-mode: fullscreen)', color: '#F7F7FA' },
+    { color: '#FFFFFF' },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
