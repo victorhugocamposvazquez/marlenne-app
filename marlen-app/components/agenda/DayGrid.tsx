@@ -182,8 +182,8 @@ export default function DayGrid({
         onContextMenu={e => e.preventDefault()}
       >
         <div className={solo ? 'w-full pr-1' : 'min-w-max pr-1'}>
-          <div className="sticky top-0 z-[6] flex bg-[linear-gradient(180deg,rgb(var(--c-bg))_74%,rgb(var(--c-bg)/0))] pb-1.5 pt-0.5">
-            <div className="sticky left-0 z-[7] shrink-0 bg-surface-bg" style={{ width: HOUR_W }} />
+          <div className="sticky top-0 z-[6] flex bg-[linear-gradient(180deg,rgb(var(--c-soft))_74%,rgb(var(--c-soft)/0))] pb-1.5 pt-0.5">
+            <div className="sticky left-0 z-[7] shrink-0 bg-surface-soft" style={{ width: HOUR_W }} />
             {providers.map(p => {
               const count = appointments.filter(a => place(a).provider === p.id).length;
               return (
@@ -213,7 +213,7 @@ export default function DayGrid({
           </div>
 
           <div className="flex">
-            <div className="sticky left-0 z-[5] shrink-0 bg-surface-bg" style={{ width: HOUR_W, height: gridH }}>
+            <div className="sticky left-0 z-[5] shrink-0 bg-surface-soft" style={{ width: HOUR_W, height: gridH }}>
               {hours.map(h => (
                 <div key={h.label} className="absolute right-2 -translate-y-1.5 text-micro font-semibold tabular-nums text-ink-3" style={{ top: h.top }}>
                   {h.label}

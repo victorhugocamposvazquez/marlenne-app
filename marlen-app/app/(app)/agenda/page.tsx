@@ -76,7 +76,7 @@ export default async function AgendaPage({
   const citas = live.length;
 
   return (
-    <div className="relative flex h-0 min-h-0 flex-1 flex-col overflow-hidden bg-surface-bg">
+    <div className="relative flex h-0 min-h-0 flex-1 flex-col overflow-hidden bg-surface-soft">
       <PlaceProvider>
       <AgendaHeader
         day={day}
