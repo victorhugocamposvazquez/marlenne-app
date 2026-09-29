@@ -117,42 +117,63 @@ export async function listPackTemplates(
 }
 
 export async function listClientPacks(sb: SupabaseClient, clientId: string): Promise<ClientPack[]> {
-  let primary = await sb
+  const filter = `owner_client_id.eq.${clientId},friend_client_id.eq.${clientId}`;
+  const primary = await sb
     .from('client_packs')
     .select(PACK_SELECT)
-    .or(`owner_client_id.eq.${clientId},friend_client_id.eq.${clientId}`)
+    .or(filter)
     .order('purchased_at', { ascending: false });
+
+  let raw: unknown[] | null = primary.data;
   if (primary.error && /paid_cents|payment_method|payment_split/i.test(primary.error.message)) {
-    primary = await sb
+    const legacy = await sb
       .from('client_packs')
       .select(PACK_SELECT_LEGACY)
-      .or(`owner_client_id.eq.${clientId},friend_client_id.eq.${clientId}`)
+      .or(filter)
       .order('purchased_at', { ascending: false });
+    raw = legacy.error ? null : (legacy.data as unknown[] | null);
+    if (legacy.error) {
+      const plain = await sb.from('client_packs').select(PACK_SELECT_PLAIN)
+        .or(filter)
+        .order('purchased_at', { ascending: false });
+      raw = plain.data as unknown[] | null;
+    }
+  } else if (primary.error) {
+    const plain = await sb.from('client_packs').select(PACK_SELECT_PLAIN)
+      .or(filter)
+      .order('purchased_at', { ascending: false });
+    raw = plain.data as unknown[] | null;
   }
-  const raw = primary.error
-    ? (await sb.from('client_packs').select(PACK_SELECT_PLAIN)
-      .or(`owner_client_id.eq.${clientId},friend_client_id.eq.${clientId}`)
-      .order('purchased_at', { ascending: false })).data
-    : primary.data;
+
   const rows = (raw ?? []).map(r => mapPackRow(r as Record<string, unknown>));
   const reserved = await reservedByPack(sb, rows.map(r => r.id));
   return attachReserved(rows, reserved);
 }
 
 export async function listSalonPacks(sb: SupabaseClient): Promise<ClientPack[]> {
-  let primary = await sb
+  const primary = await sb
     .from('client_packs')
     .select(PACK_SELECT)
     .order('purchased_at', { ascending: false });
+
+  let raw: unknown[] | null = primary.data;
   if (primary.error && /paid_cents|payment_method|payment_split/i.test(primary.error.message)) {
-    primary = await sb
+    const legacy = await sb
       .from('client_packs')
       .select(PACK_SELECT_LEGACY)
       .order('purchased_at', { ascending: false });
+    raw = legacy.error ? null : (legacy.data as unknown[] | null);
+    if (legacy.error) {
+      const plain = await sb.from('client_packs').select(PACK_SELECT_PLAIN)
+        .order('purchased_at', { ascending: false });
+      raw = plain.data as unknown[] | null;
+    }
+  } else if (primary.error) {
+    const plain = await sb.from('client_packs').select(PACK_SELECT_PLAIN)
+      .order('purchased_at', { ascending: false });
+    raw = plain.data as unknown[] | null;
   }
-  const raw = primary.error
-    ? (await sb.from('client_packs').select(PACK_SELECT_PLAIN).order('purchased_at', { ascending: false })).data
-    : primary.data;
+
   const rows = (raw ?? []).map(r => mapPackRow(r as Record<string, unknown>));
   const reserved = await reservedByPack(sb, rows.map(r => r.id));
   return attachReserved(rows, reserved);
