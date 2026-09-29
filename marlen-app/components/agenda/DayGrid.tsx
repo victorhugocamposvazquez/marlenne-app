@@ -140,6 +140,7 @@ export default function DayGrid({
     scrollRef,
     gridRef,
     colW,
+    immediate: finePointer,
     snapStart: (start, providerId, id) => {
       if (id !== PLACE_ID) return start;
       return nearestStart(start, starts[providerId] ?? []);

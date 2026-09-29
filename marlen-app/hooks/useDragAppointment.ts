@@ -40,11 +40,13 @@ type Start = {
 };
 
 /**
- * Mover una cita pide una pulsación corta, con barra de carga.
- * Si el dedo se desplaza antes, es scroll. Toque corto abre la ficha.
+ * En móvil: pulsación corta con barra de carga; si el dedo se mueve antes, es scroll.
+ * En escritorio (`immediate`): el asa arrastra al instante; la tarjeta, al mover un poco.
+ * Toque/clic corto abre la ficha.
  */
 export function useDragAppointment({
   pxPerMin, snap, providerIds, scrollRef, gridRef, onDrop, snapStart, colW = COL_W,
+  immediate = false,
 }: {
   pxPerMin: number;
   snap: number;
@@ -54,6 +56,8 @@ export function useDragAppointment({
   onDrop: (id: string, startMin: number, providerId: string) => void;
   snapStart?: (startMin: number, providerId: string, id: string) => number;
   colW?: number;
+  /** Ratón / trackpad: sin barra de armado. */
+  immediate?: boolean;
 }) {
   const colWRef = useRef(colW);
   colWRef.current = colW;
@@ -288,20 +292,93 @@ export function useDragAppointment({
     [startDrag],
   );
 
+  /** Escritorio: arrastre al superar un umbral, sin barra. Clic sin mover abre la ficha. */
+  const beginMoveDrag = useCallback(
+    (e: React.PointerEvent, id: string, startMin: number, providerId: string, duration: number) => {
+      if (e.button !== 0) return;
+
+      const pointerId = e.pointerId;
+      const x0 = e.clientX;
+      const y0 = e.clientY;
+      const captureEl = e.currentTarget as HTMLElement;
+      let last: PointerEvent = e.nativeEvent;
+      let started = false;
+
+      const stop = () => {
+        holdStop.current = null;
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
+      };
+
+      const onMove = (ev: PointerEvent) => {
+        if (ev.pointerId !== pointerId || started) return;
+        last = ev;
+        const dx = ev.clientX - x0;
+        const dy = ev.clientY - y0;
+        if (Math.hypot(dx, dy) < SCROLL_DY) return;
+        started = true;
+        stop();
+        swallowClick.current = true;
+        startDrag({
+          pointerId,
+          clientX: last.clientX,
+          clientY: last.clientY,
+          native: last,
+          captureEl,
+          id,
+          startMin,
+          providerId,
+          duration,
+        });
+      };
+      const onUp = (ev: PointerEvent) => {
+        if (ev.pointerId !== pointerId) return;
+        stop();
+      };
+
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
+      holdStop.current = stop;
+    },
+    [startDrag],
+  );
+
   const onHandleDown = useCallback(
     (e: React.PointerEvent, id: string, startMin: number, providerId: string, duration: number) => {
       e.stopPropagation();
+      if (e.button !== 0) return;
+      if (immediate) {
+        swallowClick.current = true;
+        startDrag({
+          pointerId: e.pointerId,
+          clientX: e.clientX,
+          clientY: e.clientY,
+          native: e.nativeEvent,
+          captureEl: e.currentTarget as HTMLElement,
+          id,
+          startMin,
+          providerId,
+          duration,
+        });
+        return;
+      }
       beginHold(e, id, startMin, providerId, duration);
     },
-    [beginHold],
+    [beginHold, immediate, startDrag],
   );
 
   const onCardDown = useCallback(
     (e: React.PointerEvent, id: string, startMin: number, providerId: string, duration: number) => {
       if ((e.target as HTMLElement).closest('[data-drag-handle]')) return;
+      if (immediate) {
+        beginMoveDrag(e, id, startMin, providerId, duration);
+        return;
+      }
       beginHold(e, id, startMin, providerId, duration);
     },
-    [beginHold],
+    [beginHold, beginMoveDrag, immediate],
   );
 
   const onCardClick = useCallback((e: React.MouseEvent) => {
