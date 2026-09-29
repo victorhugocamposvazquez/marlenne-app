@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { Home, Calendar, Users, Settings, Plus, ListTodo } from 'lucide-react';
+import { Home, Calendar, Users, Settings, Plus, MoreVertical } from 'lucide-react';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 
 export default function BottomNav({
@@ -19,8 +19,11 @@ export default function BottomNav({
   const addingMember = useShallowParam('miembro');
   const task = useShallowParam('tarea');
   const perfil = useShallowParam('perfil');
+  const mas = useShallowParam('mas');
   const on = (p: string) => path.startsWith(p);
-  if (creating === '1' || editing || addingMember === '1' || task || perfil === '1') return null;
+  if (creating === '1' || editing || addingMember === '1' || task || perfil === '1' || mas === '1') return null;
+
+  const moreActive = on('/tareas') || mas === '1';
 
   const Item = ({ href, icon: Icon, label }: { href: string; icon: typeof Home; label: string }) => {
     const active = on(href);
@@ -84,7 +87,19 @@ export default function BottomNav({
         <Item href="/hoy" icon={Home} label="Hoy" />
         <Item href="/agenda" icon={Calendar} label="Agenda" />
         {showClientas && <Item href="/clientas" icon={Users} label="Clientas" />}
-        <Item href="/tareas" icon={ListTodo} label="Tareas" />
+        <button
+          type="button"
+          aria-label="Más"
+          aria-expanded={mas === '1'}
+          onClick={() => shallowSet({ mas: '1' })}
+          className="flex min-h-[44px] flex-col items-center justify-center gap-px border-0 bg-transparent p-0"
+          style={{ color: moreActive ? 'rgb(var(--c-ink))' : 'rgb(var(--c-ink-3))' }}
+        >
+          <span className="grid h-7 w-7 place-items-center">
+            <MoreVertical size={26} strokeWidth={moreActive ? 2.2 : 1.8} />
+          </span>
+          <span className={`text-[11px] ${moreActive ? 'font-bold' : 'font-medium'}`}>Más</span>
+        </button>
         <Item href="/ajustes" icon={Settings} label="Ajustes" />
         {account}
       </div>

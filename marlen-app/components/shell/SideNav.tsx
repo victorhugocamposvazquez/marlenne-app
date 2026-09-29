@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { Calendar, Home, ListTodo, Plus, Settings, Sparkles, Users } from 'lucide-react';
-import { shallowSet } from '@/hooks/useShallowQuery';
+import { Calendar, Home, MoreVertical, Plus, Settings, Sparkles, Users } from 'lucide-react';
+import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 
 export default function SideNav({
   role,
@@ -14,8 +14,10 @@ export default function SideNav({
   account?: ReactNode;
 }) {
   const path = usePathname();
+  const mas = useShallowParam('mas');
   const on = (p: string) => path.startsWith(p);
   const showClientas = role !== 'provider';
+  const moreActive = on('/tareas') || mas === '1';
 
   const Item = ({ href, icon: Icon, label }: { href: string; icon: typeof Home; label: string }) => {
     const active = on(href);
@@ -76,7 +78,18 @@ export default function SideNav({
         <Item href="/agenda" icon={Calendar} label="Agenda" />
         {showClientas && <Item href="/clientas" icon={Users} label="Clientas" />}
         <Item href="/ajustes/servicios" icon={Sparkles} label="Servicios" />
-        <Item href="/tareas" icon={ListTodo} label="Tareas" />
+        <button
+          type="button"
+          aria-label="Más"
+          aria-expanded={mas === '1'}
+          onClick={() => shallowSet({ mas: '1' })}
+          className={`flex w-full items-center gap-3 rounded-row px-3 py-2.5 text-left transition-colors ${
+            moreActive ? 'bg-ink font-bold text-white' : 'font-medium text-ink-2 hover:bg-surface-soft'
+          }`}
+        >
+          <MoreVertical size={20} strokeWidth={moreActive ? 2.2 : 1.8} />
+          <span className="text-[14.5px]">Más</span>
+        </button>
         <Item href="/ajustes" icon={Settings} label="Ajustes" />
       </nav>
 

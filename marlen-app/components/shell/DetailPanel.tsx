@@ -15,6 +15,7 @@ export default function DetailPanel() {
   const task = useShallowParam('tarea');
   const perfil = useShallowParam('perfil');
   const editar = useShallowParam('editar');
+  const mas = useShallowParam('mas');
 
   const open = Boolean(
     creating === '1'
@@ -26,7 +27,8 @@ export default function DetailPanel() {
     || miembro === '1'
     || task
     || perfil === '1'
-    || editar,
+    || editar
+    || mas === '1',
   );
 
   return (
