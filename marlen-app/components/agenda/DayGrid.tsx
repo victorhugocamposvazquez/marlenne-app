@@ -441,7 +441,7 @@ export default function DayGrid({
                     key={a.id}
                     data-id={a.id}
                     data-no-pull
-                    className={`absolute flex overflow-hidden rounded-[12px] select-none [-webkit-touch-callout:none] ${pos.dragging ? 'touch-none' : ''}`}
+                    className={`absolute flex overflow-hidden rounded-[12px] shadow-sm select-none [-webkit-touch-callout:none] ${pos.dragging ? 'touch-none' : ''}`}
                     style={{
                       left: solo ? 0 : col * colW,
                       width: cardW,
