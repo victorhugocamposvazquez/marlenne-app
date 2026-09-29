@@ -3,15 +3,17 @@ import { headers } from 'next/headers';
 import { requireSession } from '@/lib/require-session';
 import { listProviders, getDayAgenda, countWaitlist, listRecalls } from '@/lib/queries';
 import { countMyPasskeys } from '@/app/actions/webauthn';
-import { fmt, minutesOfDay, madridNow, DAY_START, DAY_END } from '@/lib/time';
+import { listUnifiedTasks } from '@/app/actions/tasks';
+import { fmt, minutesOfDay, madridNow, DAY_START, DAY_END, dayKey } from '@/lib/time';
+import { tasksDueTodayOrOverdue } from '@/lib/tasks';
 import { CalendarCheck, ChevronRight, HeartHandshake, UserRound } from 'lucide-react';
 import EmptyState from '@/components/ui/EmptyState';
 import PageHeading from '@/components/ui/PageHeading';
 import LiveRefresh from '@/components/LiveRefresh';
 import HoyApptRow from '@/components/hoy/HoyApptRow';
+import HoyTasksBlock from '@/components/hoy/HoyTasksBlock';
 import RecallCard from '@/components/hoy/RecallCard';
 import PasskeySetupBanner from '@/components/PasskeySetupBanner';
-import PersonalHome from '@/components/personal/PersonalHome';
 import StaffReminderBanner from '@/components/StaffReminderBanner';
 import CreateMenu from '@/components/CreateMenu';
 import HoyHeaderActions from '@/components/hoy/HoyHeaderActions';
@@ -19,14 +21,16 @@ import type { AgendaAppt } from '@/lib/types';
 
 export default async function HoyPage() {
   const me = await requireSession();
-  if (me.workspace === 'personal') return <PersonalHome />;
   const cabin = me.role === 'provider';
-  const [all, waiting, recalls, passkeyCount] = await Promise.all([
+  const todayKey = dayKey(new Date());
+  const [all, waiting, recalls, passkeyCount, allTasks] = await Promise.all([
     listProviders(),
     cabin ? Promise.resolve(0) : countWaitlist(),
     cabin ? Promise.resolve([]) : listRecalls(6),
     countMyPasskeys(),
+    listUnifiedTasks('todas'),
   ]);
+  const todayTasks = tasksDueTodayOrOverdue(allTasks, todayKey);
   const ua = headers().get('user-agent') ?? '';
   const providers = cabin ? all.filter(p => p.id === me.id) : all;
   const { appointments } = await getDayAgenda(new Date(), providers.map(p => p.id));
@@ -142,6 +146,8 @@ export default async function HoyPage() {
 
       <PasskeySetupBanner ua={ua} hasPasskeys={passkeyCount > 0} />
       <StaffReminderBanner />
+
+      <HoyTasksBlock tasks={todayTasks} />
 
       {live.length > 0 && (
         <>

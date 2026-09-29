@@ -3,16 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { Home, Calendar, Users, Settings, Plus } from 'lucide-react';
+import { Home, Calendar, Users, Settings, Plus, ListTodo } from 'lucide-react';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 
 export default function BottomNav({
   role,
-  workspace = 'company',
   account,
 }: {
   role: string;
-  workspace?: 'company' | 'personal';
   account?: ReactNode;
 }) {
   const path = usePathname();
@@ -24,33 +22,28 @@ export default function BottomNav({
   const on = (p: string) => path.startsWith(p);
   if (creating === '1' || editing || addingMember === '1' || task || perfil === '1') return null;
 
-  const personalAccent = workspace === 'personal';
-
   const Item = ({ href, icon: Icon, label }: { href: string; icon: typeof Home; label: string }) => {
     const active = on(href);
-    const color = active
-      ? (personalAccent ? 'rgb(var(--c-brand-2))' : 'rgb(var(--c-ink))')
-      : 'rgb(var(--c-ink-3))';
     return (
       <Link
         href={href}
         className="flex min-h-[44px] flex-col items-center justify-center gap-px no-underline"
-        style={{ color }}
+        style={{ color: active ? 'rgb(var(--c-ink))' : 'rgb(var(--c-ink-3))' }}
       >
         <span className="grid h-7 w-7 place-items-center">
-          <Icon size={28} strokeWidth={active ? 2.2 : 1.8} />
+          <Icon size={26} strokeWidth={active ? 2.2 : 1.8} />
         </span>
-        <span className={`text-[12px] ${active ? 'font-bold' : 'font-medium'}`}>{label}</span>
+        <span className={`text-[11px] ${active ? 'font-bold' : 'font-medium'}`}>{label}</span>
       </Link>
     );
   };
 
-  const showClientas = workspace !== 'personal' && role !== 'provider';
-  const cols = (workspace === 'personal' ? 4 : showClientas ? 5 : 4);
+  const showClientas = role !== 'provider';
+  const cols = showClientas ? 6 : 5;
 
   const create = () => {
-    if (workspace === 'personal') {
-      shallowSet({ tarea: '1' });
+    if (on('/tareas')) {
+      shallowSet({ tarea: '1', scope: 'centro' });
       return;
     }
     if (on('/clientas')) {
@@ -68,17 +61,15 @@ export default function BottomNav({
     });
   };
 
-  const showFab = workspace === 'personal'
-    ? false
-    : on('/agenda') || on('/clientas');
-  const fabLabel = workspace === 'personal'
+  const showFab = on('/agenda') || on('/clientas') || on('/tareas');
+  const fabLabel = on('/tareas')
     ? 'Nueva tarea'
     : on('/clientas')
       ? 'Nueva clienta'
       : 'Nueva cita';
 
   return (
-    <nav className="relative z-40 shrink-0 border-t border-surface-line bg-white px-1 pt-3 pb-[max(2px,env(safe-area-inset-bottom))] standalone:pb-[max(4px,calc(env(safe-area-inset-bottom)-12px))]">
+    <nav className="relative z-40 shrink-0 border-t border-surface-line bg-white px-0.5 pt-3 pb-[max(2px,env(safe-area-inset-bottom))] standalone:pb-[max(4px,calc(env(safe-area-inset-bottom)-12px))]">
       {showFab && (
         <button
           type="button"
@@ -91,10 +82,9 @@ export default function BottomNav({
       )}
       <div className="grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
         <Item href="/hoy" icon={Home} label="Hoy" />
-        {workspace === 'personal'
-          ? <Item href="/calendario" icon={Calendar} label="Calendario" />
-          : <Item href="/agenda" icon={Calendar} label="Agenda" />}
+        <Item href="/agenda" icon={Calendar} label="Agenda" />
         {showClientas && <Item href="/clientas" icon={Users} label="Clientas" />}
+        <Item href="/tareas" icon={ListTodo} label="Tareas" />
         <Item href="/ajustes" icon={Settings} label="Ajustes" />
         {account}
       </div>

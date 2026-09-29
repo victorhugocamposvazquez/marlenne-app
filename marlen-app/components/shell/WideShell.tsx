@@ -18,26 +18,19 @@ const VoiceFab = dynamic(() => import('@/components/VoiceFab'), { ssr: false });
 export default function WideShell({
   session,
   serverOps,
+  staff = [],
   children,
 }: {
   session: ShellSession;
   serverOps: OpsBanner;
+  staff?: { id: string; full_name: string }[];
   children: ReactNode;
 }) {
-  const personal = session.workspace === 'personal';
-
   return (
     <div className="flex h-[100dvh] w-full overflow-hidden bg-surface-bg pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       <SideNav
         role={session.role}
-        workspace={session.workspace}
-        account={(
-          <AccountMenu
-            workspace={session.workspace}
-            hasPersonal={session.hasPersonal}
-            variant="rail"
-          />
-        )}
+        account={<AccountMenu variant="rail" />}
       />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <OpsSupportBanner serverOps={serverOps} />
@@ -56,20 +49,14 @@ export default function WideShell({
           fullName={session.fullName}
           email={session.email}
           companyName={session.salonName}
-          workspace={session.workspace}
-          hasPersonal={session.hasPersonal}
         />
       </Suspense>
-      {personal && (
-        <Suspense fallback={null}>
-          <TaskSheetHost />
-        </Suspense>
-      )}
-      {!personal && (
-        <Suspense fallback={null}>
-          <VoiceFab />
-        </Suspense>
-      )}
+      <Suspense fallback={null}>
+        <TaskSheetHost staff={staff} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <VoiceFab />
+      </Suspense>
     </div>
   );
 }

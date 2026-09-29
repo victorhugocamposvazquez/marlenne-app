@@ -8,26 +8,27 @@ import { useAppShellMode, useClientMounted } from '@/hooks/useAppShellMode';
 export default function AppShell({
   session,
   serverOps,
+  staff = [],
   children,
 }: {
   session: ShellSession;
   serverOps: OpsBanner;
+  staff?: { id: string; full_name: string }[];
   children: ReactNode;
 }) {
   const mounted = useClientMounted();
   const mode = useAppShellMode();
 
-  // Hasta hidratar: phone (seguro para Capacitor y sin mismatch SSR).
   if (!mounted || mode === 'phone') {
     return (
-      <PhoneShell session={session} serverOps={serverOps}>
+      <PhoneShell session={session} serverOps={serverOps} staff={staff}>
         {children}
       </PhoneShell>
     );
   }
 
   return (
-    <WideShell session={session} serverOps={serverOps}>
+    <WideShell session={session} serverOps={serverOps} staff={staff}>
       {children}
     </WideShell>
   );

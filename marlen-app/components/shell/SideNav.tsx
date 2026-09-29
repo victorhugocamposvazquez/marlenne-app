@@ -3,24 +3,19 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { Calendar, Home, Plus, Settings, Users } from 'lucide-react';
+import { Calendar, Home, ListTodo, Plus, Settings, Sparkles, Users } from 'lucide-react';
 import { shallowSet } from '@/hooks/useShallowQuery';
-import type { WorkspaceKind } from '@/lib/personal-tasks';
 
 export default function SideNav({
   role,
-  workspace = 'company',
   account,
 }: {
   role: string;
-  workspace?: WorkspaceKind;
   account?: ReactNode;
 }) {
   const path = usePathname();
   const on = (p: string) => path.startsWith(p);
-  const personal = workspace === 'personal';
-  const showClientas = !personal && role !== 'provider';
-  const accent = personal ? 'rgb(var(--c-brand-2))' : 'rgb(var(--c-ink))';
+  const showClientas = role !== 'provider';
 
   const Item = ({ href, icon: Icon, label }: { href: string; icon: typeof Home; label: string }) => {
     const active = on(href);
@@ -28,19 +23,18 @@ export default function SideNav({
       <Link
         href={href}
         className={`flex items-center gap-3 rounded-row px-3 py-2.5 no-underline transition-colors ${
-          active ? 'bg-surface-soft font-bold' : 'font-medium hover:bg-surface-soft/70'
+          active ? 'bg-ink font-bold text-white' : 'font-medium text-ink-2 hover:bg-surface-soft'
         }`}
-        style={{ color: active ? accent : 'rgb(var(--c-ink-3))' }}
       >
-        <Icon size={22} strokeWidth={active ? 2.2 : 1.8} />
-        <span className="text-[15px]">{label}</span>
+        <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
+        <span className="text-[14.5px]">{label}</span>
       </Link>
     );
   };
 
   const create = () => {
-    if (personal) {
-      shallowSet({ tarea: '1' });
+    if (on('/tareas')) {
+      shallowSet({ tarea: '1', scope: 'centro' });
       return;
     }
     if (on('/clientas')) {
@@ -51,6 +45,9 @@ export default function SideNav({
       });
       return;
     }
+    if (on('/ajustes/servicios')) {
+      return;
+    }
     shallowSet({
       new: '1',
       con: null, hora: null, nombre: null, servicio: null, client: null,
@@ -58,29 +55,28 @@ export default function SideNav({
     });
   };
 
-  const fabLabel = personal
+  const fabLabel = on('/tareas')
     ? 'Nueva tarea'
     : on('/clientas')
       ? 'Nueva clienta'
       : 'Nueva cita';
-
-  const showCreate = personal || on('/agenda') || on('/clientas') || on('/hoy');
+  const showCreate = on('/agenda') || on('/clientas') || on('/hoy') || on('/tareas');
 
   return (
     <aside className="flex w-[220px] shrink-0 flex-col border-r border-surface-line bg-white px-3 py-4 pt-[max(16px,env(safe-area-inset-top))]">
-      <div className="mb-5 px-2">
-        <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-3">
-          {personal ? 'Personal' : 'Salón'}
-        </p>
-        <p className="mt-0.5 text-[17px] font-extrabold tracking-[-0.02em] text-ink">Marlén</p>
+      <div className="mb-5 flex items-center gap-2.5 px-2">
+        <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-grad text-[11px] font-extrabold text-white">
+          m
+        </span>
+        <p className="text-[17px] font-extrabold tracking-[-0.03em] text-ink">marlén</p>
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5">
         <Item href="/hoy" icon={Home} label="Hoy" />
-        {personal
-          ? <Item href="/calendario" icon={Calendar} label="Calendario" />
-          : <Item href="/agenda" icon={Calendar} label="Agenda" />}
+        <Item href="/agenda" icon={Calendar} label="Agenda" />
         {showClientas && <Item href="/clientas" icon={Users} label="Clientas" />}
+        <Item href="/ajustes/servicios" icon={Sparkles} label="Servicios" />
+        <Item href="/tareas" icon={ListTodo} label="Tareas" />
         <Item href="/ajustes" icon={Settings} label="Ajustes" />
       </nav>
 
@@ -89,7 +85,7 @@ export default function SideNav({
           type="button"
           onClick={create}
           className={`mb-3 flex h-11 items-center justify-center gap-2 rounded-pill text-[14.5px] font-bold text-white ${
-            personal ? 'bg-v-2' : 'bg-grad'
+            on('/tareas') ? 'bg-v-2' : 'bg-grad'
           }`}
         >
           <Plus size={18} strokeWidth={2.4} />

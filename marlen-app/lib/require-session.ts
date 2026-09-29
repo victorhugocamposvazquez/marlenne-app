@@ -9,11 +9,9 @@ export async function requireSession() {
   return me;
 }
 
-/** Rutas del centro: en la cuenta personal vuelven a Hoy. */
+/** Rutas del centro (antes bloqueaba workspace personal; ya no hay modo). */
 export async function requireCompany() {
-  const me = await requireSession();
-  if (me.workspace === 'personal') redirect('/hoy');
-  return me;
+  return requireSession();
 }
 
 export async function requireRole(...roles: StaffRole[]) {

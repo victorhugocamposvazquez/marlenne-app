@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase/server';
 
 function refresh() {
   revalidatePath('/hoy');
+  revalidatePath('/tareas');
   revalidatePath('/calendario');
 }
 
@@ -39,7 +40,7 @@ function mapTask(row: Record<string, unknown>): PersonalTask {
 
 export async function listPersonalTasks(): Promise<PersonalTask[]> {
   const me = await getSession();
-  if (!me || me.workspace !== 'personal') return [];
+  if (!me) return [];
   const sb = createClient();
   const { data, error } = await sb
     .from('personal_tasks')
@@ -74,14 +75,16 @@ export async function savePersonalTask(input: {
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const me = await getSession();
   if (!me) return { ok: false, error: 'Sesión caducada.' };
-  if (me.workspace !== 'personal') return { ok: false, error: 'Cambia a la cuenta personal.' };
 
   const title = input.title.trim();
   if (title.length < 1) return { ok: false, error: 'Escribe la tarea.' };
   if (title.length > 200) return { ok: false, error: 'El título es demasiado largo.' };
 
   const salonId = await personalSalonId();
-  if (!salonId) return { ok: false, error: 'Aún no hay cuenta personal.' };
+  if (!salonId) {
+    // Crear vía saveUnifiedTask en app/actions/tasks.ts; aquí solo si ya hay prefs.
+    return { ok: false, error: 'Abre Tareas para crear la primera personal.' };
+  }
 
   const date = (input.date ?? '').trim();
   const time = (input.time ?? '').trim();
