@@ -4,6 +4,7 @@ import { getStaffVoicePrefs } from '@/lib/queries';
 import { requireSession } from '@/lib/require-session';
 import { signOut } from '@/app/actions/auth';
 import { listMyPasskeys } from '@/app/actions/webauthn';
+import { isAppleMobile } from '@/lib/webauthn';
 import AjustesHeader from '@/components/ajustes/AjustesHeader';
 import { ajustesCardCls, ajustesSectionTitleCls } from '@/components/ajustes/AjustesSection';
 import Button from '@/components/ui/Button';
@@ -38,14 +39,21 @@ export default async function CuentaPage() {
   const passkeys = await listMyPasskeys();
   const ua = headers().get('user-agent') ?? '';
   const initialVoice = await getStaffVoicePrefs(me.id);
+  const showIosShortcuts = isAppleMobile(ua);
 
   return (
     <AjustesHeader title="Tu cuenta">
-      <PasskeySettingsCard ua={ua} initial={passkeys} />
-      <StaffReminderSettings />
-      <VoiceSettingsCard initialVoice={initialVoice} />
-      <IosShortcutsCard />
-      <PasswordForm />
+      <div className="min-[1024px]:grid min-[1024px]:grid-cols-2 min-[1024px]:items-start min-[1024px]:gap-x-8">
+        <div>
+          <PasskeySettingsCard ua={ua} initial={passkeys} />
+          <StaffReminderSettings />
+          {showIosShortcuts && <IosShortcutsCard />}
+        </div>
+        <div>
+          <VoiceSettingsCard initialVoice={initialVoice} />
+          <PasswordForm />
+        </div>
+      </div>
       <section className="mt-8">
         <h2 className={ajustesSectionTitleCls}>En el radar</h2>
         <ul className={ajustesCardCls}>

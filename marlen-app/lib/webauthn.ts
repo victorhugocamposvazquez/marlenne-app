@@ -15,7 +15,12 @@ export function isAndroidMobile(ua: string): boolean {
 }
 
 export function likelyHasPlatformUnlock(ua: string): boolean {
-  return isAppleMobile(ua) || /Android/i.test(ua);
+  return (
+    isAppleMobile(ua)
+    || /Android/i.test(ua)
+    || /Macintosh/i.test(ua)
+    || /Windows NT/i.test(ua)
+  );
 }
 
 export function rpIdFromOrigin(origin: string): string {
@@ -94,12 +99,27 @@ export function platformSettingsHint(ua: string): string {
   if (isAppleMobile(ua)) {
     return 'Face ID en este iPhone o iPad. En Android es la huella o la cara. La contraseña sigue valiendo.';
   }
-  return 'Huella o cara en este Android. En el iPhone y el iPad, Face ID. La contraseña sigue valiendo.';
+  if (/Macintosh/i.test(ua)) {
+    return 'Touch ID en este Mac (si lo tiene). En el iPhone o iPad es Face ID. La contraseña sigue valiendo.';
+  }
+  if (/Windows NT/i.test(ua)) {
+    return 'Huella o Windows Hello en este PC. En el iPhone es Face ID. La contraseña sigue valiendo.';
+  }
+  if (/Android/i.test(ua)) {
+    return 'Huella o cara en este Android. En el iPhone y el iPad, Face ID. La contraseña sigue valiendo.';
+  }
+  return 'Si este aparato tiene huella o cara, puedes activarla aquí. Si no, usa la contraseña.';
 }
 
 export function platformBannerHint(ua: string): string {
   if (isAppleMobile(ua)) {
     return 'Guarda Face ID en este aparato. La próxima vez entras con un toque, sin escribir la contraseña.';
+  }
+  if (/Macintosh/i.test(ua)) {
+    return 'Guarda Touch ID en este Mac. La próxima vez entras con un toque, sin escribir la contraseña.';
+  }
+  if (/Windows NT/i.test(ua)) {
+    return 'Guarda la huella o Windows Hello. La próxima vez entras con un toque, sin escribir la contraseña.';
   }
   return 'Guarda la huella o la cara de este móvil. En el iPhone es Face ID. La próxima vez, un toque.';
 }

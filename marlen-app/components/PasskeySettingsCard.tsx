@@ -136,7 +136,9 @@ export default function PasskeySettingsCard({
           </Button>
         ) : (
           <p className="mt-3 text-body text-ink-3">
-            Este aparato no tiene Face ID, huella ni cara. Prueba en el iPhone, el Android o el iPad de recepción.
+            {/Macintosh|Windows NT/i.test(ua)
+              ? 'Este ordenador no ofrece huella ni cara al navegador. En un Mac con Touch ID, o en el iPhone / Android de recepción, sí puedes activarlo.'
+              : 'Este aparato no tiene Face ID, huella ni cara. Prueba en el iPhone, el Android o el iPad de recepción.'}
           </p>
         )}
     </AjustesSection>

@@ -11,7 +11,7 @@ type Destino = { href: string; title: string; hint: string };
 function Group({ title, rows }: { title: string; rows: Destino[] }) {
   if (!rows.length) return null;
   return (
-    <section className="mt-8">
+    <section className="mt-8 min-[1024px]:mt-0">
       <h2 className={ajustesGroupTitleCls}>{title}</h2>
       <div className={ajustesCardCls}>
         {rows.map(row => (
@@ -86,9 +86,13 @@ export default function AjustesIndex({
           }
         />
       )}
-      {!personal && <Group title="Centro" rows={centro} />}
-      <Group title="Cuenta" rows={cuenta} />
-      {admin && !personal && <ReadyList items={ready} />}
+      <div className="min-[1024px]:mt-8 min-[1024px]:grid min-[1024px]:grid-cols-2 min-[1024px]:items-start min-[1024px]:gap-x-8">
+        {!personal && <Group title="Centro" rows={centro} />}
+        <div className={!personal ? undefined : 'min-[1024px]:col-span-2'}>
+          <Group title="Cuenta" rows={cuenta} />
+          {admin && !personal && <div className="min-[1024px]:mt-8"><ReadyList items={ready} /></div>}
+        </div>
+      </div>
     </>
   );
 
