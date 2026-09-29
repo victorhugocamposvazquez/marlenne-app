@@ -393,9 +393,9 @@ export default function AppointmentSheet({
           </Field>
 
           {showPayment && (
-            <Field label="Cobro">
+            <div className="mb-3.5">
               <ApptPaymentBlock appt={appt} onError={msg => setError(msg)} />
-            </Field>
+            </div>
           )}
 
           {appt.client_id && (

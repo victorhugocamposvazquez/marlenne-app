@@ -654,7 +654,6 @@ export function NewAppointmentSheetBody({
               </div>
               {editing && showPayment && (
                 <div className="mt-4">
-                  <p className="mb-2 text-[14px] font-semibold text-ink-2">Cobro</p>
                   <ApptPaymentBlock appt={editing} onError={setPayError} />
                   {payError && (
                     <p className="mt-2 text-label font-semibold text-danger-fg">{payError}</p>
