@@ -7,7 +7,6 @@ import PullRefresh from '@/components/PullRefresh';
 import EmbedPanelHint from '@/components/EmbedPanelHint';
 import OpsSupportBanner from '@/components/OpsSupportBanner';
 import ProfileSheetHost from '@/components/ProfileSheetHost';
-import MoreSheetHost from '@/components/MoreSheetHost';
 import TaskSheetHost from '@/components/personal/TaskSheetHost';
 import DetailPanel from '@/components/shell/DetailPanel';
 import SideNav from '@/components/shell/SideNav';
@@ -51,9 +50,6 @@ export default function WideShell({
           email={session.email}
           companyName={session.salonName}
         />
-      </Suspense>
-      <Suspense fallback={null}>
-        <MoreSheetHost />
       </Suspense>
       <Suspense fallback={null}>
         <TaskSheetHost staff={staff} />

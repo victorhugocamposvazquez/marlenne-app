@@ -4,10 +4,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import {
-  Calendar, Home, MoreVertical, Plus, Settings, Sparkles, Users,
+  Calendar, Clock, Home, ListTodo, Plus, Receipt, Settings, Sparkles, Users,
 } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
-import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
+import RefreshButton, { usePageRefresh } from '@/components/RefreshButton';
+import { shallowSet } from '@/hooks/useShallowQuery';
 
 export default function SideNav({
   role,
@@ -17,10 +18,10 @@ export default function SideNav({
   account?: ReactNode;
 }) {
   const path = usePathname();
-  const mas = useShallowParam('mas');
+  // Atajos F5 / ⌘R en PWA (sin chrome del navegador).
+  usePageRefresh();
   const on = (p: string) => path.startsWith(p);
   const showClientas = role !== 'provider';
-  const moreActive = on('/tareas') || mas === '1';
 
   const Item = ({ href, icon: Icon, label }: { href: string; icon: typeof Home; label: string }) => {
     const active = on(href);
@@ -37,6 +38,18 @@ export default function SideNav({
       </Link>
     );
   };
+
+  const Soon = ({ icon: Icon, label }: { icon: typeof Home; label: string }) => (
+    <span
+      role="link"
+      aria-disabled
+      aria-label={`${label} (próximamente)`}
+      title={`${label} · próximamente`}
+      className="grid h-11 w-11 place-items-center rounded-[13px] text-ink-3/55"
+    >
+      <Icon size={20} strokeWidth={1.9} />
+    </span>
+  );
 
   const create = () => {
     if (on('/tareas')) {
@@ -66,23 +79,14 @@ export default function SideNav({
         <BrandLogo size={34} alt="" />
       </Link>
 
-      <nav className="flex flex-1 flex-col items-center gap-1">
+      <nav className="flex flex-1 flex-col items-center gap-1 overflow-y-auto">
         <Item href="/hoy" icon={Home} label="Hoy" />
         <Item href="/agenda" icon={Calendar} label="Agenda" />
         {showClientas && <Item href="/clientas" icon={Users} label="Clientas" />}
         <Item href="/ajustes/servicios" icon={Sparkles} label="Servicios" />
-        <button
-          type="button"
-          aria-label="Más"
-          title="Más"
-          aria-expanded={mas === '1'}
-          onClick={() => shallowSet({ mas: '1' })}
-          className={`grid h-11 w-11 place-items-center rounded-[13px] transition-colors ${
-            moreActive ? 'bg-ink text-white' : 'text-ink-2 hover:bg-surface-soft'
-          }`}
-        >
-          <MoreVertical size={20} strokeWidth={moreActive ? 2.2 : 1.9} />
-        </button>
+        <Item href="/tareas" icon={ListTodo} label="Tareas" />
+        <Soon icon={Receipt} label="Facturación" />
+        <Soon icon={Clock} label="Fichar" />
         <Item href="/ajustes" icon={Settings} label="Ajustes" />
       </nav>
 
@@ -91,13 +95,15 @@ export default function SideNav({
           type="button"
           aria-label={on('/tareas') ? 'Nueva tarea' : on('/clientas') ? 'Nueva clienta' : 'Nueva cita'}
           onClick={create}
-          className={`mb-3 grid h-11 w-11 place-items-center rounded-pill text-white ${
+          className={`mb-2 grid h-11 w-11 place-items-center rounded-pill text-white ${
             on('/tareas') ? 'bg-v-2' : 'bg-grad'
           }`}
         >
           <Plus size={18} strokeWidth={2.4} />
         </button>
       )}
+
+      <RefreshButton rail className="mb-2" />
 
       <div className="flex justify-center border-t border-surface-line pt-3">
         {account}
