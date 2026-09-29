@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import IconButton from '@/components/ui/IconButton';
 import SheetShell, { SheetGrab, SheetHandle, useSheetShellClose } from '@/components/SheetShell';
+import { useAppShellMode } from '@/hooks/useAppShellMode';
 import { shallowSet } from '@/hooks/useShallowQuery';
 
 /** Los sheets viven en la URL, así el botón atrás del móvil también los cierra. */
@@ -39,11 +40,12 @@ function SheetBody({
   footer?: React.ReactNode | ((requestClose: ReturnType<typeof useSheetShellClose>) => React.ReactNode);
 }) {
   const requestClose = useSheetShellClose();
+  const wide = useAppShellMode() === 'wide';
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <SheetGrab className="shrink-0 px-5 pb-3 pt-1">
-        <SheetHandle className="mb-3" />
+      <SheetGrab className={`shrink-0 px-5 pb-3 ${wide ? 'pt-4' : 'pt-1'}`}>
+        {!wide && <SheetHandle className="mb-3" />}
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <h2 className="text-title font-bold leading-tight tracking-[-.02em]">{title}</h2>

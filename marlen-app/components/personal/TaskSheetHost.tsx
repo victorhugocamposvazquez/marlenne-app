@@ -6,6 +6,8 @@ import { Calendar, ChevronLeft, ChevronRight, Trash2, X } from 'lucide-react';
 import DayStrip from '@/components/agenda/DayStrip';
 import { deletePersonalTask, getPersonalTask, savePersonalTask } from '@/app/actions/personal-tasks';
 import PersonalChip from '@/components/personal/PersonalChip';
+import { getDetailSlot } from '@/components/shell/detail-slot';
+import { useAppShellMode } from '@/hooks/useAppShellMode';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 import {
   inferRemindChoice,
@@ -28,9 +30,11 @@ function close() {
 
 export default function TaskSheetHost() {
   const tarea = useShallowParam('tarea');
+  const shellMode = useAppShellMode();
   const open = Boolean(tarea);
   const editing = tarea && tarea !== '1' ? tarea : null;
   const todayKey = dayKey(new Date());
+  const wide = shellMode === 'wide';
 
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
@@ -141,18 +145,16 @@ export default function TaskSheetHost() {
     setStripStart(prev => alignStripStart(off, prev, 5));
   };
 
-  const sheet = (
-    <>
-      <button
-        type="button"
-        aria-label="Cerrar"
-        onClick={close}
-        className="fixed inset-0 z-[60] bg-[rgba(15,14,26,.32)]"
-      />
-      <div className="fixed inset-x-0 bottom-0 z-[61] mx-auto flex max-h-[92dvh] max-w-[440px] flex-col rounded-t-[28px] bg-white shadow-[0_-16px_50px_rgba(15,14,26,.18)]">
-        <div className="flex justify-center pt-2.5">
-          <span className="h-[5px] w-11 rounded-pill bg-[#E6E5EC]" />
-        </div>
+  const panel = (
+    <div className={wide
+      ? 'flex h-full w-full flex-col bg-white'
+      : 'fixed inset-x-0 bottom-0 z-[61] mx-auto flex max-h-[92dvh] max-w-[440px] flex-col rounded-t-[28px] bg-white shadow-[0_-16px_50px_rgba(15,14,26,.18)]'
+    }>
+        {!wide && (
+          <div className="flex justify-center pt-2.5">
+            <span className="h-[5px] w-11 rounded-pill bg-[#E6E5EC]" />
+          </div>
+        )}
         <div className="flex items-center justify-between px-[22px] pt-2.5">
           <span className="text-[20px] font-extrabold tracking-[-.02em]">
             {editing ? 'Editar tarea' : 'Nueva tarea'}
@@ -260,11 +262,24 @@ export default function TaskSheetHost() {
           </button>
         </div>
       </div>
+  );
+
+  const sheet = (
+    <>
+      {!wide && (
+        <button
+          type="button"
+          aria-label="Cerrar"
+          onClick={close}
+          className="fixed inset-0 z-[60] bg-[rgba(15,14,26,.32)]"
+        />
+      )}
+      {panel}
 
       {shCal && (
         <>
           <button type="button" aria-label="Cerrar calendario" onClick={() => setShCal(false)} className="fixed inset-0 z-[62] bg-[rgba(15,14,26,.32)]" />
-          <div className="fixed inset-x-0 bottom-0 z-[63] mx-auto max-w-[440px] rounded-t-[28px] bg-white px-[22px] pb-[max(20px,env(safe-area-inset-bottom))] shadow-[0_-16px_50px_rgba(15,14,26,.22)]">
+          <div className={`${wide ? 'absolute inset-x-0 bottom-0 z-[63]' : 'fixed inset-x-0 bottom-0 z-[63] mx-auto'} max-w-[440px] rounded-t-[28px] bg-white px-[22px] pb-[max(20px,env(safe-area-inset-bottom))] shadow-[0_-16px_50px_rgba(15,14,26,.22)]`}>
             <div className="flex justify-center pt-2.5">
               <span className="h-[5px] w-11 rounded-pill bg-[#E6E5EC]" />
             </div>
@@ -324,5 +339,6 @@ export default function TaskSheetHost() {
     </>
   );
 
-  return createPortal(sheet, document.body);
+  const target = wide ? (getDetailSlot() ?? document.body) : document.body;
+  return createPortal(sheet, target);
 }

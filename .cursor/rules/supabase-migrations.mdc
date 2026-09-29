@@ -1,0 +1,20 @@
+---
+description: Cómo aplicar migraciones Supabase (Terminal Mac, no CLI del agente)
+alwaysApply: true
+---
+
+# Migraciones Supabase
+
+Hugo **no tiene** el access token del CLI en el entorno del agente. No ejecutar `supabase db push`, `supabase login`, `supabase link` ni `supabase db query --linked` desde el agente.
+
+## Al aplicar migraciones
+
+1. Abrir **Terminal.app** con `osascript` (no el shell interno del agente).
+2. El comando debe pedir la contraseña **en la terminal** con `read -rs` (no llavero del CLI).
+3. Ejemplo:
+
+```bash
+osascript -e 'tell application "Terminal" to activate' -e 'tell application "Terminal" to do script "cd \"/Users/hugocamposvazquez/PROYECTOS PROPIOS/marlenne\" && printf \"Contraseña de la base de datos: \" && read -rs DBPASS && echo && supabase db push --linked --password \"$DBPASS\" --yes --agent no; unset DBPASS"'
+```
+
+4. Avisar a Hugo que pegue la contraseña de Postgres ahí y pulse Enter.

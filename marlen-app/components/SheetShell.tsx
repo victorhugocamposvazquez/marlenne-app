@@ -12,6 +12,8 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { getDetailSlot } from '@/components/shell/detail-slot';
+import { useAppShellMode } from '@/hooks/useAppShellMode';
 import { useRevealField } from '@/hooks/useRevealField';
 import { useSheetResize, type SheetDetent } from '@/hooks/useSheetResize';
 
@@ -98,11 +100,13 @@ export default function SheetShell({
   grabHeader?: boolean;
 }) {
   const isClient = useSyncExternalStore(subscribeClient, getClientSnapshot, getServerSnapshot);
+  const shellMode = useAppShellMode();
   const panelRef = useRef<HTMLDivElement>(null);
   const afterCloseRef = useRef<(() => void) | null>(null);
   const finishedRef = useRef(false);
   const [closing, setClosing] = useState(false);
   const [entered, setEntered] = useState(false);
+  const [detailSlot, setDetailSlot] = useState<HTMLElement | null>(null);
 
   const finishClose = useCallback(() => {
     if (finishedRef.current) return;
@@ -121,7 +125,14 @@ export default function SheetShell({
   const { height, dragging, onHandleDown } = useSheetResize(initialHeight, { floorDetent });
   useRevealField(panelRef, isClient);
 
+  const widePanel = shellMode === 'wide';
+
   useLayoutEffect(() => {
+    if (widePanel) {
+      setDetailSlot(getDetailSlot());
+      setEntered(true);
+      return;
+    }
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const id = requestAnimationFrame(() => setEntered(true));
@@ -129,10 +140,19 @@ export default function SheetShell({
       cancelAnimationFrame(id);
       document.body.style.overflow = prev;
     };
-  }, []);
+  }, [widePanel]);
+
+  useEffect(() => {
+    if (!widePanel) return;
+    setDetailSlot(getDetailSlot());
+  }, [widePanel]);
 
   useEffect(() => {
     if (!closing) return;
+    if (widePanel) {
+      finishClose();
+      return;
+    }
     const panel = panelRef.current;
     const onEnd = (e: AnimationEvent) => {
       if (e.target !== panel) return;
@@ -144,11 +164,34 @@ export default function SheetShell({
       panel?.removeEventListener('animationend', onEnd);
       window.clearTimeout(t);
     };
-  }, [closing, finishClose]);
+  }, [closing, finishClose, widePanel]);
 
   if (!isClient) return null;
 
   const grabCtx: GrabCtx = { onHandleDown, dragging };
+
+  if (widePanel) {
+    const slot = detailSlot ?? getDetailSlot();
+    if (!slot) return null;
+
+    return createPortal(
+      <SheetGrabContext.Provider value={null}>
+        <SheetCloseContext.Provider value={requestClose}>
+          <div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            className={`flex h-full w-full flex-col overflow-hidden bg-white ${closing ? 'opacity-0' : 'opacity-100'} ${className}`}
+          >
+            <div className="flex min-h-0 flex-1 flex-col">
+              {children}
+            </div>
+          </div>
+        </SheetCloseContext.Provider>
+      </SheetGrabContext.Provider>,
+      slot,
+    );
+  }
 
   return createPortal(
     <SheetGrabContext.Provider value={grabCtx}>
