@@ -6,7 +6,6 @@ import AccountMenu from '@/components/AccountMenu';
 import PullRefresh from '@/components/PullRefresh';
 import EmbedPanelHint from '@/components/EmbedPanelHint';
 import OpsSupportBanner from '@/components/OpsSupportBanner';
-import ProfileSheetHost from '@/components/ProfileSheetHost';
 import TaskSheetHost from '@/components/personal/TaskSheetHost';
 import DetailPanel from '@/components/shell/DetailPanel';
 import SideNav from '@/components/shell/SideNav';
@@ -30,7 +29,13 @@ export default function WideShell({
     <div className="flex h-[100dvh] w-full overflow-hidden bg-surface-bg pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       <SideNav
         role={session.role}
-        account={<AccountMenu variant="rail" />}
+        account={
+          <AccountMenu
+            variant="rail"
+            fullName={session.fullName}
+            email={session.email}
+          />
+        }
       />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <OpsSupportBanner serverOps={serverOps} />
@@ -44,13 +49,6 @@ export default function WideShell({
           </Suspense>
         </div>
       </div>
-      <Suspense fallback={null}>
-        <ProfileSheetHost
-          fullName={session.fullName}
-          email={session.email}
-          companyName={session.salonName}
-        />
-      </Suspense>
       <Suspense fallback={null}>
         <TaskSheetHost staff={staff} />
       </Suspense>
