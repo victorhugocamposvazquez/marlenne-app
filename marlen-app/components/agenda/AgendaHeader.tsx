@@ -230,14 +230,30 @@ export default function AgendaHeader({
     <header className={screenHeaderCls}>
       <HeaderTitleRow
         title={(
-          <button
-            type="button"
-            onClick={() => setCal(true)}
-            className={`flex min-w-0 max-w-full items-center gap-[0.15em] text-left ${screenTitleCls}`}
-          >
-            <span className="whitespace-nowrap">{monthTitleFromOffset(day)}</span>
-            <ChevronDown strokeWidth={2.6} className={screenTitleChevronCls} aria-hidden />
-          </button>
+          <div className="flex min-w-0 flex-col gap-1">
+            <button
+              type="button"
+              onClick={() => setCal(true)}
+              className={`flex min-w-0 max-w-full items-center gap-[0.15em] text-left ${screenTitleCls}`}
+            >
+              <span className="whitespace-nowrap">{monthTitleFromOffset(day)}</span>
+              <ChevronDown strokeWidth={2.6} className={screenTitleChevronCls} aria-hidden />
+            </button>
+            <div className="flex w-fit gap-0.5" role="group" aria-label="Vista">
+              {(['dia', 'semana'] as const).map(m => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => go(day, { mode: m })}
+                  className={`h-7 rounded-pill px-2.5 text-[12px] font-bold ${
+                    mode === m ? 'bg-ink text-white' : 'text-ink-2'
+                  }`}
+                >
+                  {m === 'dia' ? 'Día' : 'Semana'}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
         actions={(
           <>
@@ -251,24 +267,9 @@ export default function AgendaHeader({
         )}
       />
 
-      <div className="mt-2 flex rounded-pill bg-track p-0.5 self-start">
-        {(['dia', 'semana'] as const).map(m => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => go(day, { mode: m })}
-            className={`h-8 rounded-pill px-3.5 text-[12.5px] font-bold ${
-              mode === m ? 'bg-ink text-white' : 'text-ink-2'
-            }`}
-          >
-            {m === 'dia' ? 'Día' : 'Semana'}
-          </button>
-        ))}
-      </div>
-
       {mode === 'dia' && (
         <>
-          <div className="mt-1.5 w-full">
+          <div className="mt-1 w-full">
             <DayStrip
               selectedOffset={day}
               startOffset={start}
@@ -276,7 +277,7 @@ export default function AgendaHeader({
               onSelect={offset => go(skipSunday(offset, 1))}
             />
           </div>
-          <div className="mt-2 flex min-h-[18px] flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-center text-label">
+          <div className="mt-1.5 flex min-h-[18px] flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-center text-label">
             {citas != null && (
               <span className="shrink-0 text-ink-3">
                 {citas === 0 ? 'Sin citas' : `${citas} ${citas === 1 ? 'cita' : 'citas'}`}
