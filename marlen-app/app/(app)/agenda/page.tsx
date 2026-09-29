@@ -1,6 +1,5 @@
-import DayGrid from '@/components/agenda/DayGrid';
+import AgendaBody from '@/components/agenda/AgendaBody';
 import { PlaceProvider } from '@/components/agenda/PlaceContext';
-import WeekGrid from '@/components/agenda/WeekGrid';
 import AgendaHeader from '@/components/agenda/AgendaHeader';
 import AppointmentSheetHost from '@/components/agenda/AppointmentSheetHost';
 import NewAppointmentSheetHost from '@/components/agenda/NewAppointmentSheetHost';
@@ -32,7 +31,6 @@ export default async function AgendaPage({
   const mode = searchParams.mode === 'semana' ? 'semana' : 'dia';
   const [me, staff] = await Promise.all([requireCompany(), listStaff()]);
   const all = agendaColumns(staff);
-  // Una profesional solo ve su propia columna.
   const visible = me.role === 'provider' ? all.filter(p => p.id === me.id) : all;
   const team = visible.length > 0 ? visible : [{
     id: me.id,
@@ -42,9 +40,14 @@ export default async function AgendaPage({
     job_title: me.job_title,
     color: me.color,
   }];
+
+  // Semana = un profesional (como el diseño). Día = columnas del equipo.
   const selectedPro = me.role === 'provider'
     ? me.id
-    : (team.some(p => p.id === searchParams.pro) ? searchParams.pro : undefined);
+    : (team.some(p => p.id === searchParams.pro)
+      ? searchParams.pro
+      : (mode === 'semana' ? team[0]?.id : undefined));
+
   const providers = selectedPro ? team.filter(p => p.id === selectedPro) : team;
   const canMoveProvider = me.role !== 'provider';
   const sheetProviders = selectedPro
@@ -54,13 +57,15 @@ export default async function AgendaPage({
   const teamIds = team.map(p => p.id);
   const stripStart = alignStripStart(day, strip, 5);
   const busyProviderIds = providers.map(p => p.id);
+  const weekProIds = selectedPro ? [selectedPro] : busyProviderIds;
+
   const [waitingPeek, dayAgenda, weekDays, stripBusy] = await Promise.all([
     peekWaitlist(),
     mode === 'dia'
       ? getDayAgenda(dateFromOffset(day), teamIds)
       : Promise.resolve({ appointments: [], blocks: [] }),
     mode === 'semana'
-      ? getWeekCounts(busyProviderIds, day)
+      ? getWeekCounts(weekProIds, day)
       : Promise.resolve([]),
     mode === 'dia'
       ? getBusyOffsets(busyProviderIds, agendaBusyInitialStart(day), agendaBusyInitialCount())
@@ -71,7 +76,7 @@ export default async function AgendaPage({
   const citas = live.length;
 
   return (
-    <div className="relative flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="relative flex h-0 min-h-0 flex-1 flex-col overflow-hidden bg-surface-bg">
       <PlaceProvider>
       <AgendaHeader
         day={day}
@@ -81,19 +86,20 @@ export default async function AgendaPage({
         citas={mode === 'dia' ? citas : undefined}
         busyOffsets={stripBusy}
         busyProviderIds={mode === 'dia' ? busyProviderIds : []}
+        team={team}
+        selectedPro={selectedPro}
       />
-      {mode === 'dia' ? (
-        <DayGrid
-          date={dateFromOffset(day).toISOString()}
-          providers={team}
-          appointments={dayAgenda.appointments}
-          blocks={dayAgenda.blocks}
-          canMoveProvider={canMoveProvider}
-          selectedPro={selectedPro}
-        />
-      ) : (
-        <WeekGrid days={weekDays} selectedPro={selectedPro} providerCount={providers.length} />
-      )}
+      <AgendaBody
+        mode={mode}
+        dateIso={dateFromOffset(day).toISOString()}
+        team={mode === 'dia' ? team : providers}
+        appointments={dayAgenda.appointments}
+        blocks={dayAgenda.blocks}
+        canMoveProvider={canMoveProvider}
+        selectedPro={selectedPro}
+        weekDays={weekDays}
+        weekProviderCount={providers.length}
+      />
 
       <NewAppointmentSheetHost
         day={dayStr}

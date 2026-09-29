@@ -18,13 +18,13 @@ export default function AccountMenu({
           type="button"
           aria-label="Perfil"
           aria-expanded={open}
+          title="Perfil"
           onClick={() => shallowSet({ perfil: open ? null : '1' })}
-          className={`flex w-full items-center gap-3 rounded-row px-3 py-2.5 ${
-            open ? 'bg-surface-soft font-bold text-ink' : 'font-medium text-ink-3 hover:bg-surface-soft/70'
+          className={`grid h-11 w-11 place-items-center rounded-full transition-colors ${
+            open ? 'bg-ink text-white' : 'bg-ink text-white'
           }`}
         >
-          <User size={22} strokeWidth={open ? 2.2 : 1.8} />
-          <span className="text-[15px]">Perfil</span>
+          <User size={18} strokeWidth={2.1} />
         </button>
       </div>
     );

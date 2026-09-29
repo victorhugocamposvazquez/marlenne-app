@@ -3,7 +3,10 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { Calendar, Home, MoreVertical, Plus, Settings, Sparkles, Users } from 'lucide-react';
+import {
+  Calendar, Home, MoreVertical, Plus, Settings, Sparkles, Users,
+} from 'lucide-react';
+import BrandLogo from '@/components/BrandLogo';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 
 export default function SideNav({
@@ -24,12 +27,13 @@ export default function SideNav({
     return (
       <Link
         href={href}
-        className={`flex items-center gap-3 rounded-row px-3 py-2.5 no-underline transition-colors ${
-          active ? 'bg-ink font-bold text-white' : 'font-medium text-ink-2 hover:bg-surface-soft'
+        aria-label={label}
+        title={label}
+        className={`grid h-11 w-11 place-items-center rounded-[13px] no-underline transition-colors ${
+          active ? 'bg-ink text-white' : 'text-ink-2 hover:bg-surface-soft'
         }`}
       >
-        <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
-        <span className="text-[14.5px]">{label}</span>
+        <Icon size={20} strokeWidth={active ? 2.2 : 1.9} />
       </Link>
     );
   };
@@ -47,9 +51,6 @@ export default function SideNav({
       });
       return;
     }
-    if (on('/ajustes/servicios')) {
-      return;
-    }
     shallowSet({
       new: '1',
       con: null, hora: null, nombre: null, servicio: null, client: null,
@@ -57,23 +58,15 @@ export default function SideNav({
     });
   };
 
-  const fabLabel = on('/tareas')
-    ? 'Nueva tarea'
-    : on('/clientas')
-      ? 'Nueva clienta'
-      : 'Nueva cita';
   const showCreate = on('/agenda') || on('/clientas') || on('/hoy') || on('/tareas');
 
   return (
-    <aside className="flex w-[220px] shrink-0 flex-col border-r border-surface-line bg-white px-3 py-4 pt-[max(16px,env(safe-area-inset-top))]">
-      <div className="mb-5 flex items-center gap-2.5 px-2">
-        <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-grad text-[11px] font-extrabold text-white">
-          m
-        </span>
-        <p className="text-[17px] font-extrabold tracking-[-0.03em] text-ink">marlén</p>
-      </div>
+    <aside className="flex w-[68px] shrink-0 flex-col items-center border-r border-surface-line bg-white px-2 py-4 pt-[max(16px,env(safe-area-inset-top))]">
+      <Link href="/hoy" aria-label="Marlén" className="mb-5 grid place-items-center no-underline">
+        <BrandLogo size={34} alt="" />
+      </Link>
 
-      <nav className="flex flex-1 flex-col gap-0.5">
+      <nav className="flex flex-1 flex-col items-center gap-1">
         <Item href="/hoy" icon={Home} label="Hoy" />
         <Item href="/agenda" icon={Calendar} label="Agenda" />
         {showClientas && <Item href="/clientas" icon={Users} label="Clientas" />}
@@ -81,14 +74,14 @@ export default function SideNav({
         <button
           type="button"
           aria-label="Más"
+          title="Más"
           aria-expanded={mas === '1'}
           onClick={() => shallowSet({ mas: '1' })}
-          className={`flex w-full items-center gap-3 rounded-row px-3 py-2.5 text-left transition-colors ${
-            moreActive ? 'bg-ink font-bold text-white' : 'font-medium text-ink-2 hover:bg-surface-soft'
+          className={`grid h-11 w-11 place-items-center rounded-[13px] transition-colors ${
+            moreActive ? 'bg-ink text-white' : 'text-ink-2 hover:bg-surface-soft'
           }`}
         >
-          <MoreVertical size={20} strokeWidth={moreActive ? 2.2 : 1.8} />
-          <span className="text-[14.5px]">Más</span>
+          <MoreVertical size={20} strokeWidth={moreActive ? 2.2 : 1.9} />
         </button>
         <Item href="/ajustes" icon={Settings} label="Ajustes" />
       </nav>
@@ -96,17 +89,17 @@ export default function SideNav({
       {showCreate && (
         <button
           type="button"
+          aria-label={on('/tareas') ? 'Nueva tarea' : on('/clientas') ? 'Nueva clienta' : 'Nueva cita'}
           onClick={create}
-          className={`mb-3 flex h-11 items-center justify-center gap-2 rounded-pill text-[14.5px] font-bold text-white ${
+          className={`mb-3 grid h-11 w-11 place-items-center rounded-pill text-white ${
             on('/tareas') ? 'bg-v-2' : 'bg-grad'
           }`}
         >
           <Plus size={18} strokeWidth={2.4} />
-          {fabLabel}
         </button>
       )}
 
-      <div className="border-t border-surface-line pt-3">
+      <div className="flex justify-center border-t border-surface-line pt-3">
         {account}
       </div>
     </aside>

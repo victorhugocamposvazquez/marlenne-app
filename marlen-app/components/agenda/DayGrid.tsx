@@ -192,7 +192,10 @@ export default function DayGrid({
                   className={solo ? 'min-w-0 flex-1' : 'shrink-0'}
                   style={solo ? undefined : { width: colW }}
                 >
-                  <div className="flex items-center gap-2 border-b-2 border-ink px-1 pb-2.5">
+                  <div
+                    className="flex items-center gap-2 border-b-2 px-1 pb-2.5"
+                    style={{ borderColor: p.color ?? avatarColor(p.full_name) }}
+                  >
                     <span
                       className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold text-white"
                       style={{ background: p.color ?? avatarColor(p.full_name) }}
@@ -259,10 +262,10 @@ export default function DayGrid({
                   className="pointer-events-none absolute z-[8] flex items-center"
                   style={{ top: (now - DAY_START) * pxPerMin, width: solo ? '100%' : providers.length * colW }}
                 >
-                  <span className="-ml-1 grid h-5 w-10 shrink-0 place-items-center rounded-pill bg-v-2 text-[11px] font-bold text-white">
+                  <span className="-ml-1 grid h-5 shrink-0 place-items-center rounded-pill bg-ink px-1.5 text-[11px] font-bold tabular-nums text-white">
                     {fmt(now)}
                   </span>
-                  <span className="h-0.5 flex-1 bg-v-2" />
+                  <span className="h-0.5 flex-1 bg-ink" />
                 </div>
               )}
 

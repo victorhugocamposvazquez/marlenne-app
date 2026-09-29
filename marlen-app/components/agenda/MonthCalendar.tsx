@@ -11,11 +11,14 @@ export default function MonthCalendar({
   busyKeys = [],
   onClose,
   onSelect,
+  centered = false,
 }: {
   selectedOffset: number;
   busyKeys?: string[];
   onClose: () => void;
   onSelect: (offset: number) => void;
+  /** En escritorio: modal centrado (capturas). */
+  centered?: boolean;
 }) {
   const selectedKey = dayKey(dateFromOffset(selectedOffset));
   const [month, setMonth] = useState(() => selectedKey.slice(0, 7));
@@ -44,10 +47,13 @@ export default function MonthCalendar({
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center">
+    <div className={`fixed inset-0 z-[70] flex justify-center ${centered ? 'items-center p-6' : 'items-end'}`}>
       <button type="button" aria-label="Cerrar calendario" className="absolute inset-0 bg-[rgba(15,14,26,.35)]" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-[440px] rounded-t-sheet bg-white px-6 pb-8 pt-3 shadow-[0_-20px_60px_rgba(15,14,26,.18)]">
-        <div className="mx-auto mb-4 h-[5px] w-10 rounded-full bg-handle" />
+      <div className={`relative z-10 w-full max-w-[440px] bg-white px-6 pb-8 pt-3 shadow-[0_-20px_60px_rgba(15,14,26,.18)] ${
+        centered ? 'rounded-[28px] shadow-[0_24px_64px_rgba(15,14,26,.22)]' : 'rounded-t-sheet'
+      }`}>
+        {!centered && <div className="mx-auto mb-4 h-[5px] w-10 rounded-full bg-handle" />}
+        {centered && <div className="mb-2" />}
         <div className="mb-4 flex items-center justify-between">
           <button type="button" aria-label="Mes anterior" onClick={() => shiftMonth(-1)} className="grid h-10 w-10 place-items-center rounded-pill bg-track">
             <ChevronLeft size={16} strokeWidth={2.4} />
@@ -77,7 +83,7 @@ export default function MonthCalendar({
                 }}
                 className="flex h-11 flex-col items-center justify-center gap-0.5 rounded-[12px]"
                 style={{
-                  background: sel ? 'rgb(var(--c-brand-2))' : 'transparent',
+                  background: sel ? (centered ? 'rgb(var(--c-ink))' : 'rgb(var(--c-brand-2))') : 'transparent',
                   color: sel ? '#fff' : c.sun ? 'rgb(var(--c-ink-3))' : 'rgb(var(--c-ink))',
                   boxShadow: today && !sel ? 'inset 0 0 0 1.5px rgb(var(--c-brand-2))' : undefined,
                 }}
