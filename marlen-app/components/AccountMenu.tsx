@@ -5,26 +5,34 @@ import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 
 export default function AccountMenu({
   variant = 'tab',
+  expanded = false,
 }: {
   variant?: 'tab' | 'rail';
+  /** SideNav expandido: muestra etiqueta junto al avatar. */
+  expanded?: boolean;
 }) {
   const perfil = useShallowParam('perfil');
   const open = perfil === '1';
 
   if (variant === 'rail') {
     return (
-      <div data-no-pull>
+      <div data-no-pull className={expanded ? 'w-full' : undefined}>
         <button
           type="button"
           aria-label="Perfil"
           aria-expanded={open}
           title="Perfil"
           onClick={() => shallowSet({ perfil: open ? null : '1' })}
-          className={`grid h-11 w-11 place-items-center rounded-full transition-colors ${
-            open ? 'bg-ink text-white' : 'bg-ink text-white'
-          }`}
+          className={`flex items-center rounded-[13px] transition-colors ${
+            expanded ? 'h-11 w-full gap-3 px-2 hover:bg-surface-soft' : 'h-11 w-11 justify-center'
+          } ${open && expanded ? 'bg-surface-soft' : ''}`}
         >
-          <User size={18} strokeWidth={2.1} />
+          <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full bg-ink text-white">
+            <User size={18} strokeWidth={2.1} />
+          </span>
+          {expanded && (
+            <span className="truncate text-[13.5px] font-bold text-ink">Perfil</span>
+          )}
         </button>
       </div>
     );
