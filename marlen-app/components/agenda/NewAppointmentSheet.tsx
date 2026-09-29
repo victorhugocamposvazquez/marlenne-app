@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { Calendar, Check, ChevronLeft, Plus, Search, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { circleOutlineCls, pillOutlineCls } from '@/components/ui/IconButton';
 import { providerAgendaLabel } from '@/lib/team';
 import DayStrip from '@/components/agenda/DayStrip';
 import MonthCalendar from '@/components/agenda/MonthCalendar';
+import { usePlace } from '@/components/agenda/PlaceContext';
 import { useCloseSheet } from '@/components/Sheet';
 import SheetShell, { SheetGrab, SheetHandle, useSheetShellClose } from '@/components/SheetShell';
 import { avatarColor, catStyle, initials } from '@/lib/categories';
@@ -26,6 +27,7 @@ import { confirmPageUrl, waConfirmMsg, waHref } from '@/lib/phone';
 import { goWhatsApp, reserveWhatsAppWindow } from '@/hooks/open-whatsapp';
 import { issueAppointmentLink } from '@/lib/confirm-link';
 import type { AgendaAppt, ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
+import type { PlacePick } from '@/components/agenda/PlaceContext';
 
 type Step = 'client' | 'service' | 'when' | 'confirm';
 
@@ -60,6 +62,7 @@ export function NewAppointmentSheetBody({
 }: NewAppointmentSheetBodyProps) {
   const requestClose = useSheetShellClose();
   const toast = useToast();
+  const { publish } = usePlace();
   const [pending, startTransition] = useTransition();
   const guessed = initialServiceQ ? bestNameMatches(services, initialServiceQ, s => s.name) : [];
   const editClient = editing
@@ -191,6 +194,54 @@ export function NewAppointmentSheetBody({
   }, [step, service, providerId, bookDay, editing?.id]);
 
   const backToConfirm = returnTo === 'confirm' || !!editing;
+
+  const onGridPick = useCallback((p: PlacePick) => {
+    setProviderId(p.providerId);
+    setStartMin(p.startMin);
+    if (backToConfirm || (service && (client || who.length >= 2))) {
+      setReturnTo(null);
+      setStep('confirm');
+      return;
+    }
+    if (service) setStep('confirm');
+    else if (client || who.length >= 2) setStep('service');
+  }, [backToConfirm, service, client, who]);
+
+  const [gridStarts, setGridStarts] = useState<Record<string, number[]>>({});
+  useEffect(() => {
+    if (!service) {
+      setGridStarts({});
+      return;
+    }
+    let alive = true;
+    const sb = createClient();
+    void Promise.all(
+      providers.map(async p => {
+        const list = await slotsFor(sb, p.id, bookDay, service.duration_min, editing?.id);
+        return [p.id, list] as const;
+      }),
+    ).then(rows => {
+      if (alive) setGridStarts(Object.fromEntries(rows));
+    });
+    return () => { alive = false; };
+  }, [service, providers, bookDay, editing?.id]);
+
+  useEffect(() => {
+    publish({
+      durationMin: service?.duration_min ?? null,
+      starts: gridStarts,
+      pick: startMin != null && providerId
+        ? { providerId, startMin }
+        : null,
+      clientLabel: who,
+      serviceName: service?.name ?? '',
+      onPick: onGridPick,
+      excludeId: editing?.id ?? null,
+    });
+    return () => publish(null);
+  }, [
+    publish, service, gridStarts, startMin, providerId, who, onGridPick, editing?.id,
+  ]);
 
   const pickClient = (c: ClientOption | null, name?: string) => {
     setClient(c);

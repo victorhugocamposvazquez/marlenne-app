@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { catStyle, STATUS, avatarColor } from '@/lib/categories';
 import { citaCambiada, fmt, minutesOfDay, nowMinutes, dayKey, DAY_START, DAY_END, durLbl } from '@/lib/time';
 import { syncAppointmentReminderAction } from '@/app/actions/reminder-sync';
@@ -12,11 +12,14 @@ import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 import { shallowSet } from '@/hooks/useShallowQuery';
 import { useToast } from '@/components/Toast';
 import { usePlace } from '@/components/agenda/PlaceContext';
+import { useAppShellMode } from '@/hooks/useAppShellMode';
 import { providerShortLabel } from '@/lib/team';
-import { nearestStart, slotGaps, snapInGap } from '@/lib/place-slots';
+import { freeStarts, nearestStart, type BusyRange } from '@/lib/place-slots';
 import { GripVertical } from 'lucide-react';
 
 const PLACE_ID = '__place__';
+const SLOT_STEP = 15;
+const FINE_POINTER_MQ = '(hover: hover) and (pointer: fine)';
 
 function armColor(p: number) {
   if (p >= 0.72) return '#22C55E';
@@ -25,6 +28,42 @@ function armColor(p: number) {
 }
 const HOUR_W = 46;
 const COL_INSET = 4;
+
+function subscribeFinePointer(onChange: () => void) {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
+  const mq = window.matchMedia(FINE_POINTER_MQ);
+  mq.addEventListener('change', onChange);
+  return () => mq.removeEventListener('change', onChange);
+}
+
+function readFinePointer() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  return window.matchMedia(FINE_POINTER_MQ).matches;
+}
+
+function busyForProvider(
+  providerId: string,
+  appointments: AgendaAppt[],
+  blocks: AgendaBlock[],
+  optimistic: Record<string, { start: number; provider: string }>,
+  excludeId?: string | null,
+): BusyRange[] {
+  const ranges: BusyRange[] = [];
+  for (const a of appointments) {
+    if (excludeId && a.id === excludeId) continue;
+    const o = optimistic[a.id];
+    const provider = o?.provider ?? a.provider_id;
+    if (provider !== providerId) continue;
+    const start = o?.start ?? minutesOfDay(a.starts_at);
+    ranges.push({ start, end: start + a.duration_min });
+  }
+  for (const b of blocks) {
+    if (b.provider_id !== providerId) continue;
+    const start = minutesOfDay(b.starts_at);
+    ranges.push({ start, end: start + b.duration_min });
+  }
+  return ranges;
+}
 
 export default function DayGrid({
   date, providers, appointments, blocks, canMoveProvider, selectedPro,
@@ -45,7 +84,10 @@ export default function DayGrid({
   const gridRef = useRef<HTMLDivElement>(null);
   const [colW, setColW] = useState(COL_W);
   const toast = useToast();
-  const { placing, durationMin, starts, pick, clientLabel, serviceName, onPick } = usePlace();
+  const wide = useAppShellMode() === 'wide';
+  const finePointer = useSyncExternalStore(subscribeFinePointer, readFinePointer, () => false);
+  const showSlotHover = wide && finePointer;
+  const { placing, durationMin, starts, pick, clientLabel, serviceName, onPick, excludeId } = usePlace();
   useRealtimeRefresh(['appointments', 'time_blocks']);
   useEffect(() => {
     const t = setInterval(() => setNow(nowMinutes()), 60_000);
@@ -157,22 +199,63 @@ export default function DayGrid({
   const solo = providers.length <= 1;
   const dropCol = drag ? Math.max(0, providers.findIndex(p => p.id === drag.providerId)) : -1;
   const cardW = solo ? `calc(100% - ${COL_INSET}px)` : colW - COL_INSET;
+  const slotH = SLOT_STEP * pxPerMin - 2;
 
-  const tapGap = (providerId: string, first: number, last: number, clientY: number, el: HTMLElement) => {
-    if (!durationMin) return;
-    const y = clientY - el.getBoundingClientRect().top;
-    const raw = first + y / pxPerMin;
-    onPick({ providerId, startMin: snapInGap(raw, { first, last }) });
+  const tapSlot = (providerId: string, startMin: number) => {
+    if (placing) {
+      if (durationMin) {
+        const allowed = starts[providerId];
+        const list = allowed?.length
+          ? allowed
+          : freeStarts(
+            busyForProvider(providerId, appointments, blocks, optimistic, excludeId),
+            { dayStart: DAY_START, dayEnd: DAY_END, durationMin, step: SLOT_STEP },
+          );
+        if (!list.includes(startMin)) {
+          toast(`Aquí no caben ${durationMin} min`, 'err');
+          return;
+        }
+      }
+      onPick({ providerId, startMin });
+      return;
+    }
+    const hora = `${String(Math.floor(startMin / 60)).padStart(2, '0')}:${String(startMin % 60).padStart(2, '0')}`;
+    shallowSet({
+      new: '1',
+      con: providerId,
+      hora,
+      appt: null,
+      wait: null,
+      block: null,
+      bloqueo: null,
+    });
   };
 
   const openEmpty = (providerId: string, clientY: number, el: HTMLElement) => {
     if (drag || placing) return;
     const y = clientY - el.getBoundingClientRect().top;
-    const snapped = Math.round((DAY_START + y / pxPerMin) / 15) * 15;
-    const start = Math.max(DAY_START, Math.min(DAY_END - 15, snapped));
-    const hora = `${String(Math.floor(start / 60)).padStart(2, '0')}:${String(start % 60).padStart(2, '0')}`;
-    shallowSet({ new: '1', con: providerId, hora, appt: null, wait: null, block: null, bloqueo: null });
+    const snapped = Math.round((DAY_START + y / pxPerMin) / SLOT_STEP) * SLOT_STEP;
+    const start = Math.max(DAY_START, Math.min(DAY_END - SLOT_STEP, snapped));
+    tapSlot(providerId, start);
   };
+
+  const slotsByProvider = useMemo(() => {
+    const map: Record<string, number[]> = {};
+    for (const p of providers) {
+      if (placing && durationMin && starts[p.id]?.length) {
+        map[p.id] = starts[p.id];
+        continue;
+      }
+      const busy = busyForProvider(p.id, appointments, blocks, optimistic, excludeId);
+      map[p.id] = freeStarts(busy, {
+        dayStart: DAY_START,
+        dayEnd: DAY_END,
+        durationMin: placing && durationMin ? durationMin : undefined,
+        step: SLOT_STEP,
+      });
+    }
+    return map;
+  }, [providers, appointments, blocks, optimistic, excludeId, placing, durationMin, starts]);
 
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col">
@@ -280,23 +363,46 @@ export default function DayGrid({
                       openEmpty(p.id, e.clientY, e.currentTarget);
                     }}
                   >
-                    {placing && durationMin && slotGaps(starts[p.id] ?? []).map(g => {
-                      const top = (g.first - DAY_START) * pxPerMin + 2;
-                      const h = (g.last + durationMin - g.first) * pxPerMin - 6;
+                    {((showSlotHover || placing) ? (slotsByProvider[p.id] ?? []) : []).map(t => {
+                      const selected = !!pick
+                        && pick.providerId === p.id
+                        && pick.startMin === t;
+                      const showPlus = placing && !!durationMin;
                       return (
                         <button
-                          key={`${p.id}-${g.first}`}
+                          key={`${p.id}-${t}`}
                           type="button"
-                          aria-label={`Hueco ${fmt(g.first)} con ${providerShortLabel(p.full_name)}`}
+                          aria-label={`Hueco ${fmt(t)}${durationMin ? ` · ${durLbl(durationMin)}` : ''} con ${providerShortLabel(p.full_name)}`}
+                          aria-pressed={selected}
                           onClick={e => {
                             e.stopPropagation();
-                            tapGap(p.id, g.first, g.last, e.clientY, e.currentTarget);
+                            tapSlot(p.id, t);
                           }}
-                          className="absolute left-0.5 right-1 z-[3] rounded-pill border border-dashed border-v/40 bg-v-soft/50"
-                          style={{ top, height: Math.max(h, durationMin * pxPerMin - 6) }}
+                          className={`group absolute left-0.5 right-1 z-[3] flex items-center justify-center rounded-[9px] border-0 transition-colors ${
+                            selected
+                              ? 'bg-[rgba(208,0,168,.14)] ring-1 ring-[rgba(208,0,168,.5)]'
+                              : showPlus
+                                ? 'bg-[rgba(208,0,168,.06)] hover:bg-[rgba(208,0,168,.12)]'
+                                : 'bg-transparent hover:bg-[rgba(208,0,168,.08)]'
+                          }`}
+                          style={{
+                            top: (t - DAY_START) * pxPerMin + 1,
+                            height: slotH,
+                          }}
                         >
-                          <span className="block px-2 pt-1 text-left text-micro font-bold tabular-nums text-ink">
-                            {fmt(g.first)} · {durLbl(durationMin)}
+                          {showPlus && (
+                            <span className="bg-grad bg-clip-text text-[14px] font-bold leading-none text-transparent">
+                              +
+                            </span>
+                          )}
+                          <span
+                            className={`pointer-events-none absolute left-1.5 top-0.5 text-[10.5px] font-bold tabular-nums text-ink transition-opacity ${
+                              selected
+                                ? 'opacity-90'
+                                : 'opacity-0 group-hover:opacity-100'
+                            }`}
+                          >
+                            {fmt(t)}
                           </span>
                         </button>
                       );

@@ -25,3 +25,32 @@ export function nearestStart(startMin: number, starts: number[]): number {
   return starts.reduce((best, m) =>
     Math.abs(m - startMin) < Math.abs(best - startMin) ? m : best);
 }
+
+export type BusyRange = { start: number; end: number };
+
+export function overlapsBusy(start: number, end: number, busy: BusyRange[]) {
+  return busy.some(b => start < b.end && end > b.start);
+}
+
+/** Inicios cada `step` minutos donde cabe `durationMin` (o un paso si no se indica). */
+export function freeStarts(
+  busy: BusyRange[],
+  {
+    dayStart,
+    dayEnd,
+    durationMin,
+    step = 15,
+  }: {
+    dayStart: number;
+    dayEnd: number;
+    durationMin?: number;
+    step?: number;
+  },
+): number[] {
+  const need = durationMin ?? step;
+  const out: number[] = [];
+  for (let t = dayStart; t + need <= dayEnd; t += step) {
+    if (!overlapsBusy(t, t + need, busy)) out.push(t);
+  }
+  return out;
+}

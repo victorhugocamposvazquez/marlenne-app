@@ -11,6 +11,8 @@ export type PlaceSession = {
   clientLabel: string;
   serviceName: string;
   onPick: (p: PlacePick) => void;
+  /** Cita en edición: no bloquea su propio hueco. */
+  excludeId?: string | null;
 };
 
 type PlaceCtx = {
@@ -21,6 +23,7 @@ type PlaceCtx = {
   clientLabel: string;
   serviceName: string;
   onPick: (p: PlacePick) => void;
+  excludeId: string | null;
   publish: (s: PlaceSession | null) => void;
 };
 
@@ -36,6 +39,7 @@ const idle: PlaceCtx = {
   clientLabel: '',
   serviceName: '',
   onPick: noop,
+  excludeId: null,
   publish: noop,
 };
 
@@ -50,6 +54,7 @@ export function PlaceProvider({ children }: { children: ReactNode }) {
     clientLabel: session?.clientLabel ?? '',
     serviceName: session?.serviceName ?? '',
     onPick: session?.onPick ?? noop,
+    excludeId: session?.excludeId ?? null,
     publish,
   }), [session, publish]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
