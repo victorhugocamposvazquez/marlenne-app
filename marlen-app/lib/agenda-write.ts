@@ -155,6 +155,22 @@ export async function updateAppointmentNote(sb: SupabaseClient, id: string, note
   return { ok: !error, error: error?.message ?? null };
 }
 
+export async function updateAppointmentPayment(
+  sb: SupabaseClient,
+  id: string,
+  input: { paidCents: number; paymentMethod: string | null },
+): Promise<WriteResult> {
+  const paid = Math.max(0, Math.round(input.paidCents));
+  const method = input.paymentMethod && ['cash', 'card', 'bizum', 'mixed'].includes(input.paymentMethod)
+    ? input.paymentMethod
+    : null;
+  const { error } = await sb.from('appointments').update({
+    paid_cents: paid,
+    payment_method: method,
+  }).eq('id', id);
+  return { ok: !error, error: error?.message ?? null };
+}
+
 export async function createBlock(
   sb: SupabaseClient,
   input: {

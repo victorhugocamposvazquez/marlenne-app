@@ -26,6 +26,7 @@ import { useToast } from '@/components/Toast';
 import { confirmPageUrl, waConfirmMsg, waHref } from '@/lib/phone';
 import { goWhatsApp, reserveWhatsAppWindow } from '@/hooks/open-whatsapp';
 import { issueAppointmentLink } from '@/lib/confirm-link';
+import ApptPaymentBlock from '@/components/agenda/ApptPaymentBlock';
 import type { AgendaAppt, ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
 import type { PlacePick } from '@/components/agenda/PlaceContext';
 
@@ -53,17 +54,19 @@ export type NewAppointmentSheetBodyProps = {
   initialServiceQ?: string;
   initialProviderId?: string;
   editing?: AgendaAppt | null;
+  showPayment?: boolean;
 };
 
 export function NewAppointmentSheetBody({
   day, providers, services, clients, packs = [], serviceCounts = {}, preselected = null,
   initialName = '', initialHora = '', initialServiceQ = '', initialProviderId,
-  editing = null,
+  editing = null, showPayment = true,
 }: NewAppointmentSheetBodyProps) {
   const requestClose = useSheetShellClose();
   const toast = useToast();
   const { publish } = usePlace();
   const [pending, startTransition] = useTransition();
+  const [payError, setPayError] = useState<string | null>(null);
   const guessed = initialServiceQ ? bestNameMatches(services, initialServiceQ, s => s.name) : [];
   const editClient = editing
     ? (clients.find(c => c.id === editing.client_id) ?? (editing.client_id
@@ -649,6 +652,15 @@ export function NewAppointmentSheetBody({
                   last
                 />
               </div>
+              {editing && showPayment && (
+                <div className="mt-4">
+                  <p className="mb-2 text-[14px] font-semibold text-ink-2">Cobro</p>
+                  <ApptPaymentBlock appt={editing} onError={setPayError} />
+                  {payError && (
+                    <p className="mt-2 text-label font-semibold text-danger-fg">{payError}</p>
+                  )}
+                </div>
+              )}
               {waHref(client?.phone) ? (
                 <button type="button" onClick={() => setWa(v => !v)} className="mt-4 flex items-center gap-3 px-1">
                   <span

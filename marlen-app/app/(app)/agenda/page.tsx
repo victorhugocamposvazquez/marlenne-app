@@ -6,7 +6,7 @@ import NewAppointmentSheetHost from '@/components/agenda/NewAppointmentSheetHost
 import WaitlistSheetHost from '@/components/agenda/WaitlistSheetHost';
 import BlockSheetHost from '@/components/agenda/BlockSheetHost';
 import { requireCompany } from '@/lib/require-session';
-import { listStaff, getDayAgenda, getWeekCounts, getBusyOffsets, peekWaitlist } from '@/lib/queries';
+import { listStaff, getDayAgenda, getWeekCounts, getBusyOffsets, peekWaitlist, getSalonAgendaFeatures } from '@/lib/queries';
 import { agendaColumns } from '@/lib/team';
 import {
   agendaBusyInitialCount,
@@ -30,6 +30,7 @@ export default async function AgendaPage({
   const strip = Number.isFinite(stripParsed) ? stripParsed : day;
   const mode = searchParams.mode === 'semana' ? 'semana' : 'dia';
   const [me, staff] = await Promise.all([requireCompany(), listStaff()]);
+  const features = await getSalonAgendaFeatures(me.salon_id);
   const all = agendaColumns(staff);
   const visible = me.role === 'provider' ? all.filter(p => p.id === me.id) : all;
   const team = visible.length > 0 ? visible : [{
@@ -118,6 +119,7 @@ export default async function AgendaPage({
         canMoveProvider={canMoveProvider}
         initialId={searchParams.appt}
         startClosing={searchParams.close === '1'}
+        showPayment={features.apptPayment}
       />
 
       <WaitlistSheetHost initialOpen={searchParams.wait === '1'} />

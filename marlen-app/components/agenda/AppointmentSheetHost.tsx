@@ -49,7 +49,7 @@ function TapShield({ active }: { active: boolean }) {
 
 async function loadAppt(sb: SupabaseClient, id: string): Promise<AgendaAppt | null> {
   let { data, error } = await sb.from('appointments').select(APPT_SELECT).eq('id', id).maybeSingle();
-  if (error && /confirmed_at|client_pack|color/i.test(error.message)) {
+  if (error && /confirmed_at|client_pack|color|paid_cents|payment_method/i.test(error.message)) {
     ({ data, error } = await sb.from('appointments').select(APPT_SELECT_CORE).eq('id', id).maybeSingle());
   }
   if (error || !data) return null;
@@ -68,13 +68,14 @@ function serviceFallback(appt: AgendaAppt): ServiceOption {
 }
 
 export default function AppointmentSheetHost({
-  appointments, providers, canMoveProvider, initialId, startClosing,
+  appointments, providers, canMoveProvider, initialId, startClosing, showPayment = true,
 }: {
   appointments: AgendaAppt[];
   providers: Provider[];
   canMoveProvider: boolean;
   initialId?: string | null;
   startClosing?: boolean;
+  showPayment?: boolean;
 }) {
   const router = useRouter();
   const close = useCloseSheet();
@@ -207,6 +208,7 @@ export default function AppointmentSheetHost({
           canMoveProvider={canMoveProvider}
           startClosing
           sms={sms}
+          showPayment={showPayment}
         />
       </>
     );
@@ -257,6 +259,7 @@ export default function AppointmentSheetHost({
           initialName={appt.client_label}
           initialProviderId={appt.provider_id}
           editing={appt}
+          showPayment={showPayment}
         />
       </SheetShell>
     </>

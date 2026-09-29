@@ -46,6 +46,10 @@ export default function AjustesIndex({
   const centro: Destino[] = [
     { href: '/ajustes/equipo', title: 'Equipo', hint: admin ? 'Altas, rol y baja' : 'Quién trabaja en el centro' },
     ...(admin ? [{
+      href: '/ajustes/citas',
+      title: 'Citas',
+      hint: 'Cobro y citas sin llegar',
+    }, {
       href: '/ajustes/servicios',
       title: 'Servicios',
       hint: 'Categorías, precios y duración',

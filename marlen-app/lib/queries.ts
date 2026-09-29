@@ -7,10 +7,28 @@ import { listClientPacks, listPackTemplates, listSalonPacks } from '@/lib/pack-w
 import { DEFAULT_VOICE_PREFS } from '@/hooks/voice-prefs';
 import { personalSalonIdFromPrefs, workspaceFromPrefs } from '@/lib/personal-tasks';
 import { voiceFromStaffPrefs } from '@/lib/staff-app-prefs';
+import { salonAgendaFeaturesFromRow, type SalonAgendaFeatures } from '@/lib/salon-features';
 import type {
   AgendaAppt, AgendaBlock, ClientListRow, ClientOption, ClientPack, ClientRow, Consent, PackTemplate, Provider,
   RecallRow, ServiceCategory, ServiceOption, TreatmentRow, WaitItem, WeekDay,
 } from '@/lib/types';
+
+export async function getSalonAgendaFeatures(salonId: string): Promise<SalonAgendaFeatures> {
+  try {
+    const sb = createClient();
+    const { data, error } = await sb
+      .from('salons')
+      .select('feature_appt_payment, feature_overdue_appts')
+      .eq('id', salonId)
+      .maybeSingle();
+    if (error && /feature_appt_payment|feature_overdue_appts/i.test(error.message)) {
+      return salonAgendaFeaturesFromRow(null);
+    }
+    return salonAgendaFeaturesFromRow(data);
+  } catch {
+    return salonAgendaFeaturesFromRow(null);
+  }
+}
 
 export async function getSession() {
   try {
@@ -170,7 +188,7 @@ export async function lastAppointmentOf(clientId: string) {
 export async function getAppointment(id: string): Promise<AgendaAppt | null> {
   const sb = createClient();
   let { data, error } = await sb.from('appointments').select(APPT_SELECT).eq('id', id).maybeSingle();
-  if (error && /confirmed_at|client_pack|color/i.test(error.message)) {
+  if (error && /confirmed_at|client_pack|color|paid_cents|payment_method/i.test(error.message)) {
     ({ data, error } = await sb.from('appointments').select(APPT_SELECT_CORE).eq('id', id).maybeSingle());
   }
   return data ? mapAppt(data) : null;
@@ -213,7 +231,7 @@ export async function getDayAgenda(date: Date, providerIds: string[]) {
 
   let rows = appts.data;
   if (appts.error) {
-    const retry = /confirmed_at|client_pack|color/i.test(appts.error.message) ? await load(APPT_SELECT_CORE) : null;
+    const retry = /confirmed_at|client_pack|color|paid_cents|payment_method/i.test(appts.error.message) ? await load(APPT_SELECT_CORE) : null;
     rows = retry?.data ?? null;
     if (!rows) console.error('getDayAgenda', appts.error.message);
   }

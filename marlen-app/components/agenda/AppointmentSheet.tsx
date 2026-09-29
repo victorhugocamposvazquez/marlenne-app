@@ -7,6 +7,7 @@ import Sheet, { Chip, Field, inputCls } from '@/components/Sheet';
 import { useSheetShellClose } from '@/components/SheetShell';
 import Button from '@/components/ui/Button';
 import NextSlotControls from '@/components/agenda/NextSlotControls';
+import ApptPaymentBlock from '@/components/agenda/ApptPaymentBlock';
 import { catStyle, STATUS, type StatusId } from '@/lib/categories';
 import {
   cancelAppointment, slotsFor, updateAppointmentNote, updateStatus,
@@ -59,7 +60,7 @@ function smsBadgeCls(sms: {
 }
 
 export default function AppointmentSheet({
-  appt, providers, canMoveProvider, startClosing = false, sms = null,
+  appt, providers, canMoveProvider, startClosing = false, sms = null, showPayment = true,
 }: {
   appt: AgendaAppt;
   providers: Provider[];
@@ -72,6 +73,7 @@ export default function AppointmentSheet({
     delivered_at: string | null;
     error_message: string | null;
   } | null;
+  showPayment?: boolean;
 }) {
   const requestClose = useSheetShellClose();
   const toast = useToast();
@@ -91,6 +93,10 @@ export default function AppointmentSheet({
 
   const start = minutesOfDay(appt.starts_at);
   const cat = catStyle(appt.category, { color: appt.service_color });
+
+  useEffect(() => {
+    setNote(appt.note ?? '');
+  }, [appt.id, appt.note]);
 
   useEffect(() => {
     if (!moving) return;
@@ -385,6 +391,12 @@ export default function AppointmentSheet({
               }}
             />
           </Field>
+
+          {showPayment && (
+            <Field label="Cobro">
+              <ApptPaymentBlock appt={appt} onError={msg => setError(msg)} />
+            </Field>
+          )}
 
           {appt.client_id && (
             <Link

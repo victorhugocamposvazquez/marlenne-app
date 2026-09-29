@@ -8,6 +8,7 @@ import {
   createAppointment as createWrite,
   slotsFor as slotsWrite,
   updateAppointmentNote as noteWrite,
+  updateAppointmentPayment as paymentWrite,
   updateStatus as statusWrite,
 } from '@/lib/agenda-write';
 import { moveAppointment as moveAppointmentRpc } from '@/lib/move-appointment';
@@ -92,6 +93,16 @@ export async function cancelAppointment(id: string) {
 
 export async function updateAppointmentNote(id: string, note: string) {
   const r = await noteWrite(createClient(), id, note);
+  touchAgenda();
+  return r;
+}
+
+export async function updateAppointmentPayment(
+  id: string,
+  input: { paidCents: number; paymentMethod: string | null },
+) {
+  const r = await paymentWrite(createClient(), id, input);
+  if (r.ok) void recordOpsAudit('appointment.payment', { id, ...input });
   touchAgenda();
   return r;
 }

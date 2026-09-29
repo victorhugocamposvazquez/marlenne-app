@@ -1,4 +1,4 @@
-import type { AgendaAppt } from '@/lib/types';
+import type { AgendaAppt, PaymentMethod } from '@/lib/types';
 
 export const APPT_SELECT_CORE = `
   id, provider_id, client_id, client_name, starts_at, ends_at, duration_min,
@@ -8,7 +8,13 @@ export const APPT_SELECT_CORE = `
   client:clients(full_name, phone)
 `;
 
-export const APPT_SELECT = `${APPT_SELECT_CORE}, confirmed_at, client_pack_id, client_pack:client_packs(name)`;
+export const APPT_SELECT = `${APPT_SELECT_CORE}, paid_cents, payment_method, confirmed_at, client_pack_id, client_pack:client_packs(name)`;
+
+const METHODS = new Set<PaymentMethod>(['cash', 'card', 'bizum', 'mixed']);
+
+function asMethod(v: unknown): PaymentMethod | null {
+  return typeof v === 'string' && METHODS.has(v as PaymentMethod) ? (v as PaymentMethod) : null;
+}
 
 export function mapAppt(row: unknown): AgendaAppt {
   const r = row as {
@@ -21,6 +27,8 @@ export function mapAppt(row: unknown): AgendaAppt {
     duration_min: number;
     status: AgendaAppt['status'];
     price_cents: number | null;
+    paid_cents?: number | null;
+    payment_method?: string | null;
     treatment_id: string | null;
     session_no: number | null;
     service_id: string;
@@ -47,6 +55,8 @@ export function mapAppt(row: unknown): AgendaAppt {
     duration_min: r.duration_min,
     status: r.status,
     price_cents: r.price_cents,
+    paid_cents: Math.max(0, r.paid_cents ?? 0),
+    payment_method: asMethod(r.payment_method),
     treatment_id: r.treatment_id,
     session_no: r.session_no,
     note: r.note ?? null,

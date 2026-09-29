@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
 import { requireSession } from '@/lib/require-session';
-import { listProviders, getDayAgenda, countWaitlist, listRecalls } from '@/lib/queries';
+import { listProviders, getDayAgenda, countWaitlist, listRecalls, getSalonAgendaFeatures } from '@/lib/queries';
 import { countMyPasskeys } from '@/app/actions/webauthn';
 import { listUnifiedTasks } from '@/app/actions/tasks';
 import { fmt, minutesOfDay, madridNow, DAY_START, DAY_END, dayKey } from '@/lib/time';
+import { owedCents } from '@/lib/payment';
 import { tasksDueTodayOrOverdue } from '@/lib/tasks';
 import { CalendarCheck, ChevronRight, HeartHandshake, UserRound } from 'lucide-react';
 import EmptyState from '@/components/ui/EmptyState';
@@ -23,20 +24,23 @@ export default async function HoyPage() {
   const me = await requireSession();
   const cabin = me.role === 'provider';
   const todayKey = dayKey(new Date());
-  const [all, waiting, recalls, passkeyCount, allTasks] = await Promise.all([
+  const [all, waiting, recalls, passkeyCount, allTasks, features] = await Promise.all([
     listProviders(),
     cabin ? Promise.resolve(0) : countWaitlist(),
     cabin ? Promise.resolve([]) : listRecalls(6),
     countMyPasskeys(),
     listUnifiedTasks('todas'),
+    getSalonAgendaFeatures(me.salon_id),
   ]);
   const todayTasks = tasksDueTodayOrOverdue(allTasks, todayKey);
   const ua = headers().get('user-agent') ?? '';
   const providers = cabin ? all.filter(p => p.id === me.id) : all;
   const { appointments } = await getDayAgenda(new Date(), providers.map(p => p.id));
 
-  const revenue = appointments.reduce((s, a) => s + (a.price_cents ?? 0), 0) / 100;
-  const cash = appointments.filter(a => a.status === 'done').reduce((s, a) => s + (a.price_cents ?? 0), 0) / 100;
+  const billable = appointments.filter(a => a.status !== 'noshow');
+  const revenue = billable.reduce((s, a) => s + (a.price_cents ?? 0), 0) / 100;
+  const cash = billable.reduce((s, a) => s + (a.paid_cents ?? 0), 0) / 100;
+  const owed = billable.reduce((s, a) => s + owedCents(a.price_cents, a.paid_cents ?? 0), 0) / 100;
   const booked = appointments.reduce((s, a) => s + a.duration_min, 0);
   const dayMins = DAY_END - DAY_START;
   const occ = providers.length ? Math.round((100 * booked) / (providers.length * dayMins)) : 0;
@@ -45,8 +49,13 @@ export default async function HoyPage() {
   const nowMin = madridNow().h * 60 + madridNow().min;
   const pending = appointments.filter(a => a.status === 'prog')
     .sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at));
-  const overdue = pending.filter(a => minutesOfDay(a.starts_at) + 10 < nowMin);
-  const next = pending.filter(a => minutesOfDay(a.starts_at) + 10 >= nowMin).slice(0, 6);
+  const overdue = features.overdueAppts
+    ? pending.filter(a => minutesOfDay(a.starts_at) + 10 < nowMin)
+    : [];
+  const next = (features.overdueAppts
+    ? pending.filter(a => minutesOfDay(a.starts_at) + 10 >= nowMin)
+    : pending
+  ).slice(0, 6);
   const noshow = appointments.filter(a => a.status === 'noshow').length;
   const h = madridNow().h;
   const greeting = h < 13 ? 'Buenos días ☀️' : h < 20 ? 'Buenas tardes' : 'Buenas noches';
@@ -112,6 +121,9 @@ export default async function HoyPage() {
               <div className="mt-3.5 flex flex-wrap gap-2">
                 <span className="rounded-pill bg-white/20 px-3 py-1.5 text-caption font-semibold">{revenue} € previstos</span>
                 <span className="rounded-pill bg-white/20 px-3 py-1.5 text-caption font-semibold">{occ} % ocupación</span>
+                {features.apptPayment && owed > 0 && (
+                  <span className="rounded-pill bg-white/20 px-3 py-1.5 text-caption font-semibold">{owed} € a deber</span>
+                )}
                 {noshow > 0 && (
                   <span className="rounded-pill bg-white/20 px-3 py-1.5 text-caption font-semibold">{noshow} no vino</span>
                 )}
@@ -121,14 +133,16 @@ export default async function HoyPage() {
           </Link>
 
           <div className="mb-5 flex gap-2.5">
-            <div className="flex-1 rounded-row bg-surface-soft p-4">
-              <div className="text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">Caja hasta ahora</div>
-              <div className="mt-1 text-h1 font-extrabold tracking-[-.02em]">{cash} €</div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded bg-surface-line">
-                <div className="h-1.5 rounded bg-grad" style={{ width: `${revenue ? Math.round((100 * cash) / revenue) : 0}%` }} />
+            {features.apptPayment && (
+              <div className="flex-1 rounded-row bg-surface-soft p-4">
+                <div className="text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">Caja hasta ahora</div>
+                <div className="mt-1 text-h1 font-extrabold tracking-[-.02em]">{cash} €</div>
+                <div className="mt-2 h-1.5 overflow-hidden rounded bg-surface-line">
+                  <div className="h-1.5 rounded bg-grad" style={{ width: `${revenue ? Math.round((100 * cash) / revenue) : 0}%` }} />
+                </div>
               </div>
-            </div>
-            <div className="flex-1 rounded-row bg-surface-soft p-4">
+            )}
+            <div className={`${features.apptPayment ? 'flex-1' : 'w-full'} rounded-row bg-surface-soft p-4`}>
               <div className="text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">Hechas</div>
               <div className="mt-1 text-h1 font-extrabold tracking-[-.02em] tabular-nums">
                 {doneCount}<span className="text-body font-bold text-ink-3"> / {appointments.length}</span>
