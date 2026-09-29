@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { catStyle } from '@/lib/categories';
+import { catStyle, softAccent } from '@/lib/categories';
 import { DAY_END, DAY_START, fmt, minutesOfDay, nowMinutes } from '@/lib/time';
 import type { WeekDay } from '@/lib/types';
 import { activeAppts } from '@/lib/week-view';
@@ -154,10 +154,11 @@ export default function WeekTimeline({
                             e.stopPropagation();
                             shallowSet({ appt: a.id, new: null, wait: null });
                           }}
-                          className="absolute left-1 right-1 overflow-hidden rounded-[12px] border border-surface-line bg-[#F7F7FA] px-2 py-1.5 text-left shadow-sm"
+                          className="absolute left-1 right-1 overflow-hidden rounded-[12px] border border-surface-line px-2 py-1.5 text-left shadow-sm"
                           style={{
                             top,
                             height: h,
+                            background: softAccent(accent),
                             borderLeftWidth: 4,
                             borderLeftColor: accent,
                           }}

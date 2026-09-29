@@ -30,7 +30,7 @@ export default function HoyTasksBlock({ tasks }: { tasks: UnifiedTask[] }) {
       {shown.length === 0 ? (
         <button
           type="button"
-          onClick={() => shallowSet({ tarea: '1', scope: 'centro' })}
+          onClick={() => shallowSet({ tarea: '1', tscope: 'centro' })}
           className="flex w-full items-center gap-3 rounded-row border border-dashed border-surface-line bg-white px-4 py-3.5 text-left"
         >
           <span className="grid h-9 w-9 place-items-center rounded-pill bg-[#E8F2FF] text-v-2">
@@ -68,7 +68,7 @@ export default function HoyTasksBlock({ tasks }: { tasks: UnifiedTask[] }) {
               <button
                 type="button"
                 className="min-w-0 flex-1 text-left"
-                onClick={() => shallowSet({ tarea: task.id, scope: task.scope })}
+                onClick={() => shallowSet({ tarea: task.id, tscope: task.scope })}
               >
                 <span className={`block text-[14.5px] font-semibold ${task.done_at ? 'text-ink-3 line-through' : 'text-ink'}`}>
                   {task.title}

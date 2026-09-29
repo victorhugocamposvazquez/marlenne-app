@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { createPortal } from 'react-dom';
+import { useRouter } from 'next/navigation';
 import { Calendar, ChevronLeft, ChevronRight, Trash2, X } from 'lucide-react';
 import DayStrip from '@/components/agenda/DayStrip';
 import { deleteUnifiedTask, getUnifiedTask, saveUnifiedTask } from '@/app/actions/tasks';
@@ -26,7 +27,7 @@ const QUICK_TIMES = ['09:00', '12:00', '17:00'];
 const REMIND_LABELS = ['Sin aviso', '15 min antes', '1 h antes', '1 día antes'] as const;
 
 function close() {
-  shallowSet({ tarea: null, dia: null, scope: null });
+  shallowSet({ tarea: null, tscope: null });
 }
 
 export default function TaskSheetHost({
@@ -35,12 +36,14 @@ export default function TaskSheetHost({
   staff?: { id: string; full_name: string }[];
 }) {
   const tarea = useShallowParam('tarea');
-  const scopeParam = useShallowParam('scope');
+  const tscopeParam = useShallowParam('tscope');
+  const filterScope = useShallowParam('scope');
   const shellMode = useAppShellMode();
   const open = Boolean(tarea);
   const editing = tarea && tarea !== '1' ? tarea : null;
   const todayKey = dayKey(new Date());
   const wide = shellMode === 'wide';
+  const router = useRouter();
 
   const [scope, setScope] = useState<TaskScope>('centro');
   const [title, setTitle] = useState('');
@@ -63,11 +66,12 @@ export default function TaskSheetHost({
     if (!open) return;
     setError(null);
     setShCal(false);
-    const initialScope: TaskScope = scopeParam === 'personal' ? 'personal' : 'centro';
+    const preferred: TaskScope =
+      tscopeParam === 'personal' || filterScope === 'personal' ? 'personal' : 'centro';
     if (!editing) {
       const dia = new URLSearchParams(window.location.search).get('dia') ?? '';
       const d = /^\d{4}-\d{2}-\d{2}$/.test(dia) ? dia : todayKey;
-      setScope(initialScope);
+      setScope(preferred);
       setTitle('');
       setNote('');
       setDate(d);
@@ -79,7 +83,7 @@ export default function TaskSheetHost({
       setStripStart(pickStripStart(off));
       return;
     }
-    const loadScope: TaskScope = scopeParam === 'centro' ? 'centro' : 'personal';
+    const loadScope: TaskScope = tscopeParam === 'personal' ? 'personal' : 'centro';
     let alive = true;
     void getUnifiedTask(editing, loadScope).then(task => {
       if (!alive || !task) return;
@@ -107,7 +111,14 @@ export default function TaskSheetHost({
       }
     });
     return () => { alive = false; };
-  }, [open, editing, todayKey, scopeParam, staff]);
+    // Solo al abrir / cambiar de tarea. No resetear si el usuario cambia Del centro ↔ Personal.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- staff/filterScope no deben pisar el tipo elegido
+  }, [open, editing, todayKey, tscopeParam]);
+
+  useEffect(() => {
+    if (!open || editing || assignee) return;
+    if (staff[0]?.id) setAssignee(staff[0].id);
+  }, [open, editing, staff, assignee]);
 
   const hasTime = Boolean(time);
   const remindLabel = remindChoiceLabel(remind, hasTime);
@@ -143,6 +154,7 @@ export default function TaskSheetHost({
         return;
       }
       close();
+      router.refresh();
     });
   };
 
@@ -155,6 +167,7 @@ export default function TaskSheetHost({
         return;
       }
       close();
+      router.refresh();
     });
   };
 

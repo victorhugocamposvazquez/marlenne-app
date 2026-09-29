@@ -163,8 +163,8 @@ export default async function HoyPage() {
 
       {overdue.length > 0 && (
         <>
-          <h2 className="mb-2.5 text-body-lg font-bold tracking-[-.02em]">Sin llegar</h2>
-          <div className="mb-[22px] flex flex-col gap-2.5">
+          <h2 className="mb-2.5 text-body-lg font-bold tracking-[-.02em]">Citas sin llegar</h2>
+          <div className="mb-[22px] grid grid-cols-1 gap-2.5 min-[1024px]:grid-cols-2">
             {overdue.map(a => <HoyApptRow key={a.id} appt={a} late cabin={cabin} />)}
           </div>
         </>

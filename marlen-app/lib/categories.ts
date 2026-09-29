@@ -15,6 +15,25 @@ export const CATEGORIES: Record<string, CategoryLook> = {
   valoracion: { label: 'Valoraciones',       color: '#9B96B8', bg: 'var(--cat-valoracion-bg)', fg: 'var(--cat-valoracion-fg)' },
 };
 
+/** Tinte suave del acento (muesca) para fondos de cita. */
+export function softAccent(color: string, alpha = 0.14): string {
+  const raw = color.trim();
+  const hex = raw.startsWith('#') ? raw.slice(1) : raw;
+  if (/^[0-9a-fA-F]{3}$/.test(hex)) {
+    const r = parseInt(hex[0] + hex[0], 16);
+    const g = parseInt(hex[1] + hex[1], 16);
+    const b = parseInt(hex[2] + hex[2], 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+  if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+  return color;
+}
+
 /** Color y nombre: las de fábrica o una creada en Ajustes. */
 export function catStyle(
   slug: string | null | undefined,
@@ -25,7 +44,7 @@ export function catStyle(
   return {
     label: extra?.label || b?.label || 'Servicio',
     color,
-    bg: b?.bg ?? color,
+    bg: extra?.color ? softAccent(color) : (b?.bg ?? softAccent(color)),
     fg: b?.fg ?? color,
   };
 }

@@ -46,7 +46,7 @@ export default function BottomNav({
 
   const create = () => {
     if (on('/tareas')) {
-      shallowSet({ tarea: '1', scope: 'centro' });
+      shallowSet({ tarea: '1', tscope: 'centro' });
       return;
     }
     if (on('/clientas')) {

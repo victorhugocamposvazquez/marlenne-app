@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { catStyle, STATUS, avatarColor } from '@/lib/categories';
+import { catStyle, softAccent, STATUS, avatarColor } from '@/lib/categories';
 import { citaCambiada, fmt, minutesOfDay, nowMinutes, dayKey, DAY_START, DAY_END, durLbl } from '@/lib/time';
 import { syncAppointmentReminderAction } from '@/app/actions/reminder-sync';
 import { moveAppointment } from '@/lib/move-appointment';
@@ -447,7 +447,7 @@ export default function DayGrid({
                       width: cardW,
                       top: (pos.start - DAY_START) * pxPerMin + 1,
                       height: a.duration_min * pxPerMin - 3,
-                      background: a.status === 'done' ? '#F7F7FA' : st.bg,
+                      background: a.status === 'done' ? '#F7F7FA' : softAccent(cat.color),
                       borderLeft: `4px solid ${cat.color}`,
                       boxShadow: pos.dragging ? 'var(--sh-drag)' : undefined,
                       transform: pos.dragging ? 'scale(1.03)' : 'none',

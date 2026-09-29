@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useTransition } from 'react';
 import { Check, ChevronLeft, ChevronRight, Lock, Plus } from 'lucide-react';
 import { setUnifiedTaskDone } from '@/app/actions/tasks';
-import { shallowSet } from '@/hooks/useShallowQuery';
+import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 import { monthCells, shiftMonth } from '@/lib/personal-tasks';
 import { filterTasks, taskDueDay, type TaskFilter, type UnifiedTask } from '@/lib/tasks';
 
@@ -20,21 +20,18 @@ export default function TareasView({
 }) {
   const router = useRouter();
   const sp = useSearchParams();
-  const scope = (['todas', 'centro', 'personal'].includes(sp.get('scope') ?? '')
-    ? sp.get('scope')
+  const scopeRaw = useShallowParam('scope', sp.get('scope'));
+  const diaRaw = useShallowParam('dia', sp.get('dia'));
+  const mesRaw = useShallowParam('mes', sp.get('mes'));
+  const scope = (['todas', 'centro', 'personal'].includes(scopeRaw ?? '')
+    ? scopeRaw
     : 'todas') as TaskFilter;
-  const day = /^\d{4}-\d{2}-\d{2}$/.test(sp.get('dia') ?? '') ? sp.get('dia')! : todayKey;
-  const monthOff = Number(sp.get('mes') ?? 0) || 0;
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(diaRaw ?? '') ? diaRaw! : todayKey;
+  const monthOff = Number(mesRaw ?? 0) || 0;
   const [pending, start] = useTransition();
 
   const setParams = (patch: Record<string, string | null>) => {
-    const next = new URLSearchParams(sp.toString());
-    for (const [k, v] of Object.entries(patch)) {
-      if (v == null || v === '') next.delete(k);
-      else next.set(k, v);
-    }
-    const qs = next.toString();
-    router.replace(qs ? `/tareas?${qs}` : '/tareas', { scroll: false });
+    shallowSet(patch);
   };
 
   const list = filterTasks(tasks, scope, day);
@@ -51,6 +48,13 @@ export default function TareasView({
     start(async () => {
       await setUnifiedTaskDone(task.id, task.scope, !task.done_at);
       router.refresh();
+    });
+  };
+
+  const openNew = () => {
+    shallowSet({
+      tarea: '1',
+      tscope: scope === 'personal' ? 'personal' : 'centro',
     });
   };
 
@@ -78,10 +82,7 @@ export default function TareasView({
           </div>
           <button
             type="button"
-            onClick={() => shallowSet({
-              tarea: '1',
-              scope: scope === 'personal' ? 'personal' : 'centro',
-            })}
+            onClick={openNew}
             className="flex h-11 items-center gap-1.5 rounded-pill bg-v-2 px-4 text-[13.5px] font-bold text-white"
           >
             <Plus size={16} strokeWidth={2.6} />
@@ -91,32 +92,32 @@ export default function TareasView({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-8">
-        <div className="grid gap-4 lg:grid-cols-[minmax(260px,340px)_minmax(0,1fr)]">
-          <div className="rounded-card border border-surface-line bg-white p-4">
+        <div className="grid gap-5 min-[1024px]:grid-cols-[2fr_3fr] min-[1024px]:items-start">
+          <div className="rounded-card border border-surface-line bg-white p-4 min-[1024px]:p-5">
             <div className="flex items-center justify-between">
               <button
                 type="button"
                 aria-label="Mes anterior"
                 onClick={() => setParams({ mes: String(monthOff - 1) })}
-                className="grid h-9 w-9 place-items-center rounded-pill bg-track"
+                className="grid h-10 w-10 place-items-center rounded-pill bg-track"
               >
-                <ChevronLeft size={14} strokeWidth={2.8} />
+                <ChevronLeft size={15} strokeWidth={2.8} />
               </button>
-              <span className="text-[14.5px] font-bold">
+              <span className="text-[15px] font-bold min-[1024px]:text-[17px]">
                 {MESES[view.month - 1]} {view.year}
               </span>
               <button
                 type="button"
                 aria-label="Mes siguiente"
                 onClick={() => setParams({ mes: String(monthOff + 1) })}
-                className="grid h-9 w-9 place-items-center rounded-pill bg-track"
+                className="grid h-10 w-10 place-items-center rounded-pill bg-track"
               >
-                <ChevronRight size={14} strokeWidth={2.8} />
+                <ChevronRight size={15} strokeWidth={2.8} />
               </button>
             </div>
-            <div className="mt-2.5 grid grid-cols-7">
+            <div className="mt-3 grid grid-cols-7">
               {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(w => (
-                <span key={w} className="py-1 text-center text-[10.5px] font-bold text-[#B7B4C4]">{w}</span>
+                <span key={w} className="py-1.5 text-center text-[11px] font-bold text-[#B7B4C4]">{w}</span>
               ))}
               {cells.map(cell => {
                 const sel = cell.key === day;
@@ -127,10 +128,10 @@ export default function TareasView({
                     key={cell.key}
                     type="button"
                     onClick={() => setParams({ dia: cell.key === todayKey ? null : cell.key })}
-                    className="flex h-10 items-center justify-center"
+                    className="flex h-11 items-center justify-center min-[1024px]:h-14"
                   >
                     <span
-                      className={`flex h-8 w-8 items-center justify-center rounded-pill text-[13px] ${
+                      className={`flex h-9 w-9 items-center justify-center rounded-pill text-[14px] min-[1024px]:h-11 min-[1024px]:w-11 min-[1024px]:text-[15px] ${
                         sel
                           ? 'bg-v-2 font-bold text-white'
                           : nPend
@@ -173,7 +174,7 @@ export default function TareasView({
                 <button
                   type="button"
                   className="min-w-0 flex-1 text-left"
-                  onClick={() => shallowSet({ tarea: task.id, scope: task.scope })}
+                  onClick={() => shallowSet({ tarea: task.id, tscope: task.scope })}
                 >
                   <span className={`block text-[14.5px] font-semibold ${task.done_at ? 'text-ink-3 line-through' : 'text-ink'}`}>
                     {task.title}

@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { dateFromOffset, dayKey, offsetFromDay, skipSunday } from '@/lib/time';
 
@@ -22,7 +23,10 @@ export default function MonthCalendar({
 }) {
   const selectedKey = dayKey(dateFromOffset(selectedOffset));
   const [month, setMonth] = useState(() => selectedKey.slice(0, 7));
+  const [mounted, setMounted] = useState(false);
   const busy = useMemo(() => new Set(busyKeys), [busyKeys]);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const [y, m] = month.split('-').map(Number);
   const first = new Date(Date.UTC(y, m - 1, 1));
@@ -46,12 +50,15 @@ export default function MonthCalendar({
     setMonth(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`);
   };
 
-  return (
-    <div className={`fixed inset-0 z-[70] flex justify-center ${centered ? 'items-center p-6' : 'items-end'}`}>
+  const ui = (
+    <div className={`fixed inset-0 z-[80] flex justify-center ${centered ? 'items-center p-6' : 'items-end'}`}>
       <button type="button" aria-label="Cerrar calendario" className="absolute inset-0 bg-[rgba(15,14,26,.35)]" onClick={onClose} />
-      <div className={`relative z-10 w-full max-w-[440px] bg-white px-6 pb-8 pt-3 shadow-[0_-20px_60px_rgba(15,14,26,.18)] ${
-        centered ? 'rounded-[28px] shadow-[0_24px_64px_rgba(15,14,26,.22)]' : 'rounded-t-sheet'
-      }`}>
+      <div
+        className={`relative z-10 w-full max-w-[440px] bg-white px-6 pb-8 pt-3 shadow-[0_-20px_60px_rgba(15,14,26,.18)] ${
+          centered ? 'rounded-[28px] shadow-[0_24px_64px_rgba(15,14,26,.22)]' : 'rounded-t-sheet'
+        }`}
+        data-no-pull
+      >
         {!centered && <div className="mx-auto mb-4 h-[5px] w-10 rounded-full bg-handle" />}
         {centered && <div className="mb-2" />}
         <div className="mb-4 flex items-center justify-between">
@@ -107,4 +114,7 @@ export default function MonthCalendar({
       </div>
     </div>
   );
+
+  if (!mounted) return null;
+  return createPortal(ui, document.body);
 }

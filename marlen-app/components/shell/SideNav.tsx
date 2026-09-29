@@ -107,7 +107,7 @@ export default function SideNav({
 
   const create = () => {
     if (inSection('/tareas')) {
-      shallowSet({ tarea: '1', scope: 'centro' });
+      shallowSet({ tarea: '1', tscope: 'centro' });
       return;
     }
     if (inSection('/clientas')) {
