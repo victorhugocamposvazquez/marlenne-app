@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { attachReserved } from '@/lib/packs';
+import { normalizeSplit } from '@/lib/payment';
 import { addDays, dayKey } from '@/lib/time';
-import type { ClientPack, PackTemplate } from '@/lib/types';
+import type { ClientPack, PackTemplate, PaymentMethod, PaymentSplit } from '@/lib/types';
 
 export type PackWriteResult = { ok: boolean; error: string | null; id?: string };
 
@@ -14,7 +15,8 @@ async function salonOf(sb: SupabaseClient) {
 
 const PACK_SELECT = `
   id, name, service_id, owner_client_id, friend_client_id,
-  sessions_total, sessions_done, price_cents, purchased_at, expires_at, note, template_id,
+  sessions_total, sessions_done, price_cents, paid_cents, payment_method, payment_split,
+  purchased_at, expires_at, note, template_id,
   service:services(name),
   owner:clients!owner_client_id(full_name),
   friend:clients!friend_client_id(full_name)
@@ -22,8 +24,23 @@ const PACK_SELECT = `
 
 const PACK_SELECT_PLAIN = `
   id, name, service_id, owner_client_id, friend_client_id,
-  sessions_total, sessions_done, price_cents, purchased_at, expires_at, note, template_id
+  sessions_total, sessions_done, price_cents, paid_cents, payment_method, payment_split,
+  purchased_at, expires_at, note, template_id
 `;
+
+const PACK_SELECT_LEGACY = `
+  id, name, service_id, owner_client_id, friend_client_id,
+  sessions_total, sessions_done, price_cents, purchased_at, expires_at, note, template_id,
+  service:services(name),
+  owner:clients!owner_client_id(full_name),
+  friend:clients!friend_client_id(full_name)
+`;
+
+const METHODS = new Set<PaymentMethod>(['cash', 'card', 'bizum', 'mixed']);
+
+function asMethod(v: unknown): PaymentMethod | null {
+  return typeof v === 'string' && METHODS.has(v as PaymentMethod) ? (v as PaymentMethod) : null;
+}
 
 function mapPackRow(row: Record<string, unknown>): Omit<ClientPack, 'reserved' | 'remaining'> {
   const owner = row.owner as { full_name?: string } | null;
@@ -41,6 +58,9 @@ function mapPackRow(row: Record<string, unknown>): Omit<ClientPack, 'reserved' |
     sessions_total: row.sessions_total as number,
     sessions_done: row.sessions_done as number,
     price_cents: row.price_cents as number,
+    paid_cents: Math.max(0, (row.paid_cents as number | null | undefined) ?? 0),
+    payment_method: asMethod(row.payment_method),
+    payment_split: normalizeSplit(row.payment_split),
     purchased_at: row.purchased_at as string,
     expires_at: (row.expires_at as string | null) ?? null,
     note: (row.note as string | null) ?? null,
@@ -97,11 +117,18 @@ export async function listPackTemplates(
 }
 
 export async function listClientPacks(sb: SupabaseClient, clientId: string): Promise<ClientPack[]> {
-  const primary = await sb
+  let primary = await sb
     .from('client_packs')
     .select(PACK_SELECT)
     .or(`owner_client_id.eq.${clientId},friend_client_id.eq.${clientId}`)
     .order('purchased_at', { ascending: false });
+  if (primary.error && /paid_cents|payment_method|payment_split/i.test(primary.error.message)) {
+    primary = await sb
+      .from('client_packs')
+      .select(PACK_SELECT_LEGACY)
+      .or(`owner_client_id.eq.${clientId},friend_client_id.eq.${clientId}`)
+      .order('purchased_at', { ascending: false });
+  }
   const raw = primary.error
     ? (await sb.from('client_packs').select(PACK_SELECT_PLAIN)
       .or(`owner_client_id.eq.${clientId},friend_client_id.eq.${clientId}`)
@@ -113,10 +140,16 @@ export async function listClientPacks(sb: SupabaseClient, clientId: string): Pro
 }
 
 export async function listSalonPacks(sb: SupabaseClient): Promise<ClientPack[]> {
-  const primary = await sb
+  let primary = await sb
     .from('client_packs')
     .select(PACK_SELECT)
     .order('purchased_at', { ascending: false });
+  if (primary.error && /paid_cents|payment_method|payment_split/i.test(primary.error.message)) {
+    primary = await sb
+      .from('client_packs')
+      .select(PACK_SELECT_LEGACY)
+      .order('purchased_at', { ascending: false });
+  }
   const raw = primary.error
     ? (await sb.from('client_packs').select(PACK_SELECT_PLAIN).order('purchased_at', { ascending: false })).data
     : primary.data;
@@ -175,6 +208,9 @@ export async function sellPack(
     validDays?: number | null;
     friendClientId?: string | null;
     note?: string;
+    paidCents?: number;
+    paymentMethod?: PaymentMethod | null;
+    paymentSplit?: PaymentSplit | null;
   },
 ): Promise<PackWriteResult> {
   const name = input.name.trim();
@@ -191,7 +227,15 @@ export async function sellPack(
   const today = dayKey(new Date());
   const expires = input.validDays ? addDays(today, input.validDays) : null;
 
-  const { data, error } = await sb.from('client_packs').insert({
+  const method = input.paymentMethod && METHODS.has(input.paymentMethod) ? input.paymentMethod : null;
+  let paid = Math.max(0, Math.round(input.paidCents ?? 0));
+  let split: PaymentSplit | null = null;
+  if (method === 'mixed') {
+    split = normalizeSplit(input.paymentSplit);
+    paid = split ? Object.values(split).reduce((s, n) => s + (n ?? 0), 0) : 0;
+  }
+
+  const payload: Record<string, unknown> = {
     salon_id: salonId,
     template_id: input.templateId || null,
     name,
@@ -205,9 +249,59 @@ export async function sellPack(
     expires_at: expires,
     note: input.note?.trim() || null,
     created_by: user.id,
-  }).select('id').single();
+    paid_cents: paid,
+    payment_method: method,
+    payment_split: method === 'mixed' ? split : null,
+  };
+
+  let { data, error } = await sb.from('client_packs').insert(payload).select('id').single();
+  if (error && /paid_cents|payment_method|payment_split/i.test(error.message)) {
+    delete payload.paid_cents;
+    delete payload.payment_method;
+    delete payload.payment_split;
+    ({ data, error } = await sb.from('client_packs').insert(payload).select('id').single());
+  }
 
   return { ok: !error, error: error?.message ?? null, id: data?.id };
+}
+
+export async function updatePackPayment(
+  sb: SupabaseClient,
+  packId: string,
+  input: {
+    paidCents: number;
+    paymentMethod: PaymentMethod | null;
+    paymentSplit?: PaymentSplit | null;
+  },
+): Promise<PackWriteResult> {
+  const method = input.paymentMethod && METHODS.has(input.paymentMethod) ? input.paymentMethod : null;
+  let paid = Math.max(0, Math.round(input.paidCents));
+  let split: PaymentSplit | null = null;
+
+  if (method === 'mixed') {
+    split = normalizeSplit(input.paymentSplit);
+    paid = split ? Object.values(split).reduce((s, n) => s + (n ?? 0), 0) : 0;
+  }
+
+  const { error } = await sb.from('client_packs').update({
+    paid_cents: paid,
+    payment_method: method,
+    payment_split: method === 'mixed' ? split : null,
+  }).eq('id', packId);
+
+  if (error && /payment_split/i.test(error.message)) {
+    const retry = await sb.from('client_packs').update({
+      paid_cents: paid,
+      payment_method: method,
+    }).eq('id', packId);
+    return { ok: !retry.error, error: retry.error?.message ?? null };
+  }
+
+  if (error && /paid_cents|payment_method/i.test(error.message)) {
+    return { ok: false, error: 'Falta aplicar la migración de cobro de bonos' };
+  }
+
+  return { ok: !error, error: error?.message ?? null };
 }
 
 export async function setPackFriend(

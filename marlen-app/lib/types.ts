@@ -207,6 +207,9 @@ export type ClientPack = {
   reserved: number;
   remaining: number;
   price_cents: number;
+  paid_cents: number;
+  payment_method: PaymentMethod | null;
+  payment_split: PaymentSplit | null;
   purchased_at: string;
   expires_at: string | null;
   note: string | null;

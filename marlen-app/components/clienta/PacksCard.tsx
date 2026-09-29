@@ -9,12 +9,23 @@ import Button from '@/components/ui/Button';
 import Chip from '@/components/ui/Chip';
 import EmptyState from '@/components/ui/EmptyState';
 import { loadClientOptions } from '@/lib/agenda-catalog';
+import PackPaymentBlock from '@/components/clienta/PackPaymentBlock';
 import { draftFromTemplate, packExpired, packIsOpen } from '@/lib/packs';
 import { addPackSessions, sellPack, setPackFriend } from '@/lib/pack-write';
+import {
+  PAYMENT_METHODS,
+  SPLIT_METHODS,
+  eurosInputToCents,
+  sumSplit,
+  type PaymentMethod,
+  type PaymentSplit,
+  type SplitMethod,
+} from '@/lib/payment';
 import { createClient } from '@/lib/supabase/client';
 import { dateLbl } from '@/lib/time';
 import { fold } from '@/lib/voice';
 import type { ClientOption, ClientPack, PackTemplate, ServiceOption } from '@/lib/types';
+
 
 export default function PacksCard({
   clientId, clientName, packs, templates, services, canEdit,
@@ -138,17 +149,24 @@ function PackRow({
           {pack.remaining} de {pack.sessions_total}
         </span>
       </div>
-      {pack.reserved > 0 && (
-        <p className="mt-1 text-micro font-semibold text-ink-3">
-          {pack.reserved === 1 ? '1 cita agendada' : `${pack.reserved} citas agendadas`} sin marcar hecha
-        </p>
-      )}
+      <p className="mt-1.5 text-caption font-semibold text-ink-2">
+        Ha usado {pack.sessions_done}
+        {pack.sessions_done === 1 ? ' sesión' : ' sesiones'}
+        {pack.reserved > 0
+          ? ` · ${pack.reserved === 1 ? '1 cita' : `${pack.reserved} citas`} agendada${pack.reserved === 1 ? '' : 's'}`
+          : ''}
+        {' · '}quedan {pack.remaining}
+      </p>
 
       <p className="mt-2 text-caption font-medium text-ink-2">
         {isOwner
           ? (pack.friend_name ? `Compartido con ${pack.friend_name}` : 'Solo ella')
           : `De ${pack.owner_name} · lo usa ${clientName}`}
       </p>
+
+      {canEdit && isOwner && (
+        <PackPaymentBlock pack={pack} />
+      )}
 
       {canEdit && isOwner && (
         <div className="mt-2.5 flex flex-wrap items-center gap-2">
@@ -268,6 +286,11 @@ function SellForm({
   const [friendId, setFriendId] = useState<string | null>(null);
   const [friendName, setFriendName] = useState('');
   const [friendOpen, setFriendOpen] = useState(false);
+  const [paidInput, setPaidInput] = useState('');
+  const [payMethod, setPayMethod] = useState<PaymentMethod | null>(null);
+  const [splitInputs, setSplitInputs] = useState<Record<SplitMethod, string>>({
+    cash: '', card: '', bizum: '',
+  });
 
   const applyTemplate = (id: string) => {
     setTemplateId(id);
@@ -291,6 +314,17 @@ function SellForm({
   const save = () => {
     setError(null);
     startTransition(async () => {
+      let paidCents = eurosInputToCents(paidInput);
+      let paymentSplit: PaymentSplit | null = null;
+      if (payMethod === 'mixed') {
+        paymentSplit = {};
+        for (const m of SPLIT_METHODS) {
+          const c = eurosInputToCents(splitInputs[m.id]);
+          if (c > 0) paymentSplit[m.id] = c;
+        }
+        paidCents = sumSplit(paymentSplit);
+        if (!Object.keys(paymentSplit).length) paymentSplit = null;
+      }
       const r = await sellPack(createClient(), {
         ownerClientId: clientId,
         templateId: templateId || null,
@@ -301,6 +335,9 @@ function SellForm({
         priceCents: Math.round(Number(euros.replace(',', '.')) * 100) || 0,
         validDays: days.trim() ? Number(days) : null,
         friendClientId: friendId,
+        paidCents,
+        paymentMethod: payMethod,
+        paymentSplit,
       });
       if (!r.ok) setError(r.error ?? 'No se ha podido vender');
       else {
@@ -374,6 +411,49 @@ function SellForm({
               setFriendOpen(false);
             }}
           />
+        )}
+      </div>
+      <div className="mb-3 rounded-field border border-surface-line bg-surface-bg/40 p-3">
+        <p className="mb-2 text-caption font-bold uppercase tracking-[.03em] text-ink-2">Pago del bono</p>
+        <label className="mb-2 block">
+          <span className="mb-1 block text-micro font-bold text-ink-3">Forma</span>
+          <select
+            className={inputCls}
+            value={payMethod ?? ''}
+            onChange={e => setPayMethod((e.target.value || null) as PaymentMethod | null)}
+          >
+            <option value="">Sin indicar</option>
+            {PAYMENT_METHODS.map(m => (
+              <option key={m.id} value={m.id}>{m.label}</option>
+            ))}
+          </select>
+        </label>
+        {payMethod === 'mixed' ? (
+          <div className="space-y-1.5">
+            {SPLIT_METHODS.map(m => (
+              <label key={m.id} className="flex items-center gap-2">
+                <span className="w-16 shrink-0 text-caption font-semibold">{m.label}</span>
+                <input
+                  className={inputCls}
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={splitInputs[m.id]}
+                  onChange={e => setSplitInputs(prev => ({ ...prev, [m.id]: e.target.value }))}
+                />
+              </label>
+            ))}
+          </div>
+        ) : (
+          <label className="block">
+            <span className="mb-1 block text-micro font-bold text-ink-3">Cobrado € (tramos ok)</span>
+            <input
+              className={inputCls}
+              inputMode="decimal"
+              placeholder={euros || '0'}
+              value={paidInput}
+              onChange={e => setPaidInput(e.target.value)}
+            />
+          </label>
         )}
       </div>
       {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}

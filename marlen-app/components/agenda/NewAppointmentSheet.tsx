@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { Calendar, Check, ChevronLeft, Plus, Search, X } from 'lucide-react';
+import { Calendar, Check, ChevronLeft, Plus, Search, Ticket, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { circleOutlineCls, pillOutlineCls } from '@/components/ui/IconButton';
 import { providerAgendaLabel } from '@/lib/team';
@@ -18,7 +18,7 @@ import { createClient } from '@/lib/supabase/client';
 import { alignStripStart, DAY_END, dateFromOffset, dayKey, durLbl, fmt, minutesOfDay, offsetFromDay, skipSunday, toTimestamp } from '@/lib/time';
 import { filterClientOptions } from '@/lib/client-pick';
 import { bestNameMatches, fold, parseClock } from '@/lib/voice';
-import { packFitsService, packIsOpen, packUsableBy, pickPackForService } from '@/lib/packs';
+import { packFitsService, packIsOpen, packLabel, packUsableBy, pickPackForService } from '@/lib/packs';
 import { servicePickSections } from '@/lib/service-pick';
 import { readLastServiceId, writeLastServiceId } from '@/hooks/last-service';
 import { shallowSet } from '@/hooks/useShallowQuery';
@@ -84,6 +84,7 @@ export function NewAppointmentSheetBody({
   const [serviceId, setServiceId] = useState(
     editing?.service_id ?? (guessed.length === 1 ? guessed[0].id : ''),
   );
+  const [packId, setPackId] = useState(editing?.client_pack_id ?? '');
   const [providerId, setProviderId] = useState(
     editing?.provider_id
     ?? (initialProviderId && providers.some(p => p.id === initialProviderId)
@@ -163,6 +164,7 @@ export function NewAppointmentSheetBody({
   }, [initialName, client]);
 
   const service = services.find(s => s.id === serviceId) ?? null;
+  const selectedPack = packs.find(p => p.id === packId) ?? null;
   const who = client?.full_name ?? query.trim();
   const provider = providers.find(p => p.id === providerId);
   const bookDay = dayKey(dateFromOffset(dayOff));
@@ -174,6 +176,17 @@ export function NewAppointmentSheetBody({
     () => filterClientOptions(clientPool, query),
     [query, clientPool],
   );
+
+  const clientOpenPacks = useMemo(() => {
+    if (!client) return [] as ClientPack[];
+    const q = fold(serviceQ);
+    return packs
+      .filter(p => packUsableBy(p, client.id) && packIsOpen(p))
+      .filter(p => {
+        if (!q) return true;
+        return fold(p.name).includes(q) || fold(p.service_name ?? '').includes(q);
+      });
+  }, [client, packs, serviceQ]);
 
   const catalog = useMemo(
     () => servicePickSections(services, { lastId, counts: serviceCounts, query: serviceQ }),
@@ -255,6 +268,7 @@ export function NewAppointmentSheetBody({
 
   const pickClient = (c: ClientOption | null, name?: string) => {
     setClient(c);
+    setPackId('');
     if (name && !c) setQuery(name);
     if (backToConfirm) {
       setReturnTo(null);
@@ -265,7 +279,7 @@ export function NewAppointmentSheetBody({
     setStep('service');
   };
 
-  const pickService = (s: ServiceOption) => {
+  const pickService = (s: ServiceOption, keepPackId?: string) => {
     if (startMin != null) {
       if (startMin + s.duration_min > DAY_END || fits[s.id] === false) {
         toast('Ese tratamiento no cabe en este hueco', 'err');
@@ -274,12 +288,34 @@ export function NewAppointmentSheetBody({
     }
     writeLastServiceId(s.id);
     setServiceId(s.id);
+    if (keepPackId !== undefined) {
+      setPackId(keepPackId);
+    } else if (packId) {
+      const p = packs.find(x => x.id === packId);
+      if (p && !packFitsService(p, s.id)) setPackId('');
+    }
     if (backToConfirm || startMin != null) {
       setReturnTo(null);
       setStep('confirm');
       return;
     }
     openWhen('service');
+  };
+
+  const pickPack = (p: ClientPack) => {
+    setPackId(p.id);
+    if (p.service_id) {
+      const s = services.find(x => x.id === p.service_id);
+      if (s) {
+        pickService(s, p.id);
+        return;
+      }
+    }
+    // Bono genérico: elige tratamiento después
+    if (backToConfirm && service) {
+      setReturnTo(null);
+      setStep('confirm');
+    }
   };
 
   const changeField = (next: Step) => {
@@ -307,9 +343,23 @@ export function NewAppointmentSheetBody({
 
   const save = () => {
     if (!service || startMin == null || who.length < 2) return;
-    const pack = client
-      ? pickPackForService(packs.filter(p => packUsableBy(p, client.id) && packFitsService(p, service.id) && packIsOpen(p)), client.id, service.id)
-      : null;
+    const pack = (() => {
+      if (!client) return null;
+      if (packId) {
+        const chosen = packs.find(p => p.id === packId);
+        if (
+          chosen
+          && packUsableBy(chosen, client.id)
+          && packFitsService(chosen, service.id)
+          && packIsOpen(chosen)
+        ) return chosen;
+      }
+      return pickPackForService(
+        packs.filter(p => packUsableBy(p, client.id) && packFitsService(p, service.id) && packIsOpen(p)),
+        client.id,
+        service.id,
+      );
+    })();
     const draftHref = wa
       ? waHref(client?.phone, waConfirmMsg({
           clientLabel: who,
@@ -368,7 +418,9 @@ export function NewAppointmentSheetBody({
           time: service
             ? `${fmt(startMin)}–${fmt(startMin + service.duration_min)}`
             : fmt(startMin),
-          treatment: service.name,
+          treatment: pack
+            ? `${service.name} · ${packLabel(pack)}`
+            : service.name,
         },
       });
       requestClose();
@@ -393,7 +445,7 @@ export function NewAppointmentSheetBody({
   const question = step === 'client'
     ? '¿Para quién es?'
     : step === 'service'
-      ? '¿Qué tratamiento?'
+      ? '¿Tratamiento o bono?'
       : step === 'when'
         ? '¿Cuándo?'
         : '¿Algún cambio?';
@@ -458,8 +510,10 @@ export function NewAppointmentSheetBody({
             </button>
             {service && step === 'when' && (
               <button type="button" onClick={() => editStep('service')} className="mt-[5px] flex w-full min-w-0 text-left">
-                <span className="mr-[3px] shrink-0 text-v">Servicio:</span>
-                <span className="min-w-0 truncate font-semibold text-ink">{service.name}</span>
+                <span className="mr-[3px] shrink-0 text-v">Tratamientos/bonos:</span>
+                <span className="min-w-0 truncate font-semibold text-ink">
+                  {selectedPack ? `${selectedPack.name} · ${service.name}` : service.name}
+                </span>
               </button>
             )}
           </div>
@@ -512,11 +566,58 @@ export function NewAppointmentSheetBody({
               <input
                 value={serviceQ}
                 onChange={e => setServiceQ(e.target.value)}
-                placeholder="Buscar tratamiento"
+                placeholder="Buscar tratamiento o bono"
                 className="min-w-0 flex-1 bg-transparent text-[17px] outline-none placeholder:text-ink-3"
               />
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-3">
+              {clientOpenPacks.length > 0 && (
+                <div className="mb-3.5">
+                  <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">
+                    Bonos de {client?.full_name.split(' ')[0] ?? 'la clienta'}
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {clientOpenPacks.map(p => {
+                      const on = packId === p.id;
+                      const used = p.sessions_done;
+                      const left = p.remaining;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => pickPack(p)}
+                          className="flex w-full items-center gap-3.5 rounded-row px-4 py-2.5 text-left"
+                          style={{
+                            background: on ? '#fff' : 'rgb(var(--c-soft))',
+                            boxShadow: on ? 'inset 0 0 0 1.5px rgb(var(--c-ink))' : undefined,
+                          }}
+                        >
+                          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-v-tint text-v-d">
+                            <Ticket size={16} strokeWidth={2.4} />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-body-lg font-semibold">{p.name}</span>
+                            <span className="block text-label text-ink-2">
+                              {[
+                                p.service_name ?? 'Cualquier tratamiento',
+                                `usadas ${used} · quedan ${left}`,
+                              ].join(' · ')}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-[13px] font-bold tabular-nums text-v-d">
+                            {left}/{p.sessions_total}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {selectedPack && !selectedPack.service_id && (
+                <p className="mb-3 rounded-row bg-v-tint/60 px-3.5 py-2.5 text-label font-semibold text-v-d">
+                  Bono «{selectedPack.name}» · elige el tratamiento de esta sesión
+                </p>
+              )}
               {catalog.map(sec => (
                 <div key={sec.key} className="mb-3.5 last:mb-0">
                   <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">{sec.title}</p>
@@ -650,7 +751,17 @@ export function NewAppointmentSheetBody({
             <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4">
               <div className="rounded-card bg-surface-soft px-[18px]">
                 <Row label="Clienta" value={who} onChange={() => changeField('client')} />
-                <Row label="Tratamiento" value={service ? `${service.name} · ${durLbl(service.duration_min)}` : '—'} onChange={() => changeField('service')} />
+                <Row
+                  label="Tratamientos/bonos"
+                  value={
+                    service
+                      ? selectedPack
+                        ? `${selectedPack.name} · ${service.name} · sesión ${selectedPack.sessions_done + 1}/${selectedPack.sessions_total}`
+                        : `${service.name} · ${durLbl(service.duration_min)}`
+                      : '—'
+                  }
+                  onChange={() => changeField('service')}
+                />
                 <Row
                   label="Cuándo"
                   value={startMin != null && service ? `${ctxDate}, ${fmt(startMin)}–${fmt(startMin + service.duration_min)}` : ctxDate}
