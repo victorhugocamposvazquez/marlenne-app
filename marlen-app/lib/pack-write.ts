@@ -216,6 +216,23 @@ export async function upsertPackTemplate(
   return { ok: !error, error: error?.message ?? null, id: data?.id };
 }
 
+export async function deletePackTemplate(
+  sb: SupabaseClient,
+  id: string,
+): Promise<PackWriteResult> {
+  const { error } = await sb.from('pack_templates').delete().eq('id', id);
+  if (error) {
+    if (/foreign key|violates/i.test(error.message)) {
+      return {
+        ok: false,
+        error: 'Hay bonos vendidos con esta plantilla. Ocúltala en lugar de borrarla.',
+      };
+    }
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, error: null };
+}
+
 export async function sellPack(
   sb: SupabaseClient,
   input: {

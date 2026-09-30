@@ -2,11 +2,22 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { upsertPackTemplate } from '@/lib/pack-write';
+import { Plus } from 'lucide-react';
+import { LocalSheet } from '@/components/Sheet';
+import { deletePackTemplate, upsertPackTemplate } from '@/lib/pack-write';
 import { createClient } from '@/lib/supabase/client';
-import { inputCls } from '@/components/Sheet';
-import Button from '@/components/ui/Button';
 import { useToast } from '@/components/Toast';
+import {
+  CatalogDeleteLink,
+  CatalogEmptyRow,
+  CatalogGroupCard,
+  CatalogRowButton,
+  OutlinePillButton,
+  SettingsToggleRow,
+  SheetField,
+  SheetFooter,
+  catalogInputCls,
+} from '@/components/catalog/catalog-ui';
 import type { PackTemplate, ServiceOption } from '@/lib/types';
 
 export default function PackTemplatesEditor({
@@ -17,80 +28,96 @@ export default function PackTemplatesEditor({
 }) {
   const toast = useToast();
   const router = useRouter();
-  const [open, setOpen] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [sheet, setSheet] = useState<{ template?: PackTemplate } | 'new' | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const save = (input: Parameters<typeof upsertPackTemplate>[1]) => {
+  const close = () => setSheet(null);
+
+  const run = (
+    fn: () => Promise<{ ok: boolean; error: string | null }>,
+    okMsg: string,
+    after?: () => void,
+  ) => {
     startTransition(async () => {
-      const r = await upsertPackTemplate(createClient(), input);
+      const r = await fn();
       if (!r.ok) toast(r.error ?? 'No se ha podido guardar', 'err');
       else {
-        toast(input.id ? 'Bono actualizado' : 'Bono del catálogo creado');
-        setOpen(null);
-        setCreating(false);
+        toast(okMsg);
+        after?.();
         router.refresh();
       }
     });
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      {templates.length === 0 && !creating && (
-        <p className="text-label font-medium text-ink-2">
-          Aún no hay bonos de catálogo. El de 6 láser o el de 4 cavitación se venden desde la ficha.
-        </p>
-      )}
-      {templates.map(t => (
-        <div key={t.id} className="overflow-hidden rounded-row bg-surface-soft">
-          <button
-            type="button"
-            onClick={() => { setCreating(false); setOpen(o => o === t.id ? null : t.id); }}
-            className="flex w-full items-baseline justify-between gap-3 px-3.5 py-2.5 text-left"
-          >
-            <span className={`min-w-0 truncate text-body-lg font-bold ${t.is_active ? '' : 'text-ink-3 line-through'}`}>
-              {t.name}
-            </span>
-            <span className="shrink-0 text-label font-semibold tabular-nums text-ink-3">
-              {t.sessions_total} ses. · {(t.price_cents / 100).toFixed(0)} €
-            </span>
-          </button>
-          {open === t.id && (
-            <TemplateForm
-              key={t.id}
-              template={t}
-              services={services}
-              pending={pending}
-              onSave={patch => save({ id: t.id, ...patch })}
-            />
-          )}
-        </div>
-      ))}
-      {creating ? (
-        <div className="overflow-hidden rounded-row border border-surface-line bg-surface-card">
-          <p className="px-3.5 pt-3 text-body-lg font-bold">Nuevo bono de catálogo</p>
-          <TemplateForm
-            services={services}
-            pending={pending}
-            onSave={patch => save(patch)}
-            onCancel={() => setCreating(false)}
-          />
-        </div>
+    <>
+      <div className="mb-2.5 flex items-center justify-end">
+        <OutlinePillButton onClick={() => setSheet('new')}>
+          <Plus size={14} strokeWidth={2.8} aria-hidden />
+          Bono
+        </OutlinePillButton>
+      </div>
+
+      {templates.length === 0 ? (
+        <CatalogEmptyRow>
+          Aún no hay bonos de catálogo. Crea el de 6 láser o el de 4 cavitación.
+        </CatalogEmptyRow>
       ) : (
-        <Button variant="secondary" size="sm" onClick={() => { setOpen(null); setCreating(true); }}>
-          Añadir bono
-        </Button>
+        <CatalogGroupCard>
+          {templates.map(t => (
+            <CatalogRowButton
+              key={t.id}
+              onClick={() => setSheet({ template: t })}
+              title={t.name}
+              muted={!t.is_active}
+              badge={t.is_active ? undefined : 'Oculto'}
+              meta={[
+                t.service_name ?? 'Cualquier tratamiento',
+                `${t.sessions_total} ses.`,
+                t.price_cents > 0 ? `${(t.price_cents / 100).toFixed(0)} €` : 'sin precio',
+              ].join(' · ')}
+            />
+          ))}
+        </CatalogGroupCard>
       )}
-    </div>
+
+      {sheet && (
+        <PackTemplateSheet
+          key={sheet === 'new' ? 'new' : sheet.template?.id}
+          open
+          services={services}
+          initial={sheet === 'new' ? undefined : sheet.template}
+          pending={pending}
+          onClose={close}
+          onSave={input => run(
+            () => upsertPackTemplate(createClient(), {
+              id: sheet === 'new' ? undefined : sheet.template?.id,
+              ...input,
+            }),
+            sheet === 'new' ? `Bono «${input.name.trim()}» creado` : 'Bono actualizado',
+            close,
+          )}
+          onDelete={sheet !== 'new' && sheet.template
+            ? () => run(
+              () => deletePackTemplate(createClient(), sheet.template!.id),
+              'Bono eliminado',
+              close,
+            )
+            : undefined}
+        />
+      )}
+    </>
   );
 }
 
-function TemplateForm({
-  template, services, pending, onSave, onCancel,
+function PackTemplateSheet({
+  open, services, initial, pending, onClose, onSave, onDelete,
 }: {
-  template?: PackTemplate;
+  open: boolean;
   services: ServiceOption[];
+  initial?: PackTemplate;
   pending: boolean;
+  onClose: () => void;
   onSave: (p: {
     name: string;
     service_id: string | null;
@@ -99,77 +126,120 @@ function TemplateForm({
     valid_days: number | null;
     is_active: boolean;
   }) => void;
-  onCancel?: () => void;
+  onDelete?: () => void;
 }) {
-  const [name, setName] = useState(template?.name ?? '');
-  const [serviceId, setServiceId] = useState(template?.service_id ?? '');
-  const [sessions, setSessions] = useState(String(template?.sessions_total ?? 6));
-  const [euros, setEuros] = useState(String((template?.price_cents ?? 0) / 100));
-  const [days, setDays] = useState(template?.valid_days ? String(template.valid_days) : '');
-  const [active, setActive] = useState(template?.is_active !== false);
+  const [name, setName] = useState(initial?.name ?? '');
+  const [serviceId, setServiceId] = useState(initial?.service_id ?? '');
+  const [sessions, setSessions] = useState(String(initial?.sessions_total ?? 6));
+  const [euros, setEuros] = useState(initial ? String((initial.price_cents ?? 0) / 100) : '');
+  const [days, setDays] = useState(initial?.valid_days ? String(initial.valid_days) : '');
+  const [active, setActive] = useState(initial?.is_active !== false);
+
+  const sessionsNum = Number(sessions);
+  const priceNum = euros === '' ? NaN : Number(String(euros).replace(',', '.'));
+  const canSave = name.trim().length > 1 && sessionsNum >= 1 && euros !== '' && !Number.isNaN(priceNum) && priceNum >= 0;
+  const saveLabel = !name.trim()
+    ? 'Escribe un nombre'
+    : sessionsNum < 1
+      ? 'Faltan las sesiones'
+      : euros === ''
+        ? 'Falta el precio'
+        : initial
+          ? 'Guardar cambios'
+          : 'Crear bono';
 
   return (
-    <div className="grid grid-cols-2 gap-2 px-3.5 pb-3">
-      <label className="col-span-2">
-        <span className="mb-1 block text-caption font-bold uppercase text-ink-2">Nombre</span>
-        <input className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="Bono láser 6" />
-      </label>
-      <label className="col-span-2">
-        <span className="mb-1 block text-caption font-bold uppercase text-ink-2">Tratamiento</span>
-        <select className={inputCls} value={serviceId} onChange={e => setServiceId(e.target.value)}>
-          <option value="">Cualquier tratamiento</option>
-          {services.filter(s => s.is_active !== false).map(s => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
-      </label>
-      <label>
-        <span className="mb-1 block text-caption font-bold uppercase text-ink-2">Sesiones</span>
-        <input className={inputCls} inputMode="numeric" value={sessions} onChange={e => setSessions(e.target.value)} />
-      </label>
-      <label>
-        <span className="mb-1 block text-caption font-bold uppercase text-ink-2">Precio €</span>
-        <input className={inputCls} inputMode="decimal" value={euros} onChange={e => setEuros(e.target.value)} />
-      </label>
-      <label className="col-span-2">
-        <span className="mb-1 block text-caption font-bold uppercase text-ink-2">Caduca a los (días)</span>
-        <input
-          className={inputCls}
-          inputMode="numeric"
-          placeholder="Vacío = no caduca"
-          value={days}
-          onChange={e => setDays(e.target.value)}
-        />
-      </label>
-      {template && (
-        <label className="col-span-2 flex items-center gap-2.5 text-body font-bold">
-          <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} />
-          Visible al vender
-        </label>
-      )}
-      <div className={`flex gap-2 ${template ? 'col-span-2' : 'col-span-2'}`}>
-        {onCancel && (
-          <Button variant="secondary" className="flex-1" disabled={pending} onClick={onCancel}>
-            Cancelar
-          </Button>
-        )}
-        <Button
-          variant="ink"
-          className="flex-1"
-          full={!onCancel}
-          disabled={pending}
-          onClick={() => onSave({
-            name,
+    <LocalSheet
+      open={open}
+      onClose={onClose}
+      title={initial ? 'Editar bono' : 'Nuevo bono'}
+      initialHeight="tall"
+      floorDetent="tall"
+      footer={
+        <SheetFooter
+          pending={pending}
+          canSave={canSave}
+          saveLabel={saveLabel}
+          onCancel={onClose}
+          onSave={() => onSave({
+            name: name.trim(),
             service_id: serviceId || null,
-            sessions_total: Number(sessions),
-            price_cents: Math.round(Number(euros.replace(',', '.')) * 100) || 0,
+            sessions_total: sessionsNum,
+            price_cents: Math.round(priceNum * 100),
             valid_days: days.trim() ? Number(days) : null,
             is_active: active,
           })}
-        >
-          {pending ? 'Guardando…' : 'Guardar'}
-        </Button>
+        />
+      }
+    >
+      <div className="flex flex-col gap-5 pb-4">
+        <SheetField label="Nombre">
+          <input
+            className={`${catalogInputCls} h-[54px]`}
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="p. ej. Bono láser 6"
+          />
+        </SheetField>
+
+        <SheetField label="Tratamiento">
+          <select
+            className={`${catalogInputCls} h-[54px]`}
+            value={serviceId}
+            onChange={e => setServiceId(e.target.value)}
+          >
+            <option value="">Cualquier tratamiento</option>
+            {services.filter(s => s.is_active !== false).map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </SheetField>
+
+        <div className="grid grid-cols-2 gap-3">
+          <SheetField label="Sesiones">
+            <input
+              className={`${catalogInputCls} h-[54px]`}
+              inputMode="numeric"
+              value={sessions}
+              onChange={e => setSessions(e.target.value.replace(/\D/g, ''))}
+            />
+          </SheetField>
+          <SheetField label="Precio">
+            <div className="flex h-[54px] items-center gap-1 rounded-field bg-surface-soft px-4">
+              <input
+                className="min-w-0 flex-1 border-none bg-transparent text-body-lg font-semibold text-ink outline-none"
+                inputMode="decimal"
+                value={euros}
+                onChange={e => setEuros(e.target.value.replace(/[^\d.,]/g, ''))}
+              />
+              <span className="text-body-lg font-semibold text-ink-3">€</span>
+            </div>
+          </SheetField>
+        </div>
+
+        <SheetField label="Caduca a los (días)">
+          <input
+            className={`${catalogInputCls} h-[54px]`}
+            inputMode="numeric"
+            placeholder="Vacío = no caduca"
+            value={days}
+            onChange={e => setDays(e.target.value.replace(/\D/g, ''))}
+          />
+        </SheetField>
+
+        {initial && (
+          <SettingsToggleRow
+            title="Visible al crear citas"
+            hint="Si lo ocultas, no sale en el selector; los ya vendidos siguen."
+            on={active}
+            onToggle={() => setActive(a => !a)}
+          />
+        )}
+
+        {onDelete && (
+          <CatalogDeleteLink label="Eliminar bono del catálogo" onClick={onDelete} />
+        )}
       </div>
-    </div>
+    </LocalSheet>
   );
 }
