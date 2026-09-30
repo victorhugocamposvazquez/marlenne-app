@@ -1,9 +1,11 @@
 'use client';
 
+import { useSyncExternalStore } from 'react';
 import { useShallowParam } from '@/hooks/useShallowQuery';
 import { APP_DETAIL_SLOT_ID } from '@/components/shell/detail-slot';
+import { getDetailClaimCount, subscribeDetailClaims } from '@/components/shell/detail-claims';
 
-/** Columna derecha: visible si hay sheet abierto (mismos query params que en phone). */
+/** Columna derecha: visible si hay sheet abierto (URL o LocalSheet). */
 export default function DetailPanel() {
   const creating = useShallowParam('new');
   const editing = useShallowParam('appt');
@@ -14,6 +16,7 @@ export default function DetailPanel() {
   const miembro = useShallowParam('miembro');
   const task = useShallowParam('tarea');
   const editar = useShallowParam('editar');
+  const claimed = useSyncExternalStore(subscribeDetailClaims, getDetailClaimCount, () => 0);
 
   const open = Boolean(
     creating === '1'
@@ -25,6 +28,7 @@ export default function DetailPanel() {
     || miembro === '1'
     || task
     || editar
+    || claimed > 0
   );
 
   return (

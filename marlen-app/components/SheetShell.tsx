@@ -13,6 +13,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { getDetailSlot } from '@/components/shell/detail-slot';
+import { claimDetailPanel } from '@/components/shell/detail-claims';
 import { useAppShellMode } from '@/hooks/useAppShellMode';
 import { useRevealField } from '@/hooks/useRevealField';
 import { useSheetResize, type SheetDetent } from '@/hooks/useSheetResize';
@@ -129,9 +130,12 @@ export default function SheetShell({
 
   useLayoutEffect(() => {
     if (widePanel) {
+      const release = claimDetailPanel();
       setDetailSlot(getDetailSlot());
       setEntered(true);
-      return;
+      return () => {
+        release();
+      };
     }
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
