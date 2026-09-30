@@ -18,11 +18,11 @@ const ROWS = [
     ready: true,
   },
   {
-    href: null as string | null,
-    label: 'Facturación',
-    hint: 'Por hacer',
+    href: '/finanzas' as string | null,
+    label: 'Finanzas',
+    hint: 'Citas, bonos y facturas',
     Icon: Receipt,
-    ready: false,
+    ready: true,
   },
   {
     href: null as string | null,

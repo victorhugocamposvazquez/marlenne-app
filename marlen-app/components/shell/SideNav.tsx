@@ -161,7 +161,7 @@ export default function SideNav({
         {showClientas && <Item href="/clientas" icon={Users} label="Clientas" />}
         <Item href="/ajustes/servicios" icon={Sparkles} label="Tratamientos" />
         <Item href="/tareas" icon={ListTodo} label="Tareas" />
-        <Soon icon={Receipt} label="Facturación" />
+        <Item href="/finanzas" icon={Receipt} label="Finanzas" />
         <Soon icon={Clock} label="Fichar" />
         <Item href="/ajustes" icon={Settings} label="Ajustes" />
       </nav>
