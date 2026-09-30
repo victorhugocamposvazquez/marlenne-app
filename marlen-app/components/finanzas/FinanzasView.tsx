@@ -158,6 +158,13 @@ export default function FinanzasView({
     return () => window.removeEventListener('resize', rs);
   }, []);
 
+  useEffect(() => {
+    if (!(S.wizard && S.narrow)) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [S.wizard, S.narrow]);
+
   const toast = (t: string) => appToast(t);
 
   const periods = periodsFor(S.gran, yearNow);
@@ -370,12 +377,20 @@ export default function FinanzasView({
     });
   };
 
-  const openWizard = () => go({
-    wizard: true, step: 1, q: '', client: null, sel: {}, sendVia: 'email',
-    fisOpen: false, fisNif: '', fisRazon: '', fisDir: '',
-  });
+  const openWizard = () => {
+    go({
+      wizard: true, step: 1, q: '', client: null, sel: {}, sendVia: 'email',
+      fisOpen: false, fisNif: '', fisRazon: '', fisDir: '',
+    });
+    // En mobile el wizard es overlay: sube al top para que no quede «nada» visible.
+    if (typeof window !== 'undefined' && window.innerWidth < 1000) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+  const closeWizard = () => go({ wizard: false });
   const ini = (n: string) => n.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
   const wide = !S.narrow;
+  const mobileWizard = S.wizard && !wide;
 
   const kpis = [
     { name: 'Ingresos cobrados', val: eur(total), delta: periodLabel, c: '#0FA958' },
@@ -461,6 +476,129 @@ export default function FinanzasView({
     </div>
   );
 
+  const typeFilters = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      {([['todo', 'Todo'], ['cita', 'Citas'], ['bono', 'Bonos'], ['fact', 'Facturas']] as const).map(([k, name]) => (
+        <button key={k} type="button" onClick={() => go({ typeF: k })} style={{ height: wide ? 32 : 36, padding: wide ? '0 13px' : '0 14px', borderRadius: 99, cursor: 'pointer', fontSize: wide ? 12 : 13, fontWeight: 700, border: S.typeF === k ? `2px solid ${INK}` : `1.5px solid ${LINE}`, background: S.typeF === k ? INK : '#FFF', color: S.typeF === k ? '#FFF' : INK }}>
+          {name}
+        </button>
+      ))}
+    </div>
+  );
+
+  const wizardPanel = (
+    <div style={{ flex: 1, background: '#FFF', border: mobileWizard ? 'none' : `1px solid ${LINE}`, borderRadius: mobileWizard ? 0 : 18, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: mobileWizard ? '100%' : 420, height: mobileWizard ? '100%' : undefined }}>
+      <div style={{ flex: '0 0 auto', height: 56, padding: mobileWizard ? '0 16px' : '0 16px', paddingTop: mobileWizard ? 'env(safe-area-inset-top, 0px)' : 0, minHeight: mobileWizard ? 56 : 56, display: 'flex', alignItems: 'center', gap: 10, borderBottom: `1px solid ${LINE}` }}>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontSize: 11.5, color: FAINT }}>Nueva factura · paso {S.step} de 3</span>
+          <span style={{ fontSize: 14.5, fontWeight: 700 }}>{S.step === 1 ? '¿Para quién?' : S.step === 2 ? '¿Qué le facturas?' : 'Revisar y enviar'}</span>
+        </div>
+        <button type="button" onClick={closeWizard} style={{ width: 34, height: 34, borderRadius: 99, border: 'none', background: '#F2F2F7', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+      </div>
+      <div style={{ flex: '0 0 auto', margin: '12px 16px 0', display: 'flex', gap: 5 }}>
+        {[1, 2, 3].map(i => <span key={i} style={{ flex: 1, height: 4, borderRadius: 99, background: S.step >= i ? MAGENTA : LINE }} />)}
+      </div>
+      {S.step === 1 && (
+        <>
+          <div style={{ flex: '0 0 auto', margin: '12px 16px 0' }}>
+            <input value={S.q} onChange={e => go({ q: e.target.value })} placeholder="Nombre o teléfono" autoFocus style={inp} />
+          </div>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '6px 16px 14px', paddingBottom: mobileWizard ? 'calc(14px + env(safe-area-inset-bottom, 0px))' : 14 }}>
+            {matches.map(c => (
+              <button key={c.id} type="button" onClick={() => go({ client: c, sel: {}, step: 2 })} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 2px', border: 'none', borderBottom: `1px solid ${LINE}`, background: 'transparent', textAlign: 'left', cursor: 'pointer', width: '100%' }}>
+                <span style={{ width: 32, height: 32, borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#FFF', flex: '0 0 auto', background: avatarColor(c.name) }}>{ini(c.name)}</span>
+                <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 600 }}>{c.name}</span>
+                  <span style={{ fontSize: 11.5, color: MUTED }}>{c.phone || 'Sin teléfono'}</span>
+                </span>
+              </button>
+            ))}
+            {!matches.length && <span style={{ fontSize: 12.5, color: MUTED }}>No hay clientas con ese nombre.</span>}
+          </div>
+        </>
+      )}
+      {S.step === 2 && (
+        <>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 16px 14px', display: 'flex', flexDirection: 'column', gap: 7, paddingBottom: mobileWizard ? 'calc(14px + env(safe-area-inset-bottom, 0px))' : 14 }}>
+            <span style={{ fontSize: 12.5, color: MUTED }}>Citas y bonos de <b>{S.client?.name}</b> — marca lo que entra en la factura:</span>
+            {!billable.length && <span style={{ fontSize: 12.5, color: FAINT }}>No tiene citas ni bonos en el historial cargado.</span>}
+            {billable.map(c => {
+              const on = !!S.sel[c.id];
+              const paid = movPaid(c);
+              return (
+                <button key={c.id} type="button" onClick={() => go({ sel: { ...S.sel, [c.id]: !on } })} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 13, textAlign: 'left', cursor: 'pointer', border: on ? `1.5px solid ${INK}` : `1.5px solid ${LINE}`, background: on ? '#FFF' : BG }}>
+                  <span style={{ width: 20, height: 20, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto', background: on ? INK : '#FFF', border: on ? 'none' : '1.5px solid #C4C2CF' }}>
+                    {on && <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 10 18 20 6.5" /></svg>}
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 700 }}>{TYPE_META[c.kind as 'cita' | 'bono']?.name ?? 'Ítem'}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{c.concept} · {dayOfMonthFromIso(c.at)} {MONS[monthIndexFromIso(c.at)]}</span>
+                    {!paid && <span style={{ fontSize: 10.5, fontWeight: 700, color: '#B3123B' }}>Sin cobrar · se marcará cobrada al facturar</span>}
+                  </span>
+                  <span style={{ flex: '0 0 auto', fontSize: 13, fontWeight: 700 }}>{eur(c.amountCents)}</span>
+                </button>
+              );
+            })}
+            <button type="button" onClick={() => toast('Concepto libre: próximamente')} style={{ height: 40, borderRadius: 99, border: '1.5px dashed #C4C2CF', background: 'none', fontSize: 12.5, fontWeight: 700, color: MUTED, cursor: 'pointer' }}>+ Concepto libre</button>
+          </div>
+          <div style={{ flex: '0 0 auto', padding: '0 16px 16px', paddingBottom: mobileWizard ? 'calc(16px + env(safe-area-inset-bottom, 0px))' : 16 }}>
+            <button type="button" onClick={() => { if (sub) go({ step: 3 }); }} style={{ width: '100%', height: 46, borderRadius: 99, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', color: '#FFF', background: INK, opacity: sub ? 1 : 0.4 }}>
+              Seguir · {eur(sub)}
+            </button>
+          </div>
+        </>
+      )}
+      {S.step === 3 && (
+        <>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 16px 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ borderRadius: 14, background: BG, padding: '4px 14px', display: 'flex', flexDirection: 'column' }}>
+              {[
+                ['Para', pvClient],
+                ['Base', eur(Math.round(sub / 1.21))],
+                ['IVA 21 %', eur(Math.round(sub - sub / 1.21))],
+              ].map(([k, v]) => (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #E6E5EC' }}>
+                  <span style={{ fontSize: 12.5, color: MUTED }}>{k}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700 }}>{v}</span>
+                </div>
+              ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0' }}>
+                <span style={{ fontSize: 13, fontWeight: 700 }}>Total</span>
+                <span style={{ fontSize: 16, fontWeight: 800 }}>{eur(sub)}</span>
+              </div>
+            </div>
+            <button type="button" onClick={() => go({ fisOpen: !S.fisOpen })} style={{ border: 'none', background: 'none', padding: 0, textAlign: 'left', fontSize: 12.5, fontWeight: 700, color: BLUE, cursor: 'pointer' }}>
+              {S.fisOpen ? 'Quitar datos fiscales' : 'Añadir datos fiscales (particular, autónomo o empresa)'}
+            </button>
+            {S.fisOpen && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <input value={S.fisRazon} onChange={e => go({ fisRazon: e.target.value })} placeholder="Nombre completo o razón social" style={inp} />
+                <input value={S.fisNif} onChange={e => go({ fisNif: e.target.value })} placeholder="NIF / DNI / CIF" style={inp} />
+                <input value={S.fisDir} onChange={e => go({ fisDir: e.target.value })} placeholder="Dirección fiscal (opcional si es particular)" style={inp} />
+              </div>
+            )}
+            <span style={label}>¿Cómo se la mandamos?</span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {([['email', 'Correo'], ['wa', 'WhatsApp'], ['link', 'Solo guardar']] as const).map(([k, name]) => (
+                <button key={k} type="button" onClick={() => go({ sendVia: k })} style={{ flex: 1, height: 42, borderRadius: 99, cursor: 'pointer', fontSize: 12.5, fontWeight: 700, border: S.sendVia === k ? `2px solid ${INK}` : `1.5px solid ${LINE}`, background: S.sendVia === k ? BG : '#FFF', color: INK }}>
+                  {name}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ flex: '0 0 auto', padding: '14px 16px 16px', paddingBottom: mobileWizard ? 'calc(16px + env(safe-area-inset-bottom, 0px))' : 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <button type="button" onClick={() => go({ preview: true, pvInv: null })} style={{ width: '100%', height: 44, borderRadius: 99, border: `2px solid ${INK}`, background: '#FFF', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
+              Previsualizar factura
+            </button>
+            <button type="button" onClick={saveInvoice} disabled={pendingPay} style={{ width: '100%', height: 48, borderRadius: 99, border: 'none', fontSize: 14.5, fontWeight: 700, cursor: 'pointer', color: '#FFF', background: GRAD, boxShadow: '0 8px 20px rgba(208,0,168,.25)', opacity: pendingPay ? 0.7 : 1 }}>
+              {S.sendVia === 'email' ? 'Guardar y enviar por correo' : S.sendVia === 'wa' ? 'Guardar y enviar por WhatsApp' : 'Guardar factura'}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <div style={{ minHeight: 0, flex: 1, background: BG, fontFamily: 'Sora, sans-serif', color: INK, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
       <div style={{ flex: '0 0 auto', padding: wide ? '22px 28px 0' : '18px 16px 0', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
@@ -468,7 +606,7 @@ export default function FinanzasView({
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, letterSpacing: '-.03em' }}>Finanzas</h1>
           <span style={{ fontSize: 13.5, color: MUTED }}>Citas, bonos y facturas de tu centro</span>
         </div>
-        <div style={{ display: 'flex', background: '#F2F2F7', borderRadius: 99, padding: 3 }}>
+        <div style={{ display: 'flex', background: '#F2F2F7', borderRadius: 99, padding: 3, overflowX: 'auto', maxWidth: '100%' }}>
           {([['mes', 'Mes'], ['tri', 'Trimestre'], ['anio', 'Año'], ['fechas', 'Fechas']] as const).map(([k, name]) => (
             <button
               key={k}
@@ -477,16 +615,23 @@ export default function FinanzasView({
                 gran: k,
                 period: k === 'mes' ? new Date().getMonth() : k === 'anio' ? 1 : Math.floor(new Date().getMonth() / 3),
               })}
-              style={{ height: 36, padding: '0 14px', borderRadius: 99, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, background: S.gran === k ? INK : 'transparent', color: S.gran === k ? '#FFF' : MUTED }}
+              style={{ height: 36, padding: wide ? '0 14px' : '0 12px', borderRadius: 99, border: 'none', cursor: 'pointer', fontSize: wide ? 13 : 12, fontWeight: 700, background: S.gran === k ? INK : 'transparent', color: S.gran === k ? '#FFF' : MUTED, whiteSpace: 'nowrap', flex: '0 0 auto' }}
             >
               {name}
             </button>
           ))}
         </div>
-        <button type="button" onClick={openWizard} style={{ height: 44, padding: '0 18px', borderRadius: 99, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, background: GRAD, color: '#FFF', fontSize: 14, fontWeight: 700, boxShadow: '0 8px 20px rgba(208,0,168,.25)' }}>
+        <button type="button" onClick={openWizard} style={{ height: 44, padding: '0 18px', borderRadius: 99, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, background: GRAD, color: '#FFF', fontSize: 14, fontWeight: 700, boxShadow: '0 8px 20px rgba(208,0,168,.25)', width: wide ? undefined : '100%', justifyContent: 'center' }}>
           + Nueva factura
         </button>
       </div>
+
+      {/* En mobile: filtros Todo/Citas/Bonos/Facturas arriba, visibles sin scroll */}
+      {!wide && (
+        <div style={{ flex: '0 0 auto', position: 'sticky', top: 0, zIndex: 5, padding: '10px 16px', background: BG, borderBottom: `1px solid ${LINE}` }}>
+          {typeFilters}
+        </div>
+      )}
 
       <div style={{ flex: '0 0 auto', padding: wide ? '12px 28px 0' : '10px 16px 0', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         {periods.map((p, i) => (
@@ -515,23 +660,21 @@ export default function FinanzasView({
 
       <div style={{ flex: '0 0 auto', padding: wide ? '14px 28px 0' : '12px 16px 0', display: 'grid', gridTemplateColumns: wide ? 'repeat(4,1fr)' : 'repeat(2,1fr)', gap: 12 }}>
         {kpis.map(k => (
-          <div key={k.name} style={{ background: '#FFF', border: `1px solid ${LINE}`, borderRadius: 18, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div key={k.name} style={{ background: '#FFF', border: `1px solid ${LINE}`, borderRadius: 18, padding: wide ? '16px 18px' : '12px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: MUTED }}>{k.name}</span>
-            <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-.02em' }}>{k.val}</span>
+            <span style={{ fontSize: wide ? 24 : 20, fontWeight: 800, letterSpacing: '-.02em' }}>{k.val}</span>
             <span style={{ fontSize: 12, fontWeight: 600, color: k.c }}>{k.delta}</span>
           </div>
         ))}
       </div>
 
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: wide ? 'row' : 'column', gap: 16, padding: wide ? '16px 28px 28px' : '12px 16px 24px' }}>
-        <div style={{ flex: 1, minWidth: 0, background: '#FFF', border: `1px solid ${LINE}`, borderRadius: 18, display: 'flex', flexDirection: 'column', overflow: 'hidden', maxHeight: wide ? 'none' : 480 }}>
-          <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px 0', flexWrap: 'wrap' }}>
-            {([['todo', 'Todo'], ['cita', 'Citas'], ['bono', 'Bonos'], ['fact', 'Facturas']] as const).map(([k, name]) => (
-              <button key={k} type="button" onClick={() => go({ typeF: k })} style={{ height: 32, padding: '0 13px', borderRadius: 99, cursor: 'pointer', fontSize: 12, fontWeight: 700, border: S.typeF === k ? `2px solid ${INK}` : `1.5px solid ${LINE}`, background: '#FFF', color: INK }}>
-                {name}
-              </button>
-            ))}
-          </div>
+        <div style={{ flex: 1, minWidth: 0, background: '#FFF', border: `1px solid ${LINE}`, borderRadius: 18, display: 'flex', flexDirection: 'column', overflow: 'hidden', maxHeight: 'none', minHeight: wide ? undefined : 320 }}>
+          {wide && (
+            <div style={{ flex: '0 0 auto', padding: '12px 20px 0' }}>
+              {typeFilters}
+            </div>
+          )}
           {S.typeF === 'fact' && (
             <button type="button" onClick={openWizard} style={{ margin: '10px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 42, borderRadius: 14, cursor: 'pointer', fontSize: 13, fontWeight: 700, border: '1.5px dashed #C4C2CF', background: 'none', color: MUTED }}>
               + Nueva factura
@@ -545,12 +688,12 @@ export default function FinanzasView({
               const m = monthIndexFromIso(x.at);
               const d = dayOfMonthFromIso(x.at);
               return (
-                <div key={x.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 20px', borderTop: '1px solid #F2F2F7' }}>
-                  <span style={{ flex: '0 0 76px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
+                <div key={x.id} style={{ display: 'flex', alignItems: 'center', gap: wide ? 12 : 8, padding: wide ? '11px 20px' : '12px 14px', borderTop: '1px solid #F2F2F7', flexWrap: wide ? 'nowrap' : 'wrap' }}>
+                  <span style={{ flex: wide ? '0 0 76px' : '0 0 auto', display: 'flex', flexDirection: wide ? 'column' : 'row', alignItems: wide ? 'flex-start' : 'center', gap: wide ? 2 : 8 }}>
                     <span style={{ height: 20, padding: '0 8px', borderRadius: 99, fontSize: 10.5, fontWeight: 700, display: 'flex', alignItems: 'center', background: tm.bg, color: tm.c }}>{tm.name}</span>
                     <span style={{ fontSize: 11, color: FAINT }}>{d} {MONS[m]}</span>
                   </span>
-                  <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ flex: 1, minWidth: wide ? 0 : '40%', display: 'flex', flexDirection: 'column' }}>
                     <span style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.clientLabel}</span>
                     <span style={{ fontSize: 12, color: MUTED, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{isF && x.num ? `${x.num} · ` : ''}{x.concept}</span>
                   </span>
@@ -563,7 +706,7 @@ export default function FinanzasView({
                   >
                     {isF ? 'Emitida' : paid ? 'Cobrada' : 'Sin cobrar'}
                   </button>
-                  <span style={{ flex: '0 0 auto', display: 'flex', gap: 6 }}>
+                  <span style={{ flex: '0 0 auto', display: 'flex', gap: 6, marginLeft: wide ? 0 : 'auto' }}>
                     {isF && (
                       <button type="button" onClick={() => go({ preview: true, pvInv: x })} title="Ver factura" style={{ width: 30, height: 30, borderRadius: 99, border: `1.5px solid ${LINE}`, background: '#FFF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke={INK} strokeWidth={2.1} strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z" /><circle cx="12" cy="12" r="2.8" /></svg>
@@ -586,7 +729,8 @@ export default function FinanzasView({
         </div>
 
         <div style={{ flex: wide ? '0 0 340px' : '1 1 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {!S.wizard ? (
+          {/* En desktop el wizard va en la columna; en mobile es overlay abajo */}
+          {S.wizard && wide ? wizardPanel : !S.wizard ? (
             <>
               <div style={{ background: '#FFF', border: `1px solid ${LINE}`, borderRadius: 18, padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <span style={{ fontSize: 15.5, fontWeight: 700 }}>Resumen · {periodLabel}</span>
@@ -640,124 +784,34 @@ export default function FinanzasView({
                 ))}
               </div>
             </>
-          ) : (
-            <div style={{ flex: 1, background: '#FFF', border: `1px solid ${LINE}`, borderRadius: 18, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 420 }}>
-              <div style={{ flex: '0 0 auto', height: 56, padding: '0 16px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: `1px solid ${LINE}` }}>
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: 11.5, color: FAINT }}>Nueva factura · paso {S.step} de 3</span>
-                  <span style={{ fontSize: 14.5, fontWeight: 700 }}>{S.step === 1 ? '¿Para quién?' : S.step === 2 ? '¿Qué le facturas?' : 'Revisar y enviar'}</span>
-                </div>
-                <button type="button" onClick={() => go({ wizard: false })} style={{ width: 34, height: 34, borderRadius: 99, border: 'none', background: '#F2F2F7', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-              </div>
-              <div style={{ flex: '0 0 auto', margin: '12px 16px 0', display: 'flex', gap: 5 }}>
-                {[1, 2, 3].map(i => <span key={i} style={{ flex: 1, height: 4, borderRadius: 99, background: S.step >= i ? MAGENTA : LINE }} />)}
-              </div>
-              {S.step === 1 && (
-                <>
-                  <div style={{ flex: '0 0 auto', margin: '12px 16px 0' }}>
-                    <input value={S.q} onChange={e => go({ q: e.target.value })} placeholder="Nombre o teléfono" autoFocus style={inp} />
-                  </div>
-                  <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '6px 16px 14px' }}>
-                    {matches.map(c => (
-                      <button key={c.id} type="button" onClick={() => go({ client: c, sel: {}, step: 2 })} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 2px', border: 'none', borderBottom: `1px solid ${LINE}`, background: 'transparent', textAlign: 'left', cursor: 'pointer', width: '100%' }}>
-                        <span style={{ width: 32, height: 32, borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#FFF', flex: '0 0 auto', background: avatarColor(c.name) }}>{ini(c.name)}</span>
-                        <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: 13.5, fontWeight: 600 }}>{c.name}</span>
-                          <span style={{ fontSize: 11.5, color: MUTED }}>{c.phone || 'Sin teléfono'}</span>
-                        </span>
-                      </button>
-                    ))}
-                    {!matches.length && <span style={{ fontSize: 12.5, color: MUTED }}>No hay clientas con ese nombre.</span>}
-                  </div>
-                </>
-              )}
-              {S.step === 2 && (
-                <>
-                  <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 16px 14px', display: 'flex', flexDirection: 'column', gap: 7 }}>
-                    <span style={{ fontSize: 12.5, color: MUTED }}>Citas y bonos de <b>{S.client?.name}</b> — marca lo que entra en la factura:</span>
-                    {!billable.length && <span style={{ fontSize: 12.5, color: FAINT }}>No tiene citas ni bonos en el historial cargado.</span>}
-                    {billable.map(c => {
-                      const on = !!S.sel[c.id];
-                      const paid = movPaid(c);
-                      return (
-                        <button key={c.id} type="button" onClick={() => go({ sel: { ...S.sel, [c.id]: !on } })} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 13, textAlign: 'left', cursor: 'pointer', border: on ? `1.5px solid ${INK}` : `1.5px solid ${LINE}`, background: on ? '#FFF' : BG }}>
-                          <span style={{ width: 20, height: 20, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto', background: on ? INK : '#FFF', border: on ? 'none' : '1.5px solid #C4C2CF' }}>
-                            {on && <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 10 18 20 6.5" /></svg>}
-                          </span>
-                          <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            <span style={{ fontSize: 13.5, fontWeight: 600 }}>{c.concept} · {dayOfMonthFromIso(c.at)} {MONS[monthIndexFromIso(c.at)]}</span>
-                            {!paid && <span style={{ fontSize: 10.5, fontWeight: 700, color: '#B3123B' }}>Sin cobrar · se marcará cobrada al facturar</span>}
-                          </span>
-                          <span style={{ flex: '0 0 auto', fontSize: 13, fontWeight: 700 }}>{eur(c.amountCents)}</span>
-                        </button>
-                      );
-                    })}
-                    <button type="button" onClick={() => toast('Concepto libre: próximamente')} style={{ height: 40, borderRadius: 99, border: '1.5px dashed #C4C2CF', background: 'none', fontSize: 12.5, fontWeight: 700, color: MUTED, cursor: 'pointer' }}>+ Concepto libre</button>
-                  </div>
-                  <div style={{ flex: '0 0 auto', padding: '0 16px 16px' }}>
-                    <button type="button" onClick={() => { if (sub) go({ step: 3 }); }} style={{ width: '100%', height: 46, borderRadius: 99, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', color: '#FFF', background: INK, opacity: sub ? 1 : 0.4 }}>
-                      Seguir · {eur(sub)}
-                    </button>
-                  </div>
-                </>
-              )}
-              {S.step === 3 && (
-                <>
-                  <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 16px 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div style={{ borderRadius: 14, background: BG, padding: '4px 14px', display: 'flex', flexDirection: 'column' }}>
-                      {[
-                        ['Para', pvClient],
-                        ['Base', eur(Math.round(sub / 1.21))],
-                        ['IVA 21 %', eur(Math.round(sub - sub / 1.21))],
-                      ].map(([k, v]) => (
-                        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #E6E5EC' }}>
-                          <span style={{ fontSize: 12.5, color: MUTED }}>{k}</span>
-                          <span style={{ fontSize: 13, fontWeight: 700 }}>{v}</span>
-                        </div>
-                      ))}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0' }}>
-                        <span style={{ fontSize: 13, fontWeight: 700 }}>Total</span>
-                        <span style={{ fontSize: 16, fontWeight: 800 }}>{eur(sub)}</span>
-                      </div>
-                    </div>
-                    <button type="button" onClick={() => go({ fisOpen: !S.fisOpen })} style={{ border: 'none', background: 'none', padding: 0, textAlign: 'left', fontSize: 12.5, fontWeight: 700, color: BLUE, cursor: 'pointer' }}>
-                      {S.fisOpen ? 'Quitar datos fiscales' : 'Añadir datos fiscales (particular, autónomo o empresa)'}
-                    </button>
-                    {S.fisOpen && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <input value={S.fisRazon} onChange={e => go({ fisRazon: e.target.value })} placeholder="Nombre completo o razón social" style={inp} />
-                        <input value={S.fisNif} onChange={e => go({ fisNif: e.target.value })} placeholder="NIF / DNI / CIF" style={inp} />
-                        <input value={S.fisDir} onChange={e => go({ fisDir: e.target.value })} placeholder="Dirección fiscal (opcional si es particular)" style={inp} />
-                      </div>
-                    )}
-                    <span style={label}>¿Cómo se la mandamos?</span>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      {([['email', 'Correo'], ['wa', 'WhatsApp'], ['link', 'Solo guardar']] as const).map(([k, name]) => (
-                        <button key={k} type="button" onClick={() => go({ sendVia: k })} style={{ flex: 1, height: 42, borderRadius: 99, cursor: 'pointer', fontSize: 12.5, fontWeight: 700, border: S.sendVia === k ? `2px solid ${INK}` : `1.5px solid ${LINE}`, background: S.sendVia === k ? BG : '#FFF', color: INK }}>
-                          {name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div style={{ flex: '0 0 auto', padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <button type="button" onClick={() => go({ preview: true, pvInv: null })} style={{ width: '100%', height: 44, borderRadius: 99, border: `2px solid ${INK}`, background: '#FFF', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
-                      Previsualizar factura
-                    </button>
-                    <button type="button" onClick={saveInvoice} disabled={pendingPay} style={{ width: '100%', height: 48, borderRadius: 99, border: 'none', fontSize: 14.5, fontWeight: 700, cursor: 'pointer', color: '#FFF', background: GRAD, boxShadow: '0 8px 20px rgba(208,0,168,.25)', opacity: pendingPay ? 0.7 : 1 }}>
-                      {S.sendVia === 'email' ? 'Guardar y enviar por correo' : S.sendVia === 'wa' ? 'Guardar y enviar por WhatsApp' : 'Guardar factura'}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
 
+      {mobileWizard && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Nueva factura"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 60,
+            background: '#FFF',
+            display: 'flex',
+            flexDirection: 'column',
+            // Por encima del bottom nav del PhoneShell
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          }}
+        >
+          {wizardPanel}
+        </div>
+      )}
+
       {S.preview && (
         <>
-          <div onClick={() => go({ preview: false, pvInv: null })} style={{ position: 'fixed', inset: 0, background: 'rgba(15,14,26,.5)', zIndex: 50 }} />
-          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 51, width: 'min(520px,94vw)', maxHeight: '92vh', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div onClick={() => go({ preview: false, pvInv: null })} style={{ position: 'fixed', inset: 0, background: 'rgba(15,14,26,.5)', zIndex: 70 }} />
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 71, width: 'min(520px,94vw)', maxHeight: '92vh', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: '#FFF' }}>Así la verá tu client@</span>
               <div style={{ display: 'flex', gap: 8 }}>
