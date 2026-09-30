@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { owedCents } from '@/lib/payment';
-import { dayKey, TZ } from '@/lib/time';
+import { toTimestamp, TZ } from '@/lib/time';
 
 export type FinanzasKind = 'cita' | 'bono' | 'fact';
 
@@ -74,7 +74,29 @@ export function yearFromIso(iso: string): number {
   return Number(parts.find(p => p.type === 'year')?.value ?? 0);
 }
 
-/** Carga citas y bonos del salón en un rango amplio (filtro fino en UI). */
+const APPT_SELECT_PAID = `
+  id, starts_at, price_cents, paid_cents, status, client_id, client_name,
+  service:services(name),
+  provider:staff!appointments_provider_id_fkey(full_name),
+  client:clients(full_name)
+`;
+const APPT_SELECT_PLAIN = `
+  id, starts_at, price_cents, status, client_id, client_name,
+  service:services(name),
+  provider:staff!appointments_provider_id_fkey(full_name),
+  client:clients(full_name)
+`;
+const PACK_SELECT_PAID = `
+  id, name, price_cents, paid_cents, purchased_at, owner_client_id,
+  owner:clients!owner_client_id(full_name)
+`;
+const PACK_SELECT_PLAIN = `
+  id, name, price_cents, purchased_at, owner_client_id,
+  owner:clients!owner_client_id(full_name)
+`;
+
+/** Carga citas y bonos del salón en un rango amplio (filtro fino en UI).
+ *  Las canceladas se borran: no hay status `cancel` en el enum. */
 export async function loadFinanzasMovements(
   sb: SupabaseClient,
   opts?: { from?: string; to?: string },
@@ -82,30 +104,21 @@ export async function loadFinanzasMovements(
   const now = new Date();
   const year = now.getFullYear();
   const from = opts?.from ?? `${year - 1}-01-01`;
-  const to = opts?.to ?? `${year}-12-31`;
-  const fromTs = `${from}T00:00:00`;
-  const toTs = `${to}T23:59:59`;
+  const to = opts?.to ?? `${year + 1}-12-31`;
+  const fromTs = toTimestamp(from, 0);
+  const toTs = toTimestamp(to, 24 * 60 - 1);
 
   const [apptsRes, packsRes] = await Promise.all([
     sb
       .from('appointments')
-      .select(`
-        id, starts_at, price_cents, paid_cents, status, client_id, client_name,
-        service:services(name),
-        provider:staff!appointments_provider_id_fkey(full_name),
-        client:clients(full_name)
-      `)
-      .neq('status', 'cancel')
+      .select(APPT_SELECT_PAID)
       .gte('starts_at', fromTs)
       .lte('starts_at', toTs)
       .order('starts_at', { ascending: false })
       .limit(2000),
     sb
       .from('client_packs')
-      .select(`
-        id, name, price_cents, paid_cents, purchased_at, owner_client_id,
-        owner:clients!owner_client_id(full_name)
-      `)
+      .select(PACK_SELECT_PAID)
       .gte('purchased_at', from)
       .lte('purchased_at', to)
       .order('purchased_at', { ascending: false })
@@ -113,36 +126,39 @@ export async function loadFinanzasMovements(
   ]);
 
   let apptRows = apptsRes.data;
-  if (apptsRes.error && /paid_cents/i.test(apptsRes.error.message)) {
-    const retry = await sb
-      .from('appointments')
-      .select(`
-        id, starts_at, price_cents, status, client_id, client_name,
-        service:services(name),
-        provider:staff!appointments_provider_id_fkey(full_name),
-        client:clients(full_name)
-      `)
-      .neq('status', 'cancel')
-      .gte('starts_at', fromTs)
-      .lte('starts_at', toTs)
-      .order('starts_at', { ascending: false })
-      .limit(2000);
-    apptRows = (retry.data ?? []).map(r => ({ ...r, paid_cents: 0 }));
+  if (apptsRes.error) {
+    if (/paid_cents/i.test(apptsRes.error.message)) {
+      const retry = await sb
+        .from('appointments')
+        .select(APPT_SELECT_PLAIN)
+        .gte('starts_at', fromTs)
+        .lte('starts_at', toTs)
+        .order('starts_at', { ascending: false })
+        .limit(2000);
+      apptRows = (retry.data ?? []).map(r => ({ ...r, paid_cents: 0 }));
+      if (retry.error) console.error('[finanzas] appointments', retry.error.message);
+    } else {
+      console.error('[finanzas] appointments', apptsRes.error.message);
+      apptRows = [];
+    }
   }
 
   let packRows = packsRes.data;
-  if (packsRes.error && /paid_cents/i.test(packsRes.error.message)) {
-    const retry = await sb
-      .from('client_packs')
-      .select(`
-        id, name, price_cents, purchased_at, owner_client_id,
-        owner:clients!owner_client_id(full_name)
-      `)
-      .gte('purchased_at', from)
-      .lte('purchased_at', to)
-      .order('purchased_at', { ascending: false })
-      .limit(1000);
-    packRows = (retry.data ?? []).map(r => ({ ...r, paid_cents: 0 }));
+  if (packsRes.error) {
+    if (/paid_cents/i.test(packsRes.error.message)) {
+      const retry = await sb
+        .from('client_packs')
+        .select(PACK_SELECT_PLAIN)
+        .gte('purchased_at', from)
+        .lte('purchased_at', to)
+        .order('purchased_at', { ascending: false })
+        .limit(1000);
+      packRows = (retry.data ?? []).map(r => ({ ...r, paid_cents: 0 }));
+      if (retry.error) console.error('[finanzas] packs', retry.error.message);
+    } else {
+      console.error('[finanzas] packs', packsRes.error.message);
+      packRows = [];
+    }
   }
 
   const movs: FinanzasMov[] = [];
@@ -216,5 +232,6 @@ export async function loadFinanzasClients(sb: SupabaseClient): Promise<FinanzasC
 
 export function defaultFinanzasRange(): { from: string; to: string } {
   const y = new Date().getFullYear();
-  return { from: `${y - 1}-01-01`, to: dayKey(new Date()) };
+  // Hasta fin del año siguiente: el filtro fino (mes/trimestre) es en UI.
+  return { from: `${y - 1}-01-01`, to: `${y + 1}-12-31` };
 }
