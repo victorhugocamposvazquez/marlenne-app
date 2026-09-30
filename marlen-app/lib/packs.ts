@@ -134,13 +134,14 @@ export function templatesForSection(
   templates: PackTemplate[],
   sectionServiceIds: string[],
   query = '',
-  opts?: { onlyGeneric?: boolean },
+  opts?: { onlyGeneric?: boolean; allMatching?: boolean },
 ): PackTemplate[] {
   const ids = new Set(sectionServiceIds);
   return templates
     .filter(t => t.is_active !== false)
     .filter(t => packMatchesSearch(t, query))
     .filter(t => {
+      if (opts?.allMatching) return true;
       if (opts?.onlyGeneric) return !t.service_id;
       if (!t.service_id) return false;
       return ids.has(t.service_id);

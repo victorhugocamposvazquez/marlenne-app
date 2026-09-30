@@ -219,15 +219,17 @@ export function NewAppointmentSheetBody({
   );
 
   const sectionsForUi = useMemo(() => {
+    const searching = serviceQ.trim().length > 0;
+    const matchingTpl = templatesForSection(templates, [], serviceQ, { allMatching: true });
     const generic = templatesForSection(templates, [], serviceQ, { onlyGeneric: true });
-    const activeTpl = templates.filter(t => t.is_active !== false && packMatchesSearch(t, serviceQ));
-    if (catalog.length === 0 && clientOpenPacks.length === 0 && activeTpl.length === 0) return catalog;
+    if (catalog.length === 0 && clientOpenPacks.length === 0 && matchingTpl.length === 0) return catalog;
+    // Con búsqueda: Bonos agrupa todas las plantillas que coinciden (láser incluido).
+    // Sin búsqueda: Bonos solo genéricos; el resto va arriba de su categoría.
+    const needBonos = searching ? matchingTpl.length > 0 || clientOpenPacks.length > 0 : generic.length > 0;
     if (catalog.length > 0) {
-      // Una sola sección Bonos al inicio si hay genéricos; no duplicar dentro del catálogo.
-      if (generic.length > 0) {
-        return [{ key: 'bonos', title: 'Bonos', items: [] as ServiceOption[] }, ...catalog];
-      }
-      return catalog;
+      return needBonos
+        ? [{ key: 'bonos', title: 'Bonos', items: [] as ServiceOption[] }, ...catalog]
+        : catalog;
     }
     return [{ key: 'bonos', title: 'Bonos', items: [] as ServiceOption[] }];
   }, [catalog, clientOpenPacks.length, templates, serviceQ]);
@@ -685,15 +687,22 @@ export function NewAppointmentSheetBody({
                 </p>
               )}
               {sectionsForUi.map(sec => {
+                const searching = serviceQ.trim().length > 0;
                 const isBonosOnly = sec.key === 'bonos' && sec.items.length === 0;
                 const sectionPacks = client
                   ? (isBonosOnly
-                    ? clientOpenPacks.filter(p => !p.service_id)
-                    : packsForSection(packsForPick, client.id, sec.items.map(s => s.id), serviceQ))
+                    ? (searching
+                      ? clientOpenPacks
+                      : clientOpenPacks.filter(p => !p.service_id))
+                    : searching
+                      ? []
+                      : packsForSection(packsForPick, client.id, sec.items.map(s => s.id), serviceQ))
                   : [];
                 const sectionTemplates = isBonosOnly
-                  ? templatesForSection(templates, [], serviceQ, { onlyGeneric: true })
-                  : templatesForSection(templates, sec.items.map(s => s.id), serviceQ);
+                  ? templatesForSection(templates, [], serviceQ, searching ? { allMatching: true } : { onlyGeneric: true })
+                  : searching
+                    ? []
+                    : templatesForSection(templates, sec.items.map(s => s.id), serviceQ);
                 // No repetir plantilla si la clienta ya tiene ese bono abierto en la sección
                 const ownedTplIds = new Set(
                   sectionPacks.map(p => p.template_id).filter(Boolean) as string[],
