@@ -108,10 +108,10 @@ function defaultState(movs: FinanzasMov[]): St {
   const today = dayKey(new Date());
   const now = new Date();
   const month = now.getMonth();
-  const tri = Math.floor(month / 3);
   return {
-    gran: 'tri',
-    period: tri,
+    // Mes actual: si arrancas en trimestre vacío parece que «no hay citas».
+    gran: 'mes',
+    period: month,
     from: `${now.getFullYear()}-${String(month + 1).padStart(2, '0')}-01`,
     to: today,
     typeF: 'todo',
@@ -137,10 +137,12 @@ export default function FinanzasView({
   initialMovs,
   clients,
   emisor: emisorProp,
+  loadWarning = null,
 }: {
   initialMovs: FinanzasMov[];
   clients: FinanzasClient[];
   emisor?: SalonEmisor;
+  loadWarning?: string | null;
 }) {
   const EMISOR = emisorProp ?? FALLBACK_EMISOR;
   const router = useRouter();
@@ -726,6 +728,22 @@ export default function FinanzasView({
           + Nueva factura
         </button>
       </div>
+
+      {loadWarning && (
+        <div style={{ margin: wide ? '12px 28px 0' : '10px 16px 0', padding: '12px 14px', borderRadius: 14, background: '#FFF1F4', border: '1px solid #FBD5DE', fontSize: 13, fontWeight: 600, color: '#B3123B' }}>
+          {loadWarning}
+        </div>
+      )}
+      {!loadWarning && !S.movs.length && (
+        <div style={{ margin: wide ? '12px 28px 0' : '10px 16px 0', padding: '12px 14px', borderRadius: 14, background: '#FFF8E8', border: '1px solid #F0E0B8', fontSize: 13, fontWeight: 600, color: '#8A6A1A' }}>
+          No hay citas ni bonos cargados de la base en el rango amplio. Si en Agenda sí ves citas, recarga o revisa el periodo.
+        </div>
+      )}
+      {!loadWarning && S.movs.length > 0 && !list.length && (
+        <div style={{ margin: wide ? '12px 28px 0' : '10px 16px 0', padding: '12px 14px', borderRadius: 14, background: '#E8F2FF', border: '1px solid #C5DBF5', fontSize: 13, fontWeight: 600, color: '#0463D1' }}>
+          Hay {S.movs.length} movimiento{S.movs.length === 1 ? '' : 's'} en la base, pero ninguno en {periodLabel}. Cambia mes / trimestre / Fechas.
+        </div>
+      )}
 
       {/* En mobile: filtros Todo/Citas/Bonos/Facturas arriba, visibles sin scroll */}
       {!wide && (

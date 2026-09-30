@@ -12,11 +12,18 @@ export default async function FinanzasPage() {
   const me = await requireRole('admin', 'reception');
   const sb = createClient();
   const range = defaultFinanzasRange();
-  const [movs, clients, emisor] = await Promise.all([
-    loadFinanzasMovements(sb, range),
-    loadFinanzasClients(sb),
+  const [loaded, clients, emisor] = await Promise.all([
+    loadFinanzasMovements(sb, { ...range, salonId: me.salon_id }),
+    loadFinanzasClients(sb, me.salon_id),
     fetchSalonEmisor(sb, me.salon_id),
   ]);
 
-  return <FinanzasView initialMovs={movs} clients={clients} emisor={emisor} />;
+  return (
+    <FinanzasView
+      initialMovs={loaded.movs}
+      clients={clients}
+      emisor={emisor}
+      loadWarning={loaded.warning}
+    />
+  );
 }
