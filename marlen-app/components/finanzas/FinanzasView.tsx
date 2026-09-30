@@ -66,6 +66,8 @@ type St = {
   q: string;
   client: FinanzasClient | null;
   sel: Record<string, boolean>;
+  /** Selección en la lista Todo/Citas/Bonos (misma clienta) para facturar. */
+  listSel: Record<string, boolean>;
   sendVia: 'email' | 'wa' | 'link';
   fisOpen: boolean;
   fisNif: string;
@@ -119,6 +121,7 @@ function defaultState(movs: FinanzasMov[]): St {
     q: '',
     client: null,
     sel: {},
+    listSel: {},
     sendVia: 'email',
     fisOpen: false,
     fisNif: '',
@@ -195,8 +198,13 @@ export default function FinanzasView({
     [S.movs, S.gran, S.period, S.from, S.to],
   );
   const list = allPeriod.filter(x => S.typeF === 'todo' || x.kind === S.typeF);
+  const billableInList = list.filter(x => x.kind === 'cita' || x.kind === 'bono');
   const sumCents = (a: FinanzasMov[]) => a.reduce((s, x) => s + x.amountCents, 0);
   const sumPaid = (a: FinanzasMov[]) => a.reduce((s, x) => s + Math.min(x.paidCents, x.amountCents || x.paidCents), 0);
+  const listSelMovs = billableInList.filter(x => S.listSel[x.id]);
+  const listSelCount = listSelMovs.length;
+  const listSelCents = sumCents(listSelMovs);
+  const listSelClientId = listSelMovs[0]?.clientId ?? null;
 
   const paidMovs = allPeriod.filter(x => x.kind !== 'fact' && movPaid(x));
   const total = sumPaid(paidMovs);
@@ -379,7 +387,7 @@ export default function FinanzasView({
 
   const openWizard = () => {
     go({
-      wizard: true, step: 1, q: '', client: null, sel: {}, sendVia: 'email',
+      wizard: true, step: 1, q: '', client: null, sel: {}, listSel: {}, sendVia: 'email',
       fisOpen: false, fisNif: '', fisRazon: '', fisDir: '',
     });
     // En mobile el wizard es overlay: sube al top para que no quede «nada» visible.
@@ -388,9 +396,62 @@ export default function FinanzasView({
     }
   };
   const closeWizard = () => go({ wizard: false });
+
+  const toggleListSel = (x: FinanzasMov) => {
+    if (x.kind === 'fact' || !x.clientId) return;
+    const on = !!S.listSel[x.id];
+    if (on) {
+      go({ listSel: { ...S.listSel, [x.id]: false } });
+      return;
+    }
+    if (listSelClientId && listSelClientId !== x.clientId) {
+      toast('Una factura = una clienta. Quita la selección o elige otra fila suya.');
+      return;
+    }
+    go({ listSel: { ...S.listSel, [x.id]: true } });
+  };
+
+  const selectSameClientInPeriod = (clientId: string) => {
+    const next: Record<string, boolean> = {};
+    for (const x of billableInList) {
+      if (x.clientId === clientId) next[x.id] = true;
+    }
+    go({ listSel: next });
+  };
+
+  const clearListSel = () => go({ listSel: {} });
+
+  const facturarDesdeLista = () => {
+    if (!listSelCount || !listSelClientId) return;
+    const c = clients.find(cl => cl.id === listSelClientId) ?? null;
+    if (!c) {
+      toast('No encuentro esa clienta');
+      return;
+    }
+    const sel: Record<string, boolean> = {};
+    for (const m of listSelMovs) sel[m.id] = true;
+    go({
+      wizard: true,
+      step: 3,
+      client: c,
+      sel,
+      listSel: {},
+      q: '',
+      sendVia: 'email',
+      fisOpen: false,
+      fisNif: '',
+      fisRazon: '',
+      fisDir: '',
+    });
+    if (typeof window !== 'undefined' && window.innerWidth < 1000) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   const ini = (n: string) => n.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
   const wide = !S.narrow;
   const mobileWizard = S.wizard && !wide;
+  const canPickList = S.typeF !== 'fact';
 
   const kpis = [
     { name: 'Ingresos cobrados', val: eur(total), delta: periodLabel, c: '#0FA958' },
@@ -479,12 +540,51 @@ export default function FinanzasView({
   const typeFilters = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
       {([['todo', 'Todo'], ['cita', 'Citas'], ['bono', 'Bonos'], ['fact', 'Facturas']] as const).map(([k, name]) => (
-        <button key={k} type="button" onClick={() => go({ typeF: k })} style={{ height: wide ? 32 : 36, padding: wide ? '0 13px' : '0 14px', borderRadius: 99, cursor: 'pointer', fontSize: wide ? 12 : 13, fontWeight: 700, border: S.typeF === k ? `2px solid ${INK}` : `1.5px solid ${LINE}`, background: S.typeF === k ? INK : '#FFF', color: S.typeF === k ? '#FFF' : INK }}>
+        <button
+          key={k}
+          type="button"
+          onClick={() => go({ typeF: k, listSel: k === 'fact' ? {} : S.listSel })}
+          style={{ height: wide ? 32 : 36, padding: wide ? '0 13px' : '0 14px', borderRadius: 99, cursor: 'pointer', fontSize: wide ? 12 : 13, fontWeight: 700, border: S.typeF === k ? `2px solid ${INK}` : `1.5px solid ${LINE}`, background: S.typeF === k ? INK : '#FFF', color: S.typeF === k ? '#FFF' : INK }}
+        >
           {name}
         </button>
       ))}
     </div>
   );
+
+  const selectionBar = canPickList && (listSelCount > 0 || billableInList.length > 0) ? (
+    <div style={{ flex: '0 0 auto', margin: wide ? '10px 20px 0' : '10px 14px 0', padding: '10px 12px', borderRadius: 14, background: listSelCount ? '#F2F2F7' : 'transparent', border: listSelCount ? `1px solid ${LINE}` : '1px dashed #C4C2CF', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ flex: 1, minWidth: 140, fontSize: 12.5, fontWeight: 600, color: listSelCount ? INK : MUTED }}>
+          {listSelCount
+            ? `${listSelCount} seleccionado${listSelCount === 1 ? '' : 's'} · ${eur(listSelCents)} · ${listSelMovs[0]?.clientLabel ?? ''}`
+            : 'Toca el check de citas o bonos del periodo para facturar'}
+        </span>
+        {listSelClientId && (
+          <button
+            type="button"
+            onClick={() => selectSameClientInPeriod(listSelClientId)}
+            style={{ height: 32, padding: '0 12px', borderRadius: 99, border: `1.5px solid ${LINE}`, background: '#FFF', fontSize: 12, fontWeight: 700, cursor: 'pointer', color: INK }}
+          >
+            Toda suya en el periodo
+          </button>
+        )}
+        {listSelCount > 0 && (
+          <button type="button" onClick={clearListSel} style={{ height: 32, padding: '0 12px', borderRadius: 99, border: 'none', background: 'transparent', fontSize: 12, fontWeight: 700, cursor: 'pointer', color: MUTED }}>
+            Limpiar
+          </button>
+        )}
+        <button
+          type="button"
+          disabled={!listSelCount}
+          onClick={facturarDesdeLista}
+          style={{ height: 36, padding: '0 14px', borderRadius: 99, border: 'none', cursor: listSelCount ? 'pointer' : 'default', fontSize: 13, fontWeight: 700, color: '#FFF', background: listSelCount ? GRAD : '#C4C2CF', opacity: listSelCount ? 1 : 0.7 }}
+        >
+          Facturar selección
+        </button>
+      </div>
+    </div>
+  ) : null;
 
   const wizardPanel = (
     <div style={{ flex: 1, background: '#FFF', border: mobileWizard ? 'none' : `1px solid ${LINE}`, borderRadius: mobileWizard ? 0 : 18, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: mobileWizard ? '100%' : 420, height: mobileWizard ? '100%' : undefined }}>
@@ -614,6 +714,7 @@ export default function FinanzasView({
               onClick={() => go({
                 gran: k,
                 period: k === 'mes' ? new Date().getMonth() : k === 'anio' ? 1 : Math.floor(new Date().getMonth() / 3),
+                listSel: {},
               })}
               style={{ height: 36, padding: wide ? '0 14px' : '0 12px', borderRadius: 99, border: 'none', cursor: 'pointer', fontSize: wide ? 13 : 12, fontWeight: 700, background: S.gran === k ? INK : 'transparent', color: S.gran === k ? '#FFF' : MUTED, whiteSpace: 'nowrap', flex: '0 0 auto' }}
             >
@@ -635,21 +736,21 @@ export default function FinanzasView({
 
       <div style={{ flex: '0 0 auto', padding: wide ? '12px 28px 0' : '10px 16px 0', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         {periods.map((p, i) => (
-          <button key={`${p.name}-${p.year}`} type="button" onClick={() => go({ period: i })} style={{ ...chip(i === Math.min(S.period, periods.length - 1)) }}>
+          <button key={`${p.name}-${p.year}`} type="button" onClick={() => go({ period: i, listSel: {} })} style={{ ...chip(i === Math.min(S.period, periods.length - 1)) }}>
             {p.name}
           </button>
         ))}
         {byDates && (
           <>
-            <input type="date" value={S.from} onChange={e => go({ from: e.target.value || S.from })} style={{ height: 36, border: `1.5px solid ${LINE}`, borderRadius: 99, background: '#FFF', padding: '0 13px', fontSize: 13, fontWeight: 600, color: INK, outline: 'none' }} />
+            <input type="date" value={S.from} onChange={e => go({ from: e.target.value || S.from, listSel: {} })} style={{ height: 36, border: `1.5px solid ${LINE}`, borderRadius: 99, background: '#FFF', padding: '0 13px', fontSize: 13, fontWeight: 600, color: INK, outline: 'none' }} />
             <span style={{ fontSize: 13, color: FAINT }}>→</span>
-            <input type="date" value={S.to} onChange={e => go({ to: e.target.value || S.to })} style={{ height: 36, border: `1.5px solid ${LINE}`, borderRadius: 99, background: '#FFF', padding: '0 13px', fontSize: 13, fontWeight: 600, color: INK, outline: 'none' }} />
+            <input type="date" value={S.to} onChange={e => go({ to: e.target.value || S.to, listSel: {} })} style={{ height: 36, border: `1.5px solid ${LINE}`, borderRadius: 99, background: '#FFF', padding: '0 13px', fontSize: 13, fontWeight: 600, color: INK, outline: 'none' }} />
             {[
               ['Hoy', dayKey(new Date()), dayKey(new Date())],
               ['Últimos 7 días', dayKey(new Date(Date.now() - 6 * 864e5)), dayKey(new Date())],
               ['Últimos 30 días', dayKey(new Date(Date.now() - 29 * 864e5)), dayKey(new Date())],
             ].map(([name, f, t]) => (
-              <button key={name} type="button" onClick={() => go({ from: f, to: t })} style={{ height: 32, padding: '0 12px', borderRadius: 99, cursor: 'pointer', fontSize: 12, fontWeight: 700, border: '1.5px dashed #C4C2CF', background: 'none', color: MUTED }}>
+              <button key={name} type="button" onClick={() => go({ from: f, to: t, listSel: {} })} style={{ height: 32, padding: '0 12px', borderRadius: 99, cursor: 'pointer', fontSize: 12, fontWeight: 700, border: '1.5px dashed #C4C2CF', background: 'none', color: MUTED }}>
                 {name}
               </button>
             ))}
@@ -680,23 +781,78 @@ export default function FinanzasView({
               + Nueva factura
             </button>
           )}
+          {selectionBar}
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', marginTop: 10 }}>
             {list.map(x => {
               const paid = movPaid(x);
               const isF = x.kind === 'fact';
+              const pickable = !isF && !!x.clientId && canPickList;
+              const picked = !!S.listSel[x.id];
               const tm = TYPE_META[x.kind];
               const m = monthIndexFromIso(x.at);
               const d = dayOfMonthFromIso(x.at);
               return (
-                <div key={x.id} style={{ display: 'flex', alignItems: 'center', gap: wide ? 12 : 8, padding: wide ? '11px 20px' : '12px 14px', borderTop: '1px solid #F2F2F7', flexWrap: wide ? 'nowrap' : 'wrap' }}>
+                <div
+                  key={x.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: wide ? 12 : 8,
+                    padding: wide ? '11px 20px' : '12px 14px',
+                    borderTop: '1px solid #F2F2F7',
+                    flexWrap: wide ? 'nowrap' : 'wrap',
+                    background: picked ? '#F7F7FA' : '#FFF',
+                  }}
+                >
+                  {canPickList && (
+                    <button
+                      type="button"
+                      disabled={!pickable}
+                      aria-label={picked ? 'Quitar de la factura' : 'Seleccionar para facturar'}
+                      onClick={() => toggleListSel(x)}
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 7,
+                        flex: '0 0 auto',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: pickable ? 'pointer' : 'default',
+                        background: picked ? INK : '#FFF',
+                        border: picked ? 'none' : `1.5px solid ${isF ? '#E6E5EC' : '#C4C2CF'}`,
+                        opacity: isF ? 0.35 : 1,
+                        padding: 0,
+                      }}
+                    >
+                      {picked && (
+                        <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 10 18 20 6.5" /></svg>
+                      )}
+                    </button>
+                  )}
                   <span style={{ flex: wide ? '0 0 76px' : '0 0 auto', display: 'flex', flexDirection: wide ? 'column' : 'row', alignItems: wide ? 'flex-start' : 'center', gap: wide ? 2 : 8 }}>
                     <span style={{ height: 20, padding: '0 8px', borderRadius: 99, fontSize: 10.5, fontWeight: 700, display: 'flex', alignItems: 'center', background: tm.bg, color: tm.c }}>{tm.name}</span>
                     <span style={{ fontSize: 11, color: FAINT }}>{d} {MONS[m]}</span>
                   </span>
-                  <span style={{ flex: 1, minWidth: wide ? 0 : '40%', display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.clientLabel}</span>
+                  <button
+                    type="button"
+                    disabled={!pickable}
+                    onClick={() => pickable && toggleListSel(x)}
+                    style={{
+                      flex: 1,
+                      minWidth: wide ? 0 : '40%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      border: 'none',
+                      background: 'transparent',
+                      padding: 0,
+                      textAlign: 'left',
+                      cursor: pickable ? 'pointer' : 'default',
+                    }}
+                  >
+                    <span style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: INK }}>{x.clientLabel}</span>
                     <span style={{ fontSize: 12, color: MUTED, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{isF && x.num ? `${x.num} · ` : ''}{x.concept}</span>
-                  </span>
+                  </button>
                   <span style={{ flex: '0 0 auto', fontSize: 13.5, fontWeight: 700 }}>{eur(x.amountCents)}</span>
                   <button
                     type="button"
