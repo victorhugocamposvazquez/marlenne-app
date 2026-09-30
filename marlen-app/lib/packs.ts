@@ -88,10 +88,16 @@ export function draftFromTemplate(t: PackTemplate): PackDraft {
 
 /** Búsqueda en el selector de tratamientos/bonos. */
 export function packMatchesSearch(p: { name: string; service_name?: string | null }, query: string) {
-  const q = fold(query);
+  const q = fold(query).trim();
   if (!q) return true;
-  if (/\bbonos?\b|\bpacks?\b/.test(q)) return true;
-  return fold(p.name).includes(q) || fold(p.service_name ?? '').includes(q);
+  // Solo «bono» / «bonos» → todos. «bono láser» → filtrar por el resto / nombre completo.
+  if (/^(bonos?|packs?)$/.test(q)) return true;
+  const withoutKind = q.replace(/^(bonos?|packs?)\s+/, '').trim();
+  const name = fold(p.name);
+  const svc = fold(p.service_name ?? '');
+  if (name.includes(q) || svc.includes(q)) return true;
+  if (withoutKind && (name.includes(withoutKind) || svc.includes(withoutKind))) return true;
+  return false;
 }
 
 export function usableOpenPacksForClient(

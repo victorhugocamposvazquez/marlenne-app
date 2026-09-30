@@ -222,13 +222,14 @@ export function NewAppointmentSheetBody({
     const generic = templatesForSection(templates, [], serviceQ, { onlyGeneric: true });
     const activeTpl = templates.filter(t => t.is_active !== false && packMatchesSearch(t, serviceQ));
     if (catalog.length === 0 && clientOpenPacks.length === 0 && activeTpl.length === 0) return catalog;
-    const base = catalog.length > 0
-      ? catalog
-      : [{ key: 'bonos', title: 'Bonos', items: [] as ServiceOption[] }];
-    if (generic.length > 0 && !base.some(s => s.key === 'bonos-gen')) {
-      return [{ key: 'bonos-gen', title: 'Bonos', items: [] as ServiceOption[] }, ...base];
+    if (catalog.length > 0) {
+      // Una sola sección Bonos al inicio si hay genéricos; no duplicar dentro del catálogo.
+      if (generic.length > 0) {
+        return [{ key: 'bonos', title: 'Bonos', items: [] as ServiceOption[] }, ...catalog];
+      }
+      return catalog;
     }
-    return base;
+    return [{ key: 'bonos', title: 'Bonos', items: [] as ServiceOption[] }];
   }, [catalog, clientOpenPacks.length, templates, serviceQ]);
 
   useEffect(() => {
@@ -684,12 +685,13 @@ export function NewAppointmentSheetBody({
                 </p>
               )}
               {sectionsForUi.map(sec => {
+                const isBonosOnly = sec.key === 'bonos' && sec.items.length === 0;
                 const sectionPacks = client
-                  ? (sec.key === 'bonos' || sec.key === 'bonos-gen'
-                    ? (sec.key === 'bonos-gen' ? [] : clientOpenPacks)
+                  ? (isBonosOnly
+                    ? clientOpenPacks.filter(p => !p.service_id)
                     : packsForSection(packsForPick, client.id, sec.items.map(s => s.id), serviceQ))
                   : [];
-                const sectionTemplates = sec.key === 'bonos-gen' || (sec.key === 'bonos' && sec.items.length === 0)
+                const sectionTemplates = isBonosOnly
                   ? templatesForSection(templates, [], serviceQ, { onlyGeneric: true })
                   : templatesForSection(templates, sec.items.map(s => s.id), serviceQ);
                 // No repetir plantilla si la clienta ya tiene ese bono abierto en la sección
@@ -714,7 +716,7 @@ export function NewAppointmentSheetBody({
                           className="flex w-full items-center gap-3.5 rounded-row px-4 py-2.5 text-left"
                           style={{
                             background: on ? '#fff' : 'rgb(var(--c-soft))',
-                            boxShadow: on ? 'inset 0 0 0 2px rgb(var(--c-brand-2))' : 'inset 0 0 0 1px rgb(var(--c-brand-2) / 0.25)',
+                            boxShadow: on ? 'inset 0 0 0 2px rgb(var(--c-brand-2))' : undefined,
                           }}
                         >
                           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-v-tint text-v-d">
@@ -726,7 +728,9 @@ export function NewAppointmentSheetBody({
                               Su bono · usadas {used} · quedan {left}
                             </span>
                           </span>
-                          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 border-v/40 bg-white">
+                          <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 ${
+                            on ? 'border-v bg-v-tint' : 'border-v/40 bg-white'
+                          }`}>
                             {on ? <Check size={14} strokeWidth={3} className="text-v-d" /> : null}
                           </span>
                           <span className="shrink-0 text-[13px] font-bold tabular-nums text-v-d">
@@ -746,7 +750,7 @@ export function NewAppointmentSheetBody({
                           className="flex w-full items-center gap-3.5 rounded-row px-4 py-2.5 text-left"
                           style={{
                             background: on ? '#fff' : 'rgb(var(--c-soft))',
-                            boxShadow: on ? 'inset 0 0 0 2px rgb(var(--c-brand-2))' : 'inset 0 0 0 1px rgb(var(--c-brand-2) / 0.25)',
+                            boxShadow: on ? 'inset 0 0 0 2px rgb(var(--c-brand-2))' : undefined,
                           }}
                         >
                           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-v-tint text-v-d">
@@ -759,7 +763,9 @@ export function NewAppointmentSheetBody({
                               {client ? ' · asignar a esta cita' : ' · elige clienta para asignarlo'}
                             </span>
                           </span>
-                          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 border-v/40 bg-white">
+                          <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 ${
+                            on ? 'border-v bg-v-tint' : 'border-v/40 bg-white'
+                          }`}>
                             {on ? <Check size={14} strokeWidth={3} className="text-v-d" /> : null}
                           </span>
                         </button>
