@@ -8,7 +8,6 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Pendiente (hazlo en el MacBook o mergea la rama cloud)
 
-- **Finanzas: selección en lista** — rama `cursor/finanzas-seleccion-lista-cd08`: checks en Todo/Citas/Bonos, facturar por periodo/rango, «Toda suya en el periodo».
 - **Panel SaaS en Vercel:** segundo proyecto, repo `marlenne-app`, Root `panel-saas`. En prod de `marlen-app`: `NEXT_PUBLIC_PANEL_URL` = URL del panel. `/platform/*` redirige vía middleware (consola antigua eliminada).
 - **Web corporativa** (`main-website/`): scaffold Next :3002; tercer Vercel cuando toque.
 
@@ -16,6 +15,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
+- 2026-09-30 — **Finanzas selección lista:** checks en Todo/Citas/Bonos, facturar por periodo/rango (`af94d6a`, en `main`).
 - 2026-09-30 — **Finanzas mobile:** filtros Todo/Citas/Bonos/Facturas sticky + wizard factura overlay (`cdf6edf`, en `main`).
 - 2026-09-20 — **Cabecera agenda:** más aire mes/iconos, título 20px, gap 16px (`d68418c`, en `main`).
 - 2026-09-20 — **Cabecera agenda:** «Septiembre 2026» sin «de», «Hoy» en segunda fila (`1181db4`, en `main`).
@@ -38,4 +38,4 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 | **MacBook / Cursor local** | Al abrir el repo: **leer este archivo primero**. Si hay rama o PR en «Pendiente», continuar ahí antes de otra cosa. |
 | **Hugo** | Cuando algo esté en prod, borrar de «Pendiente» o pasarlo a «Hecho». |
 
-**Última actualización cloud:** 2026-09-30 — finanzas mobile en `main` (`cdf6edf`).
+**Última actualización cloud:** 2026-09-30 — selección citas/bonos en lista + mobile en `main` (`af94d6a`).
