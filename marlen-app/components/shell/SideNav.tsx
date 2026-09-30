@@ -21,7 +21,7 @@ function isNavActive(path: string, href: string) {
   if (href === '/ajustes') {
     if (path === '/ajustes') return true;
     if (!path.startsWith('/ajustes/')) return false;
-    // Servicios tiene entrada propia en el menú.
+    // Servicios/Tratamientos tiene entrada propia en el menú.
     return !path.startsWith('/ajustes/servicios');
   }
   if (href === '/ajustes/servicios') return path.startsWith('/ajustes/servicios');
@@ -159,7 +159,7 @@ export default function SideNav({
         <Item href="/hoy" icon={Home} label="Hoy" />
         <Item href="/agenda" icon={Calendar} label="Agenda" />
         {showClientas && <Item href="/clientas" icon={Users} label="Clientas" />}
-        <Item href="/ajustes/servicios" icon={Sparkles} label="Servicios" />
+        <Item href="/ajustes/servicios" icon={Sparkles} label="Tratamientos" />
         <Item href="/tareas" icon={ListTodo} label="Tareas" />
         <Soon icon={Receipt} label="Facturación" />
         <Soon icon={Clock} label="Fichar" />

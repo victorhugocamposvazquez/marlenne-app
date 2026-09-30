@@ -51,8 +51,8 @@ export default function AjustesIndex({
       hint: 'Cobro y citas sin llegar',
     }, {
       href: '/ajustes/servicios',
-      title: 'Servicios',
-      hint: 'Categorías, precios y duración',
+      title: 'Tratamientos',
+      hint: 'Categorías, precios, duración y bonos',
     }] : []),
     ...(desk ? [{
       href: '/ajustes/bonos',
@@ -66,7 +66,7 @@ export default function AjustesIndex({
     }, {
       href: '/ajustes/importar',
       title: 'Importar datos',
-      hint: 'Una mudanza: servicios, clientas y citas',
+      hint: 'Una mudanza: tratamientos, clientas y citas',
     }, {
       href: '/ajustes/voz',
       title: 'Voz',

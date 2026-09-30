@@ -5,10 +5,10 @@ import { NewAppointmentSheetBody } from '@/components/agenda/NewAppointmentSheet
 import SheetShell from '@/components/SheetShell';
 import { useCloseSheet } from '@/components/Sheet';
 import { loadClientPickerById, loadClientPickerInitial } from '@/app/actions/client-list';
-import { loadSalonPacks, loadServiceCounts, loadServices } from '@/lib/agenda-catalog';
+import { loadPackTemplates, loadSalonPacks, loadServiceCounts, loadServices } from '@/lib/agenda-catalog';
 import { createClient } from '@/lib/supabase/client';
 import { useShallowParam } from '@/hooks/useShallowQuery';
-import type { ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
+import type { ClientOption, ClientPack, PackTemplate, Provider, ServiceOption } from '@/lib/types';
 
 export default function NewAppointmentSheetHost({
   day, providers,
@@ -34,6 +34,7 @@ export default function NewAppointmentSheetHost({
   const [services, setServices] = useState<ServiceOption[]>([]);
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [packs, setPacks] = useState<ClientPack[]>([]);
+  const [templates, setTemplates] = useState<PackTemplate[]>([]);
   const [serviceCounts, setServiceCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
@@ -46,13 +47,15 @@ export default function NewAppointmentSheetHost({
     void Promise.all([
       loadServices(sb),
       loadSalonPacks(sb),
+      loadPackTemplates(sb),
       loadServiceCounts(sb),
       loadClientPickerInitial(),
       clientId ? loadClientPickerById(clientId) : Promise.resolve(null),
-    ]).then(([s, p, counts, initial, picked]) => {
+    ]).then(([s, p, t, counts, initial, picked]) => {
       if (!alive) return;
       setServices(s);
       setPacks(p);
+      setTemplates(t);
       setServiceCounts(counts);
       const pool = [...initial];
       if (picked && !pool.some(c => c.id === picked.id)) pool.unshift(picked);
@@ -79,6 +82,7 @@ export default function NewAppointmentSheetHost({
           services={services}
           clients={clients}
           packs={packs}
+          templates={templates}
           serviceCounts={serviceCounts}
           preselected={preselected}
           initialName={nombre ?? ''}

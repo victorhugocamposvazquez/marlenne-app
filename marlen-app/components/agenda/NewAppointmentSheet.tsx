@@ -18,8 +18,8 @@ import { createClient } from '@/lib/supabase/client';
 import { alignStripStart, DAY_END, dateFromOffset, dayKey, durLbl, fmt, minutesOfDay, offsetFromDay, skipSunday, toTimestamp } from '@/lib/time';
 import { filterClientOptions } from '@/lib/client-pick';
 import { bestNameMatches, fold, parseClock } from '@/lib/voice';
-import { packFitsService, packIsOpen, packLabel, packUsableBy, packsForSection, pickPackForService, usableOpenPacksForClient } from '@/lib/packs';
-import { listClientPacks } from '@/lib/pack-write';
+import { findOpenPackForTemplate, packFitsService, packIsOpen, packLabel, packMatchesSearch, packUsableBy, packsForSection, pickPackForService, templatesForSection, usableOpenPacksForClient } from '@/lib/packs';
+import { listClientPacks, sellPack } from '@/lib/pack-write';
 import { servicePickSections } from '@/lib/service-pick';
 import { readLastServiceId, writeLastServiceId } from '@/hooks/last-service';
 import { shallowSet } from '@/hooks/useShallowQuery';
@@ -28,7 +28,7 @@ import { confirmPageUrl, waConfirmMsg, waHref } from '@/lib/phone';
 import { goWhatsApp, reserveWhatsAppWindow } from '@/hooks/open-whatsapp';
 import { issueAppointmentLink } from '@/lib/confirm-link';
 import ApptPaymentBlock, { type ApptPaymentHandle } from '@/components/agenda/ApptPaymentBlock';
-import type { AgendaAppt, ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
+import type { AgendaAppt, ClientOption, ClientPack, PackTemplate, Provider, ServiceOption } from '@/lib/types';
 import type { PlacePick } from '@/components/agenda/PlaceContext';
 
 type Step = 'client' | 'service' | 'when' | 'confirm';
@@ -48,6 +48,7 @@ export type NewAppointmentSheetBodyProps = {
   services: ServiceOption[];
   clients: ClientOption[];
   packs?: ClientPack[];
+  templates?: PackTemplate[];
   serviceCounts?: Record<string, number>;
   preselected?: ClientOption | null;
   initialName?: string;
@@ -64,7 +65,7 @@ export type NewAppointmentSheetBodyProps = {
 };
 
 export function NewAppointmentSheetBody({
-  day, providers, services, clients, packs = [], serviceCounts = {}, preselected = null,
+  day, providers, services, clients, packs = [], templates = [], serviceCounts = {}, preselected = null,
   initialName = '', initialHora = '', initialServiceQ = '', initialProviderId,
   editing = null, showPayment = true, onPaymentSaved,
 }: NewAppointmentSheetBodyProps) {
@@ -86,6 +87,7 @@ export function NewAppointmentSheetBody({
     editing?.service_id ?? (guessed.length === 1 ? guessed[0].id : ''),
   );
   const [packId, setPackId] = useState(editing?.client_pack_id ?? '');
+  const [templateId, setTemplateId] = useState('');
   const [providerId, setProviderId] = useState(
     editing?.provider_id
     ?? (initialProviderId && providers.some(p => p.id === initialProviderId)
@@ -193,6 +195,7 @@ export function NewAppointmentSheetBody({
 
   const service = services.find(s => s.id === serviceId) ?? null;
   const selectedPack = packsForPick.find(p => p.id === packId) ?? null;
+  const selectedTemplate = templates.find(t => t.id === templateId) ?? null;
   const who = client?.full_name ?? query.trim();
   const provider = providers.find(p => p.id === providerId);
   const bookDay = dayKey(dateFromOffset(dayOff));
@@ -216,12 +219,17 @@ export function NewAppointmentSheetBody({
   );
 
   const sectionsForUi = useMemo(() => {
-    if (catalog.length > 0) return catalog;
-    if (client && clientOpenPacks.length > 0) {
-      return [{ key: 'bonos', title: 'Bonos', items: [] as ServiceOption[] }];
+    const generic = templatesForSection(templates, [], serviceQ, { onlyGeneric: true });
+    const activeTpl = templates.filter(t => t.is_active !== false && packMatchesSearch(t, serviceQ));
+    if (catalog.length === 0 && clientOpenPacks.length === 0 && activeTpl.length === 0) return catalog;
+    const base = catalog.length > 0
+      ? catalog
+      : [{ key: 'bonos', title: 'Bonos', items: [] as ServiceOption[] }];
+    if (generic.length > 0 && !base.some(s => s.key === 'bonos-gen')) {
+      return [{ key: 'bonos-gen', title: 'Bonos', items: [] as ServiceOption[] }, ...base];
     }
-    return catalog;
-  }, [catalog, client, clientOpenPacks.length]);
+    return base;
+  }, [catalog, clientOpenPacks.length, templates, serviceQ]);
 
   useEffect(() => {
     if (step !== 'service' || startMin == null || !providerId) { setFits({}); return; }
@@ -299,6 +307,7 @@ export function NewAppointmentSheetBody({
   const pickClient = (c: ClientOption | null, name?: string) => {
     setClient(c);
     setPackId('');
+    setTemplateId('');
     if (name && !c) setQuery(name);
     if (backToConfirm) {
       setReturnTo(null);
@@ -309,7 +318,7 @@ export function NewAppointmentSheetBody({
     setStep('service');
   };
 
-  const pickService = (s: ServiceOption, keepPackId?: string) => {
+  const pickService = (s: ServiceOption, keep?: { packId?: string; templateId?: string }) => {
     if (startMin != null) {
       if (startMin + s.duration_min > DAY_END || fits[s.id] === false) {
         toast('Ese tratamiento no cabe en este hueco', 'err');
@@ -318,11 +327,12 @@ export function NewAppointmentSheetBody({
     }
     writeLastServiceId(s.id);
     setServiceId(s.id);
-    if (keepPackId !== undefined) {
-      setPackId(keepPackId);
-    } else if (packId) {
-      const p = packsForPick.find(x => x.id === packId);
-      if (p && !packFitsService(p, s.id)) setPackId('');
+    if (keep) {
+      setPackId(keep.packId ?? '');
+      setTemplateId(keep.templateId ?? '');
+    } else {
+      setPackId('');
+      setTemplateId('');
     }
     if (backToConfirm || startMin != null) {
       setReturnTo(null);
@@ -334,14 +344,37 @@ export function NewAppointmentSheetBody({
 
   const pickPack = (p: ClientPack) => {
     setPackId(p.id);
+    setTemplateId('');
     if (p.service_id) {
       const s = services.find(x => x.id === p.service_id);
       if (s) {
-        pickService(s, p.id);
+        pickService(s, { packId: p.id });
         return;
       }
     }
-    // Bono genérico: elige tratamiento después
+    if (backToConfirm && service) {
+      setReturnTo(null);
+      setStep('confirm');
+    }
+  };
+
+  const pickTemplate = (t: PackTemplate) => {
+    if (client) {
+      const existing = findOpenPackForTemplate(packsForPick, client.id, t);
+      if (existing) {
+        pickPack(existing);
+        return;
+      }
+    }
+    setTemplateId(t.id);
+    setPackId('');
+    if (t.service_id) {
+      const s = services.find(x => x.id === t.service_id);
+      if (s) {
+        pickService(s, { templateId: t.id });
+        return;
+      }
+    }
     if (backToConfirm && service) {
       setReturnTo(null);
       setStep('confirm');
@@ -373,7 +406,8 @@ export function NewAppointmentSheetBody({
 
   const save = () => {
     if (!service || startMin == null || who.length < 2) return;
-    const pack = (() => {
+    const tpl = templateId ? templates.find(t => t.id === templateId) ?? null : null;
+    const owned = (() => {
       if (!client) return null;
       if (packId) {
         const chosen = packsForPick.find(p => p.id === packId);
@@ -384,6 +418,7 @@ export function NewAppointmentSheetBody({
           && packIsOpen(chosen)
         ) return chosen;
       }
+      if (tpl) return findOpenPackForTemplate(packsForPick, client.id, tpl);
       return pickPackForService(
         packsForPick.filter(p => packUsableBy(p, client.id) && packFitsService(p, service.id) && packIsOpen(p)),
         client.id,
@@ -403,6 +438,34 @@ export function NewAppointmentSheetBody({
     const waWin = draftHref ? reserveWhatsAppWindow() : null;
     startTransition(async () => {
       const sb = createClient();
+      let clientPackId = owned?.id;
+      let soldLabel: string | null = owned ? packLabel(owned) : null;
+
+      if (!editing && !clientPackId && tpl) {
+        if (!client?.id) {
+          waWin?.close();
+          toast('Elige clienta para asignar el bono', 'err');
+          return;
+        }
+        const sold = await sellPack(sb, {
+          ownerClientId: client.id,
+          templateId: tpl.id,
+          name: tpl.name,
+          serviceId: tpl.service_id ?? service.id,
+          sessionsTotal: tpl.sessions_total,
+          sessionsDone: 0,
+          priceCents: tpl.price_cents,
+          validDays: tpl.valid_days,
+        });
+        if (!sold.ok || !sold.id) {
+          waWin?.close();
+          toast(sold.error ?? 'No se ha podido asignar el bono', 'err');
+          return;
+        }
+        clientPackId = sold.id;
+        soldLabel = `${tpl.name} · ${tpl.sessions_total} ses.`;
+      }
+
       const r = editing
         ? await updateAppointment(sb, {
             id: editing.id,
@@ -420,7 +483,7 @@ export function NewAppointmentSheetBody({
             providerId,
             date: bookDay,
             startMin,
-            clientPackId: pack?.id,
+            clientPackId,
           });
       if (!r.ok) {
         waWin?.close();
@@ -448,9 +511,11 @@ export function NewAppointmentSheetBody({
           time: service
             ? `${fmt(startMin)}–${fmt(startMin + service.duration_min)}`
             : fmt(startMin),
-          treatment: pack
-            ? `${service.name} · ${packLabel(pack)}`
-            : service.name,
+          treatment: soldLabel
+            ? `${service.name} · ${soldLabel}`
+            : tpl
+              ? `${service.name} · ${tpl.name}`
+              : service.name,
         },
       });
       requestClose();
@@ -542,7 +607,11 @@ export function NewAppointmentSheetBody({
               <button type="button" onClick={() => editStep('service')} className="mt-[5px] flex w-full min-w-0 text-left">
                 <span className="mr-[3px] shrink-0 text-v">Tratamientos/bonos:</span>
                 <span className="min-w-0 truncate font-semibold text-ink">
-                  {selectedPack ? `${selectedPack.name} · ${service.name}` : service.name}
+                  {selectedPack
+                    ? `${selectedPack.name} · ${service.name}`
+                    : selectedTemplate
+                      ? `${selectedTemplate.name} · ${service.name}`
+                      : service.name}
                 </span>
               </button>
             )}
@@ -601,28 +670,34 @@ export function NewAppointmentSheetBody({
               />
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-3">
-              {!client && (
-                <p className="mb-3 rounded-row bg-surface-soft px-3.5 py-2.5 text-label font-semibold text-ink-2">
-                  Elige clienta arriba para ver sus bonos en cada categoría.
-                </p>
-              )}
-              {selectedPack && !selectedPack.service_id && (
+              {(selectedPack && !selectedPack.service_id) || (selectedTemplate && !selectedTemplate.service_id) ? (
                 <p className="mb-3 rounded-row bg-v-tint/60 px-3.5 py-2.5 text-label font-semibold text-v-d">
-                  Bono «{selectedPack.name}» · elige el tratamiento de esta sesión
+                  Bono «{selectedPack?.name ?? selectedTemplate?.name}» · elige el tratamiento de esta sesión
                 </p>
-              )}
-              {client && catalog.length === 0 && clientOpenPacks.length === 0 && serviceQ.trim() && (
+              ) : null}
+              {catalog.length === 0
+                && clientOpenPacks.length === 0
+                && templates.filter(t => t.is_active !== false && packMatchesSearch(t, serviceQ)).length === 0
+                && serviceQ.trim() && (
                 <p className="py-4 text-center text-body text-ink-2">
                   No hay tratamiento ni bono con «{serviceQ.trim()}».
                 </p>
               )}
               {sectionsForUi.map(sec => {
                 const sectionPacks = client
-                  ? (sec.key === 'bonos' && sec.items.length === 0
-                    ? clientOpenPacks
+                  ? (sec.key === 'bonos' || sec.key === 'bonos-gen'
+                    ? (sec.key === 'bonos-gen' ? [] : clientOpenPacks)
                     : packsForSection(packsForPick, client.id, sec.items.map(s => s.id), serviceQ))
                   : [];
-                if (!sectionPacks.length && !sec.items.length) return null;
+                const sectionTemplates = sec.key === 'bonos-gen' || (sec.key === 'bonos' && sec.items.length === 0)
+                  ? templatesForSection(templates, [], serviceQ, { onlyGeneric: true })
+                  : templatesForSection(templates, sec.items.map(s => s.id), serviceQ);
+                // No repetir plantilla si la clienta ya tiene ese bono abierto en la sección
+                const ownedTplIds = new Set(
+                  sectionPacks.map(p => p.template_id).filter(Boolean) as string[],
+                );
+                const sellable = sectionTemplates.filter(t => !ownedTplIds.has(t.id));
+                if (!sectionPacks.length && !sellable.length && !sec.items.length) return null;
                 return (
                 <div key={sec.key} className="mb-3.5 last:mb-0">
                   <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-[.04em] text-ink-3">{sec.title}</p>
@@ -648,7 +723,7 @@ export function NewAppointmentSheetBody({
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-body-lg font-semibold">{p.name}</span>
                             <span className="block text-label text-ink-2">
-                              Bono · {p.service_name ?? 'cualquier tratamiento'} · usadas {used} · quedan {left}
+                              Su bono · usadas {used} · quedan {left}
                             </span>
                           </span>
                           <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 border-v/40 bg-white">
@@ -660,21 +735,48 @@ export function NewAppointmentSheetBody({
                         </button>
                       );
                     })}
+                    {sellable.map(t => {
+                      const on = templateId === t.id && !packId;
+                      const euros = t.price_cents > 0 ? `${(t.price_cents / 100).toFixed(0)} €` : 'sin precio';
+                      return (
+                        <button
+                          key={`tpl-${t.id}`}
+                          type="button"
+                          onClick={() => pickTemplate(t)}
+                          className="flex w-full items-center gap-3.5 rounded-row px-4 py-2.5 text-left"
+                          style={{
+                            background: on ? '#fff' : 'rgb(var(--c-soft))',
+                            boxShadow: on ? 'inset 0 0 0 2px rgb(var(--c-brand-2))' : 'inset 0 0 0 1px rgb(var(--c-brand-2) / 0.25)',
+                          }}
+                        >
+                          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-v-tint text-v-d">
+                            <Ticket size={16} strokeWidth={2.4} />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-body-lg font-semibold">{t.name}</span>
+                            <span className="block text-label text-ink-2">
+                              Bono · {t.sessions_total} ses. · {euros}
+                              {client ? ' · asignar a esta cita' : ' · elige clienta para asignarlo'}
+                            </span>
+                          </span>
+                          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 border-v/40 bg-white">
+                            {on ? <Check size={14} strokeWidth={3} className="text-v-d" /> : null}
+                          </span>
+                        </button>
+                      );
+                    })}
                     {sec.items.map(s => {
                       const cat = catStyle(s.category, { color: s.category_color });
                       const ok = startMin == null || fits[s.id] !== false;
                       const end = startMin != null ? fmt(startMin + s.duration_min) : null;
                       const habitual = lastId === s.id;
                       const first = client?.full_name.split(' ')[0];
-                      const svcOn = !packId && serviceId === s.id;
+                      const svcOn = !packId && !templateId && serviceId === s.id;
                       return (
                         <button
                           key={s.id}
                           type="button"
-                          onClick={() => {
-                            setPackId('');
-                            pickService(s);
-                          }}
+                          onClick={() => pickService(s)}
                           className="flex w-full items-center gap-3.5 rounded-row px-4 py-2.5 text-left"
                           style={{
                             background: svcOn || habitual ? '#fff' : 'rgb(var(--c-soft))',
@@ -800,7 +902,9 @@ export function NewAppointmentSheetBody({
                     service
                       ? selectedPack
                         ? `${selectedPack.name} · ${service.name} · sesión ${selectedPack.sessions_done + 1}/${selectedPack.sessions_total}`
-                        : `${service.name} · ${durLbl(service.duration_min)}`
+                        : selectedTemplate
+                          ? `${selectedTemplate.name} · ${service.name} · ${selectedTemplate.sessions_total} ses. (asignar)`
+                          : `${service.name} · ${durLbl(service.duration_min)}`
                       : '—'
                   }
                   onChange={() => changeField('service')}

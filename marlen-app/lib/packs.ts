@@ -1,4 +1,5 @@
 import { dayKey } from '@/lib/time';
+import { fold } from '@/lib/voice';
 import type { ClientPack, PackTemplate } from '@/lib/types';
 
 export function packRemaining(p: {
@@ -89,7 +90,7 @@ export function draftFromTemplate(t: PackTemplate): PackDraft {
 export function packMatchesSearch(p: { name: string; service_name?: string | null }, query: string) {
   const q = fold(query);
   if (!q) return true;
-  if (/(^|\s)(bono|bonos|pack)(\s|$)/.test(q) || q === 'bono' || q === 'bonos') return true;
+  if (/\bbonos?\b|\bpacks?\b/.test(q)) return true;
   return fold(p.name).includes(q) || fold(p.service_name ?? '').includes(q);
 }
 
@@ -103,7 +104,7 @@ export function usableOpenPacksForClient(
   );
 }
 
-/** Bonos que van primero en una sección (categoría, último, más pedidos…). */
+/** Bonos ya vendidos que van primero en una sección (categoría, último, más pedidos…). */
 export function packsForSection(
   packs: ClientPack[],
   clientId: string,
@@ -120,4 +121,38 @@ export function packsForSection(
       if (ae !== be) return ae.localeCompare(be);
       return b.sessions_done - a.sessions_done;
     });
+}
+
+/** Plantillas del catálogo para una sección: por servicio ligado o genéricas. */
+export function templatesForSection(
+  templates: PackTemplate[],
+  sectionServiceIds: string[],
+  query = '',
+  opts?: { onlyGeneric?: boolean },
+): PackTemplate[] {
+  const ids = new Set(sectionServiceIds);
+  return templates
+    .filter(t => t.is_active !== false)
+    .filter(t => packMatchesSearch(t, query))
+    .filter(t => {
+      if (opts?.onlyGeneric) return !t.service_id;
+      if (!t.service_id) return false;
+      return ids.has(t.service_id);
+    })
+    .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name, 'es'));
+}
+
+/** Si la clienta ya tiene este bono de plantilla abierto, reutilizarlo. */
+export function findOpenPackForTemplate(
+  packs: ClientPack[],
+  clientId: string,
+  template: PackTemplate,
+): ClientPack | null {
+  const open = usableOpenPacksForClient(packs, clientId);
+  const byTpl = open.find(p => p.template_id === template.id);
+  if (byTpl) return byTpl;
+  if (template.service_id) {
+    return open.find(p => p.service_id === template.service_id && packFitsService(p, template.service_id!)) ?? null;
+  }
+  return open.find(p => fold(p.name) === fold(template.name)) ?? null;
 }

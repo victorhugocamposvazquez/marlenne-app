@@ -8,12 +8,12 @@ import { PUSH_OPEN, armPushOpen } from '@/hooks/push-open';
 import { useCloseSheet } from '@/components/Sheet';
 import SheetShell from '@/components/SheetShell';
 import { loadClientPickerById, loadClientPickerInitial } from '@/app/actions/client-list';
-import { loadSalonPacks, loadServiceCounts, loadServices } from '@/lib/agenda-catalog';
+import { loadPackTemplates, loadSalonPacks, loadServiceCounts, loadServices } from '@/lib/agenda-catalog';
 import { createClient } from '@/lib/supabase/client';
 import { APPT_SELECT, APPT_SELECT_CORE, APPT_SELECT_PAID, mapAppt } from '@/lib/agenda-appt';
 import { useShallowParam } from '@/hooks/useShallowQuery';
 import { dayKey, offsetFromDay } from '@/lib/time';
-import type { AgendaAppt, ClientOption, ClientPack, Provider, ServiceOption } from '@/lib/types';
+import type { AgendaAppt, ClientOption, ClientPack, PackTemplate, Provider, ServiceOption } from '@/lib/types';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 function SheetLoading() {
@@ -102,6 +102,7 @@ export default function AppointmentSheetHost({
   const [services, setServices] = useState<ServiceOption[]>([]);
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [packs, setPacks] = useState<ClientPack[]>([]);
+  const [templates, setTemplates] = useState<PackTemplate[]>([]);
   const [serviceCounts, setServiceCounts] = useState<Record<string, number>>({});
   const [shield, setShield] = useState(Boolean(initialId));
   const armedFor = useRef<string | null>(null);
@@ -147,7 +148,7 @@ export default function AppointmentSheetHost({
           .eq('appointment_id', id)
           .order('created_at', { ascending: false }).limit(1).maybeSingle(),
         Promise.all([
-          loadServices(sb), loadSalonPacks(sb), loadServiceCounts(sb),
+          loadServices(sb), loadSalonPacks(sb), loadPackTemplates(sb), loadServiceCounts(sb),
         ]),
       ]);
       if (!alive) return;
@@ -164,7 +165,8 @@ export default function AppointmentSheetHost({
       if (pickedClient && !pool.some(c => c.id === pickedClient.id)) pool.unshift(pickedClient);
       setClients(pool);
       setPacks(catalog[1]);
-      setServiceCounts(catalog[2]);
+      setTemplates(catalog[2]);
+      setServiceCounts(catalog[3]);
       setLoading(false);
     })();
     return () => { alive = false; };
@@ -268,6 +270,7 @@ export default function AppointmentSheetHost({
           services={shownServices}
           clients={clients}
           packs={packs}
+          templates={templates}
           serviceCounts={serviceCounts}
           preselected={preselected}
           initialName={appt.client_label}

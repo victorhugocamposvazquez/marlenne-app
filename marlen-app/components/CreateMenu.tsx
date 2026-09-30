@@ -20,7 +20,7 @@ export default function CreateMenu({ role }: { role: StaffRole }) {
     { id: 'cita', label: 'Cita', run: () => router.push('/agenda?new=1') },
     ...(!provider ? [{ id: 'cliente', label: 'Client@', run: () => router.push('/clientas?alta=1') }] : []),
     ...(admin ? [{ id: 'equipo', label: 'Equipo', run: () => router.push('/ajustes/equipo?miembro=1') }] : []),
-    ...(admin ? [{ id: 'servicio', label: 'Servicio', run: () => router.push('/ajustes/servicios') }] : []),
+    ...(admin ? [{ id: 'servicio', label: 'Tratamiento', run: () => router.push('/ajustes/servicios') }] : []),
     ...(desk ? [{ id: 'bono', label: 'Bono', run: () => router.push('/ajustes/bonos') }] : []),
   ];
 

@@ -10,7 +10,8 @@ import { LocalSheet } from '@/components/Sheet';
 import { useToast } from '@/components/Toast';
 import { CATEGORIES, catStyle } from '@/lib/categories';
 import { fold } from '@/lib/voice';
-import type { ServiceCategory, ServiceOption } from '@/lib/types';
+import type { PackTemplate, ServiceCategory, ServiceOption } from '@/lib/types';
+import PackTemplatesEditor from '@/components/PackTemplatesEditor';
 import {
   CatalogColorDots,
   CatalogDeleteLink,
@@ -36,10 +37,11 @@ type SheetState =
   | null;
 
 export default function ServiciosView({
-  categories, services,
+  categories, services, templates = [],
 }: {
   categories: ServiceCategory[];
   services: ServiceOption[];
+  templates?: PackTemplate[];
 }) {
   const toast = useToast();
   const [pending, startTransition] = useTransition();
@@ -88,7 +90,7 @@ export default function ServiciosView({
       <SubpageHeader
         href="/ajustes"
         back="Volver a Ajustes"
-        title="Servicios"
+        title="Tratamientos"
         extra={ready ? (
           <OutlinePillButton onClick={() => setSheet({ kind: 'cat' })}>
             <Plus size={15} strokeWidth={2.6} aria-hidden />
@@ -98,14 +100,14 @@ export default function ServiciosView({
       >
         {!ready && (
           <p className="mb-4 rounded-row border border-warn-line bg-warn-bg p-3 text-label font-semibold leading-snug text-warn-fg">
-            Falta aplicar la migración del catálogo para crear categorías y servicios nuevos. Mientras, se pueden editar precio y duración.
+            Falta aplicar la migración del catálogo para crear categorías y tratamientos nuevos. Mientras, se pueden editar precio y duración.
           </p>
         )}
 
         <CatalogSearchField
           value={query}
           onChange={setQuery}
-          placeholder="Buscar servicio"
+          placeholder="Buscar tratamiento"
         />
 
         <div className="mt-5 flex flex-col gap-6 pb-2">
@@ -139,7 +141,7 @@ export default function ServiciosView({
 
               <CatalogGroupCard>
                 {items.length === 0 ? (
-                  <CatalogEmptyRow>Sin servicios en esta categoría.</CatalogEmptyRow>
+                  <CatalogEmptyRow>Sin tratamientos en esta categoría.</CatalogEmptyRow>
                 ) : (
                   items.map(s => (
                     <CatalogRowButton
@@ -156,6 +158,13 @@ export default function ServiciosView({
               </CatalogGroupCard>
             </section>
           ))}
+        </div>
+        <div className="mt-8 border-t border-surface-line pt-6">
+          <h2 className="mb-1 text-body-lg font-bold text-ink">Bonos · {templates.length}</h2>
+          <p className="mb-3 text-body text-ink-2">
+            Plantillas del catálogo. Ligadas a un tratamiento para salir en esa categoría al crear citas.
+          </p>
+          <PackTemplatesEditor templates={templates} services={services} />
         </div>
       </SubpageHeader>
 
@@ -274,7 +283,7 @@ function CategorySheet({
           <CatalogDeleteLink
             disabled={serviceCount > 0}
             label={serviceCount > 0
-              ? `Para borrarla, mueve o quita antes sus ${serviceCount} servicios`
+              ? `Para borrarla, mueve o quita antes sus ${serviceCount} tratamientos`
               : 'Borrar categoría'}
             onClick={onDelete}
           />

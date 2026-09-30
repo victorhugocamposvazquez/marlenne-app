@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { ClientOption, ClientPack, ServiceOption, WaitItem } from '@/lib/types';
-import { listSalonPacks } from '@/lib/pack-write';
+import type { ClientOption, ClientPack, PackTemplate, ServiceOption, WaitItem } from '@/lib/types';
+import { listPackTemplates, listSalonPacks } from '@/lib/pack-write';
 import { fetchAllPages } from '@/lib/supabase/fetch-all';
 
 export async function loadServices(sb: SupabaseClient): Promise<ServiceOption[]> {
@@ -21,6 +21,10 @@ export async function loadClientOptions(sb: SupabaseClient): Promise<ClientOptio
 
 export async function loadSalonPacks(sb: SupabaseClient): Promise<ClientPack[]> {
   return listSalonPacks(sb);
+}
+
+export async function loadPackTemplates(sb: SupabaseClient): Promise<PackTemplate[]> {
+  return listPackTemplates(sb);
 }
 
 export async function loadWaitlist(sb: SupabaseClient): Promise<WaitItem[]> {

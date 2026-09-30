@@ -115,9 +115,9 @@ function TemplateForm({
         <input className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="Bono láser 6" />
       </label>
       <label className="col-span-2">
-        <span className="mb-1 block text-caption font-bold uppercase text-ink-2">Servicio</span>
+        <span className="mb-1 block text-caption font-bold uppercase text-ink-2">Tratamiento</span>
         <select className={inputCls} value={serviceId} onChange={e => setServiceId(e.target.value)}>
-          <option value="">Cualquier servicio</option>
+          <option value="">Cualquier tratamiento</option>
           {services.filter(s => s.is_active !== false).map(s => (
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
