@@ -44,6 +44,11 @@ export default function AjustesIndex({
   const desk = admin || me.role === 'reception';
 
   const centro: Destino[] = [
+    ...(admin ? [{
+      href: '/ajustes/centro',
+      title: 'Centro',
+      hint: 'Nombre, logo y datos fiscales',
+    }] : []),
     { href: '/ajustes/equipo', title: 'Equipo', hint: admin ? 'Altas, rol y baja' : 'Quién trabaja en el centro' },
     ...(admin ? [{
       href: '/ajustes/citas',

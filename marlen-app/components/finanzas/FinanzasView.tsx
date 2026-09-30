@@ -17,6 +17,7 @@ import {
   type FinanzasClient,
   type FinanzasMov,
 } from '@/lib/finanzas';
+import type { SalonEmisor } from '@/lib/salon-branding';
 import { createClient } from '@/lib/supabase/client';
 import { dayKey } from '@/lib/time';
 
@@ -42,12 +43,13 @@ const TYPE_META = {
   fact: { name: 'Factura', bg: '#E8F2FF', c: '#0463D1' },
 };
 
-const EMISOR = {
-  marca: 'marlén estética',
-  nombre: 'Marta García Souto',
-  nif: 'NIF 47:XX:XX:XX-B',
-  dir: 'Rúa Real 24, 15003 A Coruña',
-  tel: '981 44 02 12',
+const FALLBACK_EMISOR: SalonEmisor = {
+  marca: 'Tu centro',
+  nombre: 'Datos fiscales pendientes',
+  nif: 'NIF/CIF pendiente',
+  dir: 'Completa Ajustes → Centro',
+  tel: '',
+  logoUrl: null,
 };
 
 type Gran = 'mes' | 'tri' | 'anio' | 'fechas';
@@ -131,10 +133,13 @@ function defaultState(movs: FinanzasMov[]): St {
 export default function FinanzasView({
   initialMovs,
   clients,
+  emisor: emisorProp,
 }: {
   initialMovs: FinanzasMov[];
   clients: FinanzasClient[];
+  emisor?: SalonEmisor;
 }) {
+  const EMISOR = emisorProp ?? FALLBACK_EMISOR;
   const router = useRouter();
   const appToast = useToast();
   const [pendingPay, startPay] = useTransition();
@@ -390,8 +395,13 @@ export default function FinanzasView({
       <div style={{ padding: wide ? '30px 34px' : '20px 20px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ width: 38, height: 38, borderRadius: 11, background: GRAD135, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width={22} height={22} viewBox="0 0 1024 1024"><path d="M198 693 L198 209 L350 209 L512 465 L674 209 L826 209 L826 693 L710 693 L710 393 L566 633 L458 633 L314 393 L314 693 Z" fill="#fff" /><path d="M300 789 Q512 945 724 789" fill="none" stroke="#fff" strokeWidth={48} strokeLinecap="round" /></svg>
+            <span style={{ width: 38, height: 38, borderRadius: 11, background: GRAD135, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flex: '0 0 auto' }}>
+              {EMISOR.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={EMISOR.logoUrl} alt="" width={38} height={38} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <svg width={22} height={22} viewBox="0 0 1024 1024"><path d="M198 693 L198 209 L350 209 L512 465 L674 209 L826 209 L826 693 L710 693 L710 393 L566 633 L458 633 L314 393 L314 693 Z" fill="#fff" /><path d="M300 789 Q512 945 724 789" fill="none" stroke="#fff" strokeWidth={48} strokeLinecap="round" /></svg>
+              )}
             </span>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: '-.02em' }}>{EMISOR.marca}</span>
@@ -407,7 +417,9 @@ export default function FinanzasView({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '.06em', color: FAINT }}>EMISOR</span>
             <span style={{ fontSize: 12, fontWeight: 700 }}>{EMISOR.nombre}</span>
-            <span style={{ fontSize: 10.5, color: MUTED, lineHeight: 1.5 }}>{EMISOR.nif} · {EMISOR.dir}</span>
+            <span style={{ fontSize: 10.5, color: MUTED, lineHeight: 1.5 }}>
+              {EMISOR.nif} · {EMISOR.dir}{EMISOR.tel ? ` · ${EMISOR.tel}` : ''}
+            </span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '.06em', color: FAINT }}>CLIENTA</span>
@@ -444,7 +456,7 @@ export default function FinanzasView({
             </div>
           </div>
         </div>
-        <span style={{ fontSize: 9.5, color: FAINT, lineHeight: 1.6 }}>Pago al contado. IVA incluido al tipo vigente del 21 %. Gracias por confiar en marlén estética.</span>
+        <span style={{ fontSize: 9.5, color: FAINT, lineHeight: 1.6 }}>Pago al contado. IVA incluido al tipo vigente del 21 %. Gracias por confiar en {EMISOR.marca}.</span>
       </div>
     </div>
   );
