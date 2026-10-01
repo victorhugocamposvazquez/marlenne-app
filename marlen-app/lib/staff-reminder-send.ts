@@ -294,3 +294,92 @@ export async function dispatchPersonalTaskReminders(opts?: {
   }
   return { ok: true, due: due.length, sent };
 }
+
+type DueSalonTask = {
+  id: string;
+  salon_id: string;
+  created_by: string;
+  assignee_staff_id: string | null;
+  title: string;
+  remind_at: string;
+};
+
+async function claimSalonTask(id: string, now: Date): Promise<boolean> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('salon_tasks')
+    .update({ reminded_at: now.toISOString() })
+    .eq('id', id)
+    .is('reminded_at', null)
+    .select('id');
+  if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
+}
+
+async function unclaimSalonTask(id: string) {
+  const supabase = createAdminClient();
+  await supabase.from('salon_tasks').update({ reminded_at: null }).eq('id', id);
+}
+
+/** Aviso de tareas del centro cuyo remind_at ya ha pasado. */
+export async function dispatchSalonTaskReminders(opts?: {
+  salonId?: string;
+  staffId?: string;
+  now?: Date;
+}): Promise<StaffReminderResult> {
+  if (!vapidReady()) {
+    return { ok: false, due: 0, sent: 0, error: 'Faltan VAPID_PUBLIC_KEY y VAPID_PRIVATE_KEY' };
+  }
+  configureWebPush();
+  const now = opts?.now ?? new Date();
+  const supabase = createAdminClient();
+  let query = supabase
+    .from('salon_tasks')
+    .select('id, salon_id, created_by, assignee_staff_id, title, remind_at')
+    .is('done_at', null)
+    .is('reminded_at', null)
+    .lte('remind_at', now.toISOString())
+    .limit(80);
+  if (opts?.salonId) query = query.eq('salon_id', opts.salonId);
+
+  const { data, error } = await query;
+  if (error) {
+    if (/salon_tasks|does not exist|schema cache/i.test(error.message)) {
+      return { ok: true, due: 0, sent: 0 };
+    }
+    return { ok: false, due: 0, sent: 0, error: error.message };
+  }
+
+  let due = (data ?? []) as DueSalonTask[];
+  if (opts?.staffId) {
+    due = due.filter(t =>
+      (t.assignee_staff_id ?? t.created_by) === opts.staffId,
+    );
+  }
+  if (due.length === 0) return { ok: true, due: 0, sent: 0 };
+
+  let sent = 0;
+  for (const row of due) {
+    const targetStaffId = row.assignee_staff_id ?? row.created_by;
+    const subs = await loadSubsForStaff(targetStaffId);
+    if (subs.length === 0) continue;
+    const claimed = await claimSalonTask(row.id, now);
+    if (!claimed) continue;
+    const payload = JSON.stringify({
+      title: BRAND_NAME,
+      body: row.title,
+      url: '/tareas',
+      tag: `salon-task-${row.id}`,
+    });
+    let delivered = 0;
+    for (const sub of subs) {
+      if (await pushOne(sub, payload)) delivered += 1;
+    }
+    if (delivered === 0) {
+      await unclaimSalonTask(row.id);
+      continue;
+    }
+    sent += 1;
+  }
+  return { ok: true, due: due.length, sent };
+}

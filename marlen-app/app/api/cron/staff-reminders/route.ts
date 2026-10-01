@@ -1,10 +1,14 @@
 import { authorizeCronRequest } from '@/lib/sms/auth-cron';
-import { dispatchPersonalTaskReminders, dispatchStaffReminders } from '@/lib/staff-reminder-send';
+import {
+  dispatchPersonalTaskReminders,
+  dispatchSalonTaskReminders,
+  dispatchStaffReminders,
+} from '@/lib/staff-reminder-send';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
 
-/** Cada minuto desde pg_cron (Supabase): aviso al equipo de las citas que empiezan en media hora. */
+/** Cada minuto desde pg_cron: citas a 30 min + tareas con remind_at vencido. */
 export async function GET(req: Request) {
   if (!authorizeCronRequest(req)) {
     return new Response('Unauthorized', { status: 401 });
@@ -13,14 +17,18 @@ export async function GET(req: Request) {
   try {
     const result = await dispatchStaffReminders();
     const personal = await dispatchPersonalTaskReminders();
+    const salon = await dispatchSalonTaskReminders();
     const supabase = createAdminClient();
     await supabase.from('platform_cron_runs').insert({
       job: 'staff-reminders',
       ok: result.ok,
-      summary: { ...result, personal },
+      summary: { ...result, personal, salon },
     });
     const missingKeys = result.error?.startsWith('Faltan VAPID');
-    return Response.json(result, { status: result.ok || missingKeys ? 200 : 500 });
+    return Response.json(
+      { ...result, personal, salon },
+      { status: result.ok || missingKeys ? 200 : 500 },
+    );
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Error en avisos al equipo';
     console.error('[cron/staff-reminders]', message);

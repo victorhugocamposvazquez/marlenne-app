@@ -425,11 +425,12 @@ export default function FinanzasView({
 
   const facturarDesdeLista = () => {
     if (!listSelCount || !listSelClientId) return;
-    const c = clients.find(cl => cl.id === listSelClientId) ?? null;
-    if (!c) {
-      toast('No encuentro esa clienta');
-      return;
-    }
+    const known = clients.find(cl => cl.id === listSelClientId) ?? null;
+    const c: FinanzasClient = known ?? {
+      id: listSelClientId,
+      name: listSelMovs[0]?.clientLabel ?? 'Clienta',
+      phone: null,
+    };
     const sel: Record<string, boolean> = {};
     for (const m of listSelMovs) sel[m.id] = true;
     go({

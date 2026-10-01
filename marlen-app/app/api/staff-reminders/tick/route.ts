@@ -1,12 +1,16 @@
 import { getSession } from '@/lib/queries';
-import { dispatchPersonalTaskReminders, dispatchStaffReminders } from '@/lib/staff-reminder-send';
+import {
+  dispatchPersonalTaskReminders,
+  dispatchSalonTaskReminders,
+  dispatchStaffReminders,
+} from '@/lib/staff-reminder-send';
 
 export const runtime = 'nodejs';
 
 /**
  * Mientras haya alguien del equipo con la app abierta, dispara los avisos
- * de las citas que entran en los próximos 30 minutos. El cron hace lo mismo
- * si nadie tiene la PWA en primer plano.
+ * de citas (~30 min) y tareas con remind_at vencido. El cron hace lo mismo
+ * con la PWA cerrada.
  */
 export async function POST() {
   const me = await getSession();
@@ -15,6 +19,7 @@ export async function POST() {
   try {
     const result = await dispatchStaffReminders({ salonId: me.salon_id });
     await dispatchPersonalTaskReminders({ userId: me.id });
+    await dispatchSalonTaskReminders({ salonId: me.salon_id });
     const missingKeys = result.error?.startsWith('Faltan VAPID');
     return Response.json(result, { status: result.ok || missingKeys ? 200 : 500 });
   } catch (e) {
