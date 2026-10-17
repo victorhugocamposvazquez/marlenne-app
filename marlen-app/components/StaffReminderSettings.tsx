@@ -92,7 +92,11 @@ export default function StaffReminderSettings({
         onClick={async () => {
           if (testing) return;
           setTesting(true);
-          const res = await fetch('/api/staff-reminders/test', { method: 'POST' });
+          const res = await fetch('/api/staff-reminders/test', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ kind: personal ? 'tasks' : 'appointments' }),
+          });
           const body = await res.json().catch(() => ({})) as { sent?: number; error?: string };
           setTesting(false);
           if (!res.ok || !body.sent) {

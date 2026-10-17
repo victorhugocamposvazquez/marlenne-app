@@ -7,6 +7,7 @@ export type SalonBranding = {
   logoPath: string | null;
   /** URL pública del logo si hay path. */
   logoUrl: string | null;
+  gestoriaWhatsapp: string;
 };
 
 export type SalonEmisor = {
@@ -26,6 +27,7 @@ const EMPTY: SalonBranding = {
   phone: '',
   logoPath: null,
   logoUrl: null,
+  gestoriaWhatsapp: '',
 };
 
 export function publicLogoUrl(logoPath: string | null | undefined): string | null {
@@ -42,6 +44,7 @@ export function salonBrandingFromRow(row: {
   fiscal_address?: string | null;
   phone?: string | null;
   logo_path?: string | null;
+  gestoria_whatsapp?: string | null;
 } | null | undefined): SalonBranding {
   if (!row) return { ...EMPTY };
   const logoPath = row.logo_path ?? null;
@@ -53,6 +56,7 @@ export function salonBrandingFromRow(row: {
     phone: (row.phone ?? '').trim(),
     logoPath,
     logoUrl: publicLogoUrl(logoPath),
+    gestoriaWhatsapp: (row.gestoria_whatsapp ?? '').trim(),
   };
 }
 

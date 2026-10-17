@@ -11,6 +11,7 @@ export const runtime = 'nodejs';
 /** Cada minuto desde pg_cron: citas a 30 min + tareas con remind_at vencido. */
 export async function GET(req: Request) {
   if (!authorizeCronRequest(req)) {
+    console.error('[cron/staff-reminders] unauthorized (¿CRON_SECRET ≠ vault staff_reminders_cron_secret?)');
     return new Response('Unauthorized', { status: 401 });
   }
 

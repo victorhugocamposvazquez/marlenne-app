@@ -45,6 +45,7 @@ export default function CentroBrandingForm({
     taxId: initial.taxId,
     fiscalAddress: initial.fiscalAddress,
     phone: initial.phone,
+    gestoriaWhatsapp: initial.gestoriaWhatsapp,
   });
   const [logoUrl, setLogoUrl] = useState(initial.logoUrl);
   const [logoPath, setLogoPath] = useState(initial.logoPath);
@@ -232,6 +233,23 @@ export default function CentroBrandingForm({
             inputMode="tel"
             onChange={e => set('phone', e.target.value)}
             placeholder="981 00 00 00"
+          />
+        </Field>
+      </AjustesSection>
+
+      <AjustesSection title="Gestoría">
+        <Field
+          label="WhatsApp de gestoría"
+          hint="Móvil con prefijo país. Al compartir el ZIP desde Finanzas se abre WhatsApp con este número."
+        >
+          <input
+            className={inputCls}
+            value={form.gestoriaWhatsapp}
+            disabled={busy}
+            maxLength={30}
+            inputMode="tel"
+            onChange={e => set('gestoriaWhatsapp', e.target.value)}
+            placeholder="+34 600 000 000"
           />
         </Field>
       </AjustesSection>

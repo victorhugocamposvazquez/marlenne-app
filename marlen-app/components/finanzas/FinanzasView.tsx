@@ -20,6 +20,9 @@ import {
 import type { SalonEmisor } from '@/lib/salon-branding';
 import { createClient } from '@/lib/supabase/client';
 import { dayKey } from '@/lib/time';
+import type { VendorConnection, VendorInvoice } from '@/lib/vendor-invoices';
+import { currentPeriodKey } from '@/lib/vendor-invoices';
+import VendorInvoicesTools from '@/components/finanzas/VendorInvoicesTools';
 
 const INK = '#0F0E1A';
 const MUTED = '#6E6B7B';
@@ -138,11 +141,21 @@ export default function FinanzasView({
   clients,
   emisor: emisorProp,
   loadWarning = null,
+  vendorConnections = [],
+  vendorInvoices = [],
+  gestoriaWhatsapp = null,
+  amazonConfigured = false,
+  metaConfigured = false,
 }: {
   initialMovs: FinanzasMov[];
   clients: FinanzasClient[];
   emisor?: SalonEmisor;
   loadWarning?: string | null;
+  vendorConnections?: VendorConnection[];
+  vendorInvoices?: VendorInvoice[];
+  gestoriaWhatsapp?: string | null;
+  amazonConfigured?: boolean;
+  metaConfigured?: boolean;
 }) {
   const EMISOR = emisorProp ?? FALLBACK_EMISOR;
   const router = useRouter();
@@ -946,6 +959,18 @@ export default function FinanzasView({
                   <button type="button" onClick={() => toast(`Resumen ${periodLabel} enviado a tu gestoría`)} style={{ flex: 1, height: 42, borderRadius: 99, border: `1.5px solid ${LINE}`, background: '#FFF', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Enviar a gestoría</button>
                 </div>
               </div>
+              <VendorInvoicesTools
+                initialPeriodKey={
+                  S.gran === 'tri'
+                    ? `${per.year}-T${Math.min(S.period, 3) + 1}`
+                    : currentPeriodKey()
+                }
+                connections={vendorConnections}
+                invoices={vendorInvoices}
+                gestoriaWhatsapp={gestoriaWhatsapp}
+                amazonConfigured={amazonConfigured}
+                metaConfigured={metaConfigured}
+              />
               <div style={{ background: '#FFF', border: `1px solid ${LINE}`, borderRadius: 18, padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <span style={{ fontSize: 15.5, fontWeight: 700 }}>{barsTitle}</span>
                 {bars.map(b => (

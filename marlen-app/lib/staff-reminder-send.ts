@@ -360,9 +360,14 @@ export async function dispatchSalonTaskReminders(opts?: {
 
   let sent = 0;
   for (const row of due) {
-    const targetStaffId = row.assignee_staff_id ?? row.created_by;
-    const subs = await loadSubsForStaff(targetStaffId);
-    if (subs.length === 0) continue;
+    const targets = new Set<string>();
+    if (row.assignee_staff_id) targets.add(row.assignee_staff_id);
+    if (row.created_by) targets.add(row.created_by);
+    const targetIds = [...targets];
+    const subsByStaff = await Promise.all(targetIds.map(async id => ({ id, subs: await loadSubsForStaff(id) })));
+    const withSubs = subsByStaff.filter(x => x.subs.length > 0);
+    if (withSubs.length === 0) continue;
+
     const claimed = await claimSalonTask(row.id, now);
     if (!claimed) continue;
     const payload = JSON.stringify({
@@ -372,8 +377,10 @@ export async function dispatchSalonTaskReminders(opts?: {
       tag: `salon-task-${row.id}`,
     });
     let delivered = 0;
-    for (const sub of subs) {
-      if (await pushOne(sub, payload)) delivered += 1;
+    for (const { subs } of withSubs) {
+      for (const sub of subs) {
+        if (await pushOne(sub, payload)) delivered += 1;
+      }
     }
     if (delivered === 0) {
       await unclaimSalonTask(row.id);

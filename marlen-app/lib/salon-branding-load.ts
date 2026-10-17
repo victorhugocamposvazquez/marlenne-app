@@ -12,11 +12,11 @@ export async function fetchSalonBranding(
 ): Promise<SalonBranding> {
   const { data, error } = await sb
     .from('salons')
-    .select('name, legal_name, tax_id, fiscal_address, phone, logo_path')
+    .select('name, legal_name, tax_id, fiscal_address, phone, logo_path, gestoria_whatsapp')
     .eq('id', salonId)
     .maybeSingle();
 
-  if (error && /legal_name|tax_id|fiscal_address|logo_path/i.test(error.message)) {
+  if (error && /legal_name|tax_id|fiscal_address|logo_path|gestoria_/i.test(error.message)) {
     const retry = await sb.from('salons').select('name, phone').eq('id', salonId).maybeSingle();
     return salonBrandingFromRow(retry.data ?? { name: '' });
   }
