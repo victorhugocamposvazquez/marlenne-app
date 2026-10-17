@@ -16,6 +16,8 @@ export type LiveCenter = {
   sender: string | null;
   opsOn: boolean;
   centerOn: boolean;
+  /** Finanzas → Herramientas Amazon/Meta (feature Ops). */
+  vendorInvoicesOn: boolean;
   sent: number;
   failed: number;
   sends: LiveSend[];
@@ -47,16 +49,25 @@ export async function loadLiveCenter(): Promise<LiveCenter | null> {
   const cfg = configs[0];
   const salonId = cfg.salon_id as string;
 
-  const { data: logs } = await sb
-    .from('sms_log')
-    .select('id, status, to_phone, body, created_at, error_message, origin')
-    .eq('salon_id', salonId)
-    .order('created_at', { ascending: false })
-    .limit(30);
+  const [logsRes, salonRes] = await Promise.all([
+    sb
+      .from('sms_log')
+      .select('id, status, to_phone, body, created_at, error_message, origin')
+      .eq('salon_id', salonId)
+      .order('created_at', { ascending: false })
+      .limit(30),
+    sb
+      .from('salons')
+      .select('feature_vendor_invoices')
+      .eq('id', salonId)
+      .maybeSingle(),
+  ]);
 
-  const rows = logs ?? [];
+  const rows = logsRes.data ?? [];
   const sent = rows.filter(r => r.status === 'sent').length;
   const failed = rows.filter(r => r.status === 'failed').length;
+  const vendorInvoicesOn =
+    !salonRes.error && salonRes.data?.feature_vendor_invoices === true;
 
   return {
     salonId,
@@ -64,6 +75,7 @@ export async function loadLiveCenter(): Promise<LiveCenter | null> {
     sender: (cfg.sender as string | null) ?? null,
     opsOn: cfg.test_mode === false,
     centerOn: cfg.enabled === true,
+    vendorInvoicesOn,
     sent,
     failed,
     sends: rows.map(r => ({
@@ -89,6 +101,26 @@ export async function setOpsAutoSend(on: boolean): Promise<{ ok: boolean; error?
     .update({ test_mode: !on, updated_at: new Date().toISOString() })
     .eq('salon_id', live.salonId);
   if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Activa/desactiva Herramientas facturas Amazon+Meta en Finanzas del centro live. */
+export async function setOpsVendorInvoices(on: boolean): Promise<{ ok: boolean; error?: string }> {
+  const sb = panelAdmin();
+  if (!sb) return { ok: false, error: 'El panel no tiene acceso a la base' };
+  const live = await loadLiveCenter();
+  if (!live) return { ok: false, error: 'No está el centro en producción' };
+
+  const { error } = await sb
+    .from('salons')
+    .update({ feature_vendor_invoices: on })
+    .eq('id', live.salonId);
+  if (error) {
+    if (/feature_vendor_invoices/i.test(error.message)) {
+      return { ok: false, error: 'Falta aplicar la migración feature_vendor_invoices' };
+    }
+    return { ok: false, error: error.message };
+  }
   return { ok: true };
 }
 

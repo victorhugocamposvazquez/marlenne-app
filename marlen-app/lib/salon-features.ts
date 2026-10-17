@@ -20,3 +20,10 @@ export function salonAgendaFeaturesFromRow(row: {
     overdueAppts: row.feature_overdue_appts !== false,
   };
 }
+
+/** Facturas Amazon/Meta en Finanzas. Solo si Ops lo activa (default off). */
+export function vendorInvoicesEnabledFromRow(row: {
+  feature_vendor_invoices?: boolean | null;
+} | null | undefined): boolean {
+  return row?.feature_vendor_invoices === true;
+}

@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/queries';
 import { createClient } from '@/lib/supabase/server';
 import {
   amazonAuthUrl,
@@ -14,14 +13,16 @@ import {
   metaConfigured,
 } from '@/lib/meta-business-invoices';
 import { appOriginFromRequest } from '@/lib/app-origin';
+import { requireVendorInvoicesAccess } from '@/lib/vendor-invoices-access';
 import { signOAuthState } from '@/lib/vendor-oauth-state';
 
 export const runtime = 'nodejs';
 
 /** GET ?vendor=amazon_business|meta → redirect OAuth o { configured: false } */
 export async function GET(req: Request) {
-  const me = await getSession();
-  if (!me) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const access = await requireVendorInvoicesAccess();
+  if (!access.ok) return access.response;
+  const { me } = access;
   if (me.role !== 'admin') {
     return NextResponse.json({ error: 'Solo admin puede conectar cuentas' }, { status: 403 });
   }
@@ -59,8 +60,9 @@ export async function GET(req: Request) {
 
 /** DELETE ?vendor=… → desconectar */
 export async function DELETE(req: Request) {
-  const me = await getSession();
-  if (!me) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const access = await requireVendorInvoicesAccess();
+  if (!access.ok) return access.response;
+  const { me } = access;
   if (me.role !== 'admin') {
     return NextResponse.json({ error: 'Solo admin puede desconectar' }, { status: 403 });
   }

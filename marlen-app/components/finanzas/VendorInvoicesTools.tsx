@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import React, { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/Toast';
 import {
@@ -47,7 +47,6 @@ export default function VendorInvoicesTools({
 }: Props) {
   const toast = useToast();
   const router = useRouter();
-  const fileRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
   const [periodKey, setPeriodKey] = useState(initialPeriodKey || currentPeriodKey());
   const [connections, setConnections] = useState(initialConnections);
@@ -56,7 +55,6 @@ export default function VendorInvoicesTools({
     amazon: true,
     meta: true,
   });
-  const [uploadVendor, setUploadVendor] = useState<VendorKind>('amazon_business');
   const [busy, setBusy] = useState<string | null>(null);
 
   useEffect(() => {
@@ -77,7 +75,7 @@ export default function VendorInvoicesTools({
     const ok = sp.get('vendor_ok');
     const err = sp.get('vendor_err');
     if (ok) {
-      toast(ok === 'amazon' ? 'Amazon Business conectado' : 'Meta Business conectado');
+      toast(ok === 'amazon' ? 'Amazon Business conectado' : 'Meta Ads conectado');
       router.replace('/finanzas');
       router.refresh();
     } else if (err) {
@@ -93,7 +91,6 @@ export default function VendorInvoicesTools({
     const list: VendorKind[] = [];
     if (vendors.amazon) list.push('amazon_business');
     if (vendors.meta) list.push('meta');
-    list.push('manual');
     return list;
   }, [vendors]);
 
@@ -131,12 +128,22 @@ export default function VendorInvoicesTools({
 
   const sync = () => {
     const syncVendors = [
-      vendors.amazon ? 'amazon_business' : null,
-      vendors.meta ? 'meta' : null,
-    ].filter(Boolean) as string[];
+      vendors.amazon ? 'amazon_business' as const : null,
+      vendors.meta ? 'meta' as const : null,
+    ].filter(Boolean) as Array<'amazon_business' | 'meta'>;
     if (!syncVendors.length) {
-      toast('Marca Amazon y/o Meta para sincronizar');
+      toast('Marca Amazon y/o Meta');
       return;
+    }
+    for (const v of syncVendors) {
+      if (connOf(v)?.status !== 'connected') {
+        toast(
+          v === 'amazon_business'
+            ? 'Conecta Amazon Business antes de sincronizar'
+            : 'Conecta Meta Ads antes de sincronizar',
+        );
+        return;
+      }
     }
     setBusy('sync');
     startTransition(async () => {
@@ -153,9 +160,12 @@ export default function VendorInvoicesTools({
       }
       const parts: string[] = [];
       for (const [k, v] of Object.entries(j.results || {})) {
-        const r = v as { imported?: number; error?: string };
+        const r = v as { imported?: number; skipped?: number; error?: string };
         if (r.error) parts.push(`${k}: ${r.error}`);
-        else parts.push(`${k}: ${r.imported ?? 0} nuevas`);
+        else {
+          const n = r.imported ?? 0;
+          parts.push(n ? `${k}: ${n} factura${n === 1 ? '' : 's'}` : `${k}: sin nuevas`);
+        }
       }
       toast(parts.join(' · ') || 'Sincronizado');
       router.refresh();
@@ -163,6 +173,10 @@ export default function VendorInvoicesTools({
   };
 
   const downloadZip = async () => {
+    if (!selectedVendors.length) {
+      toast('Marca Amazon y/o Meta');
+      return null;
+    }
     setBusy('zip');
     try {
       const qs = new URLSearchParams({
@@ -213,14 +227,12 @@ export default function VendorInvoicesTools({
           await nav.share({
             files: [file],
             title: `Facturas ${label}`,
-            text: gestoriaWhatsapp
-              ? `Facturas proveedores ${label}`
-              : `Facturas proveedores ${label}`,
+            text: `Facturas proveedores ${label}`,
           });
           toast('Compartido');
           return;
         } catch {
-          /* cancelado o falló */
+          /* cancelado */
         }
       }
       const url = URL.createObjectURL(packed.blob);
@@ -239,40 +251,12 @@ export default function VendorInvoicesTools({
     });
   };
 
-  const onUpload = async (file: File | undefined) => {
-    if (!file) return;
-    if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') {
-      toast('Solo PDF');
-      return;
-    }
-    setBusy('upload');
-    try {
-      const fd = new FormData();
-      fd.set('file', file);
-      fd.set('vendor', uploadVendor);
-      fd.set('title', file.name.replace(/\.pdf$/i, ''));
-      fd.set('issuedAt', new Date().toISOString().slice(0, 10));
-      const res = await fetch('/api/finanzas/vendor-invoices/upload', {
-        method: 'POST',
-        body: fd,
-      });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast(j.error || 'No se pudo subir');
-        return;
-      }
-      toast('PDF subido');
-      if (j.periodKey) setPeriodKey(j.periodKey);
-      router.refresh();
-    } finally {
-      setBusy(null);
-      if (fileRef.current) fileRef.current.value = '';
-    }
-  };
-
   const amazon = connOf('amazon_business');
   const meta = connOf('meta');
   const disabled = Boolean(busy) || pending;
+  const anyConnected =
+    amazon?.status === 'connected' || meta?.status === 'connected';
+  const apisReady = amazonConfigured || metaConfigured;
 
   const btn = (primary?: boolean): React.CSSProperties => ({
     height: 40,
@@ -302,22 +286,29 @@ export default function VendorInvoicesTools({
       <div>
         <span style={{ fontSize: 15.5, fontWeight: 700 }}>Herramientas</span>
         <p style={{ margin: '4px 0 0', fontSize: 12.5, color: MUTED, lineHeight: 1.4 }}>
-          Facturas Amazon Business y Meta por trimestre · descarga ZIP o WhatsApp
+          Baja las facturas de tus pedidos Amazon y anuncios Meta del trimestre
         </p>
       </div>
 
-      {/* Conexiones */}
+      {!apisReady && (
+        <p style={{ margin: 0, fontSize: 12.5, color: '#B3123B', lineHeight: 1.4 }}>
+          Faltan las claves de Amazon / Meta en Vercel. Sin ellas no se pueden conectar las cuentas.
+        </p>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {([
           {
             key: 'amazon_business' as const,
             name: 'Amazon Business',
+            hint: 'Facturas de pedidos',
             conn: amazon,
             configured: amazonConfigured,
           },
           {
             key: 'meta' as const,
-            name: 'Meta Business',
+            name: 'Meta Ads',
+            hint: 'Facturas de anuncios',
             conn: meta,
             configured: metaConfigured,
           },
@@ -337,12 +328,12 @@ export default function VendorInvoicesTools({
               <span style={{ display: 'block', fontSize: 13, fontWeight: 700 }}>{row.name}</span>
               <span style={{ fontSize: 11.5, color: FAINT }}>
                 {row.conn?.status === 'connected'
-                  ? `Conectado${row.conn.externalAccountId ? ` · ${row.conn.externalAccountId}` : ''}`
+                  ? `Conectado${row.conn.externalAccountId ? ` · ${row.conn.externalAccountId}` : ''} · ${row.hint}`
                   : row.conn?.status === 'error'
-                    ? (row.conn.lastError || 'Error')
+                    ? (row.conn.lastError || 'Error de conexión')
                     : row.configured
-                      ? 'Sin conectar'
-                      : 'API no configurada en servidor'}
+                      ? `Sin conectar · ${row.hint}`
+                      : 'Faltan claves en Vercel'}
               </span>
             </div>
             {row.conn?.status === 'connected' ? (
@@ -355,7 +346,7 @@ export default function VendorInvoicesTools({
                 disabled={disabled || !row.configured}
                 onClick={() => connect(row.key)}
                 style={btn(true)}
-                title={!row.configured ? 'Faltan claves en el servidor' : undefined}
+                title={!row.configured ? 'Configura las claves en Vercel' : undefined}
               >
                 Conectar
               </button>
@@ -364,7 +355,6 @@ export default function VendorInvoicesTools({
         ))}
       </div>
 
-      {/* Trimestre */}
       <div>
         <span style={{ fontSize: 12.5, fontWeight: 600, color: MUTED }}>Trimestre</span>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8, alignItems: 'center' }}>
@@ -409,7 +399,6 @@ export default function VendorInvoicesTools({
         </div>
       </div>
 
-      {/* Vendors */}
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
           <input
@@ -417,7 +406,7 @@ export default function VendorInvoicesTools({
             checked={vendors.amazon}
             onChange={e => setVendors(v => ({ ...v, amazon: e.target.checked }))}
           />
-          Amazon
+          Pedidos Amazon
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
           <input
@@ -425,82 +414,31 @@ export default function VendorInvoicesTools({
             checked={vendors.meta}
             onChange={e => setVendors(v => ({ ...v, meta: e.target.checked }))}
           />
-          Meta
+          Anuncios Meta
         </label>
       </div>
 
-      {/* Acciones */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        <button type="button" disabled={disabled} onClick={sync} style={btn(true)}>
-          {busy === 'sync' ? 'Sincronizando…' : 'Sincronizar'}
+        <button type="button" disabled={disabled || !anyConnected} onClick={sync} style={btn(true)}>
+          {busy === 'sync' ? 'Bajando facturas…' : 'Sincronizar facturas'}
         </button>
-        <button type="button" disabled={disabled} onClick={onDownload} style={btn()}>
+        <button type="button" disabled={disabled || !invoices.length} onClick={onDownload} style={btn()}>
           Descargar ZIP
         </button>
-        <button type="button" disabled={disabled} onClick={onShareWa} style={btn()}>
-          Compartir por WhatsApp
+        <button type="button" disabled={disabled || !invoices.length} onClick={onShareWa} style={btn()}>
+          WhatsApp
         </button>
       </div>
 
-      {/* Subida manual */}
-      <div
-        style={{
-          borderTop: `1px solid ${LINE}`,
-          paddingTop: 12,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-        }}
-      >
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: MUTED }}>
-          Subir PDF manual ({label})
-        </span>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-          <select
-            value={uploadVendor}
-            disabled={disabled}
-            onChange={e => setUploadVendor(e.target.value as VendorKind)}
-            style={{
-              height: 36,
-              borderRadius: 10,
-              border: `1.5px solid ${LINE}`,
-              padding: '0 10px',
-              fontSize: 12.5,
-              fontWeight: 600,
-              background: '#FFF',
-            }}
-          >
-            <option value="amazon_business">Amazon</option>
-            <option value="meta">Meta</option>
-            <option value="manual">Otro</option>
-          </select>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => fileRef.current?.click()}
-            style={btn()}
-          >
-            {busy === 'upload' ? 'Subiendo…' : 'Elegir PDF'}
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/pdf,.pdf"
-            className="hidden"
-            style={{ display: 'none' }}
-            onChange={e => void onUpload(e.target.files?.[0])}
-          />
-        </div>
-      </div>
-
-      {/* Lista */}
       <div style={{ borderTop: `1px solid ${LINE}`, paddingTop: 12 }}>
         <span style={{ fontSize: 12.5, fontWeight: 600, color: MUTED }}>
           Facturas {label} ({invoices.length})
         </span>
         {!invoices.length ? (
           <p style={{ margin: '8px 0 0', fontSize: 12.5, color: FAINT }}>
-            Aún no hay facturas. Sincroniza o sube un PDF.
+            {anyConnected
+              ? 'Elige el trimestre y pulsa «Sincronizar facturas».'
+              : 'Conecta Amazon y/o Meta y luego sincroniza el trimestre.'}
           </p>
         ) : (
           <ul style={{ listStyle: 'none', margin: '8px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>

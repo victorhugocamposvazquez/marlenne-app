@@ -1,18 +1,16 @@
 import { NextResponse } from 'next/server';
 import { syncAmazonInvoices } from '@/lib/amazon-business';
 import { syncMetaInvoices } from '@/lib/meta-business-invoices';
-import { getSession } from '@/lib/queries';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireVendorInvoicesAccess } from '@/lib/vendor-invoices-access';
 import type { VendorKind } from '@/lib/vendor-invoices';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
-  const me = await getSession();
-  if (!me) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (me.role !== 'admin' && me.role !== 'reception') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const access = await requireVendorInvoicesAccess();
+  if (!access.ok) return access.response;
+  const { me } = access;
 
   const body = await req.json().catch(() => ({})) as {
     periodKey?: string;
@@ -31,7 +29,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Elige Amazon y/o Meta' }, { status: 400 });
   }
 
-  // Service role: refresh de tokens y escritura en connections (RLS solo admin).
   const sb = createAdminClient();
   const results: Record<string, { imported: number; skipped: number } | { error: string }> = {};
 

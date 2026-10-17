@@ -141,6 +141,7 @@ export default function FinanzasView({
   clients,
   emisor: emisorProp,
   loadWarning = null,
+  vendorToolsEnabled = false,
   vendorConnections = [],
   vendorInvoices = [],
   gestoriaWhatsapp = null,
@@ -151,6 +152,7 @@ export default function FinanzasView({
   clients: FinanzasClient[];
   emisor?: SalonEmisor;
   loadWarning?: string | null;
+  vendorToolsEnabled?: boolean;
   vendorConnections?: VendorConnection[];
   vendorInvoices?: VendorInvoice[];
   gestoriaWhatsapp?: string | null;
@@ -959,18 +961,20 @@ export default function FinanzasView({
                   <button type="button" onClick={() => toast(`Resumen ${periodLabel} enviado a tu gestoría`)} style={{ flex: 1, height: 42, borderRadius: 99, border: `1.5px solid ${LINE}`, background: '#FFF', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Enviar a gestoría</button>
                 </div>
               </div>
-              <VendorInvoicesTools
-                initialPeriodKey={
-                  S.gran === 'tri'
-                    ? `${per.year}-T${Math.min(S.period, 3) + 1}`
-                    : currentPeriodKey()
-                }
-                connections={vendorConnections}
-                invoices={vendorInvoices}
-                gestoriaWhatsapp={gestoriaWhatsapp}
-                amazonConfigured={amazonConfigured}
-                metaConfigured={metaConfigured}
-              />
+              {vendorToolsEnabled && (
+                <VendorInvoicesTools
+                  initialPeriodKey={
+                    S.gran === 'tri'
+                      ? `${per.year}-T${Math.min(S.period, 3) + 1}`
+                      : currentPeriodKey()
+                  }
+                  connections={vendorConnections}
+                  invoices={vendorInvoices}
+                  gestoriaWhatsapp={gestoriaWhatsapp}
+                  amazonConfigured={amazonConfigured}
+                  metaConfigured={metaConfigured}
+                />
+              )}
               <div style={{ background: '#FFF', border: `1px solid ${LINE}`, borderRadius: 18, padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <span style={{ fontSize: 15.5, fontWeight: 700 }}>{barsTitle}</span>
                 {bars.map(b => (
