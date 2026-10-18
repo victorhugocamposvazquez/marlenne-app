@@ -9,7 +9,6 @@ import { usePanelUI } from '@/context/PanelUIContext';
 import { eur, initials } from '@/lib/format';
 import LiveCenterCard from '@/components/sms/LiveCenterCard';
 import OpsSupportAuditList from '@/components/empresas/OpsSupportAuditList';
-import VendorInvoicesOpsToggle from '@/components/empresas/VendorInvoicesOpsToggle';
 import type { LiveCenter } from '@/lib/live-center';
 import type { OpsAuditRow } from '@/lib/ops-support-audit';
 import { liveStaffRoleLabel, type LiveStaff } from '@/lib/live-staff';
@@ -202,9 +201,6 @@ export default function EmpresaFichaTabs({
 
       {tab === 'Ajustes' && (
         <div className="space-y-3">
-          {company.live && live && (
-            <VendorInvoicesOpsToggle initialOn={live.vendorInvoicesOn} />
-          )}
           <div className="rounded-card bg-white px-5 py-1">
             {[
               ['Recordatorios por SMS', 'Se cortan al agotar el cupo', true],

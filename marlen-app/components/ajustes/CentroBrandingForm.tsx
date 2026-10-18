@@ -32,12 +32,9 @@ function Field({
 export default function CentroBrandingForm({
   initial,
   salonId,
-  showGestoria = false,
 }: {
   initial: SalonBranding;
   salonId: string;
-  /** WhatsApp gestoría (solo si Ops activó facturas Amazon/Meta). */
-  showGestoria?: boolean;
 }) {
   const toast = useToast();
   const router = useRouter();
@@ -48,7 +45,6 @@ export default function CentroBrandingForm({
     taxId: initial.taxId,
     fiscalAddress: initial.fiscalAddress,
     phone: initial.phone,
-    gestoriaWhatsapp: initial.gestoriaWhatsapp,
   });
   const [logoUrl, setLogoUrl] = useState(initial.logoUrl);
   const [logoPath, setLogoPath] = useState(initial.logoPath);
@@ -239,25 +235,6 @@ export default function CentroBrandingForm({
           />
         </Field>
       </AjustesSection>
-
-      {showGestoria && (
-        <AjustesSection title="Gestoría">
-          <Field
-            label="WhatsApp de gestoría"
-            hint="Móvil con prefijo país. Al compartir el ZIP de facturas Amazon/Meta se abre WhatsApp con este número."
-          >
-            <input
-              className={inputCls}
-              value={form.gestoriaWhatsapp}
-              disabled={busy}
-              maxLength={30}
-              inputMode="tel"
-              onChange={e => set('gestoriaWhatsapp', e.target.value)}
-              placeholder="+34 600 000 000"
-            />
-          </Field>
-        </AjustesSection>
-      )}
 
       {error && (
         <p className="mt-4 text-label font-semibold text-danger-fg">{error}</p>

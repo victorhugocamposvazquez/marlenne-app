@@ -6,8 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { recordOpsAudit } from '@/lib/ops-support-audit';
 import { salonBrandingFromRow, type SalonBranding } from '@/lib/salon-branding';
 
-const SELECT =
-  'name, legal_name, tax_id, fiscal_address, phone, logo_path, gestoria_whatsapp';
+const SELECT = 'name, legal_name, tax_id, fiscal_address, phone, logo_path';
 
 export async function loadSalonBranding(): Promise<SalonBranding> {
   const me = await requireRole('admin', 'reception');
@@ -18,7 +17,7 @@ export async function loadSalonBranding(): Promise<SalonBranding> {
     .eq('id', me.salon_id)
     .maybeSingle();
 
-  if (error && /legal_name|tax_id|fiscal_address|logo_path|gestoria_/i.test(error.message)) {
+  if (error && /legal_name|tax_id|fiscal_address|logo_path/i.test(error.message)) {
     const retry = await sb.from('salons').select('name, phone').eq('id', me.salon_id).maybeSingle();
     return salonBrandingFromRow(retry.data ?? { name: '' });
   }
@@ -32,7 +31,6 @@ export async function saveSalonBranding(input: {
   taxId: string;
   fiscalAddress: string;
   phone: string;
-  gestoriaWhatsapp?: string;
 }): Promise<{ ok: true; error: null } | { ok: false; error: string }> {
   const me = await requireRole('admin');
   const sb = createClient();
@@ -46,13 +44,12 @@ export async function saveSalonBranding(input: {
     tax_id: input.taxId.trim() || null,
     fiscal_address: input.fiscalAddress.trim() || null,
     phone: input.phone.trim() || null,
-    gestoria_whatsapp: (input.gestoriaWhatsapp ?? '').trim() || null,
   };
 
   const { error } = await sb.from('salons').update(payload).eq('id', me.salon_id);
   if (error) {
-    if (/legal_name|tax_id|fiscal_address|logo_path|gestoria_/i.test(error.message)) {
-      return { ok: false, error: 'Falta aplicar la migración de datos del centro / gestoría' };
+    if (/legal_name|tax_id|fiscal_address|logo_path/i.test(error.message)) {
+      return { ok: false, error: 'Falta aplicar la migración de datos del centro' };
     }
     return { ok: false, error: error.message };
   }
