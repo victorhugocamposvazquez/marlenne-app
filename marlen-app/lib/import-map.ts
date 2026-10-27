@@ -87,7 +87,7 @@ export function suggestColumnMap(headers: string[]): ColumnMap {
     let best: ImportRole = 'ignore';
     let bestScore = 0;
     for (const role of roles) {
-      if (used.has(role) && role !== 'ignore') continue;
+      if (used.has(role)) continue;
       const score = scoreHeader(header, ROLE_HINTS[role]);
       if (score > bestScore) {
         bestScore = score;
