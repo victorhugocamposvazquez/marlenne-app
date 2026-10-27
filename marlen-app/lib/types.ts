@@ -13,6 +13,8 @@ export type Provider = {
   job_title: string | null;
   color: string | null;
   is_active?: boolean;
+  /** Columna de agenda (cabina). Null = no atiende en grilla. */
+  cabin_id?: string | null;
 };
 
 export type AgendaAppt = {

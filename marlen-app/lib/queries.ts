@@ -94,11 +94,11 @@ export async function listStaff(opts?: { includeInactive?: boolean }): Promise<P
     const sb = createClient();
     let query = sb
       .from('staff')
-      .select('id, full_name, initials, role, job_title, color, is_active')
+      .select('id, full_name, initials, role, job_title, color, is_active, cabin_id')
       .order('sort_order');
     if (!opts?.includeInactive) query = query.eq('is_active', true);
     const { data } = await query;
-    return data ?? [];
+    return (data ?? []) as Provider[];
   } catch {
     return [];
   }

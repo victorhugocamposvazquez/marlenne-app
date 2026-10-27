@@ -75,6 +75,8 @@ export async function updateMember(input: {
   role: StaffRole;
   job_title?: string;
   is_active: boolean;
+  /** null = sin cabina; omitir para no tocar. */
+  cabin_id?: string | null;
 }) {
   const me = await requireAdmin();
   if (!me) return { ok: false, error: 'Solo dirección' };
@@ -85,13 +87,33 @@ export async function updateMember(input: {
     return { ok: false, error: 'No puedes quitarte el rol de dirección' };
   }
 
+  let cabinId: string | null | undefined = input.cabin_id;
+  if (input.role === 'provider') {
+    // Las propias cabinas no apuntan a otra columna.
+    cabinId = null;
+  } else if (cabinId) {
+    const adminCheck = createAdminClient();
+    const { data: cabin } = await adminCheck.from('staff')
+      .select('id, role')
+      .eq('id', cabinId)
+      .eq('salon_id', me.salon_id)
+      .maybeSingle();
+    if (!cabin || cabin.role !== 'provider') {
+      return { ok: false, error: 'Elige una cabina de la agenda' };
+    }
+  }
+
   const admin = createAdminClient();
-  const { error } = await admin.from('staff').update({
+  const patch: Record<string, unknown> = {
     full_name: input.full_name.trim(),
     role: input.role,
     job_title: input.job_title?.trim() || null,
     is_active: input.is_active,
-  }).eq('id', input.id).eq('salon_id', me.salon_id);
+  };
+  if (cabinId !== undefined) patch.cabin_id = cabinId;
+
+  const { error } = await admin.from('staff').update(patch)
+    .eq('id', input.id).eq('salon_id', me.salon_id);
 
   revalidatePath('/ajustes', 'layout');
   revalidatePath('/agenda');

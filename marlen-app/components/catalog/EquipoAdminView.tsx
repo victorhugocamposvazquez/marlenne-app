@@ -76,15 +76,21 @@ export default function EquipoAdminView({
               {items.length === 0 ? (
                 <p className="px-3.5 py-4 text-label font-medium text-ink-3">Nadie en este rol.</p>
               ) : (
-                items.map(p => (
+                items.map(p => {
+                  const cabin = p.cabin_id ? team.find(c => c.id === p.cabin_id) : null;
+                  const cabinMeta = p.role === 'provider'
+                    ? null
+                    : (cabin ? cabin.full_name : 'Sin cabina');
+                  return (
                   <CatalogRowButton
                     key={p.id}
                     onClick={() => setEditId(p.id)}
                     title={`${p.full_name}${p.id === meId ? ' · tú' : ''}`}
-                    meta={[p.job_title, p.is_active === false ? 'inactiva' : null].filter(Boolean).join(' · ') || roleLbl(p.role)}
+                    meta={[p.job_title, cabinMeta, p.is_active === false ? 'inactiva' : null].filter(Boolean).join(' · ') || roleLbl(p.role)}
                     muted={p.is_active === false}
                   />
-                ))
+                  );
+                })
               )}
             </CatalogGroupCard>
           </section>
@@ -96,6 +102,7 @@ export default function EquipoAdminView({
           key={editing.id}
           open
           member={editing}
+          cabins={team.filter(p => p.role === 'provider' && p.is_active !== false && p.id !== editing.id)}
           pending={pending}
           onClose={() => setEditId(null)}
           onSave={input => startTransition(async () => {
@@ -115,18 +122,26 @@ export default function EquipoAdminView({
 }
 
 function MemberSheet({
-  open, member, pending, onClose, onSave,
+  open, member, cabins, pending, onClose, onSave,
 }: {
   open: boolean;
   member: Provider;
+  cabins: Provider[];
   pending: boolean;
   onClose: () => void;
-  onSave: (i: { full_name: string; role: StaffRole; job_title?: string; is_active: boolean }) => void;
+  onSave: (i: {
+    full_name: string;
+    role: StaffRole;
+    job_title?: string;
+    is_active: boolean;
+    cabin_id: string | null;
+  }) => void;
 }) {
   const [name, setName] = useState(member.full_name);
   const [title, setTitle] = useState(member.job_title ?? '');
   const [role, setRole] = useState<StaffRole>(member.role);
   const [active, setActive] = useState(member.is_active !== false);
+  const [cabinId, setCabinId] = useState<string | null>(member.cabin_id ?? null);
   const canSave = name.trim().length >= 2;
 
   return (
@@ -147,6 +162,7 @@ function MemberSheet({
             role,
             job_title: title.trim() || undefined,
             is_active: active,
+            cabin_id: role === 'provider' ? null : cabinId,
           })}
         />
       }
@@ -177,6 +193,24 @@ function MemberSheet({
             ))}
           </div>
         </div>
+        {role !== 'provider' && (
+          <div className="flex flex-col gap-2">
+            <span className="text-label font-semibold text-ink-2">Cabina en la agenda</span>
+            <p className="text-caption font-medium text-ink-3">
+              Para importar citas y saber en qué columna trabaja. Sin cabina = no atiende en grilla.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <PickChip active={cabinId == null} onClick={() => setCabinId(null)}>
+                Sin cabina
+              </PickChip>
+              {cabins.map(c => (
+                <PickChip key={c.id} active={cabinId === c.id} onClick={() => setCabinId(c.id)}>
+                  {c.full_name}
+                </PickChip>
+              ))}
+            </div>
+          </div>
+        )}
         <SettingsToggleRow
           title="Activa en la agenda"
           hint="Si la desactivas, no aparece en columnas ni en nuevas citas."

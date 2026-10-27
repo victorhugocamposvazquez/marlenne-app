@@ -21,10 +21,18 @@ import {
 import { readImportFile } from '@/lib/import-file';
 import { createClient } from '@/lib/supabase/client';
 import { fetchAllPages } from '@/lib/supabase/fetch-all';
+import { agendaColumns, agendaNameForImportLabel } from '@/lib/team';
 import { toTimestamp } from '@/lib/time';
 import type { CategoryId } from '@/lib/categories';
+import type { Provider } from '@/lib/types';
 
-type StaffOpt = { id: string; full_name: string; is_active?: boolean };
+type StaffOpt = {
+  id: string;
+  full_name: string;
+  is_active?: boolean;
+  role?: string;
+  cabin_id?: string | null;
+};
 type ServiceOpt = { id: string; name: string; category: CategoryId; duration_min: number; price_cents: number };
 
 type Step = 'files' | 'columns' | 'entities' | 'preview';
@@ -48,6 +56,7 @@ export default function CsvImportCard() {
   const [canonicalCsv, setCanonicalCsv] = useState<string | null>(null);
 
   const [staffOpts, setStaffOpts] = useState<StaffOpt[]>([]);
+  const [allStaff, setAllStaff] = useState<StaffOpt[]>([]);
   const [serviceOpts, setServiceOpts] = useState<ServiceOpt[]>([]);
 
   const [preview, setPreview] = useState<ImportPreview | null>(null);
@@ -85,13 +94,17 @@ export default function CsvImportCard() {
     const sb = createClient();
     const [services, staff] = await Promise.all([
       sb.from('services').select('id, name, category, duration_min, price_cents'),
-      sb.from('staff').select('id, full_name, is_active'),
+      sb.from('staff').select('id, full_name, is_active, role, cabin_id'),
     ]);
     setServiceOpts((services.data ?? []) as ServiceOpt[]);
-    setStaffOpts((staff.data ?? []) as StaffOpt[]);
+    const all = (staff.data ?? []) as StaffOpt[];
+    setAllStaff(all);
+    const asProviders = all as Provider[];
+    const cabinas = agendaColumns(asProviders.filter(s => s.is_active !== false));
+    setStaffOpts(cabinas);
     return {
       services: (services.data ?? []) as ServiceOpt[],
-      staff: (staff.data ?? []) as StaffOpt[],
+      staff: cabinas,
     };
   };
 
@@ -194,8 +207,7 @@ export default function CsvImportCard() {
     }
     const nextStaff: EntityMap = {};
     for (const name of stf) {
-      const hit = staffOpts.find(s => s.full_name.toLowerCase() === name.toLowerCase());
-      nextStaff[name] = hit?.full_name ?? '';
+      nextStaff[name] = agendaNameForImportLabel(name, allStaff as Provider[]);
     }
     setServiceMap(nextSvc);
     setStaffMap(nextStaff);
@@ -342,7 +354,10 @@ export default function CsvImportCard() {
       {step === 'entities' && (
         <div className="mt-3 space-y-4">
           <div>
-            <p className="text-label font-semibold text-ink">Profesionales del archivo → equipo Marlén</p>
+            <p className="text-label font-semibold text-ink">Unidad / profesional del archivo → columna de agenda</p>
+            <p className="text-caption font-medium text-ink-3">
+              En centros con cabinas, elige Cabina 1, 2… (no el login de la persona).
+            </p>
             <ul className="mt-2 max-h-48 space-y-2 overflow-auto">
               {uniqueStaff.map(name => (
                 <li key={name} className="flex items-center gap-2">
