@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
 
-/** Cron cada 30 min: recordatorios SMS vencidos vía LabsMobile. */
+/** Cron diario (Hobby): recordatorios SMS vencidos vía LabsMobile. */
 export async function GET(req: Request) {
   if (!authorizeCronRequest(req)) {
     return new Response('Unauthorized', { status: 401 });

@@ -97,6 +97,40 @@ export async function loadLiveSalonId(): Promise<string | null> {
   return live?.salonId ?? null;
 }
 
+export type MonitorSnapshot = {
+  lastHealthAt: string | null;
+  lastHealthOk: boolean | null;
+  openAlerts: number;
+};
+
+/** Último cron health + alertas abiertas (Ops). */
+export async function loadMonitorSnapshot(): Promise<MonitorSnapshot> {
+  const sb = panelAdmin();
+  if (!sb) {
+    return { lastHealthAt: null, lastHealthOk: null, openAlerts: 0 };
+  }
+
+  const [{ data: run }, { count }] = await Promise.all([
+    sb
+      .from('platform_cron_runs')
+      .select('ok, ran_at')
+      .eq('job', 'health')
+      .order('ran_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    sb
+      .from('platform_monitor_alerts')
+      .select('id', { count: 'exact', head: true })
+      .is('resolved_at', null),
+  ]);
+
+  return {
+    lastHealthAt: (run?.ran_at as string | undefined) ?? null,
+    lastHealthOk: typeof run?.ok === 'boolean' ? (run.ok as boolean) : null,
+    openAlerts: count ?? 0,
+  };
+}
+
 /** Usuarios reales del centro en producción (staff + correo de acceso). */
 export async function loadLiveStaff(salonId: string): Promise<LiveStaff[]> {
   const sb = panelAdmin();

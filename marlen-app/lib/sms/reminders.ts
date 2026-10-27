@@ -301,6 +301,7 @@ export async function sendReminderForAppointment(
   const result = await sendSmsLabsMobile(telefono.phone, cuerpo, {
     subid,
     test: simulado,
+    sender: config.sender ?? undefined,
   });
 
   if (!result.ok) {
@@ -533,6 +534,7 @@ export async function processDueReminders(
     const result = await sendSmsLabsMobile(phone, cuerpo, {
       subid,
       test: simulado,
+      sender: config.sender ?? undefined,
     });
 
     if (!result.ok) {
