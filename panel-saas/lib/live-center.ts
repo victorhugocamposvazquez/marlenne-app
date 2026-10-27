@@ -26,6 +26,8 @@ import type { LiveStaff } from '@/lib/live-staff';
 export type { LiveStaff };
 
 const LIVE_DISPLAY_NAME = 'Arlett Beauty';
+/** Centro live en producción (Arlett). No depende del TPOA (puede ser número). */
+const LIVE_SALON_ID = '6bbead25-1a38-4d4e-bb6b-4c290a08d74f';
 
 function maskPhone(raw: string): string {
   const digits = raw.replace(/\D/g, '');
@@ -37,11 +39,22 @@ export async function loadLiveCenter(): Promise<LiveCenter | null> {
   const sb = panelAdmin();
   if (!sb) return null;
 
-  const { data: configs, error } = await sb
+  let { data: configs, error } = await sb
     .from('sms_config')
     .select('salon_id, enabled, test_mode, sender')
-    .eq('sender', 'ARLETBEAUTY')
+    .eq('salon_id', LIVE_SALON_ID)
     .limit(1);
+
+  // Fallback legacy: remitente alfanumérico antiguo
+  if (!configs?.length || error) {
+    const retry = await sb
+      .from('sms_config')
+      .select('salon_id, enabled, test_mode, sender')
+      .eq('sender', 'ARLETBEAUTY')
+      .limit(1);
+    configs = retry.data;
+    error = retry.error;
+  }
   if (error || !configs?.length) return null;
 
   const cfg = configs[0];

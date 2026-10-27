@@ -137,21 +137,29 @@ export default function SmsSettingsView({
         <label className="block border-b border-surface-line py-4">
           <span className="block text-body-lg font-bold text-ink">Remitente de este centro</span>
           <span className="mt-0.5 block text-body leading-snug text-ink-2">
-            El nombre que verá la clienta, hasta 11 letras. Cada centro tiene el suyo. Hasta que esté activo, el SMS puede llegar desde un número.
+            Lo que ve la clienta: nombre (máx. 11 letras) o número verificado en LabsMobile (ej. 34600111222). Debe estar aprobado en la cuenta.
           </span>
           <input
-            className={`${inputCls} mt-3 uppercase`}
+            className={`${inputCls} mt-3`}
             value={cfg.sender}
             disabled={pending}
-            maxLength={11}
+            maxLength={16}
+            inputMode="text"
             autoCapitalize="characters"
-            onChange={e => setCfg(c => ({
-              ...c,
-              sender: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11),
-            }))}
+            placeholder="34600111222 o ARLETBEAUTY"
+            onChange={e => {
+              const raw = e.target.value.replace(/[\s+-]/g, '');
+              const asPhone = /^\d*$/.test(raw);
+              setCfg(c => ({
+                ...c,
+                sender: asPhone
+                  ? raw.slice(0, 16)
+                  : raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11),
+              }));
+            }}
           />
-          <span className={`mt-1.5 block text-right text-caption font-semibold ${cfg.sender.length >= 11 ? 'text-ink' : 'text-ink-2'}`}>
-            {cfg.sender.length}/11
+          <span className={`mt-1.5 block text-right text-caption font-semibold ${cfg.sender.length >= (/^\d+$/.test(cfg.sender) ? 16 : 11) ? 'text-ink' : 'text-ink-2'}`}>
+            {cfg.sender.length}/{/^\d+$/.test(cfg.sender) ? 16 : 11}
           </span>
         </label>
         <div className="border-b border-surface-line py-4">
