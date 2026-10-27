@@ -99,3 +99,27 @@ test('sin ningún archivo devuelve error claro', () => {
   });
   assert.ok(preview.fileErrors.some(e => e.includes('al menos un archivo')));
 });
+
+test('citas con rango horario y unidad (estilo SimplyBook)', () => {
+  const csv = [
+    'Fecha,Hora,Servicio,Unidad,Nombre de cliente,Teléfono del cliente',
+    '27-01-2027,"13:30 - 14:00",Vacumterapia,"Iria Ferreiro",Úrsula,\'+34616780940',
+  ].join('\n');
+  const preview = buildPreview({
+    appointmentsCsv: csv,
+    deriveFromAppointments: true,
+    existing: {
+      services: [],
+      clients: [],
+      staff: [{ id: 's1', full_name: 'Iria Ferreiro', is_active: true }],
+      appointments: [],
+      blocks: [],
+    },
+  });
+  assert.equal(preview.fileErrors.length, 0);
+  assert.equal(preview.counts.apptsNew, 1);
+  assert.equal(preview.appointments[0]?.duration_min, 30);
+  assert.equal(preview.appointments[0]?.startMin, 13 * 60 + 30);
+  assert.equal(preview.counts.clientsNew, 1);
+  assert.equal(preview.counts.servicesNew, 1);
+});

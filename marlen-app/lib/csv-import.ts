@@ -1,10 +1,14 @@
 import { CATEGORIES, type CategoryId, type StatusId } from '@/lib/categories';
 import { cell, parseCsv } from '@/lib/csv';
+import {
+  clientsCsvFromAppointments,
+  servicesCsvFromAppointments,
+} from '@/lib/import-map';
 import { phoneDigits } from '@/lib/phone';
 import { toTimestamp } from '@/lib/time';
 import { bestNameMatches, fold, matchCategory } from '@/lib/voice';
 
-export const MAX_IMPORT_ROWS = 2000;
+export const MAX_IMPORT_ROWS = 10_000;
 
 export const CSV_TEMPLATES = {
   servicios: 'nombre,categoria,minutos,precio_euros\nLáser axilas,laser,20,25\nCavitación,corporal,45,40\n',
@@ -171,13 +175,32 @@ function parseDate(raw: string): string | null {
 }
 
 function parseClock(raw: string): number | null {
-  const s = raw.trim().replace('.', ':');
+  const s = raw.trim().replace(/\./g, ':');
+  // SimplyBook y otros: "13:30 - 14:00"
+  const range = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*[-–—]/);
+  if (range) {
+    const h = Number(range[1]);
+    const min = Number(range[2]);
+    if (h > 23 || min > 59) return null;
+    return h * 60 + min;
+  }
   const m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
   if (!m) return null;
   const h = Number(m[1]);
   const min = Number(m[2]);
   if (h > 23 || min > 59) return null;
   return h * 60 + min;
+}
+
+/** Duración en minutos si la hora viene como rango "13:30 - 14:00". */
+export function durationFromTimeRange(raw: string): number | null {
+  const s = raw.trim().replace(/\./g, ':');
+  const m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*[-–—]\s*(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (!m) return null;
+  const start = Number(m[1]) * 60 + Number(m[2]);
+  const end = Number(m[3]) * 60 + Number(m[4]);
+  if (end <= start) return null;
+  return end - start;
 }
 
 function parseEuros(raw: string): number | null {
@@ -215,27 +238,36 @@ function clientFullName(row: Record<string, string>): string {
   return cell(row, 'name').trim();
 }
 
-function parseAppointmentWhen(row: Record<string, string>): { date: string | null; startMin: number | null } {
+function parseAppointmentWhen(row: Record<string, string>): {
+  date: string | null;
+  startMin: number | null;
+  rangeDuration: number | null;
+} {
   const combined = cell(
     row, 'fecha_hora', 'inicio', 'start', 'datetime', 'fecha_y_hora', 'fecha_cita', 'fecha_de_cita',
   );
   if (combined.trim()) {
     const isoSplit = combined.match(/^(\d{4}-\d{2}-\d{2})[T\s](\d{1,2}:\d{2})/);
     if (isoSplit) {
-      return { date: parseDate(isoSplit[1]), startMin: parseClock(isoSplit[2]) };
+      return { date: parseDate(isoSplit[1]), startMin: parseClock(isoSplit[2]), rangeDuration: null };
     }
     const parts = combined.trim().split(/\s+/);
     if (parts.length >= 2) {
       const date = parseDate(parts[0]);
-      const time = parseClock(parts[1]);
-      if (date && time != null) return { date, startMin: time };
+      const timePart = parts.slice(1).join(' ');
+      const time = parseClock(timePart);
+      if (date && time != null) {
+        return { date, startMin: time, rangeDuration: durationFromTimeRange(timePart) };
+      }
     }
     const dateOnly = parseDate(combined);
-    if (dateOnly) return { date: dateOnly, startMin: null };
+    if (dateOnly) return { date: dateOnly, startMin: null, rangeDuration: null };
   }
+  const timeRaw = cell(row, 'hora', 'time', 'hour', 'hora_inicio', 'hora_cita', 'hora_de_inicio');
   return {
     date: parseDate(cell(row, 'fecha', 'date', 'dia', 'fecha_cita', 'fecha_de_la_cita')),
-    startMin: parseClock(cell(row, 'hora', 'time', 'hour', 'hora_inicio', 'hora_cita', 'hora_de_inicio')),
+    startMin: parseClock(timeRaw),
+    rangeDuration: durationFromTimeRange(timeRaw),
   };
 }
 
@@ -393,7 +425,10 @@ export function previewAppointments(csv: string, cat: Catalog): PreviewAppointme
     const client_name = clientFullName(row) || cell(row, 'nombre_clienta').trim();
     const phone = parseImportPhone(cell(row, 'telefono', 'phone', 'movil', 'tel', 'celular'));
     const service_name = cell(row, 'servicio', 'service', 'tratamiento', 'concepto').trim();
-    const provider_name = cell(row, 'profesional', 'provider', 'staff', 'con', 'empleado', 'cabina', 'recurso').trim();
+    const provider_name = cell(
+      row,
+      'profesional', 'provider', 'staff', 'unidad', 'con', 'empleado', 'cabina', 'recurso', 'trabajador',
+    ).trim();
     const when = parseAppointmentWhen(row);
     const minRaw = cell(row, 'minutos', 'duration', 'duracion', 'duracion_minutos');
     const status = parseStatus(cell(row, 'estado', 'status', 'situacion'));
@@ -402,6 +437,8 @@ export function previewAppointments(csv: string, cat: Catalog): PreviewAppointme
     const startMin = when.startMin;
     const dateRaw = cell(row, 'fecha', 'date', 'dia', 'fecha_hora', 'inicio');
     const csvMins = Number(minRaw.replace(',', '.'));
+    const fromCsv = Number.isFinite(csvMins) && csvMins >= 5 ? Math.round(csvMins) : 0;
+    const fromRange = when.rangeDuration && when.rangeDuration >= 5 ? when.rangeDuration : 0;
     const base: PreviewAppointment = {
       row: i + 2,
       client_name,
@@ -410,7 +447,7 @@ export function previewAppointments(csv: string, cat: Catalog): PreviewAppointme
       provider_name,
       date: date ?? dateRaw,
       startMin: startMin ?? 0,
-      duration_min: Number.isFinite(csvMins) && csvMins >= 5 ? Math.round(csvMins) : 0,
+      duration_min: fromCsv || fromRange,
       status,
       note,
       action: 'create',
@@ -468,6 +505,8 @@ export function buildPreview(input: {
   servicesCsv?: string;
   clientsCsv?: string;
   appointmentsCsv?: string;
+  /** Si true (p. ej. un solo export de citas), deriva clientas y servicios del mismo archivo. */
+  deriveFromAppointments?: boolean;
   existing: {
     services: ExistingService[];
     clients: ExistingClient[];
@@ -477,8 +516,14 @@ export function buildPreview(input: {
   };
 }): ImportPreview {
   const fileErrors: string[] = [];
-  const services = input.servicesCsv ? previewServices(input.servicesCsv, input.existing.services) : [];
-  const clients = input.clientsCsv ? previewClients(input.clientsCsv, input.existing.clients) : [];
+  const derive = input.deriveFromAppointments !== false && !!input.appointmentsCsv;
+  const servicesCsv = input.servicesCsv
+    ?? (derive && input.appointmentsCsv ? servicesCsvFromAppointments(input.appointmentsCsv) : undefined);
+  const clientsCsv = input.clientsCsv
+    ?? (derive && input.appointmentsCsv ? clientsCsvFromAppointments(input.appointmentsCsv) : undefined);
+
+  const services = servicesCsv ? previewServices(servicesCsv, input.existing.services) : [];
+  const clients = clientsCsv ? previewClients(clientsCsv, input.existing.clients) : [];
   const tooS = tooMany(services.length, 'Servicios');
   const tooC = tooMany(clients.length, 'Clientas');
   if (tooS) fileErrors.push(tooS);
