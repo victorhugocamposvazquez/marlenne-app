@@ -1,10 +1,12 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { dateFromOffset, skipSunday, weekMondayOffset, weekStripDays } from '@/lib/time';
 
-/** Tira lun–dom: círculos compactos; flechas saltan de semana en semana (al lunes). */
+const SWIPE_MIN = 48;
+
+/** Tira lun–dom: círculos compactos; flechas y swipe saltan de semana (al lunes). */
 export default function DayStrip({
   selectedOffset,
   startOffset: _startOffset,
@@ -24,6 +26,8 @@ export default function DayStrip({
 }) {
   const busy = useMemo(() => new Set(busyOffsets), [busyOffsets]);
   const days = useMemo(() => weekStripDays(selectedOffset), [selectedOffset]);
+  const swipe = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  const suppressTap = useRef(false);
 
   const shift = (delta: -7 | 7) => {
     if (onShiftWeek) {
@@ -32,6 +36,34 @@ export default function DayStrip({
     }
     const mon = weekMondayOffset(selectedOffset) + delta;
     onSelect(allowSundays ? mon : skipSunday(mon, 1));
+  };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    suppressTap.current = false;
+    swipe.current = { x: e.clientX, y: e.clientY, moved: false };
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    const s = swipe.current;
+    if (!s) return;
+    const dx = e.clientX - s.x;
+    const dy = e.clientY - s.y;
+    if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      s.moved = true;
+    }
+  };
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    const s = swipe.current;
+    swipe.current = null;
+    if (!s?.moved) return;
+    const dx = e.clientX - s.x;
+    const dy = e.clientY - s.y;
+    if (Math.abs(dx) < SWIPE_MIN || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+    suppressTap.current = true;
+    // swipe izquierda → semana siguiente; derecha → anterior
+    shift(dx < 0 ? 7 : -7);
   };
 
   return (
@@ -44,7 +76,13 @@ export default function DayStrip({
       >
         <ChevronLeft strokeWidth={3} />
       </button>
-      <div className="day-strip-h grid min-w-0 flex-1 grid-cols-7 items-center gap-0">
+      <div
+        className="day-strip-h grid min-w-0 flex-1 touch-pan-y grid-cols-7 items-center gap-0 [touch-action:pan-y]"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={() => { swipe.current = null; }}
+      >
         {days.map(d => {
           const on = d.offset === selectedOffset;
           const isSunday = dateFromOffset(d.offset).getUTCDay() === 0;
@@ -57,8 +95,12 @@ export default function DayStrip({
               disabled={disabled}
               aria-current={on ? 'date' : undefined}
               aria-label={`${short} ${d.num}${d.isToday ? ', hoy' : ''}`}
-              onClick={() => {
-                if (disabled) return;
+              onClick={e => {
+                if (disabled || suppressTap.current) {
+                  e.preventDefault();
+                  suppressTap.current = false;
+                  return;
+                }
                 onSelect(allowSundays ? d.offset : skipSunday(d.offset, 1));
               }}
               className="flex h-full min-w-0 flex-col items-center justify-center gap-0.5 disabled:cursor-default"
