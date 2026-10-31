@@ -17,20 +17,20 @@ export default function WeekStrip({
   const shift = (delta: -7 | 7) => (onShiftWeek ? onShiftWeek(delta) : onSelect(selectedOffset + delta));
 
   return (
-    <div className="flex items-stretch gap-1">
+    <div className="flex items-center gap-0.5">
       <button
         type="button"
         aria-label="Semana anterior"
         onClick={() => shift(-7)}
-        className="grid h-auto w-11 shrink-0 place-items-center rounded-field bg-surface-card text-ink-2 shadow-card motion-safe:active:scale-[.96]"
+        className="grid h-10 w-8 shrink-0 place-items-center text-ink-2 motion-safe:active:scale-[.96]"
       >
-        <ChevronLeft size={22} strokeWidth={2.4} />
+        <ChevronLeft size={18} strokeWidth={2.6} />
       </button>
-      <div className="grid min-w-0 flex-1 grid-cols-7 gap-0.5">
+      <div className="grid min-w-0 flex-1 grid-cols-7">
         {days.map(d => {
           const on = d.offset === selectedOffset;
           const label = d.dow.replace('.', '');
-          const short = label.slice(0, 3);
+          const short = label.slice(0, 3).toUpperCase();
           return (
             <button
               key={d.offset}
@@ -38,23 +38,24 @@ export default function WeekStrip({
               aria-current={on ? 'date' : undefined}
               aria-label={`${short} ${d.num}${d.isToday ? ', hoy' : ''}`}
               onClick={() => onSelect(d.offset)}
-              className={`flex min-h-[4.25rem] flex-col items-center justify-center rounded-field px-0.5 py-1.5 ${
-                on
-                  ? 'bg-v-2 text-white'
-                  : d.isToday
-                    ? 'border-2 border-v-2 bg-v-tint text-v-d'
-                    : 'border border-surface-line bg-surface-card text-ink-2'
-              }`}
+              className="flex flex-col items-center justify-center gap-0.5 py-0.5"
             >
-              <span className={`text-micro font-bold uppercase tracking-[.04em] ${on ? 'text-white' : ''}`}>
+              <span className={`text-[10px] font-semibold uppercase tracking-[.02em] ${
+                on ? 'text-v-2' : 'text-ink-2'
+              }`}>
                 {short}
               </span>
-              <span className="text-body-lg font-extrabold tabular-nums leading-none">{d.num}</span>
-              {d.isToday && (
-                <span className={`mt-0.5 text-micro font-extrabold ${on ? 'text-white' : 'text-v-d'}`}>
-                  Hoy
-                </span>
-              )}
+              <span
+                className={`grid h-8 w-8 place-items-center rounded-full text-[13px] font-bold tabular-nums ${
+                  on
+                    ? 'bg-v-2 text-white'
+                    : d.isToday
+                      ? 'bg-v-soft text-v-d ring-1 ring-v/40'
+                      : 'text-ink'
+                }`}
+              >
+                {d.num}
+              </span>
             </button>
           );
         })}
@@ -63,9 +64,9 @@ export default function WeekStrip({
         type="button"
         aria-label="Semana siguiente"
         onClick={() => shift(7)}
-        className="grid h-auto w-11 shrink-0 place-items-center rounded-field bg-surface-card text-ink-2 shadow-card motion-safe:active:scale-[.96]"
+        className="grid h-10 w-8 shrink-0 place-items-center text-ink-2 motion-safe:active:scale-[.96]"
       >
-        <ChevronRight size={22} strokeWidth={2.4} />
+        <ChevronRight size={18} strokeWidth={2.6} />
       </button>
     </div>
   );

@@ -18,7 +18,7 @@ export default {
         },
         ink: { DEFAULT: t('--c-ink'), 2: t('--c-ink-2'), 3: t('--c-ink-3') },
         surface: { bg: t('--c-bg'), card: t('--c-card'), line: t('--c-line'), soft: t('--c-soft') },
-        grid: { h: t('--c-grid-h'), v: t('--c-grid-v') },
+        grid: { h: t('--c-grid-h'), soft: t('--c-grid-h-soft'), v: t('--c-grid-v') },
         track: t('--c-track'),
         handle: t('--c-handle'),
         ok: {

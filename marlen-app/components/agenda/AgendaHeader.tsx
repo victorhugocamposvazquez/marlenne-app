@@ -269,15 +269,19 @@ export default function AgendaHeader({
 
       {mode === 'dia' && (
         <>
-          <div className="mt-1 w-full">
+          <div className="mt-0.5 w-full">
             <DayStrip
               selectedOffset={day}
               startOffset={start}
               busyOffsets={busy}
-              onSelect={offset => go(skipSunday(offset, 1))}
+              onSelect={offset => go(skipSunday(offset, 1), { strip: weekMondayOffset(offset) })}
+              onShiftWeek={delta => {
+                const mon = weekMondayOffset(day) + delta;
+                go(mon, { strip: mon });
+              }}
             />
           </div>
-          <div className="mt-1.5 flex min-h-[18px] flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-center text-label">
+          <div className="mt-1 flex min-h-[18px] flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-center text-label">
             {citas != null && (
               <span className="shrink-0 text-ink-3">
                 {citas === 0 ? 'Sin citas' : `${citas} ${citas === 1 ? 'cita' : 'citas'}`}

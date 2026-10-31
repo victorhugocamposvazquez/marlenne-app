@@ -26,7 +26,8 @@
   --c-card: 255 255 255;
   --c-soft: 247 247 250;        /* #F7F7FA */
   --c-line: 236 235 241;        /* #ECEBF1 */
-  --c-grid-h: 236 235 241;
+  --c-grid-h: 196 194 208;       /* horas: un poco más marcadas */
+  --c-grid-h-soft: 228 227 235;  /* cuartos de hora */
   --c-grid-v: 236 235 241;
   --c-track: 242 242 247;       /* #F2F2F7 */
   --c-handle: 227 226 234;      /* #E3E2EA */
@@ -154,13 +155,17 @@
     width: clamp(1.2rem, 5.51cqw, 1.515rem);
     height: clamp(1.2rem, 5.51cqw, 1.515rem);
   }
-  .day-strip-h { height: clamp(2.778rem, 11.478cqw, 3.156rem); }
-  .day-strip-arrow-w { width: clamp(1.2rem, 4.958cqw, 1.452rem); }
-  .day-strip-dow { font-size: clamp(0.694rem, 2.754cqw, 0.758rem); }
-  .day-strip-num { font-size: clamp(1.01rem, 4.132cqw, 1.2rem); }
+  .day-strip-h { height: clamp(3.1rem, 12.2cqw, 3.45rem); }
+  .day-strip-arrow-w { width: clamp(1.05rem, 4.2cqw, 1.25rem); }
+  .day-strip-dow { font-size: clamp(0.58rem, 2.2cqw, 0.65rem); }
+  .day-strip-circle {
+    width: clamp(1.55rem, 6.2cqw, 1.85rem);
+    height: clamp(1.55rem, 6.2cqw, 1.85rem);
+    font-size: clamp(0.78rem, 3.1cqw, 0.92rem);
+  }
   .day-strip-chevron > svg {
-    width: clamp(0.947rem, 3.948cqw, 1.073rem);
-    height: clamp(0.947rem, 3.948cqw, 1.073rem);
+    width: clamp(0.88rem, 3.5cqw, 1rem);
+    height: clamp(0.88rem, 3.5cqw, 1rem);
   }
 }
 

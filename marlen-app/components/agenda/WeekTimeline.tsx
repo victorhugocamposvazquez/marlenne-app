@@ -26,8 +26,10 @@ export default function WeekTimeline({
   const pxPerMin = HOUR_H / 60;
   const gridH = (DAY_END - DAY_START) * pxPerMin;
   const hours: { label: string; top: number }[] = [];
-  for (let m = DAY_START; m <= DAY_END; m += 60) {
-    hours.push({ label: fmt(m), top: (m - DAY_START) * pxPerMin });
+  const quarters: number[] = [];
+  for (let m = DAY_START; m <= DAY_END; m += 15) {
+    if (m % 60 === 0) hours.push({ label: fmt(m), top: (m - DAY_START) * pxPerMin });
+    else quarters.push((m - DAY_START) * pxPerMin);
   }
 
   useEffect(() => {
@@ -114,8 +116,11 @@ export default function WeekTimeline({
           </div>
 
           <div className="relative min-w-0 flex-1">
+            {quarters.map(top => (
+              <div key={`q-${top}`} className="absolute inset-x-0 h-px bg-grid-soft" style={{ top }} />
+            ))}
             {hours.map(h => (
-              <div key={h.label} className="absolute inset-x-0 h-px bg-surface-line" style={{ top: h.top }} />
+              <div key={h.label} className="absolute inset-x-0 h-[1.5px] bg-grid-h" style={{ top: h.top }} />
             ))}
 
             {showNow && (

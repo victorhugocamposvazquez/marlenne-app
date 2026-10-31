@@ -184,8 +184,12 @@ export default function DayGrid({
     },
   });
 
-  const hours = [];
-  for (let m = DAY_START; m <= DAY_END; m += 60) hours.push({ label: fmt(m), top: (m - DAY_START) * pxPerMin });
+  const hours: { label: string; top: number }[] = [];
+  const quarters: number[] = [];
+  for (let m = DAY_START; m <= DAY_END; m += 15) {
+    if (m % 60 === 0) hours.push({ label: fmt(m), top: (m - DAY_START) * pxPerMin });
+    else quarters.push((m - DAY_START) * pxPerMin);
+  }
 
   const place = (a: AgendaAppt) => {
     const o = optimistic[a.id];
@@ -310,8 +314,11 @@ export default function DayGrid({
               className={solo ? 'relative min-w-0 flex-1' : 'relative'}
               style={{ height: gridH, width: solo ? undefined : providers.length * colW }}
             >
+              {quarters.map(top => (
+                <div key={`q-${top}`} className="absolute inset-x-0 h-px bg-grid-soft" style={{ top }} />
+              ))}
               {hours.map(h => (
-                <div key={h.label} className="absolute inset-x-0 h-px bg-grid-h" style={{ top: h.top }} />
+                <div key={h.label} className="absolute inset-x-0 h-[1.5px] bg-grid-h" style={{ top: h.top }} />
               ))}
               {providers.slice(1).map((_, i) => (
                 <div key={i} className="absolute top-0 w-px bg-grid-v" style={{ left: (i + 1) * colW - 4, height: gridH }} />

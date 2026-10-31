@@ -1,121 +1,118 @@
 'use client';
 
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { dayStripWindow, skipSunday } from '@/lib/time';
+import { dateFromOffset, skipSunday, weekMondayOffset, weekStripDays } from '@/lib/time';
 
-const VISIBLE = 5;
-const PAST = 90;
-const FUTURE = 180;
-
-/** Tira de días: scroll horizontal bajo el dedo; flechas desplazan 5 días; celdas fijas. */
+/** Tira lun–dom: círculos compactos; flechas saltan de semana en semana (al lunes). */
 export default function DayStrip({
   selectedOffset,
-  startOffset,
+  startOffset: _startOffset,
   busyOffsets = [],
   allowSundays = false,
   onSelect,
+  onShiftWeek,
 }: {
   selectedOffset: number;
-  startOffset: number;
+  /** @deprecated La tira siempre muestra la semana del día seleccionado. */
+  startOffset?: number;
   busyOffsets?: number[];
   /** Tareas personales: domingos seleccionables. Agenda de trabajo: se saltan. */
   allowSundays?: boolean;
   onSelect: (offset: number) => void;
+  onShiftWeek?: (delta: -7 | 7) => void;
 }) {
-  const scrollerRef = useRef<HTMLDivElement>(null);
   const busy = useMemo(() => new Set(busyOffsets), [busyOffsets]);
-  const from = Math.min(startOffset, selectedOffset) - PAST;
-  const days = useMemo(
-    () => dayStripWindow(from, FUTURE + PAST + Math.abs(selectedOffset - startOffset) + 1),
-    [from, selectedOffset, startOffset],
-  );
+  const days = useMemo(() => weekStripDays(selectedOffset), [selectedOffset]);
 
-  useLayoutEffect(() => {
-    const box = scrollerRef.current;
-    if (!box) return;
-    const size = () => box.style.setProperty('--day-cell', `${box.clientWidth / VISIBLE}px`);
-    size();
-    const ro = new ResizeObserver(size);
-    ro.observe(box);
-    return () => ro.disconnect();
-  }, []);
-
-  useLayoutEffect(() => {
-    const box = scrollerRef.current;
-    const cell = box?.querySelector<HTMLElement>(`[data-off="${startOffset}"]`);
-    if (!box || !cell) return;
-    box.scrollTo({ left: cell.offsetLeft });
-  }, [startOffset]);
-
-  const scrollByDays = (n: number) => {
-    const box = scrollerRef.current;
-    if (!box) return;
-    box.scrollBy({ left: n * (box.clientWidth / VISIBLE), behavior: 'smooth' });
+  const shift = (delta: -7 | 7) => {
+    if (onShiftWeek) {
+      onShiftWeek(delta);
+      return;
+    }
+    const mon = weekMondayOffset(selectedOffset) + delta;
+    onSelect(allowSundays ? mon : skipSunday(mon, 1));
   };
 
   return (
-    <div className="flex w-full items-center">
+    <div className="flex w-full items-center gap-0.5">
       <button
         type="button"
-        aria-label="Días anteriores"
-        onClick={() => scrollByDays(-VISIBLE)}
+        aria-label="Semana anterior"
+        onClick={() => shift(-7)}
         className="day-strip-arrow-w day-strip-chevron day-strip-h grid shrink-0 place-items-center text-ink"
       >
         <ChevronLeft strokeWidth={3} />
       </button>
-      <div
-        ref={scrollerRef}
-        className="day-strip-h relative min-w-0 flex-1 snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden"
-      >
-        <div className="flex h-full">
-          {days.map(d => {
-            const on = d.offset === selectedOffset;
-            const short = d.dow.replace('.', '').slice(0, 3).toUpperCase();
-            return (
-              <button
-                key={d.offset}
-                data-off={d.offset}
-                type="button"
-                disabled={!allowSundays && d.isSunday}
-                aria-current={on ? 'date' : undefined}
-                aria-label={`${short} ${d.num}${d.isToday ? ', hoy' : ''}`}
-                onClick={() => {
-                  if (!allowSundays && d.isSunday) return;
-                  onSelect(allowSundays ? d.offset : skipSunday(d.offset, 1));
-                }}
-                className="flex h-full shrink-0 snap-start flex-col items-center justify-center rounded-[14px] disabled:cursor-default"
+      <div className="day-strip-h grid min-w-0 flex-1 grid-cols-7 items-center gap-0">
+        {days.map(d => {
+          const on = d.offset === selectedOffset;
+          const isSunday = dateFromOffset(d.offset).getUTCDay() === 0;
+          const short = d.dow.replace('.', '').slice(0, 3).toUpperCase();
+          const disabled = !allowSundays && isSunday;
+          return (
+            <button
+              key={d.offset}
+              type="button"
+              disabled={disabled}
+              aria-current={on ? 'date' : undefined}
+              aria-label={`${short} ${d.num}${d.isToday ? ', hoy' : ''}`}
+              onClick={() => {
+                if (disabled) return;
+                onSelect(allowSundays ? d.offset : skipSunday(d.offset, 1));
+              }}
+              className="flex h-full min-w-0 flex-col items-center justify-center gap-0.5 disabled:cursor-default"
+            >
+              <span
+                className="day-strip-dow truncate font-semibold leading-none"
                 style={{
-                  width: 'var(--day-cell)',
-                  flex: '0 0 var(--day-cell)',
-                  background: on ? 'rgb(var(--c-brand-2))' : 'transparent',
-                  color: on ? '#FFFFFF' : d.isSunday ? 'rgb(var(--c-ink-3))' : 'rgb(var(--c-ink))',
+                  color: on
+                    ? 'rgb(var(--c-brand-2))'
+                    : disabled
+                      ? 'rgb(var(--c-ink-3))'
+                      : 'rgb(var(--c-ink-2))',
                 }}
               >
-                <span
-                  className="day-strip-dow w-full truncate text-center font-semibold leading-none"
-                  style={{ color: on ? '#FFFFFF' : d.isSunday ? 'rgb(var(--c-ink-3))' : 'rgb(var(--c-ink-2))' }}
-                >
-                  {short}
-                </span>
-                <span className="day-strip-num mt-0.5 font-bold leading-none tabular-nums">{d.num}</span>
-                <span
-                  className="mt-0.5 h-1 w-1 shrink-0 rounded-full"
-                  style={{
-                    background: busy.has(d.offset)
-                      ? (on ? '#FFFFFF' : '#d000a8')
+                {short}
+              </span>
+              <span
+                className="day-strip-circle grid place-items-center rounded-full font-bold tabular-nums leading-none"
+                style={{
+                  background: on
+                    ? 'rgb(var(--c-brand-2))'
+                    : d.isToday
+                      ? 'rgb(var(--c-brand-soft))'
                       : 'transparent',
-                  }}
-                />
-              </button>
-            );
-          })}
-        </div>
+                  color: on
+                    ? '#FFFFFF'
+                    : disabled
+                      ? 'rgb(var(--c-ink-3))'
+                      : d.isToday
+                        ? 'rgb(var(--c-brand))'
+                        : 'rgb(var(--c-ink))',
+                  boxShadow: d.isToday && !on
+                    ? 'inset 0 0 0 1.5px rgb(var(--c-brand) / 0.45)'
+                    : undefined,
+                }}
+              >
+                {d.num}
+              </span>
+              <span
+                className="h-1 w-1 shrink-0 rounded-full"
+                style={{
+                  background: busy.has(d.offset)
+                    ? (on ? 'rgb(var(--c-brand-2))' : '#d000a8')
+                    : 'transparent',
+                }}
+              />
+            </button>
+          );
+        })}
       </div>
       <button
         type="button"
-        aria-label="Días siguientes"
-        onClick={() => scrollByDays(VISIBLE)}
+        aria-label="Semana siguiente"
+        onClick={() => shift(7)}
         className="day-strip-arrow-w day-strip-chevron day-strip-h grid shrink-0 place-items-center text-ink"
       >
         <ChevronRight strokeWidth={3} />
