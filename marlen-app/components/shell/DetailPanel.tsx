@@ -35,8 +35,10 @@ export default function DetailPanel() {
     <aside
       id={APP_DETAIL_SLOT_ID}
       aria-hidden={!open}
-      className={`relative flex h-full shrink-0 flex-col overflow-hidden border-l border-surface-line bg-white transition-[width] duration-200 ${
-        open ? 'w-[min(420px,38vw)]' : 'w-0 border-l-0'
+      className={`pointer-events-none absolute inset-y-0 right-0 z-30 flex flex-col overflow-hidden border-l border-surface-line bg-white shadow-[-12px_0_32px_rgba(15,14,26,.08)] transition-transform duration-200 ease-out ${
+        open
+          ? 'pointer-events-auto w-[min(420px,38vw)] translate-x-0'
+          : 'w-[min(420px,38vw)] translate-x-full border-l-0 shadow-none'
       }`}
     />
   );
