@@ -155,13 +155,13 @@
     width: clamp(1.2rem, 5.51cqw, 1.515rem);
     height: clamp(1.2rem, 5.51cqw, 1.515rem);
   }
-  .day-strip-h { height: clamp(3.1rem, 12.2cqw, 3.45rem); }
+  .day-strip-h { height: clamp(3.35rem, 13cqw, 3.7rem); }
   .day-strip-arrow-w { width: clamp(1.05rem, 4.2cqw, 1.25rem); }
-  .day-strip-dow { font-size: clamp(0.58rem, 2.2cqw, 0.65rem); }
+  .day-strip-dow { font-size: clamp(0.6rem, 2.3cqw, 0.68rem); }
   .day-strip-circle {
-    width: clamp(1.55rem, 6.2cqw, 1.85rem);
-    height: clamp(1.55rem, 6.2cqw, 1.85rem);
-    font-size: clamp(0.78rem, 3.1cqw, 0.92rem);
+    width: clamp(1.85rem, 7.2cqw, 2.15rem);
+    height: clamp(1.85rem, 7.2cqw, 2.15rem);
+    font-size: clamp(0.9rem, 3.5cqw, 1.05rem);
   }
   .day-strip-chevron > svg {
     width: clamp(0.88rem, 3.5cqw, 1rem);

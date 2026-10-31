@@ -46,7 +46,7 @@ export default function WeekStrip({
                 {short}
               </span>
               <span
-                className={`grid h-8 w-8 place-items-center rounded-full text-[13px] font-bold tabular-nums ${
+                className={`grid h-9 w-9 place-items-center rounded-full text-[15px] font-bold tabular-nums ${
                   on
                     ? 'bg-v-2 text-white'
                     : d.isToday
