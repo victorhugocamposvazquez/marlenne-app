@@ -18,6 +18,13 @@ function reducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
+function trackTransform(slide: WeekSlide): string {
+  if (slide.dir === 'next') {
+    return slide.at === 'start' ? 'translateX(0)' : 'translateX(-50%)';
+  }
+  return slide.at === 'start' ? 'translateX(-50%)' : 'translateX(0)';
+}
+
 /** Tira lun–dom: círculos compactos; flechas y swipe saltan de semana (al lunes). */
 export default function DayStrip({
   selectedOffset,
@@ -77,31 +84,11 @@ export default function DayStrip({
 
   useLayoutEffect(() => {
     if (!slide || slide.at !== 'start') return;
-    const track = trackRef.current;
-    if (!track) return;
-    track.style.transition = 'none';
-    track.style.transform = slide.dir === 'next' ? 'translateX(0)' : 'translateX(-50%)';
     const id = requestAnimationFrame(() => {
       requestAnimationFrame(() => setSlide(s => (s ? { ...s, at: 'end' } : null)));
     });
     return () => cancelAnimationFrame(id);
-  }, [slide]);
-
-  useLayoutEffect(() => {
-    if (!slide || slide.at !== 'end') return;
-    const track = trackRef.current;
-    if (!track) return;
-    track.style.transition = `transform ${SLIDE_MS}ms cubic-bezier(.22,.92,.28,1)`;
-    track.style.transform = slide.dir === 'next' ? 'translateX(-50%)' : 'translateX(0)';
-  }, [slide]);
-
-  useLayoutEffect(() => {
-    if (slide) return;
-    const track = trackRef.current;
-    if (!track) return;
-    track.style.transition = 'none';
-    track.style.transform = 'translateX(0)';
-  }, [slide]);
+  }, [slide?.leaving, slide?.entering, slide?.dir]);
 
   const onTrackTransitionEnd = (e: React.TransitionEvent) => {
     if (e.propertyName !== 'transform' || !slide || slide.at !== 'end') return;
@@ -242,7 +229,14 @@ export default function DayStrip({
           ref={trackRef}
           onTransitionEnd={onTrackTransitionEnd}
           className="flex h-full will-change-transform"
-          style={{ width: slide ? '200%' : '100%' }}
+          style={{
+            width: slide ? '200%' : '100%',
+            transform: slide ? trackTransform(slide) : 'translateX(0)',
+            transition:
+              slide?.at === 'end'
+                ? `transform ${SLIDE_MS}ms cubic-bezier(.22,.92,.28,1)`
+                : 'none',
+          }}
         >
           <div className={`day-strip-h grid grid-cols-7 items-center gap-0 ${panelW}`}>
             {renderWeek(leftMon)}
