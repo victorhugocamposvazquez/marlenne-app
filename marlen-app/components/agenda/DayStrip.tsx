@@ -5,7 +5,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { dateFromOffset, skipSunday, weekMondayOffset, weekStripDays } from '@/lib/time';
 
 const SWIPE_MIN = 48;
-const SLIDE_MS = 420;
+/** Más lento: el hueco a pantalla completa se lee bien al pasar. */
+const SLIDE_MS = 560;
 
 type WeekSlide = {
   leaving: number;
@@ -17,9 +18,13 @@ type WeekSlide = {
   stride: number;
 };
 
-/** Hueco grande entre una semana y otra en la tira de días. */
-function gutterFor(viewportW: number) {
-  return Math.max(160, Math.round(viewportW * 0.5));
+/**
+ * Hueco blanco entre semanas ≈ ancho de la pantalla (como Simply),
+ * no solo un trozo de la tira.
+ */
+function gutterFor(_viewportW: number) {
+  if (typeof window === 'undefined') return 360;
+  return Math.max(320, Math.round(window.innerWidth));
 }
 
 function reducedMotion() {
@@ -267,8 +272,12 @@ export default function DayStrip({
           </div>
           {slide ? (
             <>
-              {/* Hueco vacío (sin números) entre semanas — se ve a los laterales al deslizar */}
-              <div className="day-strip-h shrink-0" style={{ width: slide.gutterW }} aria-hidden />
+              {/* Hueco blanco ≈ pantalla completa entre semanas */}
+              <div
+                className="day-strip-h shrink-0 bg-white"
+                style={{ width: slide.gutterW }}
+                aria-hidden
+              />
               <div
                 className="day-strip-h grid shrink-0 grid-cols-7 items-center gap-0"
                 style={{ width: slide.panelW }}
