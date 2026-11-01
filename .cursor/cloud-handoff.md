@@ -8,7 +8,6 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Pendiente (hazlo en el MacBook o mergea la rama cloud)
 
-- **Animación cambio de semana** (flechas + swipe en `DayStrip`): rama `cursor/semana-animacion-5156`, PR pendiente de merge.
 - **Panel SaaS en Vercel:** segundo proyecto, repo `marlenne-app`, Root `panel-saas`. En prod de `marlen-app`: `NEXT_PUBLIC_PANEL_URL` = URL del panel. `/platform/*` redirige vía middleware (consola antigua eliminada).
 - **Web corporativa** (`main-website/`): scaffold Next :3002; tercer Vercel cuando toque.
 
@@ -16,6 +15,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
+- 2026-11-01 — **Animación cambio de semana** en `DayStrip` (flechas + swipe), PR #22 → `main`.
 - 2026-09-30 — **Finanzas carga DB:** select como agenda + salon_id + avisos si falla/periodo vacío.
 - 2026-09-30 — **Finanzas selección lista:** checks en Todo/Citas/Bonos, facturar por periodo/rango (`af94d6a`, en `main`).
 - 2026-09-30 — **Finanzas mobile:** filtros Todo/Citas/Bonos/Facturas sticky + wizard factura overlay (`cdf6edf`, en `main`).
