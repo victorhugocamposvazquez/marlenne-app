@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { catStyle, softAccent } from '@/lib/categories';
+import { apptBlockLook, catStyle } from '@/lib/categories';
 import { DAY_END, DAY_START, fmt, minutesOfDay, nowMinutes } from '@/lib/time';
 import type { WeekDay } from '@/lib/types';
 import { activeAppts } from '@/lib/week-view';
@@ -151,6 +151,7 @@ export default function WeekTimeline({
                       const top = (start - DAY_START) * pxPerMin + 2;
                       const h = Math.max(a.duration_min * pxPerMin - 4, 28);
                       const accent = a.service_color || catStyle(a.category).color;
+                      const look = apptBlockLook(accent, a.status === 'done');
                       return (
                         <button
                           key={a.id}
@@ -159,19 +160,23 @@ export default function WeekTimeline({
                             e.stopPropagation();
                             shallowSet({ appt: a.id, new: null, wait: null });
                           }}
-                          className="absolute left-1 right-1 overflow-hidden rounded-[12px] border border-surface-line px-2 py-1.5 text-left shadow-sm"
+                          className="absolute left-1 right-1 overflow-hidden rounded-[12px] px-2 py-1.5 text-left shadow-sm"
                           style={{
                             top,
                             height: h,
-                            background: softAccent(accent),
-                            borderLeftWidth: 4,
-                            borderLeftColor: accent,
+                            background: look.background,
                           }}
                         >
-                          <span className="block truncate text-[12.5px] font-bold leading-tight text-ink">
+                          <span
+                            className="block truncate text-[12.5px] font-bold leading-tight"
+                            style={{ color: look.nameColor }}
+                          >
                             {a.client_label}
                           </span>
-                          <span className="mt-0.5 block truncate text-[11px] font-medium text-ink-3">
+                          <span
+                            className="mt-0.5 block truncate text-[11px] font-medium"
+                            style={{ color: look.metaColor }}
+                          >
                             {a.service_name}
                             {a.service_name ? ' · ' : ''}
                             {fmt(start)}

@@ -15,6 +15,26 @@ export const CATEGORIES: Record<string, CategoryLook> = {
   valoracion: { label: 'Valoraciones',       color: '#9B96B8', bg: 'var(--cat-valoracion-bg)', fg: 'var(--cat-valoracion-fg)' },
 };
 
+/** Bloque de cita en agenda: fondo sólido del servicio/categoría y texto legible. */
+export function apptBlockLook(color: string, done: boolean) {
+  if (done) {
+    return {
+      background: '#F0F0F4',
+      nameColor: 'rgb(var(--c-ink))',
+      metaColor: 'rgb(var(--c-ink-2))',
+      timeColor: 'rgb(var(--c-ink-3))',
+      handleColor: 'rgb(var(--c-ink-3))',
+    };
+  }
+  return {
+    background: color,
+    nameColor: '#FFFFFF',
+    metaColor: 'rgba(255,255,255,0.88)',
+    timeColor: 'rgba(255,255,255,0.78)',
+    handleColor: 'rgba(255,255,255,0.72)',
+  };
+}
+
 /** Tinte suave del acento (muesca) para fondos de cita. */
 export function softAccent(color: string, alpha = 0.14): string {
   const raw = color.trim();

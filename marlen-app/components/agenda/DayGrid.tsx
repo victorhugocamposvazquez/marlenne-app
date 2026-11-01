@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { catStyle, softAccent, STATUS, avatarColor } from '@/lib/categories';
+import { apptBlockLook, catStyle, avatarColor } from '@/lib/categories';
 import { citaCambiada, fmt, minutesOfDay, nowMinutes, dayKey, DAY_START, DAY_END, durLbl } from '@/lib/time';
 import { syncAppointmentReminderAction } from '@/app/actions/reminder-sync';
 import { moveAppointment } from '@/lib/move-appointment';
@@ -441,8 +441,8 @@ export default function DayGrid({
                 const pos = place(a);
                 const col = providers.findIndex(p => p.id === pos.provider);
                 if (col < 0) return null;
-                const st = STATUS[a.status];
                 const cat = catStyle(a.category, { color: a.service_color });
+                const look = apptBlockLook(cat.color, a.status === 'done');
                 const canDrag = a.status !== 'done';
                 return (
                   <div
@@ -455,11 +455,10 @@ export default function DayGrid({
                       width: cardW,
                       top: (pos.start - DAY_START) * pxPerMin + 1,
                       height: a.duration_min * pxPerMin - 3,
-                      background: a.status === 'done' ? '#F7F7FA' : softAccent(cat.color),
-                      borderLeft: `4px solid ${cat.color}`,
+                      background: look.background,
                       boxShadow: pos.dragging ? 'var(--sh-drag)' : undefined,
                       transform: pos.dragging ? 'scale(1.03)' : 'none',
-                      opacity: placing ? 0.55 : (a.status === 'done' ? 0.62 : 1),
+                      opacity: placing ? 0.55 : (a.status === 'done' ? 0.72 : 1),
                       zIndex: pos.dragging ? 12 : 2,
                       pointerEvents: placing ? 'none' : undefined,
                     }}
@@ -476,7 +475,8 @@ export default function DayGrid({
                         type="button"
                         data-drag-handle
                         aria-label={`Mover cita de ${a.client_label}`}
-                        className="relative flex w-7 shrink-0 select-none cursor-grab items-center justify-center text-ink-3 before:absolute before:-inset-y-2 before:-left-2.5 before:-right-1.5 before:content-[''] [-webkit-touch-callout:none] active:cursor-grabbing"
+                        className="relative flex w-7 shrink-0 select-none cursor-grab items-center justify-center before:absolute before:-inset-y-2 before:-left-2.5 before:-right-1.5 before:content-[''] [-webkit-touch-callout:none] active:cursor-grabbing"
+                        style={{ color: look.handleColor }}
                         draggable={false}
                         onPointerDown={e => onHandleDown(e, a.id, pos.start, pos.provider, a.duration_min)}
                         onClick={e => e.stopPropagation()}
@@ -493,14 +493,22 @@ export default function DayGrid({
                       className="min-w-0 flex-1 overflow-hidden px-1.5 py-1.5 text-left"
                     >
                       <div className="flex items-center gap-[5px]">
-                        <span className="h-1.5 w-1.5 shrink-0 rounded-sm" style={{ background: cat.color }} />
-                        <span className="truncate text-label font-bold leading-tight tracking-[-.01em]">{a.client_label}</span>
+                        <span
+                          className="truncate text-label font-bold leading-tight tracking-[-.01em]"
+                          style={{ color: look.nameColor }}
+                        >
+                          {a.client_label}
+                        </span>
                       </div>
-                      <div className="truncate text-caption font-medium text-ink-2">{a.service_name}</div>
+                      <div className="truncate text-caption font-medium" style={{ color: look.metaColor }}>
+                        {a.service_name}
+                      </div>
                       {a.note && (
-                        <div className="truncate text-micro font-medium text-ink-3">{a.note}</div>
+                        <div className="truncate text-micro font-medium" style={{ color: look.metaColor }}>
+                          {a.note}
+                        </div>
                       )}
-                      <div className="mt-0.5 text-micro font-semibold tabular-nums" style={{ color: st.edge }}>
+                      <div className="mt-0.5 text-micro font-semibold tabular-nums" style={{ color: look.timeColor }}>
                         {fmt(pos.start)} – {fmt(pos.start + a.duration_min)}
                       </div>
                     </button>
