@@ -86,6 +86,14 @@ export default {
         modalIn: { from: { transform: 'scale(.92) translateY(8px)', opacity: '0' }, to: { transform: 'none', opacity: '1' } },
         pulseDot: { '0%,100%': { opacity: '1' }, '50%': { opacity: '.35' } },
         voiceBar: { '0%,100%': { transform: 'scaleY(0.28)' }, '50%': { transform: 'scaleY(1)' } },
+        weekEnterFromRight: {
+          from: { transform: 'translateX(16px)', opacity: '0.5' },
+          to: { transform: 'translateX(0)', opacity: '1' },
+        },
+        weekEnterFromLeft: {
+          from: { transform: 'translateX(-16px)', opacity: '0.5' },
+          to: { transform: 'translateX(0)', opacity: '1' },
+        },
       },
       animation: {
         sheetUp: 'sheetUp .26s cubic-bezier(.2,.9,.3,1)',
@@ -96,6 +104,8 @@ export default {
         modalIn: 'modalIn .28s cubic-bezier(.22,.92,.28,1) both',
         pulseDot: 'pulseDot 1.6s infinite',
         voiceBar: 'voiceBar .7s ease-in-out infinite',
+        weekEnterFromRight: 'weekEnterFromRight .28s cubic-bezier(.22,.92,.28,1) both',
+        weekEnterFromLeft: 'weekEnterFromLeft .28s cubic-bezier(.22,.92,.28,1) both',
       },
     },
   },
