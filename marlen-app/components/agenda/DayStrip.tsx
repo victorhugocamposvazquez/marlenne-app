@@ -75,6 +75,11 @@ export default function DayStrip({
     carouselRef.current = carousel;
   }, [carousel]);
 
+  useEffect(() => {
+    if (!carousel || carousel.phase !== 'drag') return;
+    applyX(carousel.x, false);
+  }, [carousel?.dir, carousel?.panelW, carousel?.gutterW, carousel?.phase]);
+
   const displayMon = heldMon ?? weekMon;
 
   useEffect(() => {
