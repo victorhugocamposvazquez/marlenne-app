@@ -5,8 +5,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { dateFromOffset, skipSunday, weekMondayOffset, weekStripDays } from '@/lib/time';
 
 const SWIPE_MIN = 48;
-/** Más lento: el hueco a pantalla completa se lee bien al pasar. */
-const SLIDE_MS = 560;
+/** Suficiente para que el blanco a página completa se lea (estilo Simply). */
+const SLIDE_MS = 900;
 
 type WeekSlide = {
   leaving: number;
@@ -18,30 +18,24 @@ type WeekSlide = {
   stride: number;
 };
 
-/**
- * Hueco blanco entre semanas ≈ ancho de la pantalla (como Simply),
- * no solo un trozo de la tira.
- */
-function gutterFor(_viewportW: number) {
-  if (typeof window === 'undefined') return 360;
-  return Math.max(320, Math.round(window.innerWidth));
-}
-
 function reducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-function trackTransform(slide: WeekSlide, stride: number): string {
-  if (stride <= 0) return 'translateX(0)';
-  const x =
-    slide.dir === 'next'
-      ? slide.at === 'start'
-        ? 0
-        : -stride
-      : slide.at === 'start'
-        ? -stride
-        : 0;
-  return `translateX(${x}px)`;
+/**
+ * Hueco = una “página” completa (ancho de ventana), para que en mitad
+ * del slide la tira entre flechas se vea toda en blanco.
+ */
+function gutterFor(panelW: number) {
+  const screen = typeof window !== 'undefined' ? window.innerWidth : panelW;
+  return Math.max(panelW, Math.round(screen));
+}
+
+function trackX(slide: WeekSlide) {
+  if (slide.dir === 'next') {
+    return slide.at === 'start' ? 0 : -slide.stride;
+  }
+  return slide.at === 'start' ? -slide.stride : 0;
 }
 
 /** Tira lun–dom: círculos compactos; flechas y swipe saltan de semana (al lunes). */
@@ -85,40 +79,48 @@ export default function DayStrip({
 
   const shift = useCallback(
     (delta: -7 | 7) => {
+      if (slide) return;
       if (reducedMotion()) {
         commitWeek(delta);
         return;
       }
-      const leaving = weekMondayOffset(selectedOffset);
-      const entering = leaving + delta;
       const panelW = viewportRef.current?.clientWidth ?? 0;
       if (panelW <= 0) {
         commitWeek(delta);
         return;
       }
+      const leaving = weekMondayOffset(selectedOffset);
       const gutterW = gutterFor(panelW);
       setSlide({
         leaving,
-        entering,
+        entering: leaving + delta,
         dir: delta === 7 ? 'next' : 'prev',
         at: 'start',
         panelW,
         gutterW,
+        // Una página de días + una página en blanco → la siguiente semana
         stride: panelW + gutterW,
       });
     },
-    [commitWeek, selectedOffset],
+    [commitWeek, selectedOffset, slide],
   );
 
   useLayoutEffect(() => {
     if (!slide || slide.at !== 'start') return;
+    let cancelled = false;
     const id = requestAnimationFrame(() => {
-      requestAnimationFrame(() => setSlide(s => (s ? { ...s, at: 'end' } : null)));
+      requestAnimationFrame(() => {
+        if (!cancelled) setSlide(s => (s && s.at === 'start' ? { ...s, at: 'end' } : s));
+      });
     });
-    return () => cancelAnimationFrame(id);
-  }, [slide?.leaving, slide?.entering, slide?.dir]);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(id);
+    };
+  }, [slide]);
 
-  const onTrackTransitionEnd = (e: React.TransitionEvent) => {
+  const onTrackTransitionEnd = (e: React.TransitionEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
     if (e.propertyName !== 'transform' || !slide || slide.at !== 'end') return;
     const delta = (slide.entering - slide.leaving) as -7 | 7;
     setHeldMon(slide.entering);
@@ -257,30 +259,33 @@ export default function DayStrip({
           onTransitionEnd={onTrackTransitionEnd}
           className="flex h-full will-change-transform"
           style={{
-            transform: slide ? trackTransform(slide, slide.stride) : 'translateX(0)',
+            width: slide ? slide.panelW * 2 + slide.gutterW : '100%',
+            transform: slide ? `translateX(${trackX(slide)}px)` : 'translateX(0)',
             transition:
               slide?.at === 'end'
-                ? `transform ${SLIDE_MS}ms cubic-bezier(.22,.92,.28,1)`
+                ? `transform ${SLIDE_MS}ms cubic-bezier(.42,0,.58,1)`
                 : 'none',
           }}
         >
+          {/* Bloque: nombre del día + número (semana A) */}
           <div
             className="day-strip-h grid shrink-0 grid-cols-7 items-center gap-0"
-            style={{ width: slide ? slide.panelW : '100%' }}
+            style={{ width: slide ? slide.panelW : '100%', flex: '0 0 auto' }}
           >
             {renderWeek(leftMon)}
           </div>
           {slide ? (
             <>
-              {/* Hueco blanco ≈ pantalla completa entre semanas */}
+              {/* Página entera en blanco entre semanas */}
               <div
                 className="day-strip-h shrink-0 bg-white"
-                style={{ width: slide.gutterW }}
+                style={{ width: slide.gutterW, flex: '0 0 auto' }}
                 aria-hidden
               />
+              {/* Bloque: nombre del día + número (semana B) */}
               <div
                 className="day-strip-h grid shrink-0 grid-cols-7 items-center gap-0"
-                style={{ width: slide.panelW }}
+                style={{ width: slide.panelW, flex: '0 0 auto' }}
               >
                 {renderWeek(rightMon)}
               </div>
