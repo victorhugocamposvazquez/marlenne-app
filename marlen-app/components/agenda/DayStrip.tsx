@@ -17,13 +17,13 @@ type WeekSlide = {
   stride: number;
 };
 
-/** Hueco visible entre semanas (proporcional al ancho de la tira). */
+/**
+ * Hueco vacío entre semanas (sin pintar fondo):
+ * al deslizar se ve espacio libre a los laterales hasta que la semana nueva asienta.
+ */
 function gutterFor(viewportW: number) {
-  return Math.max(88, Math.round(viewportW * 0.16));
+  return Math.max(120, Math.round(viewportW * 0.32));
 }
-
-const SLIDE_PANEL =
-  'rounded-[14px] bg-surface-card shadow-[0_1px_5px_rgba(15,14,26,.09)] ring-1 ring-surface-line/90';
 
 function reducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -231,7 +231,6 @@ export default function DayStrip({
 
   const leftMon = slide ? (slide.dir === 'next' ? slide.leaving : slide.entering) : displayMon;
   const rightMon = slide ? (slide.dir === 'next' ? slide.entering : slide.leaving) : displayMon;
-  const panelCls = `day-strip-h grid shrink-0 grid-cols-7 items-center gap-0 ${slide ? SLIDE_PANEL : ''}`;
 
   return (
     <div className="flex w-full items-center gap-0.5">
@@ -246,9 +245,7 @@ export default function DayStrip({
       </button>
       <div
         ref={viewportRef}
-        className={`day-strip-h min-w-0 flex-1 overflow-hidden touch-pan-y [touch-action:pan-y] ${
-          slide ? 'rounded-row bg-surface-soft' : ''
-        }`}
+        className="day-strip-h min-w-0 flex-1 overflow-hidden touch-pan-y [touch-action:pan-y]"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -265,13 +262,20 @@ export default function DayStrip({
                 : 'none',
           }}
         >
-          <div className={panelCls} style={{ width: slide ? slide.panelW : '100%' }}>
+          <div
+            className="day-strip-h grid shrink-0 grid-cols-7 items-center gap-0"
+            style={{ width: slide ? slide.panelW : '100%' }}
+          >
             {renderWeek(leftMon)}
           </div>
           {slide ? (
             <>
+              {/* Hueco vacío (sin números) entre semanas — se ve a los laterales al deslizar */}
               <div className="day-strip-h shrink-0" style={{ width: slide.gutterW }} aria-hidden />
-              <div className={panelCls} style={{ width: slide.panelW }}>
+              <div
+                className="day-strip-h grid shrink-0 grid-cols-7 items-center gap-0"
+                style={{ width: slide.panelW }}
+              >
                 {renderWeek(rightMon)}
               </div>
             </>
