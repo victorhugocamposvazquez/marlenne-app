@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { dateFromOffset, skipSunday, weekMondayOffset, weekStripDays } from '@/lib/time';
 
@@ -16,10 +17,9 @@ type Carousel = {
   panelW: number;
   gutterW: number;
   stride: number;
-  /** translateX actual (durante drag se actualiza en el DOM; aquí al soltar). */
+  /** translateX actual (solo en ref/DOM; React no lo pinta para no pisar el drag). */
   x: number;
   phase: 'drag' | 'snap';
-  /** Si al terminar el snap hay que cambiar de semana. */
   commit: boolean;
 };
 
@@ -59,6 +59,8 @@ export default function DayStrip({
   const trackRef = useRef<HTMLDivElement>(null);
   const carouselRef = useRef<Carousel | null>(null);
   const suppressTap = useRef(false);
+  const selectedRef = useRef(selectedOffset);
+  selectedRef.current = selectedOffset;
 
   const drag = useRef<{
     pointerId: number;
@@ -67,18 +69,31 @@ export default function DayStrip({
     lastX: number;
     lastT: number;
     velocity: number;
-    locked: boolean | null; // null = undecided, true = horizontal, false = vertical
+    locked: boolean | null;
     baseX: number;
   } | null>(null);
+
+  const applyX = useCallback((x: number, withTransition: boolean) => {
+    const el = trackRef.current;
+    if (!el) return;
+    el.style.transition = withTransition
+      ? `transform ${SNAP_MS}ms cubic-bezier(.42,0,.58,1)`
+      : 'none';
+    el.style.transform = `translateX(${x}px)`;
+  }, []);
 
   useEffect(() => {
     carouselRef.current = carousel;
   }, [carousel]);
 
-  useEffect(() => {
-    if (!carousel || carousel.phase !== 'drag') return;
-    applyX(carousel.x, false);
-  }, [carousel?.dir, carousel?.panelW, carousel?.gutterW, carousel?.phase]);
+  /** Al montar el carrusel, colocar X inicial sin que React pise el transform. */
+  useLayoutEffect(() => {
+    if (!carousel) {
+      applyX(0, false);
+      return;
+    }
+    if (carousel.phase === 'drag') applyX(carousel.x, false);
+  }, [carousel?.dir, carousel?.panelW, carousel?.gutterW, carousel?.phase, applyX]);
 
   const displayMon = heldMon ?? weekMon;
 
@@ -92,20 +107,11 @@ export default function DayStrip({
         onShiftWeek(delta);
         return;
       }
-      const mon = weekMondayOffset(selectedOffset) + delta;
+      const mon = weekMondayOffset(selectedRef.current) + delta;
       onSelect(allowSundays ? mon : skipSunday(mon, 1));
     },
-    [allowSundays, onSelect, onShiftWeek, selectedOffset],
+    [allowSundays, onSelect, onShiftWeek],
   );
-
-  const applyX = (x: number, withTransition: boolean) => {
-    const el = trackRef.current;
-    if (!el) return;
-    el.style.transition = withTransition
-      ? `transform ${SNAP_MS}ms cubic-bezier(.42,0,.58,1)`
-      : 'none';
-    el.style.transform = `translateX(${x}px)`;
-  };
 
   const beginCarousel = (dir: 'next' | 'prev') => {
     const panelW = viewportRef.current?.clientWidth ?? 0;
@@ -124,25 +130,36 @@ export default function DayStrip({
     };
     carouselRef.current = next;
     setCarousel(next);
-    // Transform en el siguiente frame (el track ya monta 3 paneles)
-    requestAnimationFrame(() => applyX(x, false));
     return next;
   };
 
+  /**
+   * Al cerrar el carrusel: primero el contenido final en el panel único,
+   * transform a 0, luego desmontar — evita el salto (sobre todo en “next”).
+   */
   const finishSnap = (c: Carousel) => {
     const delta: -7 | 7 = c.dir === 'next' ? 7 : -7;
-    if (c.commit) {
-      setHeldMon(c.dir === 'next' ? weekMondayOffset(selectedOffset) + 7 : weekMondayOffset(selectedOffset) - 7);
+    const stay = weekMondayOffset(selectedRef.current);
+    const finalMon = c.commit ? stay + delta : stay;
+
+    flushSync(() => {
+      if (c.commit) setHeldMon(finalMon);
       setCarousel(null);
       carouselRef.current = null;
-      commitWeek(delta);
-    } else {
-      setCarousel(null);
-      carouselRef.current = null;
-    }
+    });
+    applyX(0, false);
+
+    if (c.commit) commitWeek(delta);
   };
 
-  /** Flechas: animación automática (sin seguir dedo). */
+  const startSnap = (c: Carousel, target: number, commit: boolean) => {
+    applyX(target, true);
+    const snapped: Carousel = { ...c, phase: 'snap', x: target, commit };
+    carouselRef.current = snapped;
+    // No poner transform en el style de React: solo fase para bloquear flechas
+    setCarousel(snapped);
+  };
+
   const shift = useCallback(
     (delta: -7 | 7) => {
       if (carouselRef.current) return;
@@ -158,13 +175,10 @@ export default function DayStrip({
       }
       const target = dir === 'next' ? -c.stride : 0;
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          applyX(target, true);
-          setCarousel({ ...c, phase: 'snap', x: target, commit: true });
-        });
+        requestAnimationFrame(() => startSnap(c, target, true));
       });
     },
-    [commitWeek, selectedOffset],
+    [commitWeek],
   );
 
   const onTrackTransitionEnd = (e: React.TransitionEvent<HTMLDivElement>) => {
@@ -221,18 +235,13 @@ export default function DayStrip({
         d.locked = true;
         if (reducedMotion()) return;
         const dir: 'next' | 'prev' = dx < 0 ? 'next' : 'prev';
-        const c = carouselRef.current?.phase === 'drag'
-          ? carouselRef.current
-          : beginCarousel(dir);
+        let c = carouselRef.current?.phase === 'drag' ? carouselRef.current : null;
+        if (!c || c.dir !== dir) c = beginCarousel(dir);
         if (!c) return;
-        // Si el usuario cambió de sentido respecto al carousel ya abierto, reinicia
-        if (c.dir !== dir) {
-          const rebuilt = beginCarousel(dir);
-          if (!rebuilt) return;
-          d.baseX = rebuilt.x;
-        } else {
-          d.baseX = c.x;
-        }
+        d.baseX = c.x;
+        // El dedo ya se movió al bloquear: aplicar offset desde el start
+        d.startX = e.clientX;
+        d.baseX = c.x;
         suppressTap.current = true;
       } else {
         return;
@@ -244,9 +253,7 @@ export default function DayStrip({
     const c = carouselRef.current;
     if (!c || c.phase !== 'drag') return;
 
-    // Dedo a la izquierda → contenido a la izquierda (next); derecha → prev
     let x = d.baseX + (e.clientX - d.startX);
-    // Limitar al rango del carrusel (con un poco de goma al borde)
     const min = -c.stride;
     const max = 0;
     if (x < min) x = min + (x - min) * 0.18;
@@ -269,7 +276,6 @@ export default function DayStrip({
 
     const c = carouselRef.current;
     if (!c || c.phase !== 'drag') {
-      // Swipe corto sin haber montado carrusel → decisión clásica
       if (d.locked === true) {
         const dx = e.clientX - d.startX;
         if (Math.abs(dx) >= SWIPE_MIN) {
@@ -283,8 +289,8 @@ export default function DayStrip({
     suppressTap.current = true;
     const progress =
       c.dir === 'next'
-        ? -c.x / c.stride // 0 → 1 hacia la siguiente
-        : (c.x + c.stride) / c.stride; // 0 → 1 hacia la anterior
+        ? -c.x / c.stride
+        : (c.x + c.stride) / c.stride;
     const flick =
       (c.dir === 'next' && d.velocity < -COMMIT_VELOCITY)
       || (c.dir === 'prev' && d.velocity > COMMIT_VELOCITY);
@@ -294,10 +300,7 @@ export default function DayStrip({
       ? (c.dir === 'next' ? -c.stride : 0)
       : (c.dir === 'next' ? 0 : -c.stride);
 
-    applyX(target, true);
-    const snapped: Carousel = { ...c, phase: 'snap', x: target, commit };
-    carouselRef.current = snapped;
-    setCarousel(snapped);
+    startSnap(c, target, commit);
   };
 
   const onPointerCancel = (e: React.PointerEvent) => {
@@ -306,10 +309,7 @@ export default function DayStrip({
     const c = carouselRef.current;
     if (c?.phase === 'drag') {
       const target = c.dir === 'next' ? 0 : -c.stride;
-      applyX(target, true);
-      const snapped: Carousel = { ...c, phase: 'snap', x: target, commit: false };
-      carouselRef.current = snapped;
-      setCarousel(snapped);
+      startSnap(c, target, false);
     }
   };
 
@@ -418,8 +418,6 @@ export default function DayStrip({
           className="flex h-full will-change-transform"
           style={{
             width: carousel ? carousel.panelW * 2 + carousel.gutterW : '100%',
-            transform: carousel ? `translateX(${carousel.x}px)` : 'translateX(0)',
-            transition: 'none',
           }}
         >
           <div
