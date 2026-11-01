@@ -5,7 +5,9 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { dateFromOffset, skipSunday, weekMondayOffset, weekStripDays } from '@/lib/time';
 
 const SWIPE_MIN = 48;
-const SLIDE_MS = 340;
+const SLIDE_MS = 380;
+/** Hueco blanco entre semanas durante el slide (estilo Simply). */
+const WEEK_SLIDE_GAP = 56;
 
 type WeekSlide = {
   leaving: number;
@@ -18,11 +20,17 @@ function reducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-function trackTransform(slide: WeekSlide): string {
-  if (slide.dir === 'next') {
-    return slide.at === 'start' ? 'translateX(0)' : 'translateX(-50%)';
-  }
-  return slide.at === 'start' ? 'translateX(-50%)' : 'translateX(0)';
+function trackTransform(slide: WeekSlide, stride: number): string {
+  if (stride <= 0) return 'translateX(0)';
+  const x =
+    slide.dir === 'next'
+      ? slide.at === 'start'
+        ? 0
+        : -stride
+      : slide.at === 'start'
+        ? -stride
+        : 0;
+  return `translateX(${x}px)`;
 }
 
 /** Tira lun–dom: círculos compactos; flechas y swipe saltan de semana (al lunes). */
@@ -48,9 +56,25 @@ export default function DayStrip({
   const [slide, setSlide] = useState<WeekSlide | null>(null);
   /** Evita un frame con la semana vieja tras el carrusel, hasta que llegue el offset nuevo. */
   const [heldMon, setHeldMon] = useState<number | null>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [viewportW, setViewportW] = useState(0);
   const swipe = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const suppressTap = useRef(false);
+
+  const stride = viewportW > 0 ? viewportW + WEEK_SLIDE_GAP : 0;
+
+  useLayoutEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const apply = () => {
+      const w = el.clientWidth;
+      if (w > 0) setViewportW(w);
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const commitWeek = useCallback(
     (delta: -7 | 7) => {
@@ -72,6 +96,8 @@ export default function DayStrip({
       }
       const leaving = weekMondayOffset(selectedOffset);
       const entering = leaving + delta;
+      const w = viewportRef.current?.clientWidth ?? 0;
+      if (w > 0) setViewportW(w);
       setSlide({
         leaving,
         entering,
@@ -84,6 +110,8 @@ export default function DayStrip({
 
   useLayoutEffect(() => {
     if (!slide || slide.at !== 'start') return;
+    const w = viewportRef.current?.clientWidth ?? 0;
+    if (w > 0) setViewportW(w);
     const id = requestAnimationFrame(() => {
       requestAnimationFrame(() => setSlide(s => (s ? { ...s, at: 'end' } : null)));
     });
@@ -205,7 +233,7 @@ export default function DayStrip({
 
   const leftMon = slide ? (slide.dir === 'next' ? slide.leaving : slide.entering) : displayMon;
   const rightMon = slide ? (slide.dir === 'next' ? slide.entering : slide.leaving) : displayMon;
-  const panelW = slide ? 'w-1/2 shrink-0' : 'w-full shrink-0';
+  const panelPx = slide && viewportW > 0 ? viewportW : undefined;
 
   return (
     <div className="flex w-full items-center gap-0.5">
@@ -219,6 +247,7 @@ export default function DayStrip({
         <ChevronLeft strokeWidth={3} />
       </button>
       <div
+        ref={viewportRef}
         className="day-strip-h min-w-0 flex-1 overflow-hidden touch-pan-y [touch-action:pan-y]"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -226,25 +255,36 @@ export default function DayStrip({
         onPointerCancel={() => { swipe.current = null; }}
       >
         <div
-          ref={trackRef}
           onTransitionEnd={onTrackTransitionEnd}
           className="flex h-full will-change-transform"
           style={{
-            width: slide ? '200%' : '100%',
-            transform: slide ? trackTransform(slide) : 'translateX(0)',
+            transform: slide && stride > 0 ? trackTransform(slide, stride) : 'translateX(0)',
             transition:
               slide?.at === 'end'
                 ? `transform ${SLIDE_MS}ms cubic-bezier(.22,.92,.28,1)`
                 : 'none',
           }}
         >
-          <div className={`day-strip-h grid grid-cols-7 items-center gap-0 ${panelW}`}>
+          <div
+            className="day-strip-h grid shrink-0 grid-cols-7 items-center gap-0"
+            style={{ width: panelPx ?? '100%' }}
+          >
             {renderWeek(leftMon)}
           </div>
           {slide ? (
-            <div className={`day-strip-h grid grid-cols-7 items-center gap-0 ${panelW}`}>
-              {renderWeek(rightMon)}
-            </div>
+            <>
+              <div
+                className="day-strip-h shrink-0 bg-surface-bg"
+                style={{ width: WEEK_SLIDE_GAP }}
+                aria-hidden
+              />
+              <div
+                className="day-strip-h grid shrink-0 grid-cols-7 items-center gap-0"
+                style={{ width: panelPx ?? '100%' }}
+              >
+                {renderWeek(rightMon)}
+              </div>
+            </>
           ) : null}
         </div>
       </div>
