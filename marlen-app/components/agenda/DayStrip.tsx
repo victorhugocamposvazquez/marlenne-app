@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { dateFromOffset, skipSunday, weekMondayOffset, weekStripDays } from '@/lib/time';
 
@@ -26,10 +26,20 @@ export default function DayStrip({
 }) {
   const busy = useMemo(() => new Set(busyOffsets), [busyOffsets]);
   const days = useMemo(() => weekStripDays(selectedOffset), [selectedOffset]);
+  const weekKey = useMemo(() => weekMondayOffset(selectedOffset), [selectedOffset]);
+  const [enterFrom, setEnterFrom] = useState<'left' | 'right' | null>(null);
   const swipe = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const suppressTap = useRef(false);
 
+  const weekEnterClass =
+    enterFrom === 'right'
+      ? 'motion-safe:animate-weekEnterFromRight'
+      : enterFrom === 'left'
+        ? 'motion-safe:animate-weekEnterFromLeft'
+        : '';
+
   const shift = (delta: -7 | 7) => {
+    setEnterFrom(delta === 7 ? 'right' : 'left');
     if (onShiftWeek) {
       onShiftWeek(delta);
       return;
@@ -77,12 +87,16 @@ export default function DayStrip({
         <ChevronLeft strokeWidth={3} />
       </button>
       <div
-        className="day-strip-h grid min-w-0 flex-1 touch-pan-y grid-cols-7 items-center gap-0 [touch-action:pan-y]"
+        className="day-strip-h min-w-0 flex-1 overflow-hidden touch-pan-y [touch-action:pan-y]"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={() => { swipe.current = null; }}
       >
+        <div
+          key={weekKey}
+          className={`day-strip-h grid grid-cols-7 items-center gap-0 ${weekEnterClass}`}
+        >
         {days.map(d => {
           const on = d.offset === selectedOffset;
           const isSunday = dateFromOffset(d.offset).getUTCDay() === 0;
@@ -150,6 +164,7 @@ export default function DayStrip({
             </button>
           );
         })}
+        </div>
       </div>
       <button
         type="button"
