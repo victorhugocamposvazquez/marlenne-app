@@ -94,15 +94,6 @@ export default {
           from: { transform: 'translateX(-16px)', opacity: '0.5' },
           to: { transform: 'translateX(0)', opacity: '1' },
         },
-        /** Agenda grid: entra dejando hueco blanco lateral (~media pantalla). */
-        weekBodyEnterNext: {
-          from: { transform: 'translateX(calc(100% + min(50vw, 240px)))' },
-          to: { transform: 'translateX(0)' },
-        },
-        weekBodyEnterPrev: {
-          from: { transform: 'translateX(calc(-100% - min(50vw, 240px)))' },
-          to: { transform: 'translateX(0)' },
-        },
       },
       animation: {
         sheetUp: 'sheetUp .26s cubic-bezier(.2,.9,.3,1)',
@@ -115,8 +106,6 @@ export default {
         voiceBar: 'voiceBar .7s ease-in-out infinite',
         weekEnterFromRight: 'weekEnterFromRight .28s cubic-bezier(.22,.92,.28,1) both',
         weekEnterFromLeft: 'weekEnterFromLeft .28s cubic-bezier(.22,.92,.28,1) both',
-        weekBodyEnterNext: 'weekBodyEnterNext .48s cubic-bezier(.22,.92,.28,1) both',
-        weekBodyEnterPrev: 'weekBodyEnterPrev .48s cubic-bezier(.22,.92,.28,1) both',
       },
     },
   },
