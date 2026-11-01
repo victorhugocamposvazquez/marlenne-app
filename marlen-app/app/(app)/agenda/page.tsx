@@ -91,6 +91,7 @@ export default async function AgendaPage({
         selectedPro={selectedPro}
       />
       <AgendaBody
+        day={day}
         mode={mode}
         dateIso={dateFromOffset(day).toISOString()}
         team={mode === 'dia' ? team : providers}

@@ -17,12 +17,9 @@ type WeekSlide = {
   stride: number;
 };
 
-/**
- * Hueco vacío entre semanas (sin pintar fondo):
- * al deslizar se ve espacio libre a los laterales hasta que la semana nueva asienta.
- */
+/** Hueco grande entre semanas en la tira (alineado con el del grid). */
 function gutterFor(viewportW: number) {
-  return Math.max(120, Math.round(viewportW * 0.32));
+  return Math.max(140, Math.round(viewportW * 0.45));
 }
 
 function reducedMotion() {
