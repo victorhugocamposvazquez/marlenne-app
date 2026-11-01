@@ -17,9 +17,9 @@ type WeekSlide = {
   stride: number;
 };
 
-/** Hueco grande entre semanas en la tira (alineado con el del grid). */
+/** Hueco grande entre una semana y otra en la tira de días. */
 function gutterFor(viewportW: number) {
-  return Math.max(140, Math.round(viewportW * 0.45));
+  return Math.max(160, Math.round(viewportW * 0.5));
 }
 
 function reducedMotion() {
