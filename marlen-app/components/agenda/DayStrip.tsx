@@ -1,41 +1,35 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { dateFromOffset, skipSunday, weekMondayOffset, weekStripDays } from '@/lib/time';
 
-const SWIPE_MIN = 48;
-/** Suficiente para que el blanco a página completa se lea (estilo Simply). */
-const SLIDE_MS = 900;
+const SWIPE_MIN = 40;
+const LOCK_PX = 10;
+const SNAP_MS = 420;
+/** Completar si el dedo pasó ~18% del stride o hay velocidad. */
+const COMMIT_RATIO = 0.18;
+const COMMIT_VELOCITY = 0.45; // px/ms
 
-type WeekSlide = {
-  leaving: number;
-  entering: number;
+type Carousel = {
   dir: 'next' | 'prev';
-  at: 'start' | 'end';
   panelW: number;
   gutterW: number;
   stride: number;
+  /** translateX actual (durante drag se actualiza en el DOM; aquí al soltar). */
+  x: number;
+  phase: 'drag' | 'snap';
+  /** Si al terminar el snap hay que cambiar de semana. */
+  commit: boolean;
 };
 
 function reducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-/**
- * Hueco = una “página” completa (ancho de ventana), para que en mitad
- * del slide la tira entre flechas se vea toda en blanco.
- */
 function gutterFor(panelW: number) {
   const screen = typeof window !== 'undefined' ? window.innerWidth : panelW;
   return Math.max(panelW, Math.round(screen));
-}
-
-function trackX(slide: WeekSlide) {
-  if (slide.dir === 'next') {
-    return slide.at === 'start' ? 0 : -slide.stride;
-  }
-  return slide.at === 'start' ? -slide.stride : 0;
 }
 
 /** Tira lun–dom: círculos compactos; flechas y swipe saltan de semana (al lunes). */
@@ -58,12 +52,34 @@ export default function DayStrip({
 }) {
   const busy = useMemo(() => new Set(busyOffsets), [busyOffsets]);
   const weekMon = weekMondayOffset(selectedOffset);
-  const [slide, setSlide] = useState<WeekSlide | null>(null);
-  /** Evita un frame con la semana vieja tras el carrusel, hasta que llegue el offset nuevo. */
+  const [carousel, setCarousel] = useState<Carousel | null>(null);
   const [heldMon, setHeldMon] = useState<number | null>(null);
+
   const viewportRef = useRef<HTMLDivElement>(null);
-  const swipe = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const carouselRef = useRef<Carousel | null>(null);
   const suppressTap = useRef(false);
+
+  const drag = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    lastX: number;
+    lastT: number;
+    velocity: number;
+    locked: boolean | null; // null = undecided, true = horizontal, false = vertical
+    baseX: number;
+  } | null>(null);
+
+  useEffect(() => {
+    carouselRef.current = carousel;
+  }, [carousel]);
+
+  const displayMon = heldMon ?? weekMon;
+
+  useEffect(() => {
+    if (heldMon !== null && weekMon === heldMon) setHeldMon(null);
+  }, [heldMon, weekMon]);
 
   const commitWeek = useCallback(
     (delta: -7 | 7) => {
@@ -77,62 +93,227 @@ export default function DayStrip({
     [allowSundays, onSelect, onShiftWeek, selectedOffset],
   );
 
+  const applyX = (x: number, withTransition: boolean) => {
+    const el = trackRef.current;
+    if (!el) return;
+    el.style.transition = withTransition
+      ? `transform ${SNAP_MS}ms cubic-bezier(.42,0,.58,1)`
+      : 'none';
+    el.style.transform = `translateX(${x}px)`;
+  };
+
+  const beginCarousel = (dir: 'next' | 'prev') => {
+    const panelW = viewportRef.current?.clientWidth ?? 0;
+    if (panelW <= 0) return null;
+    const gutterW = gutterFor(panelW);
+    const stride = panelW + gutterW;
+    const x = dir === 'next' ? 0 : -stride;
+    const next: Carousel = {
+      dir,
+      panelW,
+      gutterW,
+      stride,
+      x,
+      phase: 'drag',
+      commit: false,
+    };
+    carouselRef.current = next;
+    setCarousel(next);
+    // Transform en el siguiente frame (el track ya monta 3 paneles)
+    requestAnimationFrame(() => applyX(x, false));
+    return next;
+  };
+
+  const finishSnap = (c: Carousel) => {
+    const delta: -7 | 7 = c.dir === 'next' ? 7 : -7;
+    if (c.commit) {
+      setHeldMon(c.dir === 'next' ? weekMondayOffset(selectedOffset) + 7 : weekMondayOffset(selectedOffset) - 7);
+      setCarousel(null);
+      carouselRef.current = null;
+      commitWeek(delta);
+    } else {
+      setCarousel(null);
+      carouselRef.current = null;
+    }
+  };
+
+  /** Flechas: animación automática (sin seguir dedo). */
   const shift = useCallback(
     (delta: -7 | 7) => {
-      if (slide) return;
+      if (carouselRef.current) return;
       if (reducedMotion()) {
         commitWeek(delta);
         return;
       }
-      const panelW = viewportRef.current?.clientWidth ?? 0;
-      if (panelW <= 0) {
+      const dir = delta === 7 ? 'next' : 'prev';
+      const c = beginCarousel(dir);
+      if (!c) {
         commitWeek(delta);
         return;
       }
-      const leaving = weekMondayOffset(selectedOffset);
-      const gutterW = gutterFor(panelW);
-      setSlide({
-        leaving,
-        entering: leaving + delta,
-        dir: delta === 7 ? 'next' : 'prev',
-        at: 'start',
-        panelW,
-        gutterW,
-        // Una página de días + una página en blanco → la siguiente semana
-        stride: panelW + gutterW,
+      const target = dir === 'next' ? -c.stride : 0;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          applyX(target, true);
+          setCarousel({ ...c, phase: 'snap', x: target, commit: true });
+        });
       });
     },
-    [commitWeek, selectedOffset, slide],
+    [commitWeek, selectedOffset],
   );
-
-  useLayoutEffect(() => {
-    if (!slide || slide.at !== 'start') return;
-    let cancelled = false;
-    const id = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (!cancelled) setSlide(s => (s && s.at === 'start' ? { ...s, at: 'end' } : s));
-      });
-    });
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(id);
-    };
-  }, [slide]);
 
   const onTrackTransitionEnd = (e: React.TransitionEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
-    if (e.propertyName !== 'transform' || !slide || slide.at !== 'end') return;
-    const delta = (slide.entering - slide.leaving) as -7 | 7;
-    setHeldMon(slide.entering);
-    setSlide(null);
-    commitWeek(delta);
+    if (e.propertyName !== 'transform') return;
+    const c = carouselRef.current;
+    if (!c || c.phase !== 'snap') return;
+    finishSnap(c);
   };
 
-  const displayMon = heldMon ?? weekMon;
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (carouselRef.current?.phase === 'snap') return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    suppressTap.current = false;
+    drag.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      lastX: e.clientX,
+      lastT: performance.now(),
+      velocity: 0,
+      locked: null,
+      baseX: 0,
+    };
+    try {
+      viewportRef.current?.setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
 
-  useEffect(() => {
-    if (heldMon !== null && weekMon === heldMon) setHeldMon(null);
-  }, [heldMon, weekMon]);
+  const onPointerMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+
+    const now = performance.now();
+    const dt = Math.max(1, now - d.lastT);
+    const rawV = (e.clientX - d.lastX) / dt;
+    d.velocity = d.velocity * 0.7 + rawV * 0.3;
+    d.lastX = e.clientX;
+    d.lastT = now;
+
+    const dx = e.clientX - d.startX;
+    const dy = e.clientY - d.startY;
+
+    if (d.locked === null) {
+      if (Math.abs(dx) < LOCK_PX && Math.abs(dy) < LOCK_PX) return;
+      if (Math.abs(dy) > Math.abs(dx) * 1.15) {
+        d.locked = false;
+        drag.current = null;
+        return;
+      }
+      if (Math.abs(dx) > Math.abs(dy) * 1.05) {
+        d.locked = true;
+        if (reducedMotion()) return;
+        const dir: 'next' | 'prev' = dx < 0 ? 'next' : 'prev';
+        const c = carouselRef.current?.phase === 'drag'
+          ? carouselRef.current
+          : beginCarousel(dir);
+        if (!c) return;
+        // Si el usuario cambió de sentido respecto al carousel ya abierto, reinicia
+        if (c.dir !== dir) {
+          const rebuilt = beginCarousel(dir);
+          if (!rebuilt) return;
+          d.baseX = rebuilt.x;
+        } else {
+          d.baseX = c.x;
+        }
+        suppressTap.current = true;
+      } else {
+        return;
+      }
+    }
+
+    if (d.locked !== true) return;
+
+    const c = carouselRef.current;
+    if (!c || c.phase !== 'drag') return;
+
+    // Dedo a la izquierda → contenido a la izquierda (next); derecha → prev
+    let x = d.baseX + (e.clientX - d.startX);
+    // Limitar al rango del carrusel (con un poco de goma al borde)
+    const min = -c.stride;
+    const max = 0;
+    if (x < min) x = min + (x - min) * 0.18;
+    if (x > max) x = max + (x - max) * 0.18;
+
+    c.x = x;
+    applyX(x, false);
+  };
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    drag.current = null;
+
+    try {
+      viewportRef.current?.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+
+    const c = carouselRef.current;
+    if (!c || c.phase !== 'drag') {
+      // Swipe corto sin haber montado carrusel → decisión clásica
+      if (d.locked === true) {
+        const dx = e.clientX - d.startX;
+        if (Math.abs(dx) >= SWIPE_MIN) {
+          suppressTap.current = true;
+          shift(dx < 0 ? 7 : -7);
+        }
+      }
+      return;
+    }
+
+    suppressTap.current = true;
+    const progress =
+      c.dir === 'next'
+        ? -c.x / c.stride // 0 → 1 hacia la siguiente
+        : (c.x + c.stride) / c.stride; // 0 → 1 hacia la anterior
+    const flick =
+      (c.dir === 'next' && d.velocity < -COMMIT_VELOCITY)
+      || (c.dir === 'prev' && d.velocity > COMMIT_VELOCITY);
+    const commit = progress >= COMMIT_RATIO || flick;
+
+    const target = commit
+      ? (c.dir === 'next' ? -c.stride : 0)
+      : (c.dir === 'next' ? 0 : -c.stride);
+
+    applyX(target, true);
+    const snapped: Carousel = { ...c, phase: 'snap', x: target, commit };
+    carouselRef.current = snapped;
+    setCarousel(snapped);
+  };
+
+  const onPointerCancel = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (d && d.pointerId === e.pointerId) drag.current = null;
+    const c = carouselRef.current;
+    if (c?.phase === 'drag') {
+      const target = c.dir === 'next' ? 0 : -c.stride;
+      applyX(target, true);
+      const snapped: Carousel = { ...c, phase: 'snap', x: target, commit: false };
+      carouselRef.current = snapped;
+      setCarousel(snapped);
+    }
+  };
+
+  const leftMon = carousel
+    ? (carousel.dir === 'next' ? displayMon : displayMon - 7)
+    : displayMon;
+  const rightMon = carousel
+    ? (carousel.dir === 'next' ? displayMon + 7 : displayMon)
+    : displayMon;
 
   const renderWeek = (mondayOffset: number) => {
     const days = weekStripDays(mondayOffset);
@@ -205,43 +386,14 @@ export default function DayStrip({
     });
   };
 
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (slide) return;
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    suppressTap.current = false;
-    swipe.current = { x: e.clientX, y: e.clientY, moved: false };
-  };
-
-  const onPointerMove = (e: React.PointerEvent) => {
-    const s = swipe.current;
-    if (!s) return;
-    const dx = e.clientX - s.x;
-    const dy = e.clientY - s.y;
-    if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.2) {
-      s.moved = true;
-    }
-  };
-
-  const onPointerUp = (e: React.PointerEvent) => {
-    const s = swipe.current;
-    swipe.current = null;
-    if (!s?.moved || slide) return;
-    const dx = e.clientX - s.x;
-    const dy = e.clientY - s.y;
-    if (Math.abs(dx) < SWIPE_MIN || Math.abs(dx) < Math.abs(dy) * 1.4) return;
-    suppressTap.current = true;
-    shift(dx < 0 ? 7 : -7);
-  };
-
-  const leftMon = slide ? (slide.dir === 'next' ? slide.leaving : slide.entering) : displayMon;
-  const rightMon = slide ? (slide.dir === 'next' ? slide.entering : slide.leaving) : displayMon;
+  const busyCarousel = !!carousel;
 
   return (
     <div className="flex w-full items-center gap-0.5">
       <button
         type="button"
         aria-label="Semana anterior"
-        disabled={!!slide}
+        disabled={busyCarousel}
         onClick={() => shift(-7)}
         className="day-strip-arrow-w day-strip-chevron day-strip-h grid shrink-0 place-items-center text-ink disabled:opacity-40"
       >
@@ -249,43 +401,38 @@ export default function DayStrip({
       </button>
       <div
         ref={viewportRef}
-        className="day-strip-h min-w-0 flex-1 overflow-hidden touch-pan-y [touch-action:pan-y]"
+        className="day-strip-h min-w-0 flex-1 overflow-hidden bg-surface-soft [touch-action:pan-y]"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={() => { swipe.current = null; }}
+        onPointerCancel={onPointerCancel}
       >
         <div
+          ref={trackRef}
           onTransitionEnd={onTrackTransitionEnd}
           className="flex h-full will-change-transform"
           style={{
-            width: slide ? slide.panelW * 2 + slide.gutterW : '100%',
-            transform: slide ? `translateX(${trackX(slide)}px)` : 'translateX(0)',
-            transition:
-              slide?.at === 'end'
-                ? `transform ${SLIDE_MS}ms cubic-bezier(.42,0,.58,1)`
-                : 'none',
+            width: carousel ? carousel.panelW * 2 + carousel.gutterW : '100%',
+            transform: carousel ? `translateX(${carousel.x}px)` : 'translateX(0)',
+            transition: 'none',
           }}
         >
-          {/* Bloque: nombre del día + número (semana A) */}
           <div
             className="day-strip-h grid shrink-0 grid-cols-7 items-center gap-0"
-            style={{ width: slide ? slide.panelW : '100%', flex: '0 0 auto' }}
+            style={{ width: carousel ? carousel.panelW : '100%', flex: '0 0 auto' }}
           >
             {renderWeek(leftMon)}
           </div>
-          {slide ? (
+          {carousel ? (
             <>
-              {/* Página entera en blanco entre semanas */}
               <div
-                className="day-strip-h shrink-0 bg-white"
-                style={{ width: slide.gutterW, flex: '0 0 auto' }}
+                className="day-strip-h shrink-0 bg-surface-soft"
+                style={{ width: carousel.gutterW, flex: '0 0 auto' }}
                 aria-hidden
               />
-              {/* Bloque: nombre del día + número (semana B) */}
               <div
                 className="day-strip-h grid shrink-0 grid-cols-7 items-center gap-0"
-                style={{ width: slide.panelW, flex: '0 0 auto' }}
+                style={{ width: carousel.panelW, flex: '0 0 auto' }}
               >
                 {renderWeek(rightMon)}
               </div>
@@ -296,7 +443,7 @@ export default function DayStrip({
       <button
         type="button"
         aria-label="Semana siguiente"
-        disabled={!!slide}
+        disabled={busyCarousel}
         onClick={() => shift(7)}
         className="day-strip-arrow-w day-strip-chevron day-strip-h grid shrink-0 place-items-center text-ink disabled:opacity-40"
       >
