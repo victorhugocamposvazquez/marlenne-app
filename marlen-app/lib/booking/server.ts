@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type {
   BookingCatalog,
   BookingConfirm,
@@ -6,19 +6,48 @@ import type {
   BookingSlot,
 } from '@/lib/booking/types';
 
-/** Cliente anon sin cookies: las RPCs de booking son SECURITY DEFINER. */
-function bookingDb() {
+/** Anon primero (RPCs SECURITY DEFINER); si falla el grant, service role. */
+function bookingDb(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error('Falta Supabase en el servidor');
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url) throw new Error('Falta NEXT_PUBLIC_SUPABASE_URL');
+  const key = anon || service;
+  if (!key) throw new Error('Falta clave Supabase en el servidor');
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+}
+
+function bookingDbAdmin(): SupabaseClient {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return bookingDb();
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
 const FAIL = (code: string, message?: string): BookingFail => ({ ok: false, code, message });
 
+async function rpcCatalog(slug: string, db: SupabaseClient) {
+  return db.rpc('booking_catalog', { p_slug: slug });
+}
+
 export async function loadBookingCatalog(slug: string): Promise<BookingCatalog | BookingFail> {
-  const { data, error } = await bookingDb().rpc('booking_catalog', { p_slug: slug });
-  if (error) return FAIL('rpc', error.message);
+  const normalized = slug.trim().toLowerCase();
+  let { data, error } = await rpcCatalog(normalized, bookingDb());
+  // Reintento con service role si anon no ve la función o el slug.
+  if (error || !(data as { ok?: boolean } | null)?.ok) {
+    const retry = await rpcCatalog(normalized, bookingDbAdmin());
+    if (!retry.error && (retry.data as { ok?: boolean } | null)?.ok) {
+      data = retry.data;
+      error = null;
+    } else if (!data && retry.data) {
+      data = retry.data;
+      error = retry.error;
+    }
+  }
+  if (error) {
+    console.error('[booking_catalog]', normalized, error.message);
+    return FAIL('rpc', error.message);
+  }
   const row = data as (BookingCatalog | BookingFail) | null;
   if (!row || typeof row !== 'object') return FAIL('not_found');
   if (!row.ok) return row;

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import '../booking.css';
 
 const BOOT = `try{document.documentElement.dataset.booted='1'}catch(e){}`;
 

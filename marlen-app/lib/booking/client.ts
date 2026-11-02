@@ -1,6 +1,10 @@
 import type { BookingConfirm, BookingFail, BookingSlot } from '@/lib/booking/types';
 
 async function readJson<T>(res: Response): Promise<T> {
+  const ct = res.headers.get('content-type') ?? '';
+  if (!ct.includes('application/json')) {
+    throw new Error(`Respuesta no JSON (${res.status})`);
+  }
   return (await res.json()) as T;
 }
 

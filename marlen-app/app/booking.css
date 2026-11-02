@@ -1,0 +1,31 @@
+/* Página de reserva pública: scroll libre (la PWA bloquea overflow en body). */
+html:has(.booking-root),
+body:has(.booking-root) {
+  height: auto !important;
+  max-height: none !important;
+  overflow: auto !important;
+  overscroll-behavior: auto;
+  background: #f8f8f9 !important;
+}
+
+.booking-root {
+  --bk: #006bff;
+  --bk-hover: #0055d4;
+  --bk-soft: #e7f0ff;
+  --bk-ink: #0b3558;
+  --bk-muted: #6b7280;
+  --bk-line: #dadee2;
+  --bk-bg: #f8f8f9;
+  --bk-card: #ffffff;
+  color: var(--bk-ink);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.booking-root button:focus-visible,
+.booking-root input:focus-visible,
+.booking-root textarea:focus-visible,
+.booking-root select:focus-visible {
+  outline: 2px solid var(--bk);
+  outline-offset: 2px;
+}
