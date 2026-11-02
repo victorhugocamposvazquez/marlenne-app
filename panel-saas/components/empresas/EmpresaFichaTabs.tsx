@@ -8,8 +8,10 @@ import StatusPill from '@/components/ui/StatusPill';
 import { usePanelUI } from '@/context/PanelUIContext';
 import { eur, initials } from '@/lib/format';
 import LiveCenterCard from '@/components/sms/LiveCenterCard';
+import BookingLinksOpsCard from '@/components/empresas/BookingLinksOpsCard';
 import OpsSupportAuditList from '@/components/empresas/OpsSupportAuditList';
 import type { LiveCenter } from '@/lib/live-center';
+import type { LiveBookingLinks } from '@/lib/live-booking';
 import type { OpsAuditRow } from '@/lib/ops-support-audit';
 import { liveStaffRoleLabel, type LiveStaff } from '@/lib/live-staff';
 import type { Company } from '@/lib/types';
@@ -21,11 +23,13 @@ export default function EmpresaFichaTabs({
   live = null,
   liveStaff = [],
   opsAudit = [],
+  booking = null,
 }: {
   company: Company;
   live?: LiveCenter | null;
   liveStaff?: LiveStaff[];
   opsAudit?: OpsAuditRow[];
+  booking?: LiveBookingLinks | null;
 }) {
   const { startImpersonation, toast } = usePanelUI();
   const [tab, setTab] = useState<(typeof TABS)[number]>('Resumen');

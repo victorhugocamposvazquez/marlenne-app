@@ -24,6 +24,11 @@ const nextConfig = {
         source: '/ops-embed.html',
         headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
       },
+      {
+        // Widget embebible en la web del salón (y más adelante Google Reserve).
+        source: '/embed/:path*',
+        headers: [{ key: 'Content-Security-Policy', value: 'frame-ancestors *' }],
+      },
     ];
   },
 };
