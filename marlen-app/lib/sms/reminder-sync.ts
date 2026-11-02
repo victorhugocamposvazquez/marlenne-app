@@ -3,10 +3,28 @@ import {
   avisoQuedoObsoleto,
   computeReminderDueAt,
   debeReabrirAviso,
+  flushDueReminder,
   loadSmsConfig,
   RESET_AVISO,
   type PreviaReminder,
 } from '@/lib/sms/reminders';
+import { SMS_TEMPLATE_CAMBIO } from '@/lib/sms/setup';
+
+/** Si el aviso ya debería haber salido (p. ej. alta/edición a las 22), envíalo ya con plantilla de confirmación. */
+async function flushIfDue(appointmentId: string, reminderDueAt: Date, startsAt: Date, sentAt: string | null) {
+  if (sentAt) return;
+  const now = Date.now();
+  if (reminderDueAt.getTime() > now + 5 * 60 * 1000) return;
+  if (startsAt.getTime() <= now) return;
+  try {
+    const r = await flushDueReminder(appointmentId, { plantillaClave: SMS_TEMPLATE_CAMBIO });
+    if (r.outcome === 'failed') {
+      console.error('[sms] flushIfDue', appointmentId, r.error);
+    }
+  } catch (e) {
+    console.error('[sms] flushIfDue', appointmentId, e);
+  }
+}
 
 const SYNC_SELECT = `
   id, salon_id, client_id, starts_at, status,
@@ -74,6 +92,8 @@ export async function syncAppointmentReminder(
       && (dueChanged || avisoQuedoObsoleto(appt.reminder_sent_at, reminderDueAt)),
     );
 
+  const sentAfter = reabrir ? null : appt.reminder_sent_at;
+
   await supabase
     .from('appointments')
     .update({
@@ -82,6 +102,8 @@ export async function syncAppointmentReminder(
       updated_at: nowIso,
     })
     .eq('id', appt.id);
+
+  await flushIfDue(appt.id, reminderDueAt, startsAt, sentAfter);
 }
 
 /** Cuando cambia el teléfono de una clienta, recalcula sus citas futuras programadas. */
@@ -122,6 +144,7 @@ export async function syncClientFutureReminders(
     };
     const telefono = client.phone;
     const reabrir = debeReabrirAviso(previa, telefono, startsAt, reminderDueAt);
+    const sentAfter = reabrir ? null : row.reminder_sent_at;
 
     const { error } = await supabase
       .from('appointments')
@@ -132,8 +155,12 @@ export async function syncClientFutureReminders(
       })
       .eq('id', row.id);
 
-    if (!error) updated += 1;
-    else console.error('[sms] syncClientFutureReminders', row.id, error.message);
+    if (!error) {
+      updated += 1;
+      await flushIfDue(row.id, reminderDueAt, startsAt, sentAfter);
+    } else {
+      console.error('[sms] syncClientFutureReminders', row.id, error.message);
+    }
   }
 
   return updated;

@@ -7,7 +7,8 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 /**
- * Cron diario (Hobby: 1 job/día).
+ * Cron diario (Hobby: 1 job/día) a las 20:00 UTC = 21:00 Europe/Madrid en invierno (CET).
+ * En verano (CEST) cae a las 22:00 Madrid; el catch-up al editar/crear citas cubre retrasos.
  * 1) Recordatorios SMS LabsMobile
  * 2) Monitor de servicios críticos (alertas por correo)
  * El endpoint /api/cron/health sigue disponible para disparo manual con CRON_SECRET.

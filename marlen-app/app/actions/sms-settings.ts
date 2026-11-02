@@ -51,7 +51,10 @@ export async function saveSmsConfig(input: {
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
-export async function saveSmsTemplate(cuerpo: string): Promise<ActionResult> {
+export async function saveSmsTemplate(
+  cuerpo: string,
+  clave: 'recordatorio_cita' | 'recordatorio_cita_cambio' = 'recordatorio_cita',
+): Promise<ActionResult> {
   const me = await requireSalonAdmin();
   if (!me) return { ok: false, error: 'Solo dirección' };
 
@@ -62,7 +65,7 @@ export async function saveSmsTemplate(cuerpo: string): Promise<ActionResult> {
   const { error } = await sb.from('sms_templates').update({
     cuerpo: body,
     updated_at: new Date().toISOString(),
-  }).eq('salon_id', me.salon_id).eq('clave', 'recordatorio_cita');
+  }).eq('salon_id', me.salon_id).eq('clave', clave);
 
   bump();
   return error ? { ok: false, error: error.message } : { ok: true };

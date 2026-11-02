@@ -24,7 +24,7 @@ export default async function SmsSettingsPage() {
     );
   }
 
-  const { config, templateBody } = setup;
+  const { config, templateBody, templateCambioBody } = setup;
 
   const [{ data: logs }, { data: appts }] = await Promise.all([
     sb.from('sms_log')
@@ -63,6 +63,7 @@ export default async function SmsSettingsPage() {
         sender: config.sender ?? '',
       }}
       templateBody={templateBody}
+      templateCambioBody={templateCambioBody}
       logs={logs ?? []}
       testAppointments={testAppointments}
     />

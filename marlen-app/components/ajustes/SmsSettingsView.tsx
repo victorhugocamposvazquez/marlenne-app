@@ -71,10 +71,11 @@ function statusChip(status: string) {
 }
 
 export default function SmsSettingsView({
-  config, templateBody, logs, testAppointments,
+  config, templateBody, templateCambioBody, logs, testAppointments,
 }: {
   config: SmsConfig;
   templateBody: string;
+  templateCambioBody: string;
   logs: SmsLogRow[];
   testAppointments: TestAppt[];
 }) {
@@ -82,6 +83,7 @@ export default function SmsSettingsView({
   const [pending, startTransition] = useTransition();
   const [cfg, setCfg] = useState(config);
   const [cuerpo, setCuerpo] = useState(templateBody);
+  const [cuerpoCambio, setCuerpoCambio] = useState(templateCambioBody);
   const [testApptId, setTestApptId] = useState(testAppointments[0]?.id ?? '');
   const [testQ, setTestQ] = useState('');
 
@@ -95,9 +97,17 @@ export default function SmsSettingsView({
 
   const saveTemplate = () => {
     startTransition(async () => {
-      const r = await saveSmsTemplate(cuerpo);
+      const r = await saveSmsTemplate(cuerpo, 'recordatorio_cita');
       if (!r.ok) toast(r.error ?? 'No se ha podido guardar', 'err');
-      else toast('Plantilla guardada');
+      else toast('Plantilla de recordatorio guardada');
+    });
+  };
+
+  const saveTemplateCambio = () => {
+    startTransition(async () => {
+      const r = await saveSmsTemplate(cuerpoCambio, 'recordatorio_cita_cambio');
+      if (!r.ok) toast(r.error ?? 'No se ha podido guardar', 'err');
+      else toast('Plantilla de confirmación guardada');
     });
   };
 
@@ -221,9 +231,9 @@ export default function SmsSettingsView({
         </div>
       </AjustesSection>
 
-      <AjustesSection title="Plantilla">
+      <AjustesSection title="Plantilla · recordatorio (lote 21:00)">
         <p className="border-b border-surface-line py-3 text-body text-ink-2">
-          Placeholders: {'{{cliente}}'}, {'{{servicio}}'}, {'{{dia}}'}, {'{{fecha}}'}, {'{{hora}}'}
+          Sale con el cron del día anterior. Placeholders: {'{{cliente}}'}, {'{{servicio}}'}, {'{{dia}}'}, {'{{fecha}}'}, {'{{hora}}'}
         </p>
         <textarea
           className={`${inputCls} min-h-[120px] resize-none border-0 bg-transparent py-3`}
@@ -233,7 +243,24 @@ export default function SmsSettingsView({
         />
         <div className="border-t border-surface-line py-4">
           <Button full disabled={pending} onClick={saveTemplate}>
-            {pending ? 'Guardando…' : 'Guardar plantilla'}
+            {pending ? 'Guardando…' : 'Guardar recordatorio'}
+          </Button>
+        </div>
+      </AjustesSection>
+
+      <AjustesSection title="Plantilla · confirmación / cambio">
+        <p className="border-b border-surface-line py-3 text-body text-ink-2">
+          Si crean o mueven la cita después de la hora de aviso (p. ej. a las 22). Mismos placeholders.
+        </p>
+        <textarea
+          className={`${inputCls} min-h-[120px] resize-none border-0 bg-transparent py-3`}
+          value={cuerpoCambio}
+          disabled={pending}
+          onChange={e => setCuerpoCambio(e.target.value)}
+        />
+        <div className="border-t border-surface-line py-4">
+          <Button full disabled={pending} onClick={saveTemplateCambio}>
+            {pending ? 'Guardando…' : 'Guardar confirmación'}
           </Button>
         </div>
       </AjustesSection>

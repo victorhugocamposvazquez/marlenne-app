@@ -9,6 +9,7 @@ import {
 import { checkPhoneForSms, normalizePhoneE164 } from '@/lib/sms/phone';
 import { aliasServicio, loadServiceAliases } from '@/lib/sms/service-aliases';
 import { renderSmsTemplate } from '@/lib/sms/templates';
+import { SMS_TEMPLATE_RECORDATORIO } from '@/lib/sms/setup';
 import { DEFAULT_TIMEZONE, zonedNaiveToDate } from '@/lib/sms/tz';
 
 export type SmsConfigRow = {
@@ -175,7 +176,7 @@ export async function loadSmsConfig(salonId: string): Promise<SmsConfigRow> {
 
 export async function loadPlantilla(
   salonId: string,
-  clave = 'recordatorio_cita',
+  clave: string = SMS_TEMPLATE_RECORDATORIO,
 ): Promise<PlantillaRow | null> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
@@ -356,6 +357,178 @@ export type ProcessDueRemindersResult = {
   errors: string[];
 };
 
+export type FlushDueResult =
+  | { outcome: 'sent' | 'skipped' | 'noop' }
+  | { outcome: 'failed'; error: string; fatalAuth?: boolean };
+
+/**
+ * Envía (o registra skip) un recordatorio ya vencido para una cita.
+ * Usado por el cron (`programado`) y por el sync tras alta/edición (`cambio`).
+ */
+export async function flushDueReminder(
+  appointmentId: string,
+  opts: { plantillaClave?: string } = {},
+): Promise<FlushDueResult> {
+  if (!isLabsMobileConfigured()) {
+    return {
+      outcome: 'failed',
+      error: 'LabsMobile no configurado (falta LABSMOBILE_USERNAME / LABSMOBILE_API_TOKEN)',
+    };
+  }
+
+  const supabase = createAdminClient();
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const dueLimitIso = new Date(now.getTime() + 5 * 60 * 1000).toISOString();
+  const plantillaClave = opts.plantillaClave ?? SMS_TEMPLATE_RECORDATORIO;
+
+  const { data, error } = await supabase
+    .from('appointments')
+    .select(APPT_SELECT)
+    .eq('id', appointmentId)
+    .maybeSingle();
+  if (error) return { outcome: 'failed', error: error.message };
+  if (!data) return { outcome: 'noop' };
+
+  const appt = data as unknown as AppointmentSmsRow;
+  if (appt.status !== 'prog') return { outcome: 'noop' };
+  if (appt.reminder_sent_at) return { outcome: 'noop' };
+  if (!appt.reminder_due_at || appt.reminder_due_at > dueLimitIso) return { outcome: 'noop' };
+  if (appt.starts_at <= nowIso) return { outcome: 'noop' };
+
+  const config = await loadSmsConfig(appt.salon_id);
+  if (config.test_mode !== false || !config.enabled) return { outcome: 'noop' };
+
+  let plantilla = await loadPlantilla(appt.salon_id, plantillaClave);
+  if (!plantilla && plantillaClave !== SMS_TEMPLATE_RECORDATORIO) {
+    plantilla = await loadPlantilla(appt.salon_id, SMS_TEMPLATE_RECORDATORIO);
+  }
+  if (!plantilla) {
+    return { outcome: 'failed', error: `plantilla ${plantillaClave} no disponible` };
+  }
+
+  const alias = await loadServiceAliases(appt.salon_id);
+  const rawPhone = clientPhoneOf(appt);
+  const cuerpo = renderReminderBody(appt, config.timezone, plantilla.cuerpo, alias);
+  const simulado = false;
+
+  if (appt.client && !appt.client.sms_opt_in) {
+    if (appt.reminder_skipped_reason !== 'SMS desactivado') {
+      await supabase
+        .from('appointments')
+        .update({
+          reminder_skipped_reason: 'SMS desactivado',
+          reminder_skipped_phone: rawPhone ?? '',
+          updated_at: nowIso,
+        })
+        .eq('id', appt.id);
+      await upsertSmsLog({
+        appointment_id: appt.id,
+        salon_id: appt.salon_id,
+        to_phone: rawPhone ?? '',
+        body: cuerpo,
+        status: 'skipped',
+        template_key: plantilla.clave,
+        sent_at: nowIso,
+        error_message: 'SMS desactivado',
+      });
+    }
+    return { outcome: 'skipped' };
+  }
+
+  const telefono = checkPhoneForSms(rawPhone);
+  if (!telefono.ok) {
+    const yaRegistrado =
+      appt.reminder_skipped_phone !== null
+      && appt.reminder_skipped_phone === (rawPhone ?? '');
+    if (!yaRegistrado) {
+      await supabase
+        .from('appointments')
+        .update({
+          reminder_skipped_reason: telefono.label,
+          reminder_skipped_phone: rawPhone ?? '',
+          updated_at: nowIso,
+        })
+        .eq('id', appt.id);
+      await upsertSmsLog({
+        appointment_id: appt.id,
+        salon_id: appt.salon_id,
+        to_phone: rawPhone ?? '',
+        body: cuerpo,
+        status: 'skipped',
+        template_key: plantilla.clave,
+        sent_at: nowIso,
+        error_message: telefono.label,
+      });
+    }
+    return { outcome: 'skipped' };
+  }
+
+  const phone = telefono.phone;
+  const subid = generateSubid();
+
+  const { data: claimed } = await supabase
+    .from('appointments')
+    .update({
+      reminder_sent_at: nowIso,
+      reminder_skipped_reason: null,
+      reminder_skipped_phone: null,
+      updated_at: nowIso,
+    })
+    .eq('id', appt.id)
+    .is('reminder_sent_at', null)
+    .select('id')
+    .maybeSingle();
+  if (!claimed) return { outcome: 'noop' };
+
+  const result = await sendSmsLabsMobile(phone, cuerpo, {
+    subid,
+    test: simulado,
+    sender: config.sender ?? undefined,
+  });
+
+  if (!result.ok) {
+    await supabase
+      .from('appointments')
+      .update({ reminder_sent_at: null, updated_at: new Date().toISOString() })
+      .eq('id', appt.id)
+      .eq('reminder_sent_at', nowIso);
+    await upsertSmsLog({
+      appointment_id: appt.id,
+      salon_id: appt.salon_id,
+      to_phone: phone,
+      body: cuerpo,
+      status: 'failed',
+      template_key: plantilla.clave,
+      sent_at: nowIso,
+      simulated: simulado,
+      origin: 'automatico',
+      error_message: result.error,
+    });
+    return {
+      outcome: 'failed',
+      error: result.error,
+      fatalAuth: result.status === 401 || result.status === 403,
+    };
+  }
+
+  await upsertSmsLog({
+    appointment_id: appt.id,
+    salon_id: appt.salon_id,
+    to_phone: phone,
+    body: cuerpo,
+    status: 'sent',
+    provider: 'labsmobile',
+    provider_subid: result.subid ?? subid,
+    template_key: plantilla.clave,
+    sent_at: nowIso,
+    simulated: simulado,
+    origin: 'automatico',
+  });
+
+  return { outcome: 'sent' };
+}
+
 /** Procesa recordatorios vencidos. Opcionalmente filtra por centro. */
 export async function processDueReminders(
   opts: { salonId?: string } = {},
@@ -401,7 +574,7 @@ export async function processDueReminders(
 
   let apptQuery = supabase
     .from('appointments')
-    .select(APPT_SELECT)
+    .select('id, salon_id')
     .eq('status', 'prog')
     .is('reminder_sent_at', null)
     .lte('reminder_due_at', dueLimitIso)
@@ -416,164 +589,21 @@ export async function processDueReminders(
     return { processed: 0, sent: 0, skipped: 0, failed: 0, simulado: true, errors: [apptsErr.message] };
   }
 
-  const list = ((appts ?? []) as unknown as AppointmentSmsRow[]).filter((a) => enabledSalons.has(a.salon_id));
+  const list = (appts ?? []).filter((a) => enabledSalons.has(a.salon_id as string));
   let sent = 0;
   let skipped = 0;
   let failed = 0;
+  let simulado = false;
 
-  const configCache = new Map<string, SmsConfigRow>();
-  const plantillaCache = new Map<string, PlantillaRow | null>();
-  const aliasCache = new Map<string, Record<string, string>>();
-
-  async function salonBundle(salonId: string) {
-    if (!configCache.has(salonId)) {
-      configCache.set(salonId, await loadSmsConfig(salonId));
-      plantillaCache.set(salonId, await loadPlantilla(salonId));
-      aliasCache.set(salonId, await loadServiceAliases(salonId));
-    }
-    return {
-      config: configCache.get(salonId)!,
-      plantilla: plantillaCache.get(salonId),
-      alias: aliasCache.get(salonId)!,
-    };
-  }
-
-  let simulado = true;
-
-  for (const appt of list) {
-    const { config, plantilla, alias } = await salonBundle(appt.salon_id);
-    // Ops enciende el centro poniendo test_mode en false. Mientras siga en true, no se reclama la cita.
-    simulado = false;
-    if (config.test_mode !== false || !config.enabled) {
-      skipped += 1;
-      continue;
-    }
-
-    if (!plantilla) {
-      errors.push(`${appt.id}: plantilla recordatorio_cita no disponible`);
-      continue;
-    }
-
-    const rawPhone = clientPhoneOf(appt);
-    const cuerpo = renderReminderBody(appt, config.timezone, plantilla.cuerpo, alias);
-
-    if (appt.client && !appt.client.sms_opt_in) {
-      skipped += 1;
-      const yaRegistrado = appt.reminder_skipped_reason === 'SMS desactivado';
-      if (yaRegistrado) continue;
-
-      await supabase
-        .from('appointments')
-        .update({
-          reminder_skipped_reason: 'SMS desactivado',
-          reminder_skipped_phone: rawPhone ?? '',
-          updated_at: nowIso,
-        })
-        .eq('id', appt.id);
-
-      await upsertSmsLog({
-        appointment_id: appt.id,
-        salon_id: appt.salon_id,
-        to_phone: rawPhone ?? '',
-        body: cuerpo,
-        status: 'skipped',
-        template_key: plantilla.clave,
-        sent_at: nowIso,
-        error_message: 'SMS desactivado',
-      });
-      continue;
-    }
-
-    const telefono = checkPhoneForSms(rawPhone);
-    if (!telefono.ok) {
-      skipped += 1;
-      const yaRegistrado =
-        appt.reminder_skipped_phone !== null
-        && appt.reminder_skipped_phone === (rawPhone ?? '');
-      if (yaRegistrado) continue;
-
-      await supabase
-        .from('appointments')
-        .update({
-          reminder_skipped_reason: telefono.label,
-          reminder_skipped_phone: rawPhone ?? '',
-          updated_at: nowIso,
-        })
-        .eq('id', appt.id);
-
-      await upsertSmsLog({
-        appointment_id: appt.id,
-        salon_id: appt.salon_id,
-        to_phone: rawPhone ?? '',
-        body: cuerpo,
-        status: 'skipped',
-        template_key: plantilla.clave,
-        sent_at: nowIso,
-        error_message: telefono.label,
-      });
-      continue;
-    }
-
-    const phone = telefono.phone;
-    const subid = generateSubid();
-
-    const { data: claimed } = await supabase
-      .from('appointments')
-      .update({
-        reminder_sent_at: nowIso,
-        reminder_skipped_reason: null,
-        reminder_skipped_phone: null,
-        updated_at: nowIso,
-      })
-      .eq('id', appt.id)
-      .is('reminder_sent_at', null)
-      .select('id')
-      .maybeSingle();
-    if (!claimed) continue;
-
-    const result = await sendSmsLabsMobile(phone, cuerpo, {
-      subid,
-      test: simulado,
-      sender: config.sender ?? undefined,
-    });
-
-    if (!result.ok) {
+  for (const row of list) {
+    const r = await flushDueReminder(row.id as string);
+    if (r.outcome === 'sent') sent += 1;
+    else if (r.outcome === 'skipped' || r.outcome === 'noop') skipped += 1;
+    else if (r.outcome === 'failed') {
       failed += 1;
-      errors.push(`${appt.id}: ${result.error}`);
-      await supabase
-        .from('appointments')
-        .update({ reminder_sent_at: null, updated_at: new Date().toISOString() })
-        .eq('id', appt.id)
-        .eq('reminder_sent_at', nowIso);
-      await upsertSmsLog({
-        appointment_id: appt.id,
-        salon_id: appt.salon_id,
-        to_phone: phone,
-        body: cuerpo,
-        status: 'failed',
-        template_key: plantilla.clave,
-        sent_at: nowIso,
-        simulated: simulado,
-        error_message: result.error,
-      });
-      if (result.status === 401 || result.status === 403) break;
-      continue;
+      errors.push(`${row.id}: ${r.error}`);
+      if (r.fatalAuth) break;
     }
-
-    sent += 1;
-    await upsertSmsLog({
-      appointment_id: appt.id,
-      salon_id: appt.salon_id,
-      to_phone: phone,
-      body: cuerpo,
-      status: 'sent',
-      provider: 'labsmobile',
-      provider_subid: result.subid ?? subid,
-      template_key: plantilla.clave,
-      sent_at: nowIso,
-      simulated: simulado,
-      origin: 'automatico',
-    });
   }
 
   return {

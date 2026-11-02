@@ -4,6 +4,12 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 const DEFAULT_TEMPLATE =
   'Hola {{cliente}}, te recordamos tu cita de {{servicio}} el {{dia}} {{fecha}} a las {{hora}}. ¡Te esperamos!';
 
+const DEFAULT_TEMPLATE_CAMBIO =
+  'Hola {{cliente}}, te confirmamos tu cita de {{servicio}} el {{dia}} {{fecha}} a las {{hora}}. ¡Te esperamos!';
+
+export const SMS_TEMPLATE_RECORDATORIO = 'recordatorio_cita';
+export const SMS_TEMPLATE_CAMBIO = 'recordatorio_cita_cambio';
+
 export function isSmsSchemaMissing(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
   const msg = (error.message ?? '').toLowerCase();
@@ -31,7 +37,7 @@ export async function ensureSmsSetupForSalon(
   sb: SupabaseClient,
   salonId: string,
 ): Promise<
-  | { ok: true; config: SmsConfigRow; templateBody: string }
+  | { ok: true; config: SmsConfigRow; templateBody: string; templateCambioBody: string }
   | { ok: false; reason: 'migration' }
   | { ok: false; reason: 'error'; message: string }
 > {
@@ -60,40 +66,67 @@ export async function ensureSmsSetupForSalon(
     config = inserted;
   }
 
-  let { data: template, error: tplErr } = await sb
-    .from('sms_templates')
-    .select('cuerpo')
-    .eq('salon_id', salonId)
-    .eq('clave', 'recordatorio_cita')
-    .maybeSingle();
+  async function ensureTemplate(
+    clave: string,
+    nombre: string,
+    cuerpoDefault: string,
+  ): Promise<{ cuerpo: string } | { error: 'migration' | string }> {
+    const { data: template, error: tplErr } = await sb
+      .from('sms_templates')
+      .select('cuerpo')
+      .eq('salon_id', salonId)
+      .eq('clave', clave)
+      .maybeSingle();
 
-  if (tplErr) {
-    if (isSmsSchemaMissing(tplErr)) return { ok: false, reason: 'migration' };
-    return { ok: false, reason: 'error', message: tplErr.message };
-  }
+    if (tplErr) {
+      if (isSmsSchemaMissing(tplErr)) return { error: 'migration' };
+      return { error: tplErr.message };
+    }
 
-  if (!template) {
+    if (template) return template;
+
     const admin = createAdminClient();
     const { data: inserted, error: insErr } = await admin
       .from('sms_templates')
       .insert({
         salon_id: salonId,
-        clave: 'recordatorio_cita',
-        nombre: 'Recordatorio de cita',
-        cuerpo: DEFAULT_TEMPLATE,
+        clave,
+        nombre,
+        cuerpo: cuerpoDefault,
       })
       .select('cuerpo')
       .single();
     if (insErr) {
-      if (isSmsSchemaMissing(insErr)) return { ok: false, reason: 'migration' };
-      return { ok: false, reason: 'error', message: insErr.message };
+      if (isSmsSchemaMissing(insErr)) return { error: 'migration' };
+      return { error: insErr.message };
     }
-    template = inserted;
+    return inserted;
+  }
+
+  const template = await ensureTemplate(
+    SMS_TEMPLATE_RECORDATORIO,
+    'Recordatorio de cita',
+    DEFAULT_TEMPLATE,
+  );
+  if ('error' in template) {
+    if (template.error === 'migration') return { ok: false, reason: 'migration' };
+    return { ok: false, reason: 'error', message: template.error };
+  }
+
+  const templateCambio = await ensureTemplate(
+    SMS_TEMPLATE_CAMBIO,
+    'Confirmación / cambio de cita',
+    DEFAULT_TEMPLATE_CAMBIO,
+  );
+  if ('error' in templateCambio) {
+    if (templateCambio.error === 'migration') return { ok: false, reason: 'migration' };
+    return { ok: false, reason: 'error', message: templateCambio.error };
   }
 
   return {
     ok: true,
     config: config as SmsConfigRow,
     templateBody: template.cuerpo,
+    templateCambioBody: templateCambio.cuerpo,
   };
 }
