@@ -12,11 +12,6 @@ import {
   User,
 } from 'lucide-react';
 import {
-  fetchBookingDaySlots,
-  fetchBookingMonthDays,
-  submitBooking,
-} from '@/app/actions/booking';
-import {
   formatBookingWhen,
   formatPriceCents,
   monthCells,
@@ -25,6 +20,7 @@ import {
   weekdayLabels,
   ymd,
 } from '@/lib/booking/calendar';
+import { apiDaySlots, apiMonthDays, apiSubmitBooking } from '@/lib/booking/client';
 import { durLbl, madridNow } from '@/lib/time';
 import { BRAND_NAME } from '@/lib/brand';
 import type {
@@ -82,12 +78,18 @@ export default function BookingWizard({
     if (!service || step !== 'when') return;
     let cancelled = false;
     setLoadingMonth(true);
-    fetchBookingMonthDays(slug, service.id, year, month, providerFilterId).then(r => {
-      if (cancelled) return;
-      setLoadingMonth(false);
-      if (r.ok) setAvailableDays(new Set(r.days));
-      else setAvailableDays(new Set());
-    });
+    setAvailableDays(new Set());
+    apiMonthDays(slug, service.id, year, month, providerFilterId)
+      .then(r => {
+        if (cancelled) return;
+        setAvailableDays(new Set(r.ok ? r.days : []));
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableDays(new Set());
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingMonth(false);
+      });
     return () => { cancelled = true; };
   }, [slug, service, year, month, step, providerFilterId]);
 
@@ -96,11 +98,18 @@ export default function BookingWizard({
     let cancelled = false;
     setLoadingSlots(true);
     setSlot(null);
-    fetchBookingDaySlots(slug, service.id, selectedDay, providerFilterId).then(r => {
-      if (cancelled) return;
-      setLoadingSlots(false);
-      setSlots(r.ok ? r.slots : []);
-    });
+    setSlots([]);
+    apiDaySlots(slug, service.id, selectedDay, providerFilterId)
+      .then(r => {
+        if (cancelled) return;
+        setSlots(r.ok ? r.slots : []);
+      })
+      .catch(() => {
+        if (!cancelled) setSlots([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSlots(false);
+      });
     return () => { cancelled = true; };
   }, [slug, service, selectedDay, step, providerFilterId]);
 
@@ -143,22 +152,26 @@ export default function BookingWizard({
     if (!service || !slot) return;
     setError(null);
     startTransition(async () => {
-      const r = await submitBooking({
-        slug,
-        serviceId: service.id,
-        startsAt: slot.starts_at,
-        providerId: providerFilterId ?? slot.provider_id,
-        fullName,
-        phone,
-        email: email.trim() || undefined,
-        note: note.trim() || undefined,
-      });
-      if (!r.ok) {
-        setError(r.message);
-        return;
+      try {
+        const r = await apiSubmitBooking({
+          slug,
+          serviceId: service.id,
+          startsAt: slot.starts_at,
+          providerId: providerFilterId ?? slot.provider_id,
+          fullName,
+          phone,
+          email: email.trim() || undefined,
+          note: note.trim() || undefined,
+        });
+        if (!r.ok) {
+          setError(r.message ?? 'No se ha podido completar la reserva.');
+          return;
+        }
+        setConfirm(r);
+        setStep('done');
+      } catch {
+        setError('No se ha podido completar la reserva. Prueba de nuevo.');
       }
-      setConfirm(r);
-      setStep('done');
     });
   }
 
@@ -318,13 +331,13 @@ export default function BookingWizard({
                       {monthCells(year, month).map((day, i) => {
                         if (day == null) return <div key={`e-${i}`} />;
                         const key = ymd(year, month, day);
-                        const open = availableDays.has(key);
+                        const open = !loadingMonth && availableDays.has(key);
                         const selected = selectedDay === key;
                         return (
                           <button
                             key={key}
                             type="button"
-                            disabled={!open || loadingMonth}
+                            disabled={!open}
                             onClick={() => pickDay(day)}
                             className={[
                               'aspect-square rounded-full text-label font-semibold transition',
