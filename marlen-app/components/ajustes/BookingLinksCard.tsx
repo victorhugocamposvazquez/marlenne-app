@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Check, Copy, ExternalLink } from 'lucide-react';
 import AjustesSection from '@/components/ajustes/AjustesSection';
 import { useToast } from '@/components/Toast';
@@ -211,7 +211,7 @@ function CopyBtn({
 }: {
   active: boolean;
   onClick: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <button

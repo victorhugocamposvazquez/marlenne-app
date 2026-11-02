@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Check, Copy, ExternalLink } from 'lucide-react';
 import { usePanelUI } from '@/context/PanelUIContext';
 import {
@@ -168,7 +168,7 @@ function MiniCopy({
 }: {
   active: boolean;
   onClick: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <button

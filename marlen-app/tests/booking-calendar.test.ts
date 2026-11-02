@@ -6,6 +6,11 @@ import {
   shiftMonth,
   ymd,
 } from '../lib/booking/calendar';
+import {
+  bookingPageUrl,
+  bookingQuery,
+  parseBookingPreset,
+} from '../lib/booking/urls';
 
 describe('booking calendar', () => {
   it('ymd pads month and day', () => {
@@ -27,5 +32,30 @@ describe('booking calendar', () => {
   it('formatPriceCents', () => {
     assert.equal(formatPriceCents(0), 'Gratis');
     assert.match(formatPriceCents(4500), /45/);
+  });
+});
+
+describe('booking deep links', () => {
+  it('builds query for ads preset', () => {
+    assert.equal(bookingQuery({}), '');
+    assert.equal(
+      bookingQuery({ serviceId: 'svc-1', providerId: 'pro-1' }),
+      '?service=svc-1&provider=pro-1',
+    );
+    assert.equal(
+      bookingPageUrl('https://app.example', 'arlett', { serviceId: 'svc-1' }),
+      'https://app.example/r/arlett?service=svc-1',
+    );
+  });
+
+  it('parses service/provider aliases', () => {
+    assert.deepEqual(parseBookingPreset({ s: 'svc', con: 'cab' }), {
+      serviceId: 'svc',
+      providerId: 'cab',
+    });
+    assert.deepEqual(parseBookingPreset({ service: 'a', provider: 'b' }), {
+      serviceId: 'a',
+      providerId: 'b',
+    });
   });
 });

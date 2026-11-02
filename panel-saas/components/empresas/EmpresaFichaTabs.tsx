@@ -205,6 +205,7 @@ export default function EmpresaFichaTabs({
 
       {tab === 'Ajustes' && (
         <div className="space-y-3">
+          {company.live && booking && <BookingLinksOpsCard booking={booking} />}
           <div className="rounded-card bg-white px-5 py-1">
             {[
               ['Recordatorios por SMS', 'Se cortan al agotar el cupo', true],
