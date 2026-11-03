@@ -101,7 +101,7 @@ export default function BookingLinksCard({
       <AjustesSection title="Widget de reservas">
         <p className="py-4 text-body leading-snug text-ink-2">
           Aún no hay página pública. Cuando se active el booking del centro, aquí
-          podrás crear el calendario global y widgets para anuncios.
+          podrás crear el calendario completo y enlaces a un servicio concreto.
         </p>
       </AjustesSection>
     );
@@ -110,7 +110,7 @@ export default function BookingLinksCard({
   return (
     <div className="space-y-5">
       <div className="grid gap-5 min-[1024px]:grid-cols-2 min-[1024px]:items-start">
-        <AjustesSection title="Calendario global" className="mt-0">
+        <AjustesSection title="Calendario completo" className="mt-0">
           <div className="space-y-3 py-4">
             <p className="text-body leading-snug text-ink-2">
               {enabled
@@ -131,10 +131,11 @@ export default function BookingLinksCard({
           </div>
         </AjustesSection>
 
-        <AjustesSection title="Widget para anuncios" className="mt-0">
+        <AjustesSection title="Enlace de un servicio" className="mt-0">
           <div className="space-y-3 py-4">
             <p className="text-body leading-snug text-ink-2">
-              Servicio precargado y título de embudo solo para ese servicio.
+              La clienta llega ya con ese servicio elegido. Opcional: un título propio
+              (ej. «Reserva tu cavitación»).
             </p>
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -195,13 +196,13 @@ export default function BookingLinksCard({
                     <ActionRow>
                       <CopyBtn
                         active={copied === 'ad-page'}
-                        onClick={() => copy('ad-page', adPage, 'Enlace de anuncio copiado')}
+                        onClick={() => copy('ad-page', adPage, 'Enlace copiado')}
                       >
                         Copiar enlace
                       </CopyBtn>
                       <CopyBtn
                         active={copied === 'ad-embed'}
-                        onClick={() => copy('ad-embed', adIframe, 'Widget de anuncio copiado')}
+                        onClick={() => copy('ad-embed', adIframe, 'Código del widget copiado')}
                       >
                         Copiar widget
                       </CopyBtn>
@@ -214,7 +215,7 @@ export default function BookingLinksCard({
             </div>
 
             {!serviceId && (
-              <p className="text-caption text-ink-3">Elige un servicio para configurar el widget.</p>
+              <p className="text-caption text-ink-3">Elige un servicio para generar el enlace.</p>
             )}
           </div>
         </AjustesSection>
@@ -223,7 +224,7 @@ export default function BookingLinksCard({
       {previewSrc && (
         <PreviewModal
           src={previewSrc}
-          title={previewKind === 'ad' ? 'Vista previa · anuncio' : 'Vista previa · global'}
+          title={previewKind === 'ad' ? 'Vista previa · un servicio' : 'Vista previa · calendario'}
           onClose={closePreview}
         />
       )}

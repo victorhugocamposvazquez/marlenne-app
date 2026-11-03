@@ -92,7 +92,7 @@ export default async function AjustesWidgetReservasPage() {
   return (
     <AjustesHeader title="Widget reservas">
       <p className="mb-4 text-body leading-snug text-ink-2">
-        Calendario público, widgets para anuncios con título a medida, y vista previa aquí mismo.
+        Calendario completo del centro, o un enlace directo a un solo servicio (con título a medida si quieres).
       </p>
       <BookingLinksCard
         slug={booking?.booking_slug ?? null}

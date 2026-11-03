@@ -61,7 +61,7 @@ export default function AjustesIndex({
     }, {
       href: '/ajustes/widget-reservas',
       title: 'Widget reservas',
-      hint: 'Calendario online, anuncios y vista previa',
+      hint: 'Calendario online y enlace a un servicio',
     }] : []),
     ...(desk ? [{
       href: '/ajustes/bonos',

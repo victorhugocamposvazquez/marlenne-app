@@ -57,7 +57,7 @@ export default function BookingLinksOpsCard({ booking }: { booking: LiveBookingL
   if (!slug) {
     return (
       <div className="rounded-card bg-white p-5">
-        <h2 className="text-[16px] font-bold">Reserva online / anuncios</h2>
+        <h2 className="text-[16px] font-bold">Reserva online</h2>
         <p className="mt-2 text-[14px] text-ink-2">
           Este centro aún no tiene slug de booking. Actívalo en Ajustes → Widget reservas de la app.
         </p>
@@ -68,16 +68,16 @@ export default function BookingLinksOpsCard({ booking }: { booking: LiveBookingL
   return (
     <div className="space-y-3 rounded-card bg-white p-5">
       <div>
-        <h2 className="text-[16px] font-bold">Reserva online / anuncios</h2>
+        <h2 className="text-[16px] font-bold">Reserva online</h2>
         <p className="mt-1 text-[13px] text-ink-2">
           {booking.enabled
-            ? `${booking.salonName} · calendario global y enlaces con servicio preseleccionado para ads.`
+            ? `${booking.salonName} · calendario completo o enlace a un solo servicio.`
             : 'Booking pausado en este centro.'}
         </p>
       </div>
 
       <div className="rounded-[14px] border border-line bg-page/60 px-3.5 py-3">
-        <p className="text-[12px] font-bold uppercase tracking-wide text-ink-3">Calendario global</p>
+        <p className="text-[12px] font-bold uppercase tracking-wide text-ink-3">Calendario completo</p>
         <p className="mt-1 break-all text-[13px] font-semibold text-ink">{globalPage}</p>
         <div className="mt-2.5 flex flex-wrap gap-2">
           <MiniCopy
@@ -99,10 +99,10 @@ export default function BookingLinksOpsCard({ booking }: { booking: LiveBookingL
 
       <div className="rounded-[14px] border border-line bg-page/60 px-3.5 py-3">
         <p className="text-[12px] font-bold uppercase tracking-wide text-ink-3">
-          Widget / enlace para ads
+          Enlace de un servicio
         </p>
         <p className="mt-1 text-[13px] text-ink-2">
-          Elige servicio; el título personalizado queda ligado a ese servicio.
+          La clienta llega con ese servicio ya elegido. Título opcional ligado al servicio.
         </p>
 
         <label className="mt-3 block">
