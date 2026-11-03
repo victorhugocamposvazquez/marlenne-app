@@ -145,7 +145,18 @@ export const BOOKING_PRESET_ACCENTS = [
 
 type Bucket = { count: number; r: number; g: number; b: number };
 
-/** Extrae 3–5 colores dominantes de una imagen (canvas). */
+function isNearWhite(r: number, g: number, b: number): boolean {
+  return Math.min(r, g, b) > 232 && Math.max(r, g, b) > 242;
+}
+
+function pushUnique(out: string[], hex: string, minDist: number): void {
+  const n = normalizeBookingHex(hex);
+  if (!n) return;
+  if (out.some(h => colorDistance(h, n) < minDist)) return;
+  out.push(n);
+}
+
+/** Extrae colores dominantes de una imagen (canvas). Incluye logos B/N. */
 export async function extractColorsFromImage(
   imageUrl: string,
   maxColors = 5,
@@ -157,24 +168,27 @@ export async function extractColorsFromImage(
   canvas.height = size;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return [];
+  // Fondo blanco: logos transparentes no quedan como negro opaco al muestrear.
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
   ctx.drawImage(img, 0, 0, size, size);
   const { data } = ctx.getImageData(0, 0, size, size);
   const buckets = new Map<string, Bucket>();
+  let darkPixels = 0;
 
   for (let i = 0; i < data.length; i += 4) {
     const a = data[i + 3];
-    if (a < 200) continue;
+    if (a < 160) continue;
     const r = data[i];
     const g = data[i + 1];
     const b = data[i + 2];
-    // Ignorar casi blanco / casi negro
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    if (max > 245 && min > 230) continue;
-    if (max < 28) continue;
-    const qr = r >> 4;
-    const qg = g >> 4;
-    const qb = b >> 4;
+    if (isNearWhite(r, g, b)) continue;
+    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    if (lum < 90) darkPixels += 1;
+    // Cuantizar un poco más fino en negros (logos lineales).
+    const qr = r >> 3;
+    const qg = g >> 3;
+    const qb = b >> 3;
     const key = `${qr},${qg},${qb}`;
     const prev = buckets.get(key);
     if (prev) {
@@ -192,18 +206,32 @@ export async function extractColorsFromImage(
       const rgb = { r: b.r / b.count, g: b.g / b.count, b: b.b / b.count };
       const hsl = rgbToHsl(rgb);
       const chroma = hsl.s * (1 - Math.abs(hsl.l - 0.5) * 1.4);
-      return { rgb, score: b.count * (0.35 + chroma), chroma, count: b.count };
+      // Preferir cromáticos; los grises oscuros siguen valiendo en logos B/N.
+      const score = b.count * (0.25 + chroma * 2.2 + (1 - hsl.l) * 0.35);
+      return { rgb, score, chroma, count: b.count, l: hsl.l };
     })
-    .filter(x => x.chroma > 0.08 || x.count > 40)
     .sort((a, b) => b.score - a.score);
 
+  const chromatic = ranked.filter(x => x.chroma > 0.06 && x.count >= 4);
   const out: string[] = [];
-  for (const item of ranked) {
-    const hex = rgbToHex(item.rgb);
-    if (out.some(h => colorDistance(h, hex) < 35)) continue;
-    out.push(hex);
-    if (out.length >= maxColors) break;
+
+  for (const item of chromatic) {
+    pushUnique(out, rgbToHex(item.rgb), 32);
+    if (out.length >= maxColors) return out;
   }
+
+  // Fallback mono: negros / grises del trazo (p. ej. logo solo negro sobre blanco).
+  if (out.length === 0) {
+    if (darkPixels >= 8) {
+      pushUnique(out, '#111111', 28);
+      pushUnique(out, '#333333', 28);
+    }
+    for (const item of ranked.filter(x => x.l < 0.55 && x.count >= 3)) {
+      pushUnique(out, rgbToHex(item.rgb), 28);
+      if (out.length >= Math.min(3, maxColors)) break;
+    }
+  }
+
   return out;
 }
 

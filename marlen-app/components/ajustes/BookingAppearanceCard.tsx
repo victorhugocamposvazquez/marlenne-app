@@ -19,6 +19,8 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { publicLogoUrl } from '@/lib/salon-branding';
 
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
 export default function BookingAppearanceCard({
   salonId,
   logoUrl: initialLogoUrl,
@@ -33,7 +35,12 @@ export default function BookingAppearanceCard({
   const toast = useToast();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveGen = useRef(0);
   const [accent, setAccent] = useState(
+    normalizeBookingHex(initialAccent) ?? BOOKING_DEFAULT_ACCENT,
+  );
+  const [savedAccent, setSavedAccent] = useState(
     normalizeBookingHex(initialAccent) ?? BOOKING_DEFAULT_ACCENT,
   );
   const [logoUrl, setLogoUrl] = useState(initialLogoUrl);
@@ -42,15 +49,19 @@ export default function BookingAppearanceCard({
   const [extracting, setExtracting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [dirty, setDirty] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
 
   const hasLogo = !!logoUrl;
   const theme = resolveBookingTheme({ accent });
-  const saved = normalizeBookingHex(initialAccent) ?? BOOKING_DEFAULT_ACCENT;
   const busy = pending || uploading;
 
   useEffect(() => {
-    // Tras refresh, la URL pública puede ser la misma ruta; no pisar un bust local más fresco.
+    const next = normalizeBookingHex(initialAccent) ?? BOOKING_DEFAULT_ACCENT;
+    setSavedAccent(next);
+    setAccent(prev => (saveStatus === 'saving' ? prev : next));
+  }, [initialAccent]); // eslint-disable-line react-hooks/exhaustive-deps -- no re-sync mid-save
+
+  useEffect(() => {
     setLogoPath(initialLogoPath);
     setLogoUrl(prev => {
       if (!initialLogoUrl) return null;
@@ -73,7 +84,6 @@ export default function BookingAppearanceCard({
       .then(colors => {
         if (cancelled) return;
         const next = buildLogoPalette(colors);
-        // Si la URL pública falla (CORS/caché), no borres chips ya sacados del blob local.
         if (next.length) setLogoChips(next);
       })
       .catch(() => {
@@ -85,31 +95,51 @@ export default function BookingAppearanceCard({
     return () => { cancelled = true; };
   }, [logoUrl]);
 
-  function pick(hex: string) {
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+  }, []);
+
+  function persistAccent(hex: string) {
     const n = normalizeBookingHex(hex);
     if (!n) return;
-    setAccent(n);
-    setDirty(true);
-  }
+    if (n === savedAccent && saveStatus !== 'error') {
+      setSaveStatus('saved');
+      return;
+    }
 
-  function reset() {
-    setAccent(BOOKING_DEFAULT_ACCENT);
-    setDirty(true);
-  }
-
-  function save() {
+    const gen = ++saveGen.current;
+    setSaveStatus('saving');
     startTransition(async () => {
       const r = await saveBookingTheme({
-        accent: accent === BOOKING_DEFAULT_ACCENT ? null : accent,
+        accent: n === BOOKING_DEFAULT_ACCENT ? null : n,
       });
+      if (gen !== saveGen.current) return;
       if (!r.ok) {
+        setSaveStatus('error');
         toast(r.error);
         return;
       }
-      setDirty(false);
-      toast('Colores del widget guardados');
+      setSavedAccent(n);
+      setSaveStatus('saved');
       router.refresh();
     });
+  }
+
+  function pick(hex: string, opts?: { debounce?: boolean }) {
+    const n = normalizeBookingHex(hex);
+    if (!n) return;
+    setAccent(n);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (opts?.debounce) {
+      setSaveStatus('saving');
+      debounceRef.current = setTimeout(() => persistAccent(n), 450);
+      return;
+    }
+    persistAccent(n);
+  }
+
+  function reset() {
+    pick(BOOKING_DEFAULT_ACCENT);
   }
 
   async function onPickLogo(file: File | undefined) {
@@ -118,7 +148,6 @@ export default function BookingAppearanceCard({
     setLogoChips([]);
     try {
       const blob = await compressImage(file);
-      // Ruta única: el upsert sobre logo.jpg se queda cacheado en el móvil.
       const path = `${salonId}/logo-${Date.now()}.jpg`;
       const sb = createClient();
       const { error: upErr } = await sb.storage.from('salon-branding').upload(path, blob, {
@@ -143,7 +172,6 @@ export default function BookingAppearanceCard({
         void sb.storage.from('salon-branding').remove([logoPath]);
       }
 
-      // Colores desde el blob local (sin CDN ni CORS) para ver el cambio al instante.
       const localUrl = URL.createObjectURL(blob);
       try {
         const colors = await extractColorsFromImage(localUrl);
@@ -190,7 +218,7 @@ export default function BookingAppearanceCard({
     <AjustesSection title="Apariencia" className="mt-0">
       <div className="space-y-4 py-4">
         <p className="text-body leading-snug text-ink-2">
-          Color del calendario y de los enlaces de un servicio.
+          Color del calendario y de los enlaces de un servicio. Se guarda al elegir un color.
           {hasLogo
             ? ' Con el logo del centro, sugerimos tonos a partir de él.'
             : ' Sube el logo del centro para sugerir colores automáticamente.'}
@@ -260,7 +288,7 @@ export default function BookingAppearanceCard({
               </div>
             ) : !extracting ? (
               <p className="mt-1 text-caption text-ink-3">
-                No se han podido sacar colores claros del logo.
+                No se han podido sacar colores del logo. Prueba con JPEG/PNG o elige un preset.
               </p>
             ) : null}
           </div>
@@ -271,8 +299,8 @@ export default function BookingAppearanceCard({
             <span className="text-caption font-semibold text-ink-2">Principal</span>
             <input
               type="color"
-              value={accent}
-              onChange={e => pick(e.target.value)}
+              value={normalizeBookingHex(accent) ?? BOOKING_DEFAULT_ACCENT}
+              onChange={e => pick(e.target.value, { debounce: true })}
               className="h-10 w-12 cursor-pointer rounded-field border border-surface-line bg-white p-1"
               aria-label="Color principal"
             />
@@ -282,11 +310,17 @@ export default function BookingAppearanceCard({
             onChange={e => {
               const v = e.target.value;
               setAccent(v);
-              if (normalizeBookingHex(v)) setDirty(true);
+              const n = normalizeBookingHex(v);
+              if (n) pick(n, { debounce: true });
             }}
             onBlur={() => {
               const n = normalizeBookingHex(accent);
-              if (n) setAccent(n);
+              if (n) {
+                setAccent(n);
+                persistAccent(n);
+              } else {
+                setAccent(savedAccent);
+              }
             }}
             spellCheck={false}
             className="w-[7.5rem] rounded-field border border-surface-line bg-white px-3 py-2 font-mono text-label outline-none ring-v focus:ring-2"
@@ -295,11 +329,13 @@ export default function BookingAppearanceCard({
           <button
             type="button"
             onClick={reset}
-            className="inline-flex items-center gap-1.5 rounded-pill border border-surface-line px-3 py-1.5 text-caption font-semibold text-ink"
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 rounded-pill border border-surface-line px-3 py-1.5 text-caption font-semibold text-ink disabled:opacity-45"
           >
             <RotateCcw className="h-3.5 w-3.5" />
             Restablecer
           </button>
+          <SaveHint status={saveStatus} />
         </div>
 
         <div>
@@ -336,27 +372,24 @@ export default function BookingAppearanceCard({
             </button>
           </div>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            disabled={busy || !dirty}
-            onClick={save}
-            className="inline-flex items-center gap-1.5 rounded-pill bg-ink px-4 py-2 text-caption font-semibold text-white disabled:opacity-40"
-          >
-            {pending ? 'Guardando…' : (
-              <>
-                <Check className="h-3.5 w-3.5" />
-                Guardar colores
-              </>
-            )}
-          </button>
-          {!dirty && accent === saved && (
-            <span className="text-caption text-ink-3">Sin cambios pendientes</span>
-          )}
-        </div>
       </div>
     </AjustesSection>
+  );
+}
+
+function SaveHint({ status }: { status: SaveStatus }) {
+  if (status === 'idle') return null;
+  if (status === 'saving') {
+    return <span className="text-caption text-ink-3">Guardando…</span>;
+  }
+  if (status === 'error') {
+    return <span className="text-caption font-semibold text-danger-fg">No se pudo guardar</span>;
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-caption font-semibold text-ink-2">
+      <Check className="h-3.5 w-3.5" aria-hidden />
+      Guardado
+    </span>
   );
 }
 
