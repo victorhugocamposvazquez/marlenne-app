@@ -12,7 +12,7 @@ export const ajustesCardCls = 'rounded-card bg-surface-soft px-4';
 export default function AjustesSection({
   title,
   children,
-  className = '',
+  className = 'mt-8',
   cardClassName = '',
 }: {
   title: string;
@@ -21,7 +21,7 @@ export default function AjustesSection({
   cardClassName?: string;
 }) {
   return (
-    <section className={`mt-8 ${className}`}>
+    <section className={className}>
       <h2 className={ajustesSectionTitleCls}>{title}</h2>
       <div className={`${ajustesCardCls} ${cardClassName}`}>{children}</div>
     </section>
