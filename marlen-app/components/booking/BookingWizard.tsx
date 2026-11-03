@@ -346,7 +346,7 @@ export default function BookingWizard({
                     ].join(' ')}
                   >
                     {/* Calendario: en móvil se oculta al elegir día (flujo Calendly) */}
-                    <div className={selectedDay ? 'hidden md:block md:min-w-0 md:flex-1' : 'w-full md:max-w-[360px]'}>
+                    <div className={selectedDay ? 'hidden md:block md:min-w-[240px] md:flex-1' : 'w-full md:max-w-[360px]'}>
                       <div className="flex items-center justify-between">
                         <p className="text-[16px] font-bold text-[var(--bk-ink)]">
                           {monthTitle(year, month)}
@@ -377,37 +377,38 @@ export default function BookingWizard({
                         </div>
                       </div>
 
-                      <div className="mt-3 grid grid-cols-7 gap-y-1 text-center">
+                      <div className="mt-3 grid grid-cols-7 gap-x-1 gap-y-2 text-center">
                         {weekdayLabels().map(d => (
                           <div
                             key={d}
-                            className="py-2 text-[12px] font-semibold uppercase tracking-wide text-[var(--bk-muted)]"
+                            className="py-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--bk-muted)] sm:text-[12px]"
                           >
                             {d.slice(0, 3)}
                           </div>
                         ))}
                         {monthCells(year, month).map((day, i) => {
-                          if (day == null) return <div key={`e-${i}`} />;
+                          if (day == null) return <div key={`e-${i}`} className="aspect-square" />;
                           const key = ymd(year, month, day);
                           const open = !loadingMonth && availableDays.has(key);
                           const selected = selectedDay === key;
                           return (
-                            <button
-                              key={key}
-                              type="button"
-                              disabled={!open}
-                              onClick={() => pickDay(day)}
-                              className={[
-                                'mx-auto flex h-10 w-10 items-center justify-center rounded-full text-[14px] font-semibold transition sm:h-11 sm:w-11',
-                                selected
-                                  ? 'bg-[var(--bk)] text-[var(--bk-on)]'
-                                  : open
-                                    ? 'bg-[var(--bk-soft)] text-[var(--bk)] hover:bg-[var(--bk)] hover:text-[var(--bk-on)]'
-                                    : 'cursor-default text-[#c5c8ce]',
-                              ].join(' ')}
-                            >
-                              {day}
-                            </button>
+                            <div key={key} className="flex aspect-square items-center justify-center p-0.5">
+                              <button
+                                type="button"
+                                disabled={!open}
+                                onClick={() => pickDay(day)}
+                                className={[
+                                  'flex h-full w-full max-h-11 max-w-11 items-center justify-center rounded-full text-[13px] font-semibold transition sm:text-[14px]',
+                                  selected
+                                    ? 'bg-[var(--bk)] text-[var(--bk-on)]'
+                                    : open
+                                      ? 'bg-[var(--bk-soft)] text-[var(--bk)] hover:bg-[var(--bk)] hover:text-[var(--bk-on)]'
+                                      : 'cursor-default text-[#c5c8ce]',
+                                ].join(' ')}
+                              >
+                                {day}
+                              </button>
+                            </div>
                           );
                         })}
                       </div>
@@ -457,7 +458,7 @@ export default function BookingWizard({
                                   className={[
                                     'h-12 flex-1 rounded-md border text-[14px] font-bold transition',
                                     active
-                                      ? 'border-transparent bg-[#0b3558] text-white'
+                                      ? 'border-transparent bg-[var(--bk)] text-[var(--bk-on)]'
                                       : 'border-[var(--bk)] text-[var(--bk)] hover:bg-[var(--bk-soft)]',
                                   ].join(' ')}
                                 >
