@@ -116,7 +116,9 @@ export default async function AjustesWidgetReservasPage() {
       </p>
       <div className="space-y-5">
         <BookingAppearanceCard
+          salonId={me.salon_id}
           logoUrl={logoUrl}
+          logoPath={booking?.logo_path ?? null}
           initialAccent={booking?.booking_accent ?? null}
         />
         <BookingLinksCard

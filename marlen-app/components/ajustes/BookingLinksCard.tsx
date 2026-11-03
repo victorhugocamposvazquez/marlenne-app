@@ -134,8 +134,7 @@ export default function BookingLinksCard({
         <AjustesSection title="Enlace de un servicio" className="mt-0">
           <div className="space-y-3 py-4">
             <p className="text-body leading-snug text-ink-2">
-              La clienta llega ya con ese servicio elegido. Opcional: un título propio
-              (ej. «Reserva tu cavitación»).
+              Ideal para anuncios directos, promociones y difusión.
             </p>
 
             <div className="grid gap-3 sm:grid-cols-2">

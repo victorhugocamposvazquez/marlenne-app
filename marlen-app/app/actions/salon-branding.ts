@@ -85,6 +85,9 @@ export async function saveSalonLogoPath(
 
   void recordOpsAudit('salon.logo', { salonId: me.salon_id, logoPath });
   revalidatePath('/ajustes/centro');
+  revalidatePath('/ajustes/widget-reservas');
   revalidatePath('/finanzas');
+  revalidatePath('/r', 'layout');
+  revalidatePath('/embed', 'layout');
   return { ok: true, error: null };
 }

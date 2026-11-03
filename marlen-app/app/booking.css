@@ -13,6 +13,7 @@ body:has(.booking-root) {
   --bk-hover: #0055d4;
   --bk-soft: #e7f0ff;
   --bk-ink: #0b3558;
+  --bk-on: #ffffff;
   --bk-muted: #6b7280;
   --bk-line: #dadee2;
   --bk-bg: #f8f8f9;

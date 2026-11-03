@@ -114,6 +114,8 @@ export type BookingThemeResolved = {
   accentSoft: string;
   accentHover: string;
   ink: string;
+  /** Texto sobre el accent (blanco o ink según contraste). */
+  onAccent: string;
 };
 
 export function resolveBookingTheme(input: {
@@ -124,11 +126,14 @@ export function resolveBookingTheme(input: {
   const accent = normalizeBookingHex(input.accent) ?? BOOKING_DEFAULT_ACCENT;
   const accentSoft = normalizeBookingHex(input.accentSoft) ?? deriveAccentSoft(accent);
   const ink = normalizeBookingHex(input.ink) ?? deriveBookingInk(accent);
+  const onAccent =
+    relativeLuminance(hexToRgb(accent)) > 0.55 ? ink : '#ffffff';
   return {
     accent,
     accentSoft,
     accentHover: darkenHex(accent, 0.12),
     ink,
+    onAccent,
   };
 }
 
@@ -139,6 +144,8 @@ export const BOOKING_PRESET_ACCENTS = [
   '#e85d4c',
   '#5b4fcf',
   '#0f766e',
+  '#111111',
+  '#f0c000',
 ] as const;
 
 type Bucket = { count: number; r: number; g: number; b: number };

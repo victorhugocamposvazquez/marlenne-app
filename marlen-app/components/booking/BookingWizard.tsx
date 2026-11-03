@@ -217,6 +217,7 @@ export default function BookingWizard({
         ['--bk-soft' as string]: theme.accentSoft,
         ['--bk-hover' as string]: theme.accentHover,
         ['--bk-ink' as string]: theme.ink,
+        ['--bk-on' as string]: theme.onAccent,
       }}
     >
       <div
@@ -399,9 +400,9 @@ export default function BookingWizard({
                               className={[
                                 'mx-auto flex h-10 w-10 items-center justify-center rounded-full text-[14px] font-semibold transition sm:h-11 sm:w-11',
                                 selected
-                                  ? 'bg-[var(--bk)] text-white'
+                                  ? 'bg-[var(--bk)] text-[var(--bk-on)]'
                                   : open
-                                    ? 'bg-[var(--bk-soft)] text-[var(--bk)] hover:bg-[var(--bk)] hover:text-white'
+                                    ? 'bg-[var(--bk-soft)] text-[var(--bk)] hover:bg-[var(--bk)] hover:text-[var(--bk-on)]'
                                     : 'cursor-default text-[#c5c8ce]',
                               ].join(' ')}
                             >
@@ -466,7 +467,7 @@ export default function BookingWizard({
                                   <button
                                     type="button"
                                     onClick={goDetails}
-                                    className="h-12 min-w-[88px] rounded-md bg-[var(--bk)] px-3 text-[14px] font-bold text-white transition hover:bg-[var(--bk-hover)]"
+                                    className="h-12 min-w-[88px] rounded-md bg-[var(--bk)] px-3 text-[14px] font-bold text-[var(--bk-on)] transition hover:bg-[var(--bk-hover)]"
                                   >
                                     Siguiente
                                   </button>
@@ -540,7 +541,7 @@ export default function BookingWizard({
                   <button
                     type="submit"
                     disabled={pending}
-                    className="mt-6 h-12 w-full rounded-full bg-[var(--bk)] text-[15px] font-bold text-white transition hover:bg-[var(--bk-hover)] disabled:opacity-60 sm:w-auto sm:px-8"
+                    className="mt-6 h-12 w-full rounded-full bg-[var(--bk)] text-[15px] font-bold text-[var(--bk-on)] transition hover:bg-[var(--bk-hover)] disabled:opacity-60 sm:w-auto sm:px-8"
                   >
                     {pending ? 'Reservando…' : 'Confirmar'}
                   </button>
