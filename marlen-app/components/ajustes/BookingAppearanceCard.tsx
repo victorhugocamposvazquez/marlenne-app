@@ -50,8 +50,15 @@ export default function BookingAppearanceCard({
   const busy = pending || uploading;
 
   useEffect(() => {
-    setLogoUrl(initialLogoUrl);
+    // Tras refresh, la URL pública puede ser la misma ruta; no pisar un bust local más fresco.
     setLogoPath(initialLogoPath);
+    setLogoUrl(prev => {
+      if (!initialLogoUrl) return null;
+      if (prev && prev.split('?')[0] === initialLogoUrl.split('?')[0] && prev.includes('?t=')) {
+        return prev;
+      }
+      return initialLogoUrl;
+    });
   }, [initialLogoUrl, initialLogoPath]);
 
   useEffect(() => {
@@ -64,10 +71,13 @@ export default function BookingAppearanceCard({
     setExtracting(true);
     extractColorsFromImage(logoUrl)
       .then(colors => {
-        if (!cancelled) setLogoChips(buildLogoPalette(colors));
+        if (cancelled) return;
+        const next = buildLogoPalette(colors);
+        // Si la URL pública falla (CORS/caché), no borres chips ya sacados del blob local.
+        if (next.length) setLogoChips(next);
       })
       .catch(() => {
-        if (!cancelled) setLogoChips([]);
+        /* conservar chips previos */
       })
       .finally(() => {
         if (!cancelled) setExtracting(false);
@@ -105,13 +115,16 @@ export default function BookingAppearanceCard({
   async function onPickLogo(file: File | undefined) {
     if (!file) return;
     setUploading(true);
+    setLogoChips([]);
     try {
       const blob = await compressImage(file);
-      const path = `${salonId}/logo.jpg`;
+      // Ruta única: el upsert sobre logo.jpg se queda cacheado en el móvil.
+      const path = `${salonId}/logo-${Date.now()}.jpg`;
       const sb = createClient();
       const { error: upErr } = await sb.storage.from('salon-branding').upload(path, blob, {
         contentType: 'image/jpeg',
         upsert: true,
+        cacheControl: '3600',
       });
       if (upErr) {
         toast(
@@ -126,11 +139,28 @@ export default function BookingAppearanceCard({
         toast(r.error);
         return;
       }
+      if (logoPath && logoPath !== path) {
+        void sb.storage.from('salon-branding').remove([logoPath]);
+      }
+
+      // Colores desde el blob local (sin CDN ni CORS) para ver el cambio al instante.
+      const localUrl = URL.createObjectURL(blob);
+      try {
+        const colors = await extractColorsFromImage(localUrl);
+        setLogoChips(buildLogoPalette(colors));
+      } catch {
+        /* el efecto de logoUrl reintentará con la URL pública */
+      } finally {
+        URL.revokeObjectURL(localUrl);
+      }
+
       const url = publicLogoUrl(path);
       setLogoPath(path);
       setLogoUrl(url ? `${url}?t=${Date.now()}` : null);
       toast('Logotipo actualizado');
       router.refresh();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'No se pudo subir el logo');
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -209,7 +239,7 @@ export default function BookingAppearanceCard({
           <input
             ref={fileRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/heic"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
             className="hidden"
             onChange={e => void onPickLogo(e.target.files?.[0])}
           />

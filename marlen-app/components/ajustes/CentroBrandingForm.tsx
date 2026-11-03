@@ -75,11 +75,12 @@ export default function CentroBrandingForm({
     setUploading(true);
     try {
       const blob = await compressImage(file);
-      const path = `${salonId}/logo.jpg`;
+      const path = `${salonId}/logo-${Date.now()}.jpg`;
       const sb = createClient();
       const { error: upErr } = await sb.storage.from('salon-branding').upload(path, blob, {
         contentType: 'image/jpeg',
         upsert: true,
+        cacheControl: '3600',
       });
       if (upErr) {
         setError(
@@ -94,11 +95,16 @@ export default function CentroBrandingForm({
         setError(r.error);
         return;
       }
+      if (logoPath && logoPath !== path) {
+        void sb.storage.from('salon-branding').remove([logoPath]);
+      }
       const url = publicLogoUrl(path);
       setLogoPath(path);
       setLogoUrl(url ? `${url}?t=${Date.now()}` : null);
       toast('Logotipo actualizado');
       router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo subir el logo');
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -180,7 +186,7 @@ export default function CentroBrandingForm({
             <input
               ref={fileRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/heic"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
               className="hidden"
               onChange={e => void onPickLogo(e.target.files?.[0])}
             />
