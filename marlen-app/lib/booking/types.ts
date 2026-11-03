@@ -15,6 +15,8 @@ export type BookingSalon = {
 export type BookingService = {
   id: string;
   name: string;
+  /** Slug amigable /r/{salon}/{slug}. */
+  slug?: string | null;
   category: string;
   duration_min: number;
   price_cents: number;
@@ -25,6 +27,8 @@ export type BookingService = {
 export type BookingProvider = {
   id: string;
   name: string;
+  /** Slug amigable ?con={slug}. */
+  slug?: string | null;
   sort_order: number;
 };
 

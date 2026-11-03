@@ -7,34 +7,60 @@ import { createClient } from '@/lib/supabase/server';
 export default async function AjustesWidgetReservasPage() {
   const me = await requireRole('admin');
   const sb = createClient();
-  const [bookingRes, servicesRes, providersRes] = await Promise.all([
-    sb
-      .from('salons')
-      .select('booking_slug, booking_enabled')
-      .eq('id', me.salon_id)
-      .maybeSingle(),
-    sb
+  const bookingRes = await sb
+    .from('salons')
+    .select('booking_slug, booking_enabled')
+    .eq('id', me.salon_id)
+    .maybeSingle();
+
+  let servicesRes = await sb
+    .from('services')
+    .select('id, name, booking_slug')
+    .eq('salon_id', me.salon_id)
+    .eq('is_active', true)
+    .eq('bookable_online', true)
+    .order('sort_order')
+    .order('name');
+  if (servicesRes.error) {
+    servicesRes = await sb
       .from('services')
       .select('id, name')
       .eq('salon_id', me.salon_id)
       .eq('is_active', true)
       .eq('bookable_online', true)
       .order('sort_order')
-      .order('name'),
-    sb
+      .order('name');
+  }
+
+  let providersRes = await sb
+    .from('staff')
+    .select('id, full_name, booking_slug')
+    .eq('salon_id', me.salon_id)
+    .eq('is_active', true)
+    .eq('role', 'provider')
+    .order('sort_order')
+    .order('full_name');
+  if (providersRes.error) {
+    providersRes = await sb
       .from('staff')
       .select('id, full_name')
       .eq('salon_id', me.salon_id)
       .eq('is_active', true)
       .eq('role', 'provider')
       .order('sort_order')
-      .order('full_name'),
-  ]);
+      .order('full_name');
+  }
+
   const booking = bookingRes.error ? null : bookingRes.data;
-  const services = (servicesRes.data ?? []).map(s => ({ id: s.id as string, name: s.name as string }));
+  const services = (servicesRes.data ?? []).map(s => ({
+    id: s.id as string,
+    name: s.name as string,
+    slug: ((s as { booking_slug?: string | null }).booking_slug) ?? null,
+  }));
   const providers = (providersRes.data ?? []).map(p => ({
     id: p.id as string,
     name: p.full_name as string,
+    slug: ((p as { booking_slug?: string | null }).booking_slug) ?? null,
   }));
 
   const h = headers();

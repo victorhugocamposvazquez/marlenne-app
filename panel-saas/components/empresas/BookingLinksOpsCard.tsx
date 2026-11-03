@@ -7,6 +7,7 @@ import {
   buildBookingEmbedUrl,
   buildBookingIframe,
   buildBookingPageUrl,
+  publicOptionSlug,
   type LiveBookingLinks,
 } from '@/lib/live-booking';
 import { marlenAppUrl } from '@/lib/marlen-app-url';
@@ -17,18 +18,21 @@ export default function BookingLinksOpsCard({ booking }: { booking: LiveBookingL
   const [copied, setCopied] = useState<string | null>(null);
   const [serviceId, setServiceId] = useState('');
   const [providerId, setProviderId] = useState('');
-  const [title, setTitle] = useState('');
+  const [titlesByService, setTitlesByService] = useState<Record<string, string>>({});
 
   const slug = booking.slug;
-  const cleanTitle = title.trim().slice(0, 80) || null;
-  const globalPage = slug ? buildBookingPageUrl(origin, slug, { title: cleanTitle }) : '';
+  const serviceTitle = serviceId ? (titlesByService[serviceId] ?? '') : '';
+  const cleanTitle = serviceTitle.trim().slice(0, 80) || null;
+  const globalPage = slug ? buildBookingPageUrl(origin, slug) : '';
+  const selectedService = booking.services.find(s => s.id === serviceId) ?? null;
+  const selectedProvider = booking.providers.find(p => p.id === providerId) ?? null;
   const adPreset = useMemo(
     () => ({
-      serviceId: serviceId || null,
-      providerId: providerId || null,
+      serviceSlug: selectedService ? publicOptionSlug(selectedService) : null,
+      providerSlug: selectedProvider ? publicOptionSlug(selectedProvider) : null,
       title: cleanTitle,
     }),
-    [serviceId, providerId, cleanTitle],
+    [selectedService, selectedProvider, cleanTitle],
   );
   const adPage = slug && serviceId ? buildBookingPageUrl(origin, slug, adPreset) : '';
   const adEmbed = slug && serviceId ? buildBookingEmbedUrl(origin, slug, adPreset) : '';
@@ -98,21 +102,10 @@ export default function BookingLinksOpsCard({ booking }: { booking: LiveBookingL
           Widget / enlace para ads
         </p>
         <p className="mt-1 text-[13px] text-ink-2">
-          Título a medida + servicio (y cabina) para no alargar el embudo del anuncio.
+          Elige servicio; el título personalizado queda ligado a ese servicio.
         </p>
 
         <label className="mt-3 block">
-          <span className="text-[12px] font-semibold text-ink-2">Título (opcional)</span>
-          <input
-            value={title}
-            onChange={e => setTitle(e.target.value.slice(0, 80))}
-            maxLength={80}
-            placeholder="Ej. Reserva tu cavitación"
-            className="mt-1 h-[42px] w-full rounded-[12px] border border-line bg-white px-3 text-[14px] outline-none"
-          />
-        </label>
-
-        <label className="mt-2.5 block">
           <span className="text-[12px] font-semibold text-ink-2">Servicio</span>
           <select
             value={serviceId}
@@ -129,20 +122,41 @@ export default function BookingLinksOpsCard({ booking }: { booking: LiveBookingL
           </select>
         </label>
 
-        <label className="mt-2.5 block">
-          <span className="text-[12px] font-semibold text-ink-2">Cabina / profesional (opcional)</span>
-          <select
-            value={providerId}
-            onChange={e => setProviderId(e.target.value)}
-            disabled={!serviceId}
-            className="mt-1 h-[42px] w-full rounded-[12px] border border-line bg-white px-3 text-[14px] outline-none disabled:opacity-50"
-          >
-            <option value="">Cualquiera disponible</option>
-            {booking.providers.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        </label>
+        {serviceId && (
+          <>
+            <label className="mt-2.5 block">
+              <span className="text-[12px] font-semibold text-ink-2">Título del widget (opcional)</span>
+              <input
+                value={serviceTitle}
+                onChange={e => setTitlesByService(prev => ({
+                  ...prev,
+                  [serviceId]: e.target.value.slice(0, 80),
+                }))}
+                maxLength={80}
+                placeholder={
+                  selectedService
+                    ? `Ej. Reserva tu ${selectedService.name.toLowerCase()}`
+                    : 'Ej. Reserva tu cavitación'
+                }
+                className="mt-1 h-[42px] w-full rounded-[12px] border border-line bg-white px-3 text-[14px] outline-none"
+              />
+            </label>
+
+            <label className="mt-2.5 block">
+              <span className="text-[12px] font-semibold text-ink-2">Cabina / profesional (opcional)</span>
+              <select
+                value={providerId}
+                onChange={e => setProviderId(e.target.value)}
+                className="mt-1 h-[42px] w-full rounded-[12px] border border-line bg-white px-3 text-[14px] outline-none"
+              >
+                <option value="">Cualquiera disponible</option>
+                {booking.providers.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </label>
+          </>
+        )}
 
         {adPage ? (
           <div className="mt-3">

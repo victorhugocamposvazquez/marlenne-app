@@ -10,7 +10,9 @@ import {
   bookingPageUrl,
   bookingQuery,
   parseBookingPreset,
+  slugifyBooking,
 } from '../lib/booking/urls';
+import { resolveBookingServiceId } from '../lib/booking/resolve';
 
 describe('booking calendar', () => {
   it('ymd pads month and day', () => {
@@ -36,32 +38,41 @@ describe('booking calendar', () => {
 });
 
 describe('booking deep links', () => {
-  it('builds query for ads preset', () => {
+  it('builds friendly service path', () => {
     assert.equal(bookingQuery({}), '');
     assert.equal(
-      bookingQuery({ serviceId: 'svc-1', providerId: 'pro-1' }),
-      '?service=svc-1&provider=pro-1',
+      bookingPageUrl('https://app.example', 'arlett', { serviceSlug: 'cavitacion' }),
+      'https://app.example/r/arlett/cavitacion',
     );
     assert.equal(
-      bookingPageUrl('https://app.example', 'arlett', { serviceId: 'svc-1' }),
-      'https://app.example/r/arlett?service=svc-1',
-    );
-    assert.match(
-      bookingQuery({ serviceId: 'svc-1', title: 'Reserva tu cavitación' }),
-      /title=Reserva/,
+      bookingPageUrl('https://app.example', 'arlett', {
+        serviceSlug: 'cavitacion',
+        providerSlug: 'cabina-1',
+        title: 'Reserva ya',
+      }),
+      'https://app.example/r/arlett/cavitacion?con=cabina-1&title=Reserva+ya',
     );
   });
 
+  it('slugify accents', () => {
+    assert.equal(slugifyBooking('Cavitación'), 'cavitacion');
+    assert.equal(slugifyBooking('D. Láser - 30 min'), 'd-laser-30-min');
+  });
+
   it('parses service/provider/title aliases', () => {
-    assert.deepEqual(parseBookingPreset({ s: 'svc', con: 'cab', t: 'Oferta' }), {
-      serviceId: 'svc',
-      providerId: 'cab',
+    assert.deepEqual(parseBookingPreset({ con: 'cab', t: 'Oferta' }), {
+      serviceId: null,
+      serviceSlug: null,
+      providerId: null,
+      providerSlug: 'cab',
       title: 'Oferta',
     });
-    assert.deepEqual(parseBookingPreset({ service: 'a', provider: 'b', title: '  Hola  ' }), {
-      serviceId: 'a',
-      providerId: 'b',
-      title: 'Hola',
-    });
+    assert.equal(
+      resolveBookingServiceId(
+        [{ id: '1', name: 'Cavitación', slug: 'cavitacion', category: '', duration_min: 30, price_cents: 0, color: null, sort_order: 0 }],
+        'cavitacion',
+      ),
+      '1',
+    );
   });
 });
