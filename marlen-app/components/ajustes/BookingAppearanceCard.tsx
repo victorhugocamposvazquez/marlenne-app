@@ -20,6 +20,7 @@ import { createClient } from '@/lib/supabase/client';
 import { publicLogoUrl } from '@/lib/salon-branding';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+type PreviewAnchor = 'logo' | 'presets' | 'manual';
 
 export default function BookingAppearanceCard({
   salonId,
@@ -50,10 +51,18 @@ export default function BookingAppearanceCard({
   const [uploading, setUploading] = useState(false);
   const [pending, startTransition] = useTransition();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [previewAt, setPreviewAt] = useState<PreviewAnchor>(() =>
+    (BOOKING_PRESET_ACCENTS as readonly string[]).includes(
+      normalizeBookingHex(initialAccent) ?? BOOKING_DEFAULT_ACCENT,
+    )
+      ? 'presets'
+      : 'manual',
+  );
 
   const hasLogo = !!logoUrl;
   const theme = resolveBookingTheme({ accent });
   const busy = pending || uploading;
+  const preview = <ThemePreview theme={theme} />;
 
   useEffect(() => {
     const next = normalizeBookingHex(initialAccent) ?? BOOKING_DEFAULT_ACCENT;
@@ -76,6 +85,7 @@ export default function BookingAppearanceCard({
     if (!logoUrl) {
       setLogoChips([]);
       setExtracting(false);
+      if (previewAt === 'logo') setPreviewAt('presets');
       return;
     }
     let cancelled = false;
@@ -84,7 +94,13 @@ export default function BookingAppearanceCard({
       .then(colors => {
         if (cancelled) return;
         const next = buildLogoPalette(colors);
-        if (next.length) setLogoChips(next);
+        if (next.length) {
+          setLogoChips(next);
+          setPreviewAt(prev => {
+            if (prev !== 'manual') return prev;
+            return next.includes(accent) ? 'logo' : prev;
+          });
+        }
       })
       .catch(() => {
         /* conservar chips previos */
@@ -93,7 +109,7 @@ export default function BookingAppearanceCard({
         if (!cancelled) setExtracting(false);
       });
     return () => { cancelled = true; };
-  }, [logoUrl]);
+  }, [logoUrl]); // eslint-disable-line react-hooks/exhaustive-deps -- no reanclar preview en cada accent
 
   useEffect(() => () => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -125,10 +141,14 @@ export default function BookingAppearanceCard({
     });
   }
 
-  function pick(hex: string, opts?: { debounce?: boolean }) {
+  function pick(
+    hex: string,
+    opts?: { debounce?: boolean; from?: PreviewAnchor },
+  ) {
     const n = normalizeBookingHex(hex);
     if (!n) return;
     setAccent(n);
+    if (opts?.from) setPreviewAt(opts.from);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (opts?.debounce) {
       setSaveStatus('saving');
@@ -139,7 +159,7 @@ export default function BookingAppearanceCard({
   }
 
   function reset() {
-    pick(BOOKING_DEFAULT_ACCENT);
+    pick(BOOKING_DEFAULT_ACCENT, { from: 'presets' });
   }
 
   async function onPickLogo(file: File | undefined) {
@@ -283,7 +303,12 @@ export default function BookingAppearanceCard({
             {logoChips.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-2">
                 {logoChips.map(c => (
-                  <ColorChip key={c} hex={c} active={accent === c} onClick={() => pick(c)} />
+                  <ColorChip
+                    key={c}
+                    hex={c}
+                    active={accent === c}
+                    onClick={() => pick(c, { from: 'logo' })}
+                  />
                 ))}
               </div>
             ) : !extracting ? (
@@ -291,89 +316,110 @@ export default function BookingAppearanceCard({
                 No se han podido sacar colores del logo. Prueba con JPEG/PNG o elige un preset.
               </p>
             ) : null}
+            {previewAt === 'logo' && logoChips.length > 0 && (
+              <div className="mt-3">{preview}</div>
+            )}
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="inline-flex items-center gap-2">
-            <span className="text-caption font-semibold text-ink-2">Principal</span>
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="inline-flex items-center gap-2">
+              <span className="text-caption font-semibold text-ink-2">Principal</span>
+              <input
+                type="color"
+                value={normalizeBookingHex(accent) ?? BOOKING_DEFAULT_ACCENT}
+                onChange={e => pick(e.target.value, { debounce: true, from: 'manual' })}
+                className="h-10 w-12 cursor-pointer rounded-field border border-surface-line bg-white p-1"
+                aria-label="Color principal"
+              />
+            </label>
             <input
-              type="color"
-              value={normalizeBookingHex(accent) ?? BOOKING_DEFAULT_ACCENT}
-              onChange={e => pick(e.target.value, { debounce: true })}
-              className="h-10 w-12 cursor-pointer rounded-field border border-surface-line bg-white p-1"
-              aria-label="Color principal"
+              value={accent}
+              onChange={e => {
+                const v = e.target.value;
+                setAccent(v);
+                const n = normalizeBookingHex(v);
+                if (n) pick(n, { debounce: true, from: 'manual' });
+              }}
+              onBlur={() => {
+                const n = normalizeBookingHex(accent);
+                if (n) {
+                  setAccent(n);
+                  setPreviewAt('manual');
+                  persistAccent(n);
+                } else {
+                  setAccent(savedAccent);
+                }
+              }}
+              spellCheck={false}
+              className="w-[7.5rem] rounded-field border border-surface-line bg-white px-3 py-2 font-mono text-label outline-none ring-v focus:ring-2"
+              aria-label="Hex del color"
             />
-          </label>
-          <input
-            value={accent}
-            onChange={e => {
-              const v = e.target.value;
-              setAccent(v);
-              const n = normalizeBookingHex(v);
-              if (n) pick(n, { debounce: true });
-            }}
-            onBlur={() => {
-              const n = normalizeBookingHex(accent);
-              if (n) {
-                setAccent(n);
-                persistAccent(n);
-              } else {
-                setAccent(savedAccent);
-              }
-            }}
-            spellCheck={false}
-            className="w-[7.5rem] rounded-field border border-surface-line bg-white px-3 py-2 font-mono text-label outline-none ring-v focus:ring-2"
-            aria-label="Hex del color"
-          />
-          <button
-            type="button"
-            onClick={reset}
-            disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-pill border border-surface-line px-3 py-1.5 text-caption font-semibold text-ink disabled:opacity-45"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Restablecer
-          </button>
-          <SaveHint status={saveStatus} />
+            <button
+              type="button"
+              onClick={reset}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 rounded-pill border border-surface-line px-3 py-1.5 text-caption font-semibold text-ink disabled:opacity-45"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Restablecer
+            </button>
+            <SaveHint status={saveStatus} />
+          </div>
+          {previewAt === 'manual' && <div className="mt-3">{preview}</div>}
         </div>
 
         <div>
           <p className="text-caption font-semibold text-ink-2">Presets</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {BOOKING_PRESET_ACCENTS.map(c => (
-              <ColorChip key={c} hex={c} active={accent === c} onClick={() => pick(c)} />
+              <ColorChip
+                key={c}
+                hex={c}
+                active={accent === c}
+                onClick={() => pick(c, { from: 'presets' })}
+              />
             ))}
           </div>
-        </div>
-
-        <div className="rounded-2xl border border-surface-line bg-white p-4">
-          <p className="text-caption font-semibold text-ink-3">Vista rápida</p>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <span
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[13px] font-bold"
-              style={{ background: theme.accent, color: theme.onAccent }}
-            >
-              12
-            </span>
-            <button
-              type="button"
-              className="h-10 rounded-md px-4 text-[13px] font-bold"
-              style={{ background: theme.accent, color: theme.onAccent }}
-            >
-              10:30
-            </button>
-            <button
-              type="button"
-              className="h-10 rounded-md border-2 px-4 text-[13px] font-bold"
-              style={{ borderColor: theme.accent, color: theme.accent, background: theme.accentSoft }}
-            >
-              Continuar
-            </button>
-          </div>
+          {previewAt === 'presets' && <div className="mt-3">{preview}</div>}
         </div>
       </div>
     </AjustesSection>
+  );
+}
+
+function ThemePreview({
+  theme,
+}: {
+  theme: ReturnType<typeof resolveBookingTheme>;
+}) {
+  return (
+    <div className="rounded-2xl border border-surface-line bg-white p-4">
+      <p className="text-caption font-semibold text-ink-3">Vista rápida</p>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <span
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[13px] font-bold"
+          style={{ background: theme.accent, color: theme.onAccent }}
+        >
+          12
+        </span>
+        <button
+          type="button"
+          className="h-10 rounded-md px-4 text-[13px] font-bold"
+          style={{ background: theme.accent, color: theme.onAccent }}
+        >
+          10:30
+        </button>
+        <button
+          type="button"
+          className="h-10 rounded-md border-2 px-4 text-[13px] font-bold"
+          style={{ borderColor: theme.accent, color: theme.accent, background: theme.accentSoft }}
+        >
+          Continuar
+        </button>
+      </div>
+    </div>
   );
 }
 
