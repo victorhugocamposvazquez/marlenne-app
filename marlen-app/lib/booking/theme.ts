@@ -104,11 +104,6 @@ export function deriveBookingInk(accent: string): string {
   return contrast >= 4.5 ? candidate : BOOKING_DEFAULT_INK;
 }
 
-export function complementaryHex(accent: string): string {
-  const hsl = rgbToHsl(hexToRgb(accent));
-  return rgbToHex(hslToRgb({ h: hsl.h + 180, s: Math.min(0.7, hsl.s * 1.05), l: Math.min(0.52, Math.max(0.35, hsl.l)) }));
-}
-
 export type BookingThemeResolved = {
   accent: string;
   accentSoft: string;
@@ -228,7 +223,7 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
-/** Sugerencias: dominantes + complementario del más cromático. */
+/** Solo colores muestreados del logo (sin complementarios inventados). */
 export function buildLogoPalette(dominants: string[]): string[] {
   if (!dominants.length) return [];
   const best = [...dominants].sort((a, b) => {
@@ -236,21 +231,14 @@ export function buildLogoPalette(dominants: string[]): string[] {
     const sb = rgbToHsl(hexToRgb(b)).s;
     return sb - sa;
   })[0];
-  const comp = complementaryHex(best);
-  const varied = rgbToHex(
-    hslToRgb({
-      ...rgbToHsl(hexToRgb(best)),
-      l: Math.min(0.55, rgbToHsl(hexToRgb(best)).l + 0.08),
-    }),
-  );
-  const merged = [best, ...dominants.filter(c => c !== best), comp, varied];
+  const ordered = [best, ...dominants.filter(c => c !== best)];
   const out: string[] = [];
-  for (const c of merged) {
+  for (const c of ordered) {
     const hex = normalizeBookingHex(c);
     if (!hex) continue;
     if (out.some(h => colorDistance(h, hex) < 28)) continue;
     out.push(hex);
-    if (out.length >= 6) break;
+    if (out.length >= 5) break;
   }
   return out;
 }

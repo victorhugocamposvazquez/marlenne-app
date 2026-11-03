@@ -215,6 +215,27 @@ export default function BookingAppearanceCard({
           />
         </div>
 
+        {hasLogo && (
+          <div>
+            <p className="inline-flex items-center gap-1.5 text-caption font-semibold text-ink-2">
+              <Sparkles className="h-3.5 w-3.5" />
+              Del logo
+              {extracting && <span className="font-normal text-ink-3"> · extrayendo…</span>}
+            </p>
+            {logoChips.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {logoChips.map(c => (
+                  <ColorChip key={c} hex={c} active={accent === c} onClick={() => pick(c)} />
+                ))}
+              </div>
+            ) : !extracting ? (
+              <p className="mt-1 text-caption text-ink-3">
+                No se han podido sacar colores claros del logo.
+              </p>
+            ) : null}
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center gap-3">
           <label className="inline-flex items-center gap-2">
             <span className="text-caption font-semibold text-ink-2">Principal</span>
@@ -259,27 +280,6 @@ export default function BookingAppearanceCard({
             ))}
           </div>
         </div>
-
-        {hasLogo && (
-          <div>
-            <p className="inline-flex items-center gap-1.5 text-caption font-semibold text-ink-2">
-              <Sparkles className="h-3.5 w-3.5" />
-              Del logo
-              {extracting && <span className="font-normal text-ink-3"> · extrayendo…</span>}
-            </p>
-            {logoChips.length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {logoChips.map(c => (
-                  <ColorChip key={c} hex={c} active={accent === c} onClick={() => pick(c)} />
-                ))}
-              </div>
-            ) : !extracting ? (
-              <p className="mt-1 text-caption text-ink-3">
-                No se han podido sacar colores claros del logo.
-              </p>
-            ) : null}
-          </div>
-        )}
 
         <div className="rounded-2xl border border-surface-line bg-white p-4">
           <p className="text-caption font-semibold text-ink-3">Vista rápida</p>
