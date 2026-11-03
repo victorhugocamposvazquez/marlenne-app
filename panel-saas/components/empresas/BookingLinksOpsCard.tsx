@@ -17,19 +17,25 @@ export default function BookingLinksOpsCard({ booking }: { booking: LiveBookingL
   const [copied, setCopied] = useState<string | null>(null);
   const [serviceId, setServiceId] = useState('');
   const [providerId, setProviderId] = useState('');
+  const [title, setTitle] = useState('');
 
   const slug = booking.slug;
-  const globalPage = slug ? buildBookingPageUrl(origin, slug) : '';
+  const cleanTitle = title.trim().slice(0, 80) || null;
+  const globalPage = slug ? buildBookingPageUrl(origin, slug, { title: cleanTitle }) : '';
   const adPreset = useMemo(
-    () => ({ serviceId: serviceId || null, providerId: providerId || null }),
-    [serviceId, providerId],
+    () => ({
+      serviceId: serviceId || null,
+      providerId: providerId || null,
+      title: cleanTitle,
+    }),
+    [serviceId, providerId, cleanTitle],
   );
   const adPage = slug && serviceId ? buildBookingPageUrl(origin, slug, adPreset) : '';
   const adEmbed = slug && serviceId ? buildBookingEmbedUrl(origin, slug, adPreset) : '';
   const adIframe = adEmbed
     ? buildBookingIframe(
         adEmbed,
-        booking.services.find(s => s.id === serviceId)?.name ?? 'Reservar cita',
+        cleanTitle || booking.services.find(s => s.id === serviceId)?.name || 'Reservar cita',
       )
     : '';
 
@@ -49,7 +55,7 @@ export default function BookingLinksOpsCard({ booking }: { booking: LiveBookingL
       <div className="rounded-card bg-white p-5">
         <h2 className="text-[16px] font-bold">Reserva online / anuncios</h2>
         <p className="mt-2 text-[14px] text-ink-2">
-          Este centro aún no tiene slug de booking. Actívalo en la migración o en Ajustes del centro.
+          Este centro aún no tiene slug de booking. Actívalo en Ajustes → Widget reservas de la app.
         </p>
       </div>
     );
@@ -92,10 +98,21 @@ export default function BookingLinksOpsCard({ booking }: { booking: LiveBookingL
           Widget / enlace para ads
         </p>
         <p className="mt-1 text-[13px] text-ink-2">
-          Preselecciona servicio (y opcionalmente cabina) para no alargar el embudo del anuncio.
+          Título a medida + servicio (y cabina) para no alargar el embudo del anuncio.
         </p>
 
         <label className="mt-3 block">
+          <span className="text-[12px] font-semibold text-ink-2">Título (opcional)</span>
+          <input
+            value={title}
+            onChange={e => setTitle(e.target.value.slice(0, 80))}
+            maxLength={80}
+            placeholder="Ej. Reserva tu cavitación"
+            className="mt-1 h-[42px] w-full rounded-[12px] border border-line bg-white px-3 text-[14px] outline-none"
+          />
+        </label>
+
+        <label className="mt-2.5 block">
           <span className="text-[12px] font-semibold text-ink-2">Servicio</span>
           <select
             value={serviceId}

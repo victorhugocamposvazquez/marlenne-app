@@ -58,6 +58,10 @@ export default function AjustesIndex({
       href: '/ajustes/servicios',
       title: 'Tratamientos',
       hint: 'Categorías, precios, duración y bonos',
+    }, {
+      href: '/ajustes/widget-reservas',
+      title: 'Widget reservas',
+      hint: 'Calendario online, anuncios y vista previa',
     }] : []),
     ...(desk ? [{
       href: '/ajustes/bonos',

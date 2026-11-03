@@ -38,6 +38,7 @@ export default async function EmbedBookingPage({ params, searchParams }: Props) 
       providers={cat.providers}
       presetServiceId={preset.serviceId}
       presetProviderId={preset.providerId}
+      customTitle={preset.title}
       embed
     />
   );

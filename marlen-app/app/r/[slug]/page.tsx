@@ -11,14 +11,18 @@ type Props = {
   searchParams: Record<string, string | string[] | undefined>;
 };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const slug = decodeURIComponent(params.slug).toLowerCase();
   const cat = await loadBookingCatalog(slug);
+  const preset = parseBookingPreset(searchParams);
   if (!cat.ok) {
     return { title: `Reservar · ${BRAND_NAME}`, robots: { index: false } };
   }
+  const headline = preset.title
+    ?? cat.services.find(s => s.id === preset.serviceId)?.name
+    ?? `Reservar en ${cat.salon.name}`;
   return {
-    title: `Reservar en ${cat.salon.name} · ${BRAND_NAME}`,
+    title: `${headline} · ${BRAND_NAME}`,
     description: cat.salon.intro ?? `Pide cita online en ${cat.salon.name}`,
   };
 }
@@ -47,6 +51,7 @@ export default async function PublicBookingPage({ params, searchParams }: Props)
       providers={cat.providers}
       presetServiceId={preset.serviceId}
       presetProviderId={preset.providerId}
+      customTitle={preset.title}
     />
   );
 }

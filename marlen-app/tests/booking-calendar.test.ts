@@ -46,16 +46,22 @@ describe('booking deep links', () => {
       bookingPageUrl('https://app.example', 'arlett', { serviceId: 'svc-1' }),
       'https://app.example/r/arlett?service=svc-1',
     );
+    assert.match(
+      bookingQuery({ serviceId: 'svc-1', title: 'Reserva tu cavitación' }),
+      /title=Reserva/,
+    );
   });
 
-  it('parses service/provider aliases', () => {
-    assert.deepEqual(parseBookingPreset({ s: 'svc', con: 'cab' }), {
+  it('parses service/provider/title aliases', () => {
+    assert.deepEqual(parseBookingPreset({ s: 'svc', con: 'cab', t: 'Oferta' }), {
       serviceId: 'svc',
       providerId: 'cab',
+      title: 'Oferta',
     });
-    assert.deepEqual(parseBookingPreset({ service: 'a', provider: 'b' }), {
+    assert.deepEqual(parseBookingPreset({ service: 'a', provider: 'b', title: '  Hola  ' }), {
       serviceId: 'a',
       providerId: 'b',
+      title: 'Hola',
     });
   });
 });

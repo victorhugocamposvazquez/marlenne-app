@@ -62,30 +62,36 @@ export async function loadLiveBookingLinks(): Promise<LiveBookingLinks | null> {
   };
 }
 
-export function buildBookingPageUrl(
-  appOrigin: string,
-  slug: string,
-  preset: { serviceId?: string | null; providerId?: string | null } = {},
-): string {
-  const base = `${appOrigin.replace(/\/$/, '')}/r/${slug}`;
+type BookingPreset = {
+  serviceId?: string | null;
+  providerId?: string | null;
+  title?: string | null;
+};
+
+function bookingQuery(preset: BookingPreset): string {
   const q = new URLSearchParams();
   if (preset.serviceId) q.set('service', preset.serviceId);
   if (preset.providerId) q.set('provider', preset.providerId);
+  const title = preset.title?.replace(/[\u0000-\u001F\u007F]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  if (title) q.set('title', title);
   const s = q.toString();
-  return s ? `${base}?${s}` : base;
+  return s ? `?${s}` : '';
+}
+
+export function buildBookingPageUrl(
+  appOrigin: string,
+  slug: string,
+  preset: BookingPreset = {},
+): string {
+  return `${appOrigin.replace(/\/$/, '')}/r/${slug}${bookingQuery(preset)}`;
 }
 
 export function buildBookingEmbedUrl(
   appOrigin: string,
   slug: string,
-  preset: { serviceId?: string | null; providerId?: string | null } = {},
+  preset: BookingPreset = {},
 ): string {
-  const base = `${appOrigin.replace(/\/$/, '')}/embed/${slug}`;
-  const q = new URLSearchParams();
-  if (preset.serviceId) q.set('service', preset.serviceId);
-  if (preset.providerId) q.set('provider', preset.providerId);
-  const s = q.toString();
-  return s ? `${base}?${s}` : base;
+  return `${appOrigin.replace(/\/$/, '')}/embed/${slug}${bookingQuery(preset)}`;
 }
 
 export function buildBookingIframe(embedUrl: string, title = 'Reservar cita'): string {

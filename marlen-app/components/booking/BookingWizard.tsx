@@ -23,7 +23,7 @@ import {
 } from '@/lib/booking/calendar';
 import { apiDaySlots, apiMonthDays, apiSubmitBooking } from '@/lib/booking/client';
 import { durLbl, madridNow } from '@/lib/time';
-import { BRAND_NAME } from '@/lib/brand';
+import BrandLogo from '@/components/BrandLogo';
 import type {
   BookingConfirm,
   BookingProvider,
@@ -41,6 +41,7 @@ export default function BookingWizard({
   providers = [],
   presetServiceId = null,
   presetProviderId = null,
+  customTitle = null,
   embed = false,
 }: {
   slug: string;
@@ -49,6 +50,8 @@ export default function BookingWizard({
   providers?: BookingProvider[];
   presetServiceId?: string | null;
   presetProviderId?: string | null;
+  /** Título del embudo/ads; sustituye el genérico o el nombre del servicio. */
+  customTitle?: string | null;
   embed?: boolean;
 }) {
   const lockedService = services.find(s => s.id === presetServiceId) ?? null;
@@ -232,8 +235,11 @@ export default function BookingWizard({
 
                 <p className="text-[14px] font-semibold text-[var(--bk-muted)]">{salon.name}</p>
                 <h1 className="mt-1 text-[22px] font-bold leading-tight tracking-[-0.02em] text-[var(--bk-ink)] sm:text-[26px]">
-                  {service ? service.name : 'Reservar cita'}
+                  {customTitle || (service ? service.name : 'Reservar cita')}
                 </h1>
+                {customTitle && service && customTitle !== service.name && (
+                  <p className="mt-1.5 text-[14px] font-medium text-[var(--bk-muted)]">{service.name}</p>
+                )}
 
                 {service ? (
                   <ul className="mt-4 space-y-2.5 text-[14px] text-[var(--bk-muted)] sm:mt-5">
@@ -551,9 +557,9 @@ export default function BookingWizard({
         </div>
 
         {!embed && (
-          <p className="mt-4 px-4 pb-6 text-center text-[12px] text-[var(--bk-muted)] sm:mt-6 sm:pb-0">
-            Potenciado por <span className="font-semibold text-[var(--bk-ink)]">{BRAND_NAME}</span>
-          </p>
+          <div className="mt-4 flex justify-center px-4 pb-6 sm:mt-6 sm:pb-0">
+            <BrandLogo size={36} />
+          </div>
         )}
       </div>
     </div>
