@@ -8,6 +8,8 @@ export type BookingLinkPreset = {
   providerSlug?: string | null;
   /** Título visible del widget (embudo / ads). */
   title?: string | null;
+  /** Clave de booking_links (/r/{slug}/l/{linkKey}). */
+  linkKey?: string | null;
 };
 
 const TITLE_MAX = 80;
@@ -54,12 +56,14 @@ export function bookingQuery(preset: BookingLinkPreset = {}): string {
 
 function bookingPath(salonSlug: string, preset: BookingLinkPreset = {}): string {
   const base = `/r/${salonSlug}`;
+  if (preset.linkKey) return `${base}/l/${encodeURIComponent(preset.linkKey)}`;
   if (preset.serviceSlug) return `${base}/${encodeURIComponent(preset.serviceSlug)}`;
   return base;
 }
 
 function embedPath(salonSlug: string, preset: BookingLinkPreset = {}): string {
   const base = `/embed/${salonSlug}`;
+  if (preset.linkKey) return `${base}/l/${encodeURIComponent(preset.linkKey)}`;
   if (preset.serviceSlug) return `${base}/${encodeURIComponent(preset.serviceSlug)}`;
   return base;
 }

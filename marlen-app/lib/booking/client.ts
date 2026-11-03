@@ -1,4 +1,9 @@
-import type { BookingConfirm, BookingFail, BookingSlot } from '@/lib/booking/types';
+import type {
+  BookingCheckoutRedirect,
+  BookingConfirm,
+  BookingFail,
+  BookingSlot,
+} from '@/lib/booking/types';
 
 async function readJson<T>(res: Response): Promise<T> {
   const ct = res.headers.get('content-type') ?? '';
@@ -50,7 +55,13 @@ export async function apiSubmitBooking(input: {
   phone: string;
   email?: string;
   note?: string;
-}): Promise<BookingConfirm | (BookingFail & { message: string })> {
+  linkKey?: string | null;
+  embed?: boolean;
+}): Promise<
+  | BookingConfirm
+  | BookingCheckoutRedirect
+  | (BookingFail & { message: string })
+> {
   const res = await fetch(`/api/booking/${encodeURIComponent(input.slug)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -62,6 +73,8 @@ export async function apiSubmitBooking(input: {
       phone: input.phone,
       email: input.email,
       note: input.note,
+      linkKey: input.linkKey ?? null,
+      embed: input.embed ?? false,
     }),
   });
   return readJson(res);

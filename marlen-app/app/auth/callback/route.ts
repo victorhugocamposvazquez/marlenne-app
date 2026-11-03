@@ -45,14 +45,22 @@ export async function GET(req: Request) {
   const origin = url.origin;
   const embed = isEmbedPanelRequest(req);
 
+  const nextRaw = url.searchParams.get('next');
+  const isBookingNext =
+    !!nextRaw
+    && (nextRaw.startsWith('/r/') || nextRaw.startsWith('/embed/'));
+
   if (!code) {
+    if (isBookingNext) {
+      return NextResponse.redirect(new URL(nextRaw!.split('?')[0] || '/r', origin));
+    }
     const fail = new URL('/login', origin);
     fail.searchParams.set('error', 'ops_session');
     if (embed) fail.searchParams.set('embed', '1');
     return NextResponse.redirect(fail);
   }
 
-  const nextUrl = safeNext(url.searchParams.get('next'), origin);
+  const nextUrl = safeNext(nextRaw, origin);
   const pending = verifyOpsPending(cookies().get(OPS_PENDING_COOKIE)?.value);
 
   const opsCompany = url.searchParams.get('ops_company') ?? pending?.companyName;
@@ -74,6 +82,9 @@ export async function GET(req: Request) {
   const sb = createClientOnResponse(res, embed);
   const { error } = await sb.auth.exchangeCodeForSession(code);
   if (error) {
+    if (isBookingNext) {
+      return NextResponse.redirect(nextUrl);
+    }
     const fail = new URL('/login', origin);
     fail.searchParams.set('error', 'ops_session');
     if (embed) fail.searchParams.set('embed', '1');

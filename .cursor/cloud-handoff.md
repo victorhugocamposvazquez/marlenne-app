@@ -8,13 +8,15 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Pendiente (hazlo en el MacBook o mergea la rama cloud)
 
-- **Panel SaaS en Vercel:** segundo proyecto, repo `marlenne-app`, Root `panel-saas`. En prod de `marlen-app`: `NEXT_PUBLIC_PANEL_URL` = URL del panel. `/platform/*` redirige vía middleware (consola antigua eliminada).
-- **Web corporativa** (`main-website/`): scaffold Next :3002; tercer Vercel cuando toque.
+- **Supabase Auth:** Site URL + Redirect URLs → `https://app.marlenapp.com` (y `/**`). Mantener `marlenne-app.vercel.app` un tiempo.
+- **Vercel `marlen-website`:** conectar GitHub del monorepo (falló por Login Connection) para deploys automáticos; Root `main-website`.
+- Equipo: reinstalar PWA desde `https://app.marlenapp.com`.
 
 ---
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
+- 2026-11-03 — **Dominios marlenapp.com:** www/apex → coming soon (`marlen-website`); `app.` → PWA; `panel.` → ops. Envs producción actualizados.
 - 2026-11-01 — **Carrusel cambio de semana** + **citas fondo sólido** (nombre blanco), PR #23 → `main`.
 - 2026-11-01 — **Animación cambio de semana** en `DayStrip` (flechas + swipe), PR #22 → `main` (supersedido por carrusel #23).
 - 2026-09-30 — **Finanzas carga DB:** select como agenda + salon_id + avisos si falla/periodo vacío.

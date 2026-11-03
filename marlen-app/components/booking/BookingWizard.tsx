@@ -25,8 +25,10 @@ import { apiDaySlots, apiMonthDays, apiSubmitBooking } from '@/lib/booking/clien
 import { resolveBookingTheme } from '@/lib/booking/theme';
 import { durLbl, madridNow } from '@/lib/time';
 import BrandLogo from '@/components/BrandLogo';
+import BookingGoogleButton from '@/components/booking/BookingGoogleButton';
 import type {
   BookingConfirm,
+  BookingLink,
   BookingProvider,
   BookingSalon,
   BookingService,
@@ -43,6 +45,7 @@ export default function BookingWizard({
   presetServiceId = null,
   presetProviderId = null,
   customTitle = null,
+  bookingLink = null,
   embed = false,
 }: {
   slug: string;
@@ -53,12 +56,15 @@ export default function BookingWizard({
   presetProviderId?: string | null;
   /** Título del embudo/ads; sustituye el genérico o el nombre del servicio. */
   customTitle?: string | null;
+  bookingLink?: BookingLink | null;
   embed?: boolean;
 }) {
   const lockedService = services.find(s => s.id === presetServiceId) ?? null;
   const lockedProvider =
     (presetProviderId && providers.find(p => p.id === presetProviderId)) || null;
   const providerFilterId = lockedProvider?.id ?? null;
+  const paymentMode = bookingLink?.payment_mode ?? 'free';
+  const needsCard = paymentMode === 'pay_full' || paymentMode === 'pay_deposit';
 
   const now = madridNow();
   const [step, setStep] = useState<Step>(lockedService ? 'when' : 'services');
@@ -165,6 +171,10 @@ export default function BookingWizard({
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!service || !slot) return;
+    if (needsCard && !email.trim()) {
+      setError('Para pagar con tarjeta necesitamos tu email.');
+      return;
+    }
     setError(null);
     startTransition(async () => {
       try {
@@ -177,13 +187,21 @@ export default function BookingWizard({
           phone,
           email: email.trim() || undefined,
           note: note.trim() || undefined,
+          linkKey: bookingLink?.key ?? null,
+          embed,
         });
         if (!r.ok) {
           setError(r.message ?? 'No se ha podido completar la reserva.');
           return;
         }
-        setConfirm(r);
-        setStep('done');
+        if ('checkout' in r && r.checkout && r.url) {
+          window.location.href = r.url;
+          return;
+        }
+        if ('id' in r) {
+          setConfirm(r);
+          setStep('done');
+        }
       } catch {
         setError('No se ha podido completar la reserva. Prueba de nuevo.');
       }
@@ -491,6 +509,25 @@ export default function BookingWizard({
                   <p className="mt-1 text-[14px] capitalize text-[var(--bk-muted)]">
                     {when.date} · {when.time}
                   </p>
+                  {needsCard && (
+                    <p className="mt-2 rounded-md bg-[var(--bk-soft)] px-3 py-2 text-[13px] font-semibold text-[var(--bk)]">
+                      {paymentMode === 'pay_deposit'
+                        ? 'Se pedirá una señal con tarjeta para confirmar la cita.'
+                        : 'Se cobrará el importe íntegro con tarjeta para confirmar la cita.'}
+                    </p>
+                  )}
+
+                  <div className="mt-5">
+                    <BookingGoogleButton
+                      slug={slug}
+                      embed={embed}
+                      linkKey={bookingLink?.key ?? null}
+                      onProfile={({ name, email: em }) => {
+                        if (name) setFullName(prev => prev || name);
+                        if (em) setEmail(prev => prev || em);
+                      }}
+                    />
+                  </div>
 
                   <Field label="Nombre *">
                     <input
@@ -544,7 +581,11 @@ export default function BookingWizard({
                     disabled={pending}
                     className="mt-6 h-12 w-full rounded-full bg-[var(--bk)] text-[15px] font-bold text-[var(--bk-on)] transition hover:bg-[var(--bk-hover)] disabled:opacity-60 sm:w-auto sm:px-8"
                   >
-                    {pending ? 'Reservando…' : 'Confirmar'}
+                    {pending
+                      ? (needsCard ? 'Redirigiendo al pago…' : 'Reservando…')
+                      : needsCard
+                        ? (paymentMode === 'pay_deposit' ? 'Pagar señal' : 'Pagar y confirmar')
+                        : 'Confirmar'}
                   </button>
                 </form>
               )}

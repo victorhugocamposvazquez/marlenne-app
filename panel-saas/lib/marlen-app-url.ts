@@ -1,7 +1,8 @@
 /** PWA del salón (misma BD que el panel en Live). */
 export function marlenAppUrl(): string {
   const raw = process.env.NEXT_PUBLIC_MARLEN_APP_URL?.trim()
-    ?? 'https://marlenne-app.vercel.app';
+    ?? process.env.NEXT_PUBLIC_APP_URL?.trim()
+    ?? 'https://app.marlenapp.com';
   return raw.replace(/\/$/, '');
 }
 

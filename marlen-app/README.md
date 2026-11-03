@@ -5,8 +5,8 @@ Agenda, clientas, voz y ajustes del centro. Parte del monorepo **Marlén**
 
 Mapa del repo: [`../README.md`](../README.md).
 
-**Panel de Ops (equipo Marlén)** no vive en esta carpeta: está en [`../panel-saas/`](../panel-saas/) y en producción es **[https://marlen-panel-saas.vercel.app](https://marlen-panel-saas.vercel.app)**.  
-Desplegar o editar solo `marlen-app/` actualiza la app del salón (`marlenne-app.vercel.app`), no el panel.
+**Panel de Ops (equipo Marlén)** no vive en esta carpeta: está en [`../panel-saas/`](../panel-saas/) y en producción es **[https://panel.marlenapp.com](https://panel.marlenapp.com)** (también `marlen-panel-saas.vercel.app`).
+Desplegar o editar solo `marlen-app/` actualiza la PWA del salón (**[https://app.marlenapp.com](https://app.marlenapp.com)**), no el panel ni la web (`www.marlenapp.com`).
 
 El diseño de referencia es `../design_handoff_marlenne/Marlenne.dc.html`
 (prototipo completo) y su `README.md` lleva tokens y specs pantalla a pantalla.
@@ -61,9 +61,10 @@ a propósito: `SEED_RESET_PASSWORDS=1 npm run seed`.
 En **Más** (dirección) hay un semáforo. A mano queda:
 
 1. **Auth → URL Configuration** en el proyecto Supabase:
-   - Site URL: `https://marlenne-app.vercel.app`
-   - Redirect URLs: `https://marlenne-app.vercel.app/recuperar`,
-     `https://marlenne-app.vercel.app/**`, `http://localhost:3000/**`
+   - Site URL: `https://app.marlenapp.com`
+   - Redirect URLs: `https://app.marlenapp.com/recuperar`,
+     `https://app.marlenapp.com/**`, `http://localhost:3000/**`
+     (mantener también `https://marlenne-app.vercel.app/**` mientras haya instalaciones viejas)
 2. **Auth → Settings**: desactivar altas públicas (*Allow new users to sign up*).
    El equipo se da de alta desde Más, no desde `/login`.
 3. Crear el equipo con emails reales y desactivar `*@marlenne.test`. Cada

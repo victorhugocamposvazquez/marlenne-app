@@ -2,7 +2,7 @@
 
 Cuadro de mandos del **equipo interno Marlén** (empresas, planes, SMS, pagos, soporte). Proyecto **desacoplado** de [`marlen-app`](../marlen-app/).
 
-**Producción:** [https://marlen-panel-saas.vercel.app](https://marlen-panel-saas.vercel.app) (no confundir con `marlenne-app.vercel.app`, que es la app del salón).
+**Producción:** [https://panel.marlenapp.com](https://panel.marlenapp.com) (también `marlen-panel-saas.vercel.app`; la PWA es `app.marlenapp.com`).
 
 ## Arrancar
 
@@ -30,7 +30,7 @@ Variables de entorno en **Production** (copiar los mismos nombres que en `marlen
 |----------|-----|
 | `NEXT_PUBLIC_SUPABASE_URL` | Misma URL del proyecto Supabase |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role (solo servidor Ops) |
-| `NEXT_PUBLIC_APP_URL` | `https://marlenne-app.vercel.app` (app de centro) |
+| `NEXT_PUBLIC_APP_URL` | `https://app.marlenapp.com` (PWA de centro) |
 
 Sin esas dos de Supabase, Arlett y el equipo salen como “No se ha podido leer la base”.
 

@@ -4,7 +4,7 @@ import {
   resolveBookingProviderId,
   resolveBookingServiceId,
 } from '@/lib/booking/resolve';
-import type { BookingCatalog, BookingFail } from '@/lib/booking/types';
+import type { BookingCatalog, BookingFail, BookingLink } from '@/lib/booking/types';
 import type { BookingLinkPreset } from '@/lib/booking/urls';
 
 export function bookingUnavailable(code: string, embed = false) {
@@ -30,20 +30,30 @@ export function renderBookingWizard({
   catalog,
   preset,
   pathServiceSlug,
+  bookingLink = null,
   embed = false,
 }: {
   salonSlug: string;
   catalog: BookingCatalog | BookingFail;
   preset: BookingLinkPreset;
   pathServiceSlug?: string | null;
+  bookingLink?: BookingLink | null;
   embed?: boolean;
 }) {
   if (!catalog.ok) return bookingUnavailable(catalog.code, embed);
 
-  const serviceKey = pathServiceSlug || preset.serviceSlug || preset.serviceId;
-  const providerKey = preset.providerSlug || preset.providerId;
+  const serviceKey =
+    bookingLink?.service_id
+    || pathServiceSlug
+    || preset.serviceSlug
+    || preset.serviceId;
+  const providerKey =
+    bookingLink?.provider_id
+    || preset.providerSlug
+    || preset.providerId;
   const serviceId = resolveBookingServiceId(catalog.services, serviceKey);
   const providerId = resolveBookingProviderId(catalog.providers, providerKey);
+  const customTitle = bookingLink?.custom_title || preset.title;
 
   return (
     <BookingWizard
@@ -53,7 +63,8 @@ export function renderBookingWizard({
       providers={catalog.providers}
       presetServiceId={serviceId}
       presetProviderId={providerId}
-      customTitle={preset.title}
+      customTitle={customTitle}
+      bookingLink={bookingLink}
       embed={embed}
     />
   );

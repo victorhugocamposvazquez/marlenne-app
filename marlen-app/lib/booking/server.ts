@@ -125,6 +125,28 @@ export async function createPublicBooking(input: {
   if (error) return FAIL('rpc', error.message);
   const row = data as BookingConfirm | BookingFail | null;
   if (!row || typeof row !== 'object') return FAIL('create');
+  if (row.ok) {
+    const { afterPublicBookingCreated } = await import('@/lib/booking/notify');
+    void afterPublicBookingCreated(row);
+  }
+  return row;
+}
+
+export async function loadBookingLink(
+  slug: string,
+  linkKey: string,
+): Promise<{ ok: true; link: import('@/lib/booking/types').BookingLink } | BookingFail> {
+  const { data, error } = await bookingDb().rpc('booking_link_by_key', {
+    p_salon_slug: slug.trim().toLowerCase(),
+    p_link_key: linkKey.trim().toLowerCase(),
+  });
+  if (error) return FAIL('rpc', error.message);
+  const row = data as
+    | { ok: true; link: import('@/lib/booking/types').BookingLink }
+    | BookingFail
+    | null;
+  if (!row || typeof row !== 'object') return FAIL('link');
+  if (!row.ok) return row;
   return row;
 }
 
@@ -132,6 +154,8 @@ export function bookingErrorMessage(code: string) {
   switch (code) {
     case 'not_found':
       return 'Este enlace de reserva no está disponible.';
+    case 'link':
+      return 'Este enlace de anuncio no está activo.';
     case 'service':
       return 'Ese servicio ya no se puede reservar.';
     case 'overlap':
@@ -146,6 +170,8 @@ export function bookingErrorMessage(code: string) {
       return 'Fuera del periodo reservable.';
     case 'provider':
       return 'Esa profesional no está disponible.';
+    case 'stripe':
+      return 'No se ha podido abrir el pago con tarjeta.';
     default:
       return 'No se ha podido completar la reserva. Prueba de nuevo.';
   }

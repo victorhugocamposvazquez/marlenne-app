@@ -329,6 +329,8 @@ async function finalize(
         `Severidad: ${f.severity}`,
         `Cuando: ${new Date().toISOString()}`,
       ].filter(Boolean).join('\n'),
+      kind: 'ops_monitor_alert',
+      tags: ['ops', 'monitor'],
     });
 
     if (!mailed.ok) {

@@ -70,11 +70,10 @@ export default function AjustesSaasView() {
             <Toggle label="Plantilla «recordatorio_cita» aprobada" on hint="Estado en Meta: aprobada" />
             <button type="button" onClick={() => setDirty(true)} className="rounded-pill border border-line px-3 py-1.5 text-[12px] font-semibold">Enviar mensaje de prueba</button>
           </Section>
-          <Section title="Correo transaccional · Resend" status="Operativo" statusColor="#22C55E">
-            <Readonly label="Dominio" value="mail.marlen.app" hint="SPF, DKIM y DMARC correctos" />
+          <Section title="Correo transaccional · Brevo" status="Live arriba" statusColor="#22C55E">
+            <Readonly label="Proveedor" value="Brevo (Sendinblue)" hint="Env vars BREVO_API_KEY + MAIL_FROM" />
+            <Readonly label="Uso y cupos" value="Tarjeta Brevo arriba / pestaña SMS" hint="Plan, tope diario free 300 y log Marlén" />
             <Secret label="Clave de API" />
-            <Readonly label="Rebotes 30 días" value="0,2 %" />
-            <button type="button" onClick={() => setDirty(true)} className="rounded-pill border border-line px-3 py-1.5 text-[12px] font-semibold">Enviar correo de prueba</button>
           </Section>
         </div>
       )}

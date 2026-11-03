@@ -2,6 +2,9 @@ import { headers } from 'next/headers';
 import AjustesHeader from '@/components/ajustes/AjustesHeader';
 import BookingAppearanceCard from '@/components/ajustes/BookingAppearanceCard';
 import BookingLinksCard from '@/components/ajustes/BookingLinksCard';
+import BookingLinksManager from '@/components/ajustes/BookingLinksManager';
+import BookingNotifyCard from '@/components/ajustes/BookingNotifyCard';
+import { listBookingLinks } from '@/app/actions/booking-links';
 import { requireRole } from '@/lib/require-session';
 import { publicLogoUrl } from '@/lib/salon-branding';
 import { createClient } from '@/lib/supabase/server';
@@ -75,14 +78,17 @@ async function loadProviders(salonId: string): Promise<Opt[]> {
 export default async function AjustesWidgetReservasPage() {
   const me = await requireRole('admin');
   const sb = createClient();
-  const [bookingRes, services, providers] = await Promise.all([
+  const [bookingRes, services, providers, links] = await Promise.all([
     sb
       .from('salons')
-      .select('booking_slug, booking_enabled, booking_accent, logo_path')
+      .select(
+        'booking_slug, booking_enabled, booking_accent, logo_path, booking_notify_email, booking_sms_reminders',
+      )
       .eq('id', me.salon_id)
       .maybeSingle(),
     loadServices(me.salon_id),
     loadProviders(me.salon_id),
+    listBookingLinks(),
   ]);
 
   type BookingRow = {
@@ -90,9 +96,11 @@ export default async function AjustesWidgetReservasPage() {
     booking_enabled: boolean | null;
     booking_accent?: string | null;
     logo_path: string | null;
+    booking_notify_email?: string | null;
+    booking_sms_reminders?: boolean | null;
   };
   let booking: BookingRow | null = bookingRes.error ? null : (bookingRes.data as BookingRow);
-  if (bookingRes.error && /booking_accent/i.test(bookingRes.error.message)) {
+  if (bookingRes.error) {
     const retry = await sb
       .from('salons')
       .select('booking_slug, booking_enabled, logo_path')
@@ -100,7 +108,12 @@ export default async function AjustesWidgetReservasPage() {
       .maybeSingle();
     booking = retry.error || !retry.data
       ? null
-      : { ...(retry.data as Omit<BookingRow, 'booking_accent'>), booking_accent: null };
+      : {
+          ...(retry.data as Omit<BookingRow, 'booking_accent' | 'booking_notify_email' | 'booking_sms_reminders'>),
+          booking_accent: null,
+          booking_notify_email: null,
+          booking_sms_reminders: true,
+        };
   }
 
   const h = headers();
@@ -112,7 +125,7 @@ export default async function AjustesWidgetReservasPage() {
   return (
     <AjustesHeader title="Widget reservas">
       <p className="mb-4 text-body leading-snug text-ink-2">
-        Calendario completo del centro, o un enlace directo a un solo servicio (con título a medida si quieres).
+        Calendario completo, enlaces de anuncio con o sin cobro, avisos y apariencia del widget.
       </p>
       <div className="space-y-5">
         <BookingAppearanceCard
@@ -120,6 +133,17 @@ export default async function AjustesWidgetReservasPage() {
           logoUrl={logoUrl}
           logoPath={booking?.logo_path ?? null}
           initialAccent={booking?.booking_accent ?? null}
+        />
+        <BookingNotifyCard
+          initialEmail={booking?.booking_notify_email ?? null}
+          initialSmsReminders={booking?.booking_sms_reminders !== false}
+        />
+        <BookingLinksManager
+          origin={origin}
+          salonSlug={booking?.booking_slug ?? null}
+          services={services}
+          providers={providers}
+          initialLinks={links}
         />
         <BookingLinksCard
           slug={booking?.booking_slug ?? null}

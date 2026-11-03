@@ -51,6 +51,19 @@ export type BookingSlot = {
   label: string;
 };
 
+export type BookingPaymentMode = 'free' | 'pay_full' | 'pay_deposit';
+
+export type BookingLink = {
+  id: string;
+  key: string;
+  label: string | null;
+  custom_title: string | null;
+  service_id: string | null;
+  provider_id: string | null;
+  payment_mode: BookingPaymentMode;
+  deposit_bps: number;
+};
+
 export type BookingConfirm = {
   ok: true;
   id: string;
@@ -59,6 +72,20 @@ export type BookingConfirm = {
   service_name: string;
   salon_name: string;
   client_name: string;
+  salon_id?: string;
+  client_email?: string | null;
+  client_phone?: string | null;
+  timezone?: string | null;
+  notify_email?: string | null;
+  sms_reminders?: boolean | null;
 };
 
 export type BookingFail = { ok: false; code: string; message?: string };
+
+/** Redirect a Stripe Checkout en lugar de confirmación inmediata. */
+export type BookingCheckoutRedirect = {
+  ok: true;
+  checkout: true;
+  url: string;
+  intentId: string;
+};

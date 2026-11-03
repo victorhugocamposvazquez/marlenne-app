@@ -1,18 +1,25 @@
 import PanelShell from '@/components/shell/PanelShell';
+import BrevoUsageCard from '@/components/email/BrevoUsageCard';
 import LiveCenterCard from '@/components/sms/LiveCenterCard';
 import MonitorStatusCard from '@/components/sms/MonitorStatusCard';
 import KpiGrid from '@/components/ui/KpiGrid';
+import { loadBrevoUsage } from '@/lib/brevo-usage';
 import { loadLiveCenter, loadMonitorSnapshot } from '@/lib/live-center';
 import { SMS_FAILURES, SMS_KPIS, SMS_QUEUE } from '@/lib/mock/panel-fixtures';
 
 export default async function SmsPage() {
-  const [live, monitor] = await Promise.all([loadLiveCenter(), loadMonitorSnapshot()]);
+  const [live, monitor, brevo] = await Promise.all([
+    loadLiveCenter(),
+    loadMonitorSnapshot(),
+    loadBrevoUsage(),
+  ]);
   const daily = [820, 910, 880, 950, 1020, 980, 1100, 1050, 1120, 1080, 1150, 1200, 1180, 1220];
 
   return (
     <PanelShell title="SMS" subtitle="Arlett Beauty en producción. Debajo, datos de muestra.">
       <LiveCenterCard center={live} />
       <MonitorStatusCard snapshot={monitor} />
+      <BrevoUsageCard usage={brevo} />
 
       <p className="text-[13px] font-semibold text-ink-3">Muestra</p>
       <KpiGrid items={SMS_KPIS} />
