@@ -13,6 +13,12 @@ import {
   slugifyBooking,
 } from '../lib/booking/urls';
 import { resolveBookingServiceId } from '../lib/booking/resolve';
+import {
+  BOOKING_DEFAULT_ACCENT,
+  deriveAccentSoft,
+  normalizeBookingHex,
+  resolveBookingTheme,
+} from '../lib/booking/theme';
 
 describe('booking calendar', () => {
   it('ymd pads month and day', () => {
@@ -74,5 +80,22 @@ describe('booking deep links', () => {
       ),
       '1',
     );
+  });
+});
+
+describe('booking theme', () => {
+  it('normalizes hex', () => {
+    assert.equal(normalizeBookingHex('#0B6E4F'), '#0b6e4f');
+    assert.equal(normalizeBookingHex('abc'), null);
+    assert.equal(normalizeBookingHex('#abc'), '#aabbcc');
+  });
+
+  it('resolves defaults and soft', () => {
+    const def = resolveBookingTheme({});
+    assert.equal(def.accent, BOOKING_DEFAULT_ACCENT);
+    assert.equal(normalizeBookingHex(deriveAccentSoft('#0b6e4f'))?.[0], '#');
+    const custom = resolveBookingTheme({ accent: '#0b6e4f' });
+    assert.equal(custom.accent, '#0b6e4f');
+    assert.notEqual(custom.accentSoft, custom.accent);
   });
 });

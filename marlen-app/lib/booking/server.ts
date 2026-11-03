@@ -5,6 +5,7 @@ import type {
   BookingFail,
   BookingSlot,
 } from '@/lib/booking/types';
+import { publicLogoUrl } from '@/lib/salon-branding';
 
 /** Anon primero (RPCs SECURITY DEFINER); si falla el grant, service role. */
 function bookingDb(): SupabaseClient {
@@ -51,8 +52,13 @@ export async function loadBookingCatalog(slug: string): Promise<BookingCatalog |
   const row = data as (BookingCatalog | BookingFail) | null;
   if (!row || typeof row !== 'object') return FAIL('not_found');
   if (!row.ok) return row;
+  const salon = {
+    ...row.salon,
+    logo_url: publicLogoUrl(row.salon.logo_path) ?? row.salon.logo_url ?? null,
+  };
   return {
     ...row,
+    salon,
     providers: Array.isArray(row.providers) ? row.providers : [],
     services: Array.isArray(row.services) ? row.services : [],
   };

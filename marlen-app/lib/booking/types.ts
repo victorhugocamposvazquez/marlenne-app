@@ -10,6 +10,12 @@ export type BookingSalon = {
   closes_at: string;
   phone: string | null;
   logo_path: string | null;
+  /** Hex principal del widget; null = default. */
+  accent?: string | null;
+  accent_soft?: string | null;
+  ink?: string | null;
+  /** URL pública del logo (rellenada en servidor). */
+  logo_url?: string | null;
 };
 
 export type BookingService = {

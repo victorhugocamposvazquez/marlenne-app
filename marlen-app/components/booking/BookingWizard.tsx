@@ -22,6 +22,7 @@ import {
   ymd,
 } from '@/lib/booking/calendar';
 import { apiDaySlots, apiMonthDays, apiSubmitBooking } from '@/lib/booking/client';
+import { resolveBookingTheme } from '@/lib/booking/theme';
 import { durLbl, madridNow } from '@/lib/time';
 import BrandLogo from '@/components/BrandLogo';
 import type {
@@ -201,8 +202,23 @@ export default function BookingWizard({
     step === 'details' ||
     (step === 'when' && (!!selectedDay || !lockedService));
 
+  const theme = resolveBookingTheme({
+    accent: salon.accent,
+    accentSoft: salon.accent_soft,
+    ink: salon.ink,
+  });
+  const logoUrl = salon.logo_url ?? null;
+
   return (
-    <div className={`booking-root ${embed ? 'min-h-full' : 'min-h-[100dvh]'} bg-[var(--bk-bg)]`}>
+    <div
+      className={`booking-root ${embed ? 'min-h-full' : 'min-h-[100dvh]'} bg-[var(--bk-bg)]`}
+      style={{
+        ['--bk' as string]: theme.accent,
+        ['--bk-soft' as string]: theme.accentSoft,
+        ['--bk-hover' as string]: theme.accentHover,
+        ['--bk-ink' as string]: theme.ink,
+      }}
+    >
       <div
         className={[
           'mx-auto w-full px-0 sm:px-4',
@@ -231,6 +247,15 @@ export default function BookingWizard({
                   >
                     <ArrowLeft className="h-5 w-5" />
                   </button>
+                )}
+
+                {logoUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={logoUrl}
+                    alt=""
+                    className="mb-4 h-10 w-auto max-w-[160px] object-contain object-left"
+                  />
                 )}
 
                 <p className="text-[14px] font-semibold text-[var(--bk-muted)]">{salon.name}</p>
