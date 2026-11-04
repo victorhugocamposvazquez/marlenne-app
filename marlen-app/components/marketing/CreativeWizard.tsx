@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, Download } from 'lucide-react';
+import { ArrowLeft, Check, Download, Sparkles } from 'lucide-react';
 import { saveMarketingCreative } from '@/app/actions/marketing';
 import StylePicker from '@/components/marketing/StylePicker';
 import CreativeCanvas from '@/components/marketing/CreativeCanvas';
 import { useToast } from '@/components/Toast';
 import { createClient } from '@/lib/supabase/client';
+import { suggestCopy } from '@/lib/marketing/copy';
 import { defaultsForKind, kindNeedsItem } from '@/lib/marketing/defaults';
 import { exportCreativePng } from '@/lib/marketing/draw';
 import { FORMAT_SIZES, KIND_META } from '@/lib/marketing/styles';
@@ -357,8 +358,32 @@ export default function CreativeWizard({
         </div>
       )}
 
-      {step === 'texts' && payload && (
+      {step === 'texts' && payload && kind && (
         <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => {
+              const next = suggestCopy(
+                kind,
+                brand,
+                { pack, service, staff: member },
+                {
+                  kicker: payload.kicker,
+                  headline: payload.headline,
+                  subline: payload.subline,
+                  ctaLabel: payload.ctaLabel,
+                },
+              );
+              setPayload({
+                ...payload,
+                ...next,
+              });
+            }}
+            className="inline-flex h-10 items-center gap-1.5 rounded-pill bg-track px-3.5 text-caption font-semibold text-ink"
+          >
+            <Sparkles size={15} strokeWidth={2.2} aria-hidden />
+            Otra sugerencia
+          </button>
           <label className="block">
             <span className="text-caption font-semibold text-ink-2">Antetítulo</span>
             <input
