@@ -7,7 +7,7 @@ import { Icon, MarlenAvatar, PATH } from './Icons';
 import { searchStockByTheme } from '@/app/actions/marketing-stock';
 import { ALT, ELEMENTS, FORMATS, FORMAT_H, IMAGES, REC, SEAL_TEXT, STYLES, STYLE_TONE, THEMES, TONES, fieldsFor, getCatalog, getType, recommendElements, setActiveCatalog, suggestTheme } from '@/lib/marketing/data';
 import { LIMITS, type TextField, improveAll, pickLine, withClientVars } from '@/lib/marketing/copy';
-import { copyBlob, copyText, downloadBlob, nodeToPng, openEmail, openInstagram, openWhatsApp, shareBlob, slug } from '@/lib/marketing/export';
+import { copyBlob, copyText, downloadBlob, nodeToPng, openEmail, openInstagram, openWhatsAppChat, shareBlob, slug } from '@/lib/marketing/export';
 import { stockProxyPath } from '@/lib/marketing/stock';
 import type { BankImage, CreativeConfig, CreativeType, ElementKey, Elements, Fields, FormatId, LibraryItem, StyleId, TabId, Tone, TypeId } from '@/lib/marketing/types';
 import type { ClientOption, ServiceOption } from '@/lib/types';
@@ -477,37 +477,46 @@ export default function MarketingStudio({
     try {
       const blob = await capture(cfgOf(base));
       const name = fileName(base.format);
-      const caption = [base.fields.title, link].filter(Boolean).join('\n');
       if (target === 'copy') {
         showToast((await copyBlob(blob)) ? 'Imagen copiada' : 'Tu navegador no permite copiar imágenes');
         return;
       }
       if (target === 'download') {
         downloadBlob(blob, name);
-        if (link) await copyText(link);
-        showToast('PNG descargado' + (link ? '. Enlace copiado.' : ''));
+        showToast('PNG descargado');
         return;
       }
       if (target === 'whatsapp') {
-        if (await shareBlob(blob, name, caption, base.fields.title).catch(() => false)) return;
+        // La foto es el payload. El enlace de reserva no va aquí (se copia aparte si hace falta).
+        if (await shareBlob(blob, name, base.fields.title || undefined).catch(() => false)) return;
+        const copied = await copyBlob(blob).catch(() => false);
         downloadBlob(blob, name);
-        openWhatsApp(caption || link || base.fields.title);
-        showToast('Imagen descargada. Adjúntala en el chat de WhatsApp.');
+        openWhatsAppChat();
+        showToast(
+          copied
+            ? 'Imagen en el portapapeles. En WhatsApp: pega o adjunta el PNG.'
+            : 'PNG descargado. En WhatsApp: adjunta la imagen al chat.',
+        );
         return;
       }
       if (target === 'email') {
-        if (await shareBlob(blob, name, caption, base.fields.title).catch(() => false)) return;
+        if (await shareBlob(blob, name, base.fields.title || undefined).catch(() => false)) return;
         downloadBlob(blob, name);
         await copyBlob(blob).catch(() => false);
-        openEmail(base.fields.title || 'Creatividad', `${caption}\n\n(Adjunta el PNG descargado o pégalo si tu correo lo permite.)`);
+        const body = [
+          base.fields.title || 'Creatividad',
+          '',
+          'Adjunta el PNG descargado (o pégalo si tu correo lo permite).',
+          link ? `Enlace de reserva: ${link}` : '',
+        ].filter(Boolean).join('\n');
+        openEmail(base.fields.title || 'Creatividad', body);
         showToast('PNG listo. Adjúntalo al email que se ha abierto.');
         return;
       }
       if (target === 'instagram') {
         downloadBlob(blob, name);
-        if (link) await copyText(link);
         openInstagram();
-        showToast('PNG e enlace listos. En Instagram: nueva publicación → elige el PNG → pega el enlace en el sticker.');
+        showToast('PNG descargado. En Instagram: nueva publicación y elige esa imagen.');
       }
     } catch {
       showToast('No se pudo preparar la imagen');
@@ -573,8 +582,8 @@ export default function MarketingStudio({
   const marlenTip = {
     imagen: `He elegido una foto de ${themeLabel(sugTheme)} para tu anuncio. Cámbiala o sube una tuya.`,
     texto: ed.clientName
-      ? `Puedo personalizar el texto para ${firstName(ed.clientName)}. Pulsa «Mejorar textos» o edítalo a mano.`
-      : 'Pulsa «Mejorar textos» y te propongo otra versión con el tono que elijas.',
+      ? `Elige el tono y pulsa «Mejorar textos» — puedo personalizarlo para ${firstName(ed.clientName)}.`
+      : 'Primero elige el tono y luego pulsa «Mejorar textos».',
     estilo: 'Cada estilo recoloca todo solo. Prueba sin miedo: tu texto y tu imagen se mantienen.',
     elementos: 'Mejor pocos y bien puestos: te propongo dos como máximo y los coloco yo.',
   }[ed.tab];
@@ -734,17 +743,27 @@ export default function MarketingStudio({
           )}
         </div>
       )}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        {!m && <span style={{ fontSize: 15, fontWeight: 700, flex: 1 }}>Texto</span>}
-        {m && <div style={{ display: 'flex', gap: 6 }}>{TONES.map(([id, label]) => <button key={id} type="button" className={cx(css.chip, ed.tone === id && css.chipOn)} style={{ height: 32 }} onClick={() => patch({ tone: id, toneManual: true })}>{label}</button>)}</div>}
-        {marlenBtn(m ? 'Mejorar' : 'Mejorar textos', improve, 'Marlén reescribe antetítulo, titular, subtítulo y botón con el tono elegido')}
-      </div>
-      {!m && (
+      {!m && <span style={{ fontSize: 15, fontWeight: 700 }}>Texto</span>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#4A4957', marginRight: 2 }}>Tono</span>
-          {TONES.map(([id, label, hint]) => <button key={id} type="button" title={hint} className={cx(css.chip, ed.tone === id && css.chipOn)} onClick={() => patch({ tone: id, toneManual: true })}>{label}</button>)}
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#4A4957', marginRight: 2 }}>1. Tono</span>
+          {TONES.map(([id, label, hint]) => (
+            <button
+              key={id}
+              type="button"
+              title={hint}
+              className={cx(css.chip, ed.tone === id && css.chipOn)}
+              style={m ? { height: 32 } : undefined}
+              onClick={() => patch({ tone: id, toneManual: true })}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-      )}
+        <div>
+          {marlenBtn(m ? '2. Mejorar' : '2. Mejorar textos', improve, 'Marlén reescribe antetítulo, titular, subtítulo y botón con el tono elegido')}
+        </div>
+      </div>
       {textField('eyebrow', 'Antetítulo', m)}
       {textField('title', 'Titular', m)}
       {textField('subtitle', 'Subtítulo', m)}
@@ -753,12 +772,12 @@ export default function MarketingStudio({
         {textField('cta', 'Botón', m)}
       </div>
       <label className={css.field}>
-        <span className={css.label}>Enlace de reserva</span>
+        <span className={css.label}>Enlace de reserva (opcional)</span>
         <div style={{ display: 'flex', gap: 8 }}>
-          <input value={link} onChange={(e) => setLink(e.target.value)} className={cx(css.input, m && css.inputMobile)} style={{ flex: 1, minWidth: 0 }} />
+          <input value={link} onChange={(e) => setLink(e.target.value)} className={cx(css.input, m && css.inputMobile)} style={{ flex: 1, minWidth: 0 }} placeholder="Para pegar en story o sticker" />
           {!m && <button type="button" className={cx(css.btn, css.ghost)} style={{ borderRadius: 12, padding: '0 14px', fontSize: 13 }} onClick={async () => { await copyText(link); showToast('Enlace copiado'); }}>Copiar</button>}
         </div>
-        <span className={css.hint}>Se copia al descargar, para pegarlo en la story, el estado de WhatsApp o el email.</span>
+        <span className={css.hint}>No se manda por WhatsApp con la foto: cópialo si quieres pegarlo en un sticker o en el chat aparte.</span>
       </label>
       <button type="button" onClick={() => patch((s) => ({ showLogo: !s.showLogo }))} aria-pressed={ed.showLogo}
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: m ? 52 : 48, padding: '0 14px', borderRadius: 12, border: '1px solid #E4E3EA', background: '#fff', cursor: 'pointer', color: '#0F0E1A', fontSize: 14, fontWeight: 600 }}>
@@ -1159,8 +1178,8 @@ export default function MarketingStudio({
               <span style={{ fontSize: 13, fontWeight: 600, color: '#4A4957' }}>Enviar o publicar</span>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
                 {([
-                  ['whatsapp', 'WhatsApp', PATH.whatsapp, 'Enviar al chat'],
-                  ['email', 'Email', PATH.email, 'Abrir correo'],
+                  ['whatsapp', 'WhatsApp', PATH.whatsapp, 'Enviar la foto'],
+                  ['email', 'Email', PATH.email, 'Adjuntar la foto'],
                   ['instagram', 'Instagram', PATH.instagram, 'Subir story o post'],
                   ['download', 'Descargar PNG', PATH.download, 'Guardar en el móvil'],
                 ] as const).map(([id, label, d, hint]) => (
@@ -1184,7 +1203,7 @@ export default function MarketingStudio({
               <button type="button" className={cx(css.btn, css.ghost, css.md)} style={{ alignSelf: 'flex-start' }} onClick={() => void shareTo('copy')}>
                 <Icon d={PATH.copy} size={16} />Copiar imagen
               </button>
-              <span className={css.hint}>Instagram no deja publicar desde fuera de la app: te bajamos el PNG y abrimos Instagram para que la subas.</span>
+              <span className={css.hint}>WhatsApp envía la imagen (no el enlace). En el móvil suele abrir la hoja de compartir; en el ordenador te deja pegar o adjuntar el PNG. Instagram API, más adelante.</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: '#4A4957' }}>Descargar también en</span>

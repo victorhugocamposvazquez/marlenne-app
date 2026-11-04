@@ -18,27 +18,48 @@ export function downloadBlob(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-/** Hoja de compartir nativa (WhatsApp, Mail, Instagram…) si el dispositivo lo permite */
+/**
+ * Comparte la imagen (archivo). No hace fallback a solo texto/enlace:
+ * WhatsApp y similares deben llevar la foto, no un vínculo.
+ */
 export async function shareBlob(blob: Blob, filename: string, text?: string, title?: string): Promise<boolean> {
   const file = new File([blob], filename, { type: 'image/png' });
   const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
-  const data: ShareData = { files: [file], text, title };
-  if (nav.canShare && nav.canShare(data)) {
-    await navigator.share(data);
-    return true;
-  }
-  // Sin archivos (escritorio): al menos texto/enlace
-  if (typeof navigator.share === 'function' && text) {
+  // Primero solo el archivo (más fiable en WhatsApp)
+  const filesOnly: ShareData = { files: [file] };
+  if (nav.canShare?.(filesOnly)) {
     try {
-      await navigator.share({ title, text, url: text.startsWith('http') ? text : undefined });
+      await navigator.share(filesOnly);
       return true;
-    } catch {
-      /* cancelado o no soportado */
+    } catch (e) {
+      if ((e as Error)?.name === 'AbortError') return true; // usuario canceló
+    }
+  }
+  // Archivo + texto corto opcional (sin forzar URL)
+  const withMeta: ShareData = { files: [file], ...(text ? { text } : {}), ...(title ? { title } : {}) };
+  if (nav.canShare?.(withMeta)) {
+    try {
+      await navigator.share(withMeta);
+      return true;
+    } catch (e) {
+      if ((e as Error)?.name === 'AbortError') return true;
     }
   }
   return false;
 }
 
+/** Abre WhatsApp Web/app sin mensaje prellenado (la foto va por share o adjunto). */
+export function openWhatsAppChat() {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const mobile = /iPhone|iPad|iPod|Android/i.test(ua);
+  if (mobile) {
+    window.open('https://wa.me/', '_blank', 'noopener,noreferrer');
+  } else {
+    window.open('https://web.whatsapp.com/', '_blank', 'noopener,noreferrer');
+  }
+}
+
+/** @deprecated Preferir openWhatsAppChat; wa.me/?text= no adjunta la imagen. */
 export function openWhatsApp(text: string) {
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
 }
