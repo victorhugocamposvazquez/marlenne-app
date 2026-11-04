@@ -906,6 +906,8 @@ export default function VoiceFab() {
   };
 
   if (marlenOff) return null;
+  // Misma lógica que BottomNav: en Marketing el FAB tapa el editor.
+  if (pathname.startsWith('/ajustes/marketing')) return null;
 
   return (
     <div

@@ -21,6 +21,8 @@ export default function BottomNav({
   const perfil = useShallowParam('perfil');
   const mas = useShallowParam('mas');
   const on = (p: string) => path.startsWith(p);
+  // Marketing necesita toda la altura: el menú tapa acciones de imagen/texto.
+  if (path.startsWith('/ajustes/marketing')) return null;
   if (creating === '1' || editing || addingMember === '1' || task || perfil === '1' || mas === '1') return null;
 
   const moreActive = on('/tareas') || mas === '1';
