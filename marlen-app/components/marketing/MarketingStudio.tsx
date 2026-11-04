@@ -1403,7 +1403,7 @@ export default function MarketingStudio({
       {modalView}
       {doneView}
       {toast && (
-        <div className={css.toast} style={{ bottom: mobile ? (view === 'editor' ? (ed.tool ? SHEET_H + 16 : 110) : 24) : 28 }} role="status">
+        <div className={css.toast} style={{ bottom: mobile ? (view === 'editor' ? (ed.tool ? SHEET_H + 16 : 24) : 24) : 28 }} role="status">
           <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#fff', color: '#0F0E1A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon d={PATH.check} size={14} stroke={2.6} /></span>
           <span>{toast.msg}</span>
           {toast.action && <button type="button" className={css.toastAction} onClick={toast.action.fn}>{toast.action.label}</button>}
