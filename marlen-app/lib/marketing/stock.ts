@@ -68,6 +68,27 @@ export function isAllowedStockImageUrl(url: string): boolean {
   }
 }
 
+/** Logo del centro en Storage público (para proxy same-origin al exportar PNG). */
+export function isAllowedBrandImageUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'https:') return false;
+    const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!base) return false;
+    const sb = new URL(base);
+    return (
+      u.hostname === sb.hostname
+      && u.pathname.includes('/storage/v1/object/public/salon-branding/')
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function isAllowedMarketingImageUrl(url: string): boolean {
+  return isAllowedStockImageUrl(url) || isAllowedBrandImageUrl(url);
+}
+
 export function stockProxyPath(srcUrl: string): string {
   return `/api/marketing/stock-image?src=${encodeURIComponent(srcUrl)}`;
 }

@@ -1,8 +1,61 @@
 import { toBlob } from 'html-to-image';
 
+/** Espera a que todas las <img> del nodo estén listas (export off-screen). */
+async function waitForImages(root: HTMLElement, timeoutMs = 12000) {
+  const imgs = Array.from(root.querySelectorAll('img'));
+  if (!imgs.length) return;
+
+  const waitOne = (img: HTMLImageElement) =>
+    new Promise<void>((resolve) => {
+      const done = () => {
+        img.removeEventListener('load', done);
+        img.removeEventListener('error', done);
+        resolve();
+      };
+      if (img.complete && img.naturalWidth > 0) {
+        resolve();
+        return;
+      }
+      // Fuerza recarga con CORS si aún no hay píxeles
+      if (img.complete && img.naturalWidth === 0 && img.src) {
+        const src = img.src;
+        img.src = '';
+        img.src = src;
+      }
+      img.addEventListener('load', done);
+      img.addEventListener('error', done);
+    }).then(async () => {
+      try {
+        if (img.decode) await img.decode();
+      } catch {
+        /* decode opcional */
+      }
+    });
+
+  await Promise.race([
+    Promise.all(imgs.map(waitOne)),
+    new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+  ]);
+}
+
 /** Captura un nodo (CreativeCanvas a 1080 px de ancho, sin escalar) como PNG */
 export async function nodeToPng(node: HTMLElement): Promise<Blob> {
-  const blob = await toBlob(node, { pixelRatio: 1, cacheBust: true });
+  await waitForImages(node);
+
+  const opts = {
+    pixelRatio: 1 as const,
+    cacheBust: true,
+    // Incluye imágenes same-origin / CORS (proxy stock + logo público)
+    includeQueryParams: true,
+  };
+
+  let blob = await toBlob(node, opts);
+  if (!blob) {
+    // Reintento: a veces el primer paso pilla fuentes/imágenes a medias
+    await new Promise((r) => setTimeout(r, 120));
+    await waitForImages(node, 8000);
+    blob = await toBlob(node, opts);
+  }
   if (!blob) throw new Error('No se pudo generar el PNG');
   return blob;
 }
