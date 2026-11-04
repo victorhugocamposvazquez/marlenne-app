@@ -9,7 +9,7 @@ import {
 } from '@/lib/marketing/stock';
 import type { FormatId, TypeId } from '@/lib/marketing/types';
 
-const KINDS: TypeId[] = ['bono', 'servicio', 'reserva', 'ultima', 'equipo', 'regalo'];
+const KINDS: TypeId[] = ['bono', 'servicio', 'reserva', 'regalo'];
 const FORMATS: FormatId[] = ['story', 'square', 'portrait'];
 
 type PixabayHit = {
