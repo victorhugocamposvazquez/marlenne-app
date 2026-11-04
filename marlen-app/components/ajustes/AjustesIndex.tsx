@@ -69,6 +69,10 @@ export default function AjustesIndex({
       hint: admin ? 'Plantillas, vendidos y recargar sesiones' : 'Vendidos y recargar sesiones',
     }] : []),
     ...(admin ? [{
+      href: '/ajustes/marketing',
+      title: 'Marketing',
+      hint: 'Stories y posts para bonos, servicios y reserva',
+    }, {
       href: '/ajustes/sms',
       title: 'SMS',
       hint: 'Recordatorios, plantilla y pruebas',

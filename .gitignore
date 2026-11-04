@@ -6,3 +6,6 @@ node_modules
 next-env.d.ts
 *.tsbuildinfo
 .DS_Store
+
+# Handoff local para IA / diseño (capturas + brief); no va al repo
+main-website/brief-corporativa/

@@ -1,6 +1,6 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
+import { useEffect, useState } from 'react';
 
 export type AppShellMode = 'phone' | 'wide';
 
@@ -19,23 +19,29 @@ function readMode(): AppShellMode {
   return window.matchMedia(WIDE_MQ).matches ? 'wide' : 'phone';
 }
 
-function subscribe(onChange: () => void) {
-  if (typeof window === 'undefined') return () => {};
-  const mq = window.matchMedia(WIDE_MQ);
-  const handler = () => onChange();
-  mq.addEventListener('change', handler);
-  return () => mq.removeEventListener('change', handler);
-}
-
 /** Phone = Capacitor o viewport &lt; 1024. Wide = browser/PWA en tablet/escritorio. */
 export function useAppShellMode(): AppShellMode {
-  return useSyncExternalStore(subscribe, readMode, () => 'phone');
+  const [mode, setMode] = useState<AppShellMode>('phone');
+
+  useEffect(() => {
+    const apply = () => setMode(readMode());
+    apply();
+    const mq = window.matchMedia(WIDE_MQ);
+    mq.addEventListener('change', apply);
+    window.addEventListener('resize', apply);
+    return () => {
+      mq.removeEventListener('change', apply);
+      window.removeEventListener('resize', apply);
+    };
+  }, []);
+
+  return mode;
 }
 
 export function useClientMounted(): boolean {
-  return useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  return mounted;
 }

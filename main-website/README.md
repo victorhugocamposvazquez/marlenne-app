@@ -27,3 +27,8 @@ Abre [http://localhost:3002](http://localhost:3002).
 
 Proyecto Vercel `marlen-website`, Root Directory `main-website`.
 Env de producción: `NEXT_PUBLIC_APP_URL=https://app.marlenapp.com`.
+
+## Brief para diseñar la web
+
+Handoff con marca, funciones (incluye fichaje), capturas y criterios:
+[`brief-corporativa/BRIEF-WEB-CORPORATIVA.md`](./brief-corporativa/BRIEF-WEB-CORPORATIVA.md).

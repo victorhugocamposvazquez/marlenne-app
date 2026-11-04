@@ -3,3 +3,6 @@ node_modules
 .env*.local
 .DS_Store
 .vercel
+
+# Brief + capturas para handoff de web corporativa (local only)
+brief-corporativa/

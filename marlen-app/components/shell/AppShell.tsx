@@ -1,9 +1,16 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import PhoneShell, { type OpsBanner, type ShellSession } from '@/components/shell/PhoneShell';
 import WideShell from '@/components/shell/WideShell';
-import { useAppShellMode, useClientMounted } from '@/hooks/useAppShellMode';
+
+const WIDE_MQ = '(min-width: 1024px)';
+
+function readWide(): boolean {
+  if (typeof window === 'undefined') return false;
+  if ((window as Window & { Capacitor?: unknown }).Capacitor) return false;
+  return window.matchMedia(WIDE_MQ).matches;
+}
 
 export default function AppShell({
   session,
@@ -16,10 +23,21 @@ export default function AppShell({
   staff?: { id: string; full_name: string }[];
   children: ReactNode;
 }) {
-  const mounted = useClientMounted();
-  const mode = useAppShellMode();
+  const [wide, setWide] = useState(false);
 
-  if (!mounted || mode === 'phone') {
+  useEffect(() => {
+    const apply = () => setWide(readWide());
+    apply();
+    const mq = window.matchMedia(WIDE_MQ);
+    mq.addEventListener('change', apply);
+    window.addEventListener('resize', apply);
+    return () => {
+      mq.removeEventListener('change', apply);
+      window.removeEventListener('resize', apply);
+    };
+  }, []);
+
+  if (!wide) {
     return (
       <PhoneShell session={session} serverOps={serverOps} staff={staff}>
         {children}
