@@ -16,7 +16,8 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
-- 2026-11-04 — **Marketing mobile sin nav:** oculta BottomNav + VoiceFab en `/ajustes/marketing` (rama `cursor/marketing-sin-nav-5156`).
+- 2026-11-04 — **Marketing Enviar PNG:** espera imgs + proxy logo/CORS; PR #36 → `main`.
+- 2026-11-04 — **Marketing mobile sin nav:** oculta BottomNav + VoiceFab en `/ajustes/marketing` (PR #35 → `main`).
 - 2026-11-03 — **Dominios marlenapp.com:** www/apex → coming soon (`marlen-website`); `app.` → PWA; `panel.` → ops. Envs producción actualizados.
 - 2026-11-01 — **Carrusel cambio de semana** + **citas fondo sólido** (nombre blanco), PR #23 → `main`.
 - 2026-11-01 — **Animación cambio de semana** en `DayStrip` (flechas + swipe), PR #22 → `main` (supersedido por carrusel #23).
