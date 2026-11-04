@@ -7,7 +7,7 @@ import { Icon, MarlenAvatar, PATH } from './Icons';
 import { searchStockByTheme } from '@/app/actions/marketing-stock';
 import { ALT, ELEMENTS, FORMATS, FORMAT_H, IMAGES, REC, SEAL_TEXT, STYLES, STYLE_TONE, THEMES, TONES, fieldsFor, getCatalog, getType, recommendElements, setActiveCatalog, suggestTheme } from '@/lib/marketing/data';
 import { LIMITS, type TextField, improveAll, pickLine, withClientVars } from '@/lib/marketing/copy';
-import { copyBlob, copyText, downloadBlob, nodeToPng, shareBlob, slug } from '@/lib/marketing/export';
+import { copyBlob, copyText, downloadBlob, nodeToPng, openEmail, openInstagram, openWhatsApp, shareBlob, slug } from '@/lib/marketing/export';
 import { stockProxyPath } from '@/lib/marketing/stock';
 import type { BankImage, CreativeConfig, CreativeType, ElementKey, Elements, Fields, FormatId, LibraryItem, StyleId, TabId, Tone, TypeId } from '@/lib/marketing/types';
 import type { ClientOption, ServiceOption } from '@/lib/types';
@@ -61,7 +61,7 @@ interface ModalState {
   pendingClientId?: string | null;
   pendingClientName?: string | null;
 }
-interface DoneState { id: string; mode: 'png' | 'share'; extra: FormatId[]; sellPack?: boolean; sold?: boolean }
+interface DoneState { id: string; mode: 'png' | 'share' | 'ready'; extra: FormatId[]; sellPack?: boolean; sold?: boolean }
 interface ToastState { msg: string; action?: { label: string; fn: () => void } }
 
 function makeEditor(o: Partial<EditorState> & { type: TypeId; style: StyleId }): EditorState {
@@ -413,14 +413,17 @@ export default function MarketingStudio({
     e.target.value = '';
   };
 
-  const saveAndFinish = async (mode: 'png' | 'share') => {
+  const saveAndFinish = async (mode: 'png' | 'share' | 'ready' = 'ready') => {
     if (busy) return;
     setBusy(true);
     try {
       const blob = await capture(currentCfg);
-      if (mode === 'share') { const ok = await shareBlob(blob, fileName(ed.format), link).catch(() => false); if (!ok) downloadBlob(blob, fileName(ed.format)); }
-      else downloadBlob(blob, fileName(ed.format));
-      await copyText(link);
+      if (mode === 'png') downloadBlob(blob, fileName(ed.format));
+      if (mode === 'share') {
+        const ok = await shareBlob(blob, fileName(ed.format), link, ed.fields.title).catch(() => false);
+        if (!ok) downloadBlob(blob, fileName(ed.format));
+      }
+      if (link) await copyText(link);
       const it: LibraryItem = { id: ed.editingId || 'c' + Date.now(), type: ed.type, catIdx: ed.catIdx, style: ed.style, format: ed.format, image: ed.image, fields: { ...ed.fields }, els: { ...ed.els }, showLogo: ed.showLogo, date: 'Ahora' };
       setLibrary((l) => [it, ...l.filter((x) => x.id !== it.id)]);
       setHighlight(it.id);
@@ -468,16 +471,47 @@ export default function MarketingStudio({
       showToast('Descargada también en ' + label);
     } catch { showToast('No se pudo generar la imagen'); }
   };
-  const shareTo = async (target: 'whatsapp' | 'email' | 'instagram' | 'copy') => {
+  const shareTo = async (target: 'whatsapp' | 'email' | 'instagram' | 'copy' | 'download') => {
     const base = done && library.find((i) => i.id === done.id);
     if (!base) return;
-    const blob = await capture(cfgOf(base));
-    if (target === 'copy') { showToast((await copyBlob(blob)) ? 'Imagen copiada' : 'Tu navegador no permite copiar imágenes'); return; }
-    if (await shareBlob(blob, fileName(base.format), link).catch(() => false)) return;
-    downloadBlob(blob, fileName(base.format));
-    if (target === 'whatsapp') window.open(`https://wa.me/?text=${encodeURIComponent(link)}`, '_blank');
-    if (target === 'email') window.location.href = `mailto:?subject=${encodeURIComponent(base.fields.title)}&body=${encodeURIComponent(link)}`;
-    if (target === 'instagram') showToast('Imagen descargada. Súbela desde Instagram y pega el enlace en el sticker.');
+    try {
+      const blob = await capture(cfgOf(base));
+      const name = fileName(base.format);
+      const caption = [base.fields.title, link].filter(Boolean).join('\n');
+      if (target === 'copy') {
+        showToast((await copyBlob(blob)) ? 'Imagen copiada' : 'Tu navegador no permite copiar imágenes');
+        return;
+      }
+      if (target === 'download') {
+        downloadBlob(blob, name);
+        if (link) await copyText(link);
+        showToast('PNG descargado' + (link ? '. Enlace copiado.' : ''));
+        return;
+      }
+      if (target === 'whatsapp') {
+        if (await shareBlob(blob, name, caption, base.fields.title).catch(() => false)) return;
+        downloadBlob(blob, name);
+        openWhatsApp(caption || link || base.fields.title);
+        showToast('Imagen descargada. Adjúntala en el chat de WhatsApp.');
+        return;
+      }
+      if (target === 'email') {
+        if (await shareBlob(blob, name, caption, base.fields.title).catch(() => false)) return;
+        downloadBlob(blob, name);
+        await copyBlob(blob).catch(() => false);
+        openEmail(base.fields.title || 'Creatividad', `${caption}\n\n(Adjunta el PNG descargado o pégalo si tu correo lo permite.)`);
+        showToast('PNG listo. Adjúntalo al email que se ha abierto.');
+        return;
+      }
+      if (target === 'instagram') {
+        downloadBlob(blob, name);
+        if (link) await copyText(link);
+        openInstagram();
+        showToast('PNG e enlace listos. En Instagram: nueva publicación → elige el PNG → pega el enlace en el sticker.');
+      }
+    } catch {
+      showToast('No se pudo preparar la imagen');
+    }
   };
 
   /* ---------- pasos ---------- */
@@ -911,7 +945,7 @@ export default function MarketingStudio({
       </div>
       <div style={{ padding: '12px 16px 28px', borderTop: '1px solid #ECEBF1', background: '#fff', flexShrink: 0, display: 'flex', gap: 10 }}>
         <button type="button" className={css.circle} style={{ width: 52, height: 52, background: '#fff', border: '1px solid #E4E3EA' }} title="Descargar PNG" onClick={() => saveAndFinish('png')}><Icon d={PATH.download} size={20} stroke={2} /></button>
-        <button type="button" className={cx(css.btn, css.primary, css.lg)} style={{ flex: 1, opacity: busy ? 0.6 : 1 }} onClick={() => saveAndFinish('share')}><Icon d={PATH.share} size={18} stroke={2} />{busy ? 'Preparando…' : 'Compartir'}</button>
+        <button type="button" className={cx(css.btn, css.primary, css.lg)} style={{ flex: 1, opacity: busy ? 0.6 : 1 }} onClick={() => saveAndFinish('ready')}><Icon d={PATH.share} size={18} stroke={2} />{busy ? 'Preparando…' : 'Listo · Enviar'}</button>
       </div>
     </div>
   ) : (
@@ -924,8 +958,9 @@ export default function MarketingStudio({
         {renderStepper(true)}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button type="button" className={cx(css.btn, css.ghost)} onClick={goHome}>Cancelar</button>
-          <button type="button" className={cx(css.btn, css.ghost)} onClick={copyImage}><Icon d={PATH.copy} size={17} />Copiar imagen</button>
-          <button type="button" className={cx(css.btn, css.primary)} style={{ opacity: busy ? 0.6 : 1 }} onClick={() => saveAndFinish('png')}><Icon d={PATH.download} size={18} stroke={2} />{busy ? 'Generando PNG…' : 'Descargar PNG'}</button>
+          <button type="button" className={cx(css.btn, css.ghost)} onClick={copyImage}><Icon d={PATH.copy} size={17} />Copiar</button>
+          <button type="button" className={cx(css.btn, css.ghost)} onClick={() => saveAndFinish('png')} disabled={busy}><Icon d={PATH.download} size={17} stroke={2} />PNG</button>
+          <button type="button" className={cx(css.btn, css.primary)} style={{ opacity: busy ? 0.6 : 1 }} onClick={() => saveAndFinish('ready')}><Icon d={PATH.share} size={18} stroke={2} />{busy ? 'Preparando…' : 'Listo · Enviar'}</button>
         </div>
       </header>
       <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '420px minmax(0, 1fr)' }}>
@@ -939,7 +974,7 @@ export default function MarketingStudio({
             {tabIdx > 0 && <button type="button" className={cx(css.btn, css.md)} style={{ background: 'none', color: '#4A4957', padding: '0 12px' }} onClick={() => patch({ tab: TABS[tabIdx - 1] })}><Icon d={PATH.back} size={16} stroke={2} />{TAB_LABEL[TABS[tabIdx - 1]]}</button>}
             <span style={{ flex: 1 }} />
             {nextBtn}
-            {tabIdx === 3 && <button type="button" className={cx(css.btn, css.primary, css.md)} style={{ opacity: busy ? 0.6 : 1 }} onClick={() => saveAndFinish('png')}><Icon d={PATH.download} size={16} stroke={2} />Todo listo · Descargar</button>}
+            {tabIdx === 3 && <button type="button" className={cx(css.btn, css.primary, css.md)} style={{ opacity: busy ? 0.6 : 1 }} onClick={() => saveAndFinish('ready')}><Icon d={PATH.share} size={16} stroke={2} />Todo listo · Enviar</button>}
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', background: '#F6F6F9', minHeight: 0, minWidth: 0 }}>
@@ -1112,17 +1147,44 @@ export default function MarketingStudio({
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <MarlenAvatar size={40} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-                <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>{done.mode === 'share' ? 'Lista para compartir' : 'Lista para publicar'}</span>
-                <span style={{ fontSize: 13, color: '#4A4957', lineHeight: 1.4 }}>{done.mode === 'share' ? 'Guardada en tus creatividades. Elige dónde enviarla.' : 'PNG descargado y guardado en tus creatividades. El enlace de reserva ya está copiado.'}</span>
+                <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>¿Cómo la envías?</span>
+                <span style={{ fontSize: 13, color: '#4A4957', lineHeight: 1.4 }}>
+                  {done.mode === 'png'
+                    ? 'PNG descargado. También puedes enviarla por WhatsApp, email o subirla a Instagram.'
+                    : 'Guardada en tus creatividades. Elige canal: WhatsApp, email, Instagram o descarga.'}
+                </span>
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#4A4957' }}>Compartir en</span>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {([['whatsapp', 'WhatsApp', PATH.whatsapp], ['email', 'Email', PATH.email], ['instagram', 'Instagram', PATH.instagram], ['copy', 'Copiar imagen', PATH.copy]] as const).map(([id, label, d]) => (
-                  <button key={id} type="button" className={cx(css.btn, css.ghost, css.md)} onClick={() => shareTo(id)}><Icon d={d} size={17} />{label}</button>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#4A4957' }}>Enviar o publicar</span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+                {([
+                  ['whatsapp', 'WhatsApp', PATH.whatsapp, 'Enviar al chat'],
+                  ['email', 'Email', PATH.email, 'Abrir correo'],
+                  ['instagram', 'Instagram', PATH.instagram, 'Subir story o post'],
+                  ['download', 'Descargar PNG', PATH.download, 'Guardar en el móvil'],
+                ] as const).map(([id, label, d, hint]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={cx(css.rowItem)}
+                    style={{ gap: 10, borderRadius: 14, padding: '12px 14px' }}
+                    onClick={() => void shareTo(id)}
+                  >
+                    <span style={{ width: 36, height: 36, borderRadius: 10, background: '#F2F2F7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Icon d={d} size={18} stroke={2} />
+                    </span>
+                    <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, textAlign: 'left' }}>
+                      <span style={{ fontSize: 14, fontWeight: 700 }}>{label}</span>
+                      <span style={{ fontSize: 12, color: '#6E6D7A', lineHeight: 1.3 }}>{hint}</span>
+                    </span>
+                  </button>
                 ))}
               </div>
+              <button type="button" className={cx(css.btn, css.ghost, css.md)} style={{ alignSelf: 'flex-start' }} onClick={() => void shareTo('copy')}>
+                <Icon d={PATH.copy} size={16} />Copiar imagen
+              </button>
+              <span className={css.hint}>Instagram no deja publicar desde fuera de la app: te bajamos el PNG y abrimos Instagram para que la subas.</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: '#4A4957' }}>Descargar también en</span>

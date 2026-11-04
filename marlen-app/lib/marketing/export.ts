@@ -19,14 +19,46 @@ export function downloadBlob(blob: Blob, filename: string) {
 }
 
 /** Hoja de compartir nativa (WhatsApp, Mail, Instagram…) si el dispositivo lo permite */
-export async function shareBlob(blob: Blob, filename: string, text?: string): Promise<boolean> {
+export async function shareBlob(blob: Blob, filename: string, text?: string, title?: string): Promise<boolean> {
   const file = new File([blob], filename, { type: 'image/png' });
   const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
-  if (nav.canShare && nav.canShare({ files: [file] })) {
-    await navigator.share({ files: [file], text });
+  const data: ShareData = { files: [file], text, title };
+  if (nav.canShare && nav.canShare(data)) {
+    await navigator.share(data);
     return true;
   }
+  // Sin archivos (escritorio): al menos texto/enlace
+  if (typeof navigator.share === 'function' && text) {
+    try {
+      await navigator.share({ title, text, url: text.startsWith('http') ? text : undefined });
+      return true;
+    } catch {
+      /* cancelado o no soportado */
+    }
+  }
   return false;
+}
+
+export function openWhatsApp(text: string) {
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
+}
+
+export function openEmail(subject: string, body: string) {
+  window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+/** Instagram no deja publicar desde web; abrimos la app/web y el usuario sube el PNG. */
+export function openInstagram() {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const mobile = /iPhone|iPad|iPod|Android/i.test(ua);
+  if (mobile) {
+    window.location.href = 'instagram://camera';
+    setTimeout(() => {
+      window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer');
+    }, 800);
+  } else {
+    window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer');
+  }
 }
 
 export async function copyBlob(blob: Blob): Promise<boolean> {
