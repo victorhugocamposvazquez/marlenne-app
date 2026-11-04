@@ -13,6 +13,8 @@ export const PATH = {
   copy: 'M9 9h11v11H9zM5 15H4V4h11v1',
   trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
   refresh: 'M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5',
+  search: 'M11 5a6 6 0 1 0 0 12a6 6 0 1 0 0-12zM20 20l-3.5-3.5',
+  plus: 'M12 5v14M5 12h14',
   sparkle: 'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM18.5 16l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z',
   noImage: 'M5 5h14v14H5zM5 19L19 5',
   safe: 'M4 4h16v16H4zM4 8h16M4 16h16',

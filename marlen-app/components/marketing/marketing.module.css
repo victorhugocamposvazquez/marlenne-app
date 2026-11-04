@@ -43,6 +43,14 @@
 .reroll { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border: none; border-radius: 8px; background: transparent; color: #6E6D7A; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .reroll:hover { background: #F2F2F7; color: #0F0E1A; }
 .hint { font-size: 12px; color: #6E6D7A; text-wrap: pretty; }
+.searchWrap { position: relative; display: block; width: 100%; }
+.searchWrap .input { padding-left: 42px; height: 48px; font-size: 15px; border-radius: 14px; background: #F6F6F9; border-color: transparent; }
+.searchWrap .input:focus { background: #fff; border-color: #0F0E1A; }
+.searchIcon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #6E6D7A; pointer-events: none; display: flex; }
+.skipLink { width: 100%; height: 44px; border: none; background: none; color: #4A4957; font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 0; text-align: left; }
+.skipLink:hover { color: #0F0E1A; }
+.footerAction { width: 100%; margin-top: 4px; border-top: 1px solid #ECEBF1; padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+.listStack { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
 
 /* tarjetas */
 .typeCard { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; padding: 18px; border-radius: 18px; border: 1px solid #ECEBF1; background: #fff; cursor: pointer; text-align: left; color: #0F0E1A; transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease; }

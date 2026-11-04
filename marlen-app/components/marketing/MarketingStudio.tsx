@@ -997,36 +997,7 @@ export default function MarketingStudio({
         )}
         {modal.step === 'item' && (
           <>
-            {(modal.type === 'bono' || modal.type === 'regalo') && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {!newPackOpen ? (
-                  <button type="button" className={cx(css.btn, css.soft)} onClick={() => setNewPackOpen(true)}>
-                    <Icon d={PATH.sparkle} size={16} stroke={1.9} color="#D000A8" />Nuevo bono
-                  </button>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 14, borderRadius: 14, background: '#F6F6F9' }}>
-                    <span style={{ fontSize: 14, fontWeight: 700 }}>Alta rápida de bono</span>
-                    <label className={css.field}><span className={css.label}>Nombre</span><input className={css.input} value={packForm.name} onChange={e => setPackForm(f => ({ ...f, name: e.target.value }))} placeholder="Bono 5 sesiones · Facial" /></label>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                      <label className={css.field}><span className={css.label}>Sesiones</span><input className={css.input} inputMode="numeric" value={packForm.sessions} onChange={e => setPackForm(f => ({ ...f, sessions: e.target.value }))} /></label>
-                      <label className={css.field}><span className={css.label}>Precio (€)</span><input className={css.input} inputMode="decimal" value={packForm.price} onChange={e => setPackForm(f => ({ ...f, price: e.target.value }))} placeholder="180" /></label>
-                    </div>
-                    <label className={css.field}>
-                      <span className={css.label}>Servicio (opcional)</span>
-                      <select className={css.input} value={packForm.serviceId} onChange={e => setPackForm(f => ({ ...f, serviceId: e.target.value }))}>
-                        <option value="">Sin servicio fijo</option>
-                        {servicesProp.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </select>
-                    </label>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button type="button" className={cx(css.btn, css.ghost)} onClick={() => setNewPackOpen(false)}>Cancelar</button>
-                      <button type="button" className={cx(css.btn, css.primary)} style={{ opacity: formBusy ? 0.6 : 1 }} onClick={() => void createPack()}>{formBusy ? 'Creando…' : 'Crear y usar'}</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className={css.listStack}>
               {MT.items.map((it, i) => (
                 <button key={`${it.templateId || it.label}-${i}`} type="button" className={cx(css.rowItem, modal.fromEditor && modal.type === ed.type && i === ed.catIdx && css.rowItemOn)} onClick={() => apply(modal.type, i)}>
                   <span style={{ width: 52, height: 52, borderRadius: 12, background: IMAGES[`${it.theme || 'centro'}-0`]?.bg, flexShrink: 0 }} />
@@ -1037,33 +1008,55 @@ export default function MarketingStudio({
               ))}
             </div>
             <div className={css.hint}>Con estos datos Marlén prepara el texto y la imagen. Podrás cambiarlo todo después.</div>
+            {(modal.type === 'bono' || modal.type === 'regalo') && (
+              <div className={css.footerAction}>
+                {!newPackOpen ? (
+                  <button type="button" className={cx(css.btn, css.outline, css.block, css.lg)} onClick={() => setNewPackOpen(true)}>
+                    Crear nuevo bono
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 14, borderRadius: 16, background: '#F6F6F9' }}>
+                    <span style={{ fontSize: 15, fontWeight: 700 }}>Nuevo bono</span>
+                    <label className={css.field}><span className={css.label}>Nombre</span><input className={cx(css.input, css.inputMobile)} value={packForm.name} onChange={e => setPackForm(f => ({ ...f, name: e.target.value }))} placeholder="Bono 5 sesiones · Facial" /></label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <label className={css.field}><span className={css.label}>Sesiones</span><input className={cx(css.input, css.inputMobile)} inputMode="numeric" value={packForm.sessions} onChange={e => setPackForm(f => ({ ...f, sessions: e.target.value }))} /></label>
+                      <label className={css.field}><span className={css.label}>Precio (€)</span><input className={cx(css.input, css.inputMobile)} inputMode="decimal" value={packForm.price} onChange={e => setPackForm(f => ({ ...f, price: e.target.value }))} placeholder="180" /></label>
+                    </div>
+                    <label className={css.field}>
+                      <span className={css.label}>Servicio (opcional)</span>
+                      <select className={cx(css.input, css.inputMobile)} value={packForm.serviceId} onChange={e => setPackForm(f => ({ ...f, serviceId: e.target.value }))}>
+                        <option value="">Sin servicio fijo</option>
+                        {servicesProp.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button type="button" className={cx(css.btn, css.ghost, css.block)} onClick={() => setNewPackOpen(false)}>Cancelar</button>
+                      <button type="button" className={cx(css.btn, css.primary, css.block)} style={{ opacity: formBusy ? 0.6 : 1 }} onClick={() => void createPack()}>{formBusy ? 'Creando…' : 'Crear y usar'}</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
         {modal.step === 'client' && (
           <>
-            <input
-              className={css.input}
-              value={clientQ}
-              onChange={e => setClientQ(e.target.value)}
-              placeholder="Buscar clienta por nombre o teléfono"
-              autoFocus
-            />
-            {!newClientOpen ? (
-              <button type="button" className={cx(css.btn, css.soft)} onClick={() => setNewClientOpen(true)}>
-                <Icon d={PATH.sparkle} size={16} stroke={1.9} color="#D000A8" />Nueva clienta
-              </button>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 14, borderRadius: 14, background: '#F6F6F9' }}>
-                <span style={{ fontSize: 14, fontWeight: 700 }}>Alta rápida</span>
-                <label className={css.field}><span className={css.label}>Nombre</span><input className={css.input} value={clientForm.fullName} onChange={e => setClientForm(f => ({ ...f, fullName: e.target.value }))} placeholder="María López" /></label>
-                <label className={css.field}><span className={css.label}>Teléfono (opcional)</span><input className={css.input} value={clientForm.phone} onChange={e => setClientForm(f => ({ ...f, phone: e.target.value }))} inputMode="tel" /></label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button type="button" className={cx(css.btn, css.ghost)} onClick={() => setNewClientOpen(false)}>Cancelar</button>
-                  <button type="button" className={cx(css.btn, css.primary)} style={{ opacity: formBusy ? 0.6 : 1 }} onClick={() => void createClient()}>{formBusy ? 'Creando…' : 'Crear y usar'}</button>
-                </div>
-              </div>
-            )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <button type="button" className={css.skipLink} onClick={() => applyClient({ id: null, name: null })}>
+              Continuar sin clienta
+            </button>
+            <div className={css.searchWrap}>
+              <span className={css.searchIcon}><Icon d={PATH.search} size={18} stroke={2} /></span>
+              <input
+                className={css.input}
+                value={clientQ}
+                onChange={e => setClientQ(e.target.value)}
+                placeholder="Buscar por nombre o teléfono"
+                autoFocus={!mobile}
+                inputMode="search"
+                enterKeyHint="search"
+              />
+            </div>
+            <div className={css.listStack}>
               {filteredClients.map(c => (
                 <button key={c.id} type="button" className={cx(css.rowItem, (modal.pendingClientId || ed.clientId) === c.id && css.rowItemOn)} onClick={() => applyClient({ id: c.id, name: c.full_name })}>
                   <span style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1, minWidth: 0 }}>
@@ -1073,12 +1066,30 @@ export default function MarketingStudio({
                   <Icon d={PATH.chevronRight} color="#6E6D7A" stroke={2} />
                 </button>
               ))}
-              {!filteredClients.length && <div className={css.hint}>No hay coincidencias. Crea una clienta nueva.</div>}
+              {!filteredClients.length && (
+                <div className={css.hint} style={{ padding: '8px 2px' }}>
+                  {clientQ.trim() ? 'No hay coincidencias.' : 'Aún no hay clientas. Crea una abajo.'}
+                </div>
+              )}
             </div>
-            <button type="button" className={cx(css.btn, css.ghost)} onClick={() => applyClient({ id: null, name: null })}>
-              Continuar sin clienta
-            </button>
-            <div className={css.hint}>La clienta personaliza el texto y, si quieres, puedes registrarle el bono al publicar.</div>
+            <div className={css.footerAction}>
+              {!newClientOpen ? (
+                <button type="button" className={cx(css.btn, css.outline, css.block, css.lg)} onClick={() => setNewClientOpen(true)}>
+                  Crear nueva clienta
+                </button>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 14, borderRadius: 16, background: '#F6F6F9' }}>
+                  <span style={{ fontSize: 15, fontWeight: 700 }}>Nueva clienta</span>
+                  <label className={css.field}><span className={css.label}>Nombre</span><input className={cx(css.input, css.inputMobile)} value={clientForm.fullName} onChange={e => setClientForm(f => ({ ...f, fullName: e.target.value }))} placeholder="María López" autoFocus /></label>
+                  <label className={css.field}><span className={css.label}>Teléfono (opcional)</span><input className={cx(css.input, css.inputMobile)} value={clientForm.phone} onChange={e => setClientForm(f => ({ ...f, phone: e.target.value }))} inputMode="tel" /></label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button type="button" className={cx(css.btn, css.ghost, css.block)} onClick={() => setNewClientOpen(false)}>Cancelar</button>
+                    <button type="button" className={cx(css.btn, css.primary, css.block)} style={{ opacity: formBusy ? 0.6 : 1 }} onClick={() => void createClient()}>{formBusy ? 'Creando…' : 'Crear y usar'}</button>
+                  </div>
+                </div>
+              )}
+              <div className={css.hint}>La clienta personaliza el texto y, si quieres, puedes registrarle el bono al publicar.</div>
+            </div>
           </>
         )}
       </div>
