@@ -1,0 +1,14 @@
+---
+description: Convenciones del módulo Marketing (creatividades) de Marlenapp
+globs: components/marketing/**, lib/marketing/**
+alwaysApply: false
+---
+
+- Todo el texto de UI va en español de España, de tú, tono cercano y profesional. Marlén habla en primera persona («He preparado…», «Te propongo…»).
+- `Creative.tsx` dibuja SIEMPRE en coordenadas de 1080 px de ancho. No metas tamaños relativos al viewport ahí: `<Creative>` escala con `transform`, y `<CreativeCanvas>` se usa tal cual para exportar el PNG.
+- Los elementos de diseño (sello, subrayado, destellos, forma, marco) NO se posicionan a mano: se anclan en `computeLayout()` según estilo + formato + imagen. Si añades un estilo nuevo, define sus anclajes allí y comprueba los 3 formatos con y sin imagen.
+- Máximo 2 elementos recomendados por estilo (`REC` / `ALT` en `data.ts`).
+- Textos automáticos: solo desde `lib/marketing/textos-marketing.json` vía `copy.ts`. Respeta `_meta.rules` (sin artículo delante de `{name}`, límites por campo, el precio nunca dentro del texto).
+- Colores: tinta `#0F0E1A`, gris texto `#6E6D7A`/`#4A4957`, superficie `#F2F2F7`/`#F6F6F9`, borde `#ECEBF1`/`#E4E3EA`, acento Marlenapp `#D000A8` solo para «Nueva», zonas seguras y el icono de Marlén. El acento de cada creatividad es el color de marca del centro (`brandColor`).
+- Tipografía: Sora (UI y creatividades), Instrument Serif (estilos Editorial y Luxe).
+- Objetivos táctiles en mobile ≥ 44 px. Los hijos de contenedores flex con scroll llevan `flex-shrink: 0`.

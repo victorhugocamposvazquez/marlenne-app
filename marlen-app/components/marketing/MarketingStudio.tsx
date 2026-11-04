@@ -1,0 +1,744 @@
+'use client';
+
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import css from './marketing.module.css';
+import Creative, { CreativeCanvas } from './Creative';
+import { Icon, MarlenAvatar, PATH } from './Icons';
+import { ALT, ELEMENTS, FORMATS, FORMAT_H, IMAGES, REC, SEAL_TEXT, STYLES, STYLE_TONE, THEMES, TONES, fieldsFor, getCatalog, getType, recommendElements, setActiveCatalog, suggestTheme } from '@/lib/marketing/data';
+import { LIMITS, type TextField, improveAll, pickLine } from '@/lib/marketing/copy';
+import { copyBlob, copyText, downloadBlob, nodeToPng, shareBlob, slug } from '@/lib/marketing/export';
+import type { BankImage, CreativeConfig, CreativeType, ElementKey, Elements, Fields, FormatId, LibraryItem, StyleId, TabId, Tone, TypeId } from '@/lib/marketing/types';
+
+const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(' ');
+const TABS: TabId[] = ['imagen', 'estilo', 'elementos', 'texto'];
+const TAB_LABEL: Record<TabId, string> = { imagen: 'Imagen', estilo: 'Estilo', elementos: 'Elementos', texto: 'Texto' };
+const STORAGE_KEY = 'marlen.marketing.library.v1';
+
+function useIsMobile(bp = 768) {
+  const [m, setM] = useState(false);
+  useEffect(() => {
+    const q = window.matchMedia(`(max-width: ${bp - 1}px)`);
+    const f = () => setM(q.matches);
+    f();
+    q.addEventListener('change', f);
+    return () => q.removeEventListener('change', f);
+  }, [bp]);
+  return m;
+}
+
+function useElementSize<T extends HTMLElement>() {
+  const [el, setEl] = useState<T | null>(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    if (!el) return;
+    const ro = new ResizeObserver(() => setSize({ w: el.clientWidth, h: el.clientHeight }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [el]);
+  return [setEl, size] as const;
+}
+
+interface EditorState {
+  editingId: string | null; type: TypeId; catIdx: number; style: StyleId; format: FormatId; fields: Fields; showLogo: boolean;
+  image: string | null; imgTheme: string; els: Elements; elsManual: boolean; tone: Tone; toneManual: boolean; tab: TabId; safe: boolean;
+}
+interface ModalState { step: 'type' | 'item'; type: TypeId; fromEditor: boolean }
+interface DoneState { id: string; mode: 'png' | 'share'; extra: FormatId[] }
+interface ToastState { msg: string; action?: { label: string; fn: () => void } }
+
+function makeEditor(o: Partial<EditorState> & { type: TypeId; style: StyleId }): EditorState {
+  const catIdx = o.catIdx ?? 0;
+  return {
+    editingId: null, catIdx, format: 'story', fields: fieldsFor(o.type, catIdx), showLogo: true, image: null,
+    imgTheme: suggestTheme(o.type, catIdx), els: recommendElements(o.style, o.type), elsManual: false,
+    tone: STYLE_TONE[o.style], toneManual: false, tab: 'imagen', safe: false, ...o,
+  };
+}
+
+export interface MarketingStudioProps {
+  salon?: string;
+  logo?: string;
+  brandColor?: string;
+  bookingLink?: string;
+  catalog?: CreativeType[];
+  onBack?: () => void;
+}
+
+export default function MarketingStudio({
+  salon = 'Tu centro',
+  logo,
+  brandColor = '#D000A8',
+  bookingLink = '',
+  catalog,
+  onBack,
+}: MarketingStudioProps) {
+  const mobile = useIsMobile();
+  const [types, setTypes] = useState(() => (catalog?.length ? catalog : getCatalog()));
+  useEffect(() => {
+    if (catalog?.length) {
+      setActiveCatalog(catalog);
+      setTypes(catalog);
+    }
+  }, [catalog]);
+  const [view, setView] = useState<'home' | 'editor'>('home');
+  const [ed, setEd] = useState<EditorState>(() => makeEditor({ type: 'reserva', style: 'card' }));
+  const patch = useCallback((p: Partial<EditorState> | ((e: EditorState) => Partial<EditorState>)) => setEd((e) => ({ ...e, ...(typeof p === 'function' ? p(e) : p) })), []);
+  const [modal, setModal] = useState<ModalState | null>(null);
+  const [done, setDone] = useState<DoneState | null>(null);
+  const [library, setLibrary] = useState<LibraryItem[]>([]);
+  const [uploads, setUploads] = useState<BankImage[]>([]);
+  const [filter, setFilter] = useState<'all' | FormatId>('all');
+  const [highlight, setHighlight] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [link, setLink] = useState(bookingLink);
+  useEffect(() => {
+    setLink(bookingLink);
+  }, [bookingLink]);
+  const [exportCfg, setExportCfg] = useState<CreativeConfig | null>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
+  const exportResolve = useRef<(() => void) | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const autoN = useRef(0);
+  const [previewRef, preview] = useElementSize<HTMLDivElement>();
+
+  // TODO(backend): sustituir localStorage por la API de biblioteca del centro.
+  useEffect(() => {
+    try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) setLibrary(JSON.parse(raw)); } catch { /* noop */ }
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(library)); } catch { /* noop */ }
+  }, [library]);
+
+  const showToast = useCallback((msg: string, action?: ToastState['action']) => {
+    setToast({ msg, action });
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => { setToast(null); setHighlight(null); }, action ? 6000 : 3800);
+  }, []);
+
+  /* ---------- datos derivados ---------- */
+  const T = getType(ed.type);
+  const item = T.items[ed.catIdx] || T.items[0];
+  const F = FORMATS.find((f) => f.id === ed.format) || FORMATS[0];
+  const imgObj = (id: string | null) => (id ? uploads.find((u) => u.id === id) || IMAGES[id] || null : null);
+  const themeLabel = (id: string) => (id === 'mias' ? 'Tus fotos' : THEMES.find((t) => t.id === id)?.label || '');
+  const cfgOf = (o: { style: StyleId; format: FormatId; fields: Fields; showLogo: boolean; image: string | null; els: Elements }): CreativeConfig => {
+    const im = imgObj(o.image);
+    return { ...o.fields, style: o.style, format: o.format, accent: brandColor, logo, showLogo: o.showLogo, link, image: im ? { bg: im.bg, src: im.src, label: im.label } : null, elements: o.els };
+  };
+  const currentCfg = cfgOf(ed);
+  const sugTheme = suggestTheme(ed.type, ed.catIdx);
+
+  /* ---------- exportación ---------- */
+  useEffect(() => {
+    if (exportCfg && exportResolve.current) {
+      const r = exportResolve.current;
+      exportResolve.current = null;
+      requestAnimationFrame(() => requestAnimationFrame(r));
+    }
+  }, [exportCfg]);
+  const capture = (cfg: CreativeConfig) =>
+    new Promise<Blob>((resolve, reject) => {
+      exportResolve.current = async () => {
+        try {
+          if (document.fonts?.ready) await document.fonts.ready;
+          if (!exportRef.current) throw new Error('Sin nodo de exportación');
+          resolve(await nodeToPng(exportRef.current));
+        } catch (e) { reject(e); }
+      };
+      setExportCfg({ ...cfg });
+    });
+  const fileName = (format: FormatId) => `${slug(salon)}-${slug(ed.fields.title || T.label)}-${format}.png`;
+
+  /* ---------- navegación del flujo ---------- */
+  const openEditor = (o: Partial<EditorState> & { type: TypeId; style: StyleId }) => {
+    setModal(null);
+    setDone(null);
+    setEd(makeEditor(o));
+    setView('editor');
+  };
+  const apply = (typeId: TypeId, idx: number) => {
+    const t = getType(typeId), it = t.items[idx] || t.items[0], theme = it.theme || 'centro';
+    if (view === 'editor' && modal?.fromEditor) {
+      patch((e) => ({ type: typeId, catIdx: idx, fields: fieldsFor(typeId, idx), image: `${theme}-0`, imgTheme: theme, els: e.elsManual ? { ...e.els, sealText: SEAL_TEXT[typeId] } : recommendElements(e.style, typeId) }));
+      setModal(null);
+      showToast('Marlén ha actualizado texto e imagen');
+    } else {
+      openEditor({ type: typeId, catIdx: idx, style: t.style, image: `${theme}-0`, imgTheme: theme });
+    }
+  };
+  const startType = (id: TypeId) => {
+    const t = getType(id);
+    if (t.items.length > 1) setModal({ step: 'item', type: id, fromEditor: !!modal?.fromEditor || view === 'editor' });
+    else apply(id, 0);
+  };
+  const goHome = () => { setView('home'); setModal(null); patch({ safe: false }); };
+
+  /* ---------- acciones del editor ---------- */
+  const onField = (e: React.ChangeEvent<HTMLInputElement>) => { const { name, value } = e.target; patch((s) => ({ fields: { ...s.fields, [name]: value } })); };
+  const reroll = (field: TextField) => { const p = pickLine({ type: T, item, tone: ed.tone, field, salon, exclude: ed.fields[field] }); if (p) patch((s) => ({ fields: { ...s.fields, [field]: p.txt } })); };
+  const improve = () => {
+    const prev = ed.fields;
+    patch({ fields: improveAll(T, item, ed.tone, ed.fields, salon) });
+    showToast(`Marlén ha reescrito los textos en tono ${ed.tone}.`, { label: 'Deshacer', fn: () => { patch({ fields: prev }); showToast('Textos restaurados'); } });
+  };
+  const pickStyle = (id: StyleId) => patch((e) => ({ style: id, ...(e.toneManual ? {} : { tone: STYLE_TONE[id] }), ...(e.elsManual ? {} : { els: { ...recommendElements(id, e.type), sealText: e.els.sealText } }) }));
+  const toggleEl = (k: ElementKey) => patch((e) => ({ els: { ...e.els, [k]: !e.els[k] }, elsManual: true }));
+  const autoEls = () => {
+    autoN.current += 1;
+    const keys = autoN.current % 2 ? ALT[ed.style] : REC[ed.style];
+    patch((e) => ({ els: { ...recommendElements(e.style, e.type, keys), sealText: e.els.sealText || SEAL_TEXT[e.type] }, elsManual: false }));
+    showToast('Marlén ha elegido elementos para ' + STYLES.find((s) => s.id === ed.style)?.label);
+  };
+  const onUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    // TODO(backend): subir a storage y guardar la URL definitiva; el blob: solo vive en esta sesión.
+    const id = 'u' + Date.now();
+    setUploads((u) => [{ id, theme: 'mias', label: f.name.replace(/\.[^.]+$/, ''), src: URL.createObjectURL(f), bg: '#E4E3EA' }, ...u]);
+    patch({ image: id, imgTheme: 'mias' });
+    e.target.value = '';
+  };
+
+  const saveAndFinish = async (mode: 'png' | 'share') => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const blob = await capture(currentCfg);
+      if (mode === 'share') { const ok = await shareBlob(blob, fileName(ed.format), link).catch(() => false); if (!ok) downloadBlob(blob, fileName(ed.format)); }
+      else downloadBlob(blob, fileName(ed.format));
+      await copyText(link);
+      const it: LibraryItem = { id: ed.editingId || 'c' + Date.now(), type: ed.type, catIdx: ed.catIdx, style: ed.style, format: ed.format, image: ed.image, fields: { ...ed.fields }, els: { ...ed.els }, showLogo: ed.showLogo, date: 'Ahora' };
+      setLibrary((l) => [it, ...l.filter((x) => x.id !== it.id)]);
+      setHighlight(it.id);
+      setFilter('all');
+      patch({ editingId: it.id, safe: false });
+      setDone({ id: it.id, mode, extra: [] });
+    } catch {
+      showToast('No se pudo generar la imagen. Inténtalo de nuevo.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const copyImage = async () => { try { const ok = await copyBlob(await capture(currentCfg)); showToast(ok ? 'Imagen copiada. Pégala en WhatsApp Web o en un email.' : 'Tu navegador no permite copiar imágenes'); } catch { showToast('No se pudo copiar'); } };
+  const extraFormat = async (fid: FormatId, label: string) => {
+    const base = done && library.find((i) => i.id === done.id);
+    if (!base) return;
+    try {
+      const blob = await capture(cfgOf({ ...base, format: fid }));
+      downloadBlob(blob, fileName(fid));
+      setLibrary((l) => [l[0], { ...base, id: 'c' + Date.now() + fid, format: fid, date: 'Ahora' }, ...l.slice(1)]);
+      setDone((d) => (d ? { ...d, extra: [...d.extra, fid] } : d));
+      showToast('Descargada también en ' + label);
+    } catch { showToast('No se pudo generar la imagen'); }
+  };
+  const shareTo = async (target: 'whatsapp' | 'email' | 'instagram' | 'copy') => {
+    const base = done && library.find((i) => i.id === done.id);
+    if (!base) return;
+    const blob = await capture(cfgOf(base));
+    if (target === 'copy') { showToast((await copyBlob(blob)) ? 'Imagen copiada' : 'Tu navegador no permite copiar imágenes'); return; }
+    if (await shareBlob(blob, fileName(base.format), link).catch(() => false)) return;
+    downloadBlob(blob, fileName(base.format));
+    if (target === 'whatsapp') window.open(`https://wa.me/?text=${encodeURIComponent(link)}`, '_blank');
+    if (target === 'email') window.location.href = `mailto:?subject=${encodeURIComponent(base.fields.title)}&body=${encodeURIComponent(link)}`;
+    if (target === 'instagram') showToast('Imagen descargada. Súbela desde Instagram y pega el enlace en el sticker.');
+  };
+
+  /* ---------- pasos ---------- */
+  const ctx = modal ? (modal.step === 'type' ? 1 : 2) : view === 'editor' ? 3 : 1;
+  const MT = modal ? getType(modal.type) : T;
+  const goType = () => setModal((m) => ({ step: 'type', type: m ? m.type : ed.type, fromEditor: m ? m.fromEditor : view === 'editor' }));
+  const goItem = () => (T.items.length > 1 ? setModal({ step: 'item', type: ed.type, fromEditor: true }) : goType());
+  const steps = [ctx > 1 ? MT.label : 'Qué anuncias', ctx > 2 ? item.label : 'Del catálogo', 'Diseño'].map((label, i) => {
+    const n = i + 1, isDone = n < ctx, on = n <= ctx;
+    return { n, label, isDone, on, go: isDone ? (n === 1 ? goType : goItem) : undefined, mw: n === 2 && isDone ? (mobile ? 150 : 260) : 220 };
+  });
+  const renderStepper = (big: boolean) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: big ? 10 : 6, flexWrap: 'wrap', minWidth: 0 }} aria-label="Pasos">
+      {steps.map((s, i) => (
+        <React.Fragment key={s.n}>
+          {i > 0 && <span style={{ width: big ? 24 : 10, height: 1.5, background: s.on ? '#0F0E1A' : '#D9D8E0', flexShrink: 0 }} />}
+          <button type="button" onClick={s.go} disabled={!s.go} title={s.go ? 'Cambiar' : undefined} aria-current={s.n === ctx ? 'step' : undefined}
+            style={{ display: 'flex', alignItems: 'center', gap: big ? 8 : 5, minWidth: 0, maxWidth: s.mw, border: 'none', background: 'none', padding: '4px 2px', cursor: s.go ? 'pointer' : 'default', fontSize: big ? 13 : 12, fontWeight: 600, color: s.on ? '#0F0E1A' : '#6E6D7A' }}>
+            <span style={{ width: big ? 24 : 20, height: big ? 24 : 20, borderRadius: '50%', background: s.on ? '#0F0E1A' : '#fff', border: `1.5px solid ${s.on ? '#0F0E1A' : '#C9C8D3'}`, color: s.on ? '#fff' : '#6E6D7A', fontSize: big ? 12 : 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {s.isDone ? <Icon d={PATH.check} size={big ? 12 : 11} stroke={3} /> : s.n}
+            </span>
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.label}</span>
+          </button>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+
+  /* ---------- piezas reutilizables ---------- */
+  const tabIdx = Math.max(0, TABS.indexOf(ed.tab));
+  const marlenTip = {
+    imagen: `He elegido una foto de ${themeLabel(sugTheme)} para tu anuncio. Cámbiala o sube una tuya.`,
+    estilo: 'Cada estilo recoloca todo solo. Prueba sin miedo: tu texto y tu imagen se mantienen.',
+    elementos: 'Mejor pocos y bien puestos: te propongo dos como máximo y los coloco yo.',
+    texto: 'Pulsa «Mejorar textos» y te propongo otra versión con el tono que elijas.',
+  }[ed.tab];
+
+  const textField = (name: TextField, label: string, m: boolean) => {
+    const len = (ed.fields[name] || '').length;
+    return (
+      <label className={css.field} key={name}>
+        <span className={css.label}>{label}<span className={cx(css.counter, len > LIMITS[name] && css.counterOver)}>{len}/{LIMITS[name]}</span></span>
+        <span className={css.inputWrap}>
+          <input name={name} value={ed.fields[name]} onChange={onField} className={cx(css.input, m && css.inputMobile, css.withAction)} />
+          <button type="button" className={css.reroll} title="Otra opción" onClick={() => reroll(name)}><Icon d={PATH.refresh} size={16} stroke={1.9} /></button>
+        </span>
+      </label>
+    );
+  };
+
+  const marlenBtn = (label: string, onClick: () => void, title: string) => (
+    <button type="button" className={cx(css.btn, css.soft, css.sm)} onClick={onClick} title={title}><Icon d={PATH.sparkle} size={15} stroke={1.9} color="#D000A8" />{label}</button>
+  );
+
+  const imagePanel = (m: boolean) => {
+    const list = ed.imgTheme === 'mias' ? uploads : Object.values(IMAGES).filter((x) => x.theme === ed.imgTheme);
+    const sel = imgObj(ed.image);
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flexShrink: 0 }}>
+        {!m && <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}><span style={{ fontSize: 15, fontWeight: 700 }}>Imagen</span><span className={css.hint}>Sugerida: {themeLabel(sugTheme)}</span></div>}
+        <div className={m ? css.noScrollbar : undefined} style={m ? { display: 'flex', gap: 6, overflowX: 'auto', margin: '0 -16px', padding: '0 16px 2px' } : { display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {[{ id: 'mias', label: 'Tus fotos' + (uploads.length ? ' · ' + uploads.length : '') }, ...THEMES].map((t) => (
+            <button key={t.id} type="button" className={cx(css.chip, ed.imgTheme === t.id && css.chipOn)} onClick={() => patch({ imgTheme: t.id })} style={m ? { height: 32 } : undefined}>
+              {t.id === sugTheme && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#D000A8' }} />}{t.label}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }}>
+          <button type="button" className={css.tile} style={{ borderColor: ed.image ? '#ECEBF1' : '#0F0E1A' }} onClick={() => patch({ image: null })}><Icon d={PATH.noImage} size={20} />Sin imagen</button>
+          <label className={cx(css.tile, css.tileDashed)} title="Subir una foto tuya"><input type="file" accept="image/*" onChange={onUpload} style={{ display: 'none' }} /><Icon d={PATH.upload} size={20} />Subir foto</label>
+          {list.map((x) => (
+            <button key={x.id} type="button" title={x.label} className={cx(css.ring, ed.image === x.id && css.ringOn)} onClick={() => patch({ image: x.id })}>
+              <span style={{ display: 'block', position: 'relative', aspectRatio: '1', borderRadius: 8, background: x.bg, overflow: 'hidden' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {x.src && <img src={x.src} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className={css.hint}>{sel ? `${sel.label} · ${themeLabel(sel.theme)}` : ed.imgTheme === 'mias' && !uploads.length ? 'Sube fotos de tu centro o de tu equipo.' : 'Sin imagen'}</div>
+      </div>
+    );
+  };
+
+  const stylePanel = (m: boolean) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flexShrink: 0 }}>
+      {!m && <span style={{ fontSize: 15, fontWeight: 700 }}>Estilo</span>}
+      <div className={m ? css.noScrollbar : undefined} style={m ? { display: 'flex', gap: 8, overflowX: 'auto', margin: '0 -16px', padding: '0 16px 6px' } : { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '14px 8px' }}>
+        {STYLES.map((s) => {
+          const on = s.id === ed.style;
+          const els = ed.elsManual ? ed.els : { ...recommendElements(s.id, ed.type), sealText: ed.els.sealText };
+          return (
+            <button key={s.id} type="button" onClick={() => pickStyle(s.id)} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0, color: '#0F0E1A', textAlign: 'left' }}>
+              <div style={{ padding: 3, borderRadius: 13, border: `2px solid ${on ? '#0F0E1A' : 'transparent'}` }}>
+                <div style={{ borderRadius: 8, overflow: 'hidden', boxShadow: '0 0 0 1px #ECEBF1' }}>
+                  <Creative cfg={cfgOf({ ...ed, style: s.id, format: 'portrait', els })} width={m ? 100 : 106} />
+                </div>
+              </div>
+              <span style={{ fontSize: 12, fontWeight: on ? 700 : 500, paddingLeft: 4, whiteSpace: 'nowrap' }}>{s.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const elementsPanel = (m: boolean) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flexShrink: 0 }}>
+      {!m && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}><span style={{ fontSize: 15, fontWeight: 700 }}>Elementos</span>{marlenBtn('Sugerir', autoEls, 'Marlén elige la combinación que mejor funciona con este estilo')}</div>}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {ELEMENTS.map(([k, label, icon]) => (
+          <button key={k} type="button" className={cx(css.chip, css.chipLg, ed.els[k] && css.chipOn)} onClick={() => toggleEl(k)} aria-pressed={!!ed.els[k]}><Icon d={icon} size={18} />{label}</button>
+        ))}
+        {m && marlenBtn('Sugerir', autoEls, 'Marlén elige la combinación que mejor funciona con este estilo')}
+      </div>
+      {ed.els.seal && (
+        <label className={css.field}><span className={css.label}>Texto del sello</span>
+          <input value={ed.els.sealText} maxLength={14} onChange={(e) => { const v = e.target.value; patch((s) => ({ els: { ...s.els, sealText: v }, elsManual: true })); }} className={cx(css.input, m && css.inputMobile)} />
+        </label>
+      )}
+      <div className={css.hint}>Se colocan solos según el estilo, el formato y la imagen.</div>
+    </div>
+  );
+
+  const textPanel = (m: boolean) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: m ? 14 : 16, flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        {!m && <span style={{ fontSize: 15, fontWeight: 700, flex: 1 }}>Texto</span>}
+        {m && <div style={{ display: 'flex', gap: 6 }}>{TONES.map(([id, label]) => <button key={id} type="button" className={cx(css.chip, ed.tone === id && css.chipOn)} style={{ height: 32 }} onClick={() => patch({ tone: id, toneManual: true })}>{label}</button>)}</div>}
+        {marlenBtn(m ? 'Mejorar' : 'Mejorar textos', improve, 'Marlén reescribe antetítulo, titular, subtítulo y botón con el tono elegido')}
+      </div>
+      {!m && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#4A4957', marginRight: 2 }}>Tono</span>
+          {TONES.map(([id, label, hint]) => <button key={id} type="button" title={hint} className={cx(css.chip, ed.tone === id && css.chipOn)} onClick={() => patch({ tone: id, toneManual: true })}>{label}</button>)}
+        </div>
+      )}
+      {textField('eyebrow', 'Antetítulo', m)}
+      {textField('title', 'Titular', m)}
+      {textField('subtitle', 'Subtítulo', m)}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: m ? 10 : 12 }}>
+        <label className={css.field}><span className={css.label}>Precio</span><input name="price" value={ed.fields.price} placeholder="Opcional" onChange={onField} className={cx(css.input, m && css.inputMobile)} /></label>
+        {textField('cta', 'Botón', m)}
+      </div>
+      <label className={css.field}>
+        <span className={css.label}>Enlace de reserva</span>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input value={link} onChange={(e) => setLink(e.target.value)} className={cx(css.input, m && css.inputMobile)} style={{ flex: 1, minWidth: 0 }} />
+          {!m && <button type="button" className={cx(css.btn, css.ghost)} style={{ borderRadius: 12, padding: '0 14px', fontSize: 13 }} onClick={async () => { await copyText(link); showToast('Enlace copiado'); }}>Copiar</button>}
+        </div>
+        <span className={css.hint}>Se copia al descargar, para pegarlo en la story, el estado de WhatsApp o el email.</span>
+      </label>
+      <button type="button" onClick={() => patch((s) => ({ showLogo: !s.showLogo }))} aria-pressed={ed.showLogo}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: m ? 52 : 48, padding: '0 14px', borderRadius: 12, border: '1px solid #E4E3EA', background: '#fff', cursor: 'pointer', color: '#0F0E1A', fontSize: 14, fontWeight: 600 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}><img src={logo} alt="" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'cover' }} />Mostrar logo del centro</span>
+        <span className={cx(css.switch, ed.showLogo && css.switchOn)} />
+      </button>
+    </div>
+  );
+  const tabPanel = (m: boolean) => ({ imagen: imagePanel, estilo: stylePanel, elementos: elementsPanel, texto: textPanel }[ed.tab](m));
+
+  const formatSeg = (m: boolean) => (
+    <div className={css.seg} style={m ? { gap: 3, padding: 3 } : undefined}>
+      {FORMATS.map((f) => (
+        <button key={f.id} type="button" className={cx(css.segBtn, f.id === ed.format && css.segBtnOn)} style={m ? { height: 34, padding: '0 12px', fontSize: 12, gap: 6 } : undefined} onClick={() => patch({ format: f.id })}>
+          <span className={css.ratio} style={{ width: f.iw, height: f.ih }} />{m ? f.ratio : f.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  const pad = mobile ? 12 : 36;
+  const pw = preview.w || (mobile ? 390 : 900), ph = preview.h || (mobile ? 260 : 640);
+  const previewW = Math.max(60, Math.floor(Math.min(pw - pad * 2, ((ph - pad * 2) * 1080) / F.H, mobile ? 999 : 620)));
+
+  /* ---------- biblioteca ---------- */
+  const filtered = library.filter((i) => filter === 'all' || i.format === filter);
+  const box = mobile ? { w: 169, h: 211, p: 12 } : { w: 232, h: 290, p: 20 };
+  const libraryGrid = (
+    filtered.length ? (
+      <div style={{ display: 'grid', gridTemplateColumns: mobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fill, 232px)', gap: mobile ? '20px 12px' : '28px 20px' }}>
+        {filtered.map((i) => {
+          const t = getType(i.type), f = FORMATS.find((x) => x.id === i.format)!;
+          const tw = Math.floor(Math.min(box.w - box.p * 2, ((box.h - box.p * 2) * 1080) / FORMAT_H[i.format]));
+          return (
+            <div key={i.id} onClick={() => openEditor({ ...i, editingId: i.id, imgTheme: imgObj(i.image)?.theme || suggestTheme(i.type, i.catIdx), tone: STYLE_TONE[i.style], tab: 'texto' })} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: mobile ? 8 : 12, minWidth: 0 }}>
+              <div className={css.libThumb} style={{ height: box.h, borderRadius: mobile ? 14 : 16, boxShadow: highlight === i.id ? '0 0 0 2px #D000A8' : 'none' }}>
+                <Creative cfg={cfgOf(i)} width={tw} radius={mobile ? 5 : 6} shadow />
+                {highlight === i.id && <span className={css.badgeNew}>Nueva</span>}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+                  <div style={{ fontSize: mobile ? 13 : 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{i.fields.title}</div>
+                  <div style={{ fontSize: 12, color: '#6E6D7A' }}>{mobile ? `${f.ratio} · ${i.date}` : `${f.label} · ${t.label} · ${i.date}`}</div>
+                </div>
+                {!mobile && (
+                  <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                    <button type="button" className={css.iconBtn} title="Descargar PNG" onClick={async (e) => { e.stopPropagation(); downloadBlob(await capture(cfgOf(i)), `${slug(salon)}-${slug(i.fields.title)}-${i.format}.png`); }}><Icon d={PATH.download} /></button>
+                    <button type="button" className={css.iconBtn} title="Eliminar" onClick={(e) => { e.stopPropagation(); setLibrary((l) => l.filter((x) => x.id !== i.id)); showToast('Creatividad eliminada'); }}><Icon d={PATH.trash} /></button>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    ) : (
+      <div style={{ border: '1.5px dashed #DCDBE3', borderRadius: 16, padding: mobile ? '28px 20px' : '40px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center' }}>
+        <div style={{ fontSize: 15, fontWeight: 600 }}>{library.length ? 'Nada en este filtro' : 'Aún no has creado ninguna'}</div>
+        <div style={{ fontSize: 14, color: '#6E6D7A' }}>{library.length ? 'Prueba con «Todas».' : 'Lo que descargues o compartas aparecerá aquí.'}</div>
+      </div>
+    )
+  );
+  const filters = (
+    <div style={{ display: 'flex', gap: mobile ? 4 : 6 }}>
+      {([['all', 'Todas'], ['story', '9:16'], ['square', '1:1'], ['portrait', '4:5']] as const).map(([id, label]) => (
+        <button key={id} type="button" className={cx(css.filter, filter === id && css.filterOn)} style={mobile ? { height: 32, padding: '0 12px', fontSize: 12 } : undefined} onClick={() => setFilter(id)}>{label}</button>
+      ))}
+    </div>
+  );
+
+  /* ---------- vistas ---------- */
+  const home = mobile ? (
+    <div className={css.scroll} style={{ paddingBottom: 32 }}>
+      <div style={{ padding: '8px 20px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button type="button" className={css.circle} onClick={onBack} aria-label="Volver"><Icon d={PATH.back} size={20} stroke={2} /></button>
+          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, letterSpacing: '-0.025em' }}>Marketing</h1>
+        </div>
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.45, color: '#6E6D7A' }}>Imágenes con la marca de tu centro para Instagram, WhatsApp o email.</p>
+      </div>
+      <section style={{ margin: '20px 16px 0', background: '#F6F6F9', borderRadius: 22, padding: '18px 14px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <MarlenAvatar size={36} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}><h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Hola, soy Marlén</h2><span style={{ fontSize: 12, color: '#4A4957', lineHeight: 1.35 }}>Tu diseñadora. Elige qué anunciar y yo lo preparo.</span></div>
+          </div>
+          {renderStepper(false)}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+          {types.map((t) => (
+            <button key={t.id} type="button" className={css.typeCard} style={{ padding: 14, gap: 10, borderRadius: 16, minHeight: 128 }} onClick={() => startType(t.id)}>
+              <span className={css.typeIcon} style={{ width: 36, height: 36, borderRadius: 10 }}><Icon d={t.icon} size={19} /></span>
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 3 }}><span style={{ fontSize: 15, fontWeight: 700 }}>{t.label}</span><span style={{ fontSize: 12, color: '#6E6D7A', lineHeight: 1.35 }}>{t.desc}</span></span>
+            </button>
+          ))}
+        </div>
+      </section>
+      <section style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '28px 20px 0' }}>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Tus creatividades <span style={{ color: '#6E6D7A', fontWeight: 500 }}>· {library.length}</span></h2>
+        {filters}
+        {libraryGrid}
+      </section>
+    </div>
+  ) : (
+    <div className={css.scroll}>
+      <div style={{ maxWidth: 1320, padding: '32px 40px 64px', display: 'flex', flexDirection: 'column', gap: 36 }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+          <button type="button" className={css.circle} style={{ width: 48, height: 48 }} onClick={onBack} aria-label="Volver"><Icon d={PATH.back} size={20} stroke={2} /></button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <h1 style={{ margin: 0, fontSize: 32, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: '48px' }}>Marketing</h1>
+            <p style={{ margin: 0, fontSize: 15, color: '#6E6D7A' }}>Imágenes con la marca de tu centro para Instagram, WhatsApp o email.</p>
+          </div>
+        </div>
+        <section style={{ background: '#F6F6F9', borderRadius: 24, padding: 28, display: 'flex', flexDirection: 'column', gap: 22 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <MarlenAvatar size={48} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <h2 style={{ margin: 0, fontSize: 21, fontWeight: 700, letterSpacing: '-0.02em' }}>Hola, soy Marlén, tu diseñadora</h2>
+                <p style={{ margin: 0, fontSize: 14, color: '#4A4957' }}>Dime qué quieres anunciar y te preparo imagen, texto y estilo. Tú solo das el último toque.</p>
+              </div>
+            </div>
+            {renderStepper(true)}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+            {types.map((t) => (
+              <button key={t.id} type="button" className={css.typeCard} onClick={() => startType(t.id)}>
+                <span className={css.typeIcon}><Icon d={t.icon} size={22} /></span>
+                <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}><span style={{ fontSize: 16, fontWeight: 700 }}>{t.label}</span><span style={{ fontSize: 13, color: '#6E6D7A', lineHeight: 1.4 }}>{t.desc}</span></span>
+                <span style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 8, fontSize: 12, fontWeight: 600, color: '#4A4957' }}>{t.note}<Icon d={PATH.next} size={16} stroke={2} /></span>
+              </button>
+            ))}
+          </div>
+        </section>
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>Tus creatividades <span style={{ color: '#6E6D7A', fontWeight: 500 }}>· {library.length}</span></h2>
+            {filters}
+          </div>
+          {libraryGrid}
+        </section>
+      </div>
+    </div>
+  );
+
+  const edTitle = ed.editingId ? 'Editar creatividad' : 'Nueva creatividad';
+  const nextBtn = tabIdx < 3 && (
+    <button type="button" className={cx(css.btn, css.outline, mobile ? undefined : css.md)} style={mobile ? { alignSelf: 'flex-end', flexShrink: 0, fontSize: 13 } : undefined} onClick={() => patch({ tab: TABS[tabIdx + 1] })}>
+      Siguiente: {TAB_LABEL[TABS[tabIdx + 1]]}<Icon d={PATH.next} size={16} stroke={2} />
+    </button>
+  );
+
+  const editor = mobile ? (
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', height: 56, flexShrink: 0 }}>
+        <button type="button" className={css.circle} onClick={goHome} aria-label="Cerrar"><Icon d={PATH.close} size={20} stroke={2} /></button>
+        <div style={{ fontSize: 16, fontWeight: 700 }}>{edTitle}</div>
+        <div style={{ width: 44 }} />
+      </div>
+      <div style={{ padding: '0 14px 8px', flexShrink: 0 }}>{renderStepper(false)}</div>
+      <div style={{ height: 316, flexShrink: 0, background: '#F6F6F9', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        <div ref={previewRef} style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+          <Creative cfg={currentCfg} width={previewW} radius={8} shadow safe={ed.safe} />
+        </div>
+        {ed.format === 'story' && (
+          <button type="button" onClick={() => patch((s) => ({ safe: !s.safe }))} title="Zonas seguras (stories y estados)" aria-pressed={ed.safe}
+            style={{ position: 'absolute', top: 10, right: 10, height: 32, padding: '0 10px', borderRadius: 999, border: 'none', background: ed.safe ? '#D000A8' : '#fff', color: ed.safe ? '#fff' : '#0F0E1A', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 1px 3px rgba(15,14,26,0.1)', cursor: 'pointer' }}>
+            <Icon d={PATH.safe} size={14} stroke={2} />Zonas
+          </button>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '0 0 10px' }}>
+          {formatSeg(true)}
+          <div style={{ fontSize: 11, color: '#5E5D6B' }}>{F.usage}</div>
+        </div>
+      </div>
+      <div className={css.mTabs}>
+        {TABS.map((id) => <button key={id} type="button" className={cx(css.mTab, ed.tab === id && css.mTabOn)} onClick={() => patch({ tab: id })}>{TAB_LABEL[id]}</button>)}
+      </div>
+      <div className={css.scroll} style={{ padding: '12px 16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexShrink: 0 }}><MarlenAvatar size={20} /><span style={{ fontSize: 12, color: '#4A4957', lineHeight: 1.4 }}>{marlenTip}</span></div>
+        {tabPanel(true)}
+        {nextBtn}
+      </div>
+      <div style={{ padding: '12px 16px 28px', borderTop: '1px solid #ECEBF1', background: '#fff', flexShrink: 0, display: 'flex', gap: 10 }}>
+        <button type="button" className={css.circle} style={{ width: 52, height: 52, background: '#fff', border: '1px solid #E4E3EA' }} title="Descargar PNG" onClick={() => saveAndFinish('png')}><Icon d={PATH.download} size={20} stroke={2} /></button>
+        <button type="button" className={cx(css.btn, css.primary, css.lg)} style={{ flex: 1, opacity: busy ? 0.6 : 1 }} onClick={() => saveAndFinish('share')}><Icon d={PATH.share} size={18} stroke={2} />{busy ? 'Preparando…' : 'Compartir'}</button>
+      </div>
+    </div>
+  ) : (
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '16px 28px', borderBottom: '1px solid #ECEBF1', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <button type="button" className={css.circle} onClick={goHome} aria-label="Volver a Marketing"><Icon d={PATH.back} size={20} stroke={2} /></button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}><div style={{ fontSize: 13, color: '#6E6D7A' }}>Marketing</div><div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>{edTitle}</div></div>
+        </div>
+        {renderStepper(true)}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button type="button" className={cx(css.btn, css.ghost)} onClick={goHome}>Cancelar</button>
+          <button type="button" className={cx(css.btn, css.ghost)} onClick={copyImage}><Icon d={PATH.copy} size={17} />Copiar imagen</button>
+          <button type="button" className={cx(css.btn, css.primary)} style={{ opacity: busy ? 0.6 : 1 }} onClick={() => saveAndFinish('png')}><Icon d={PATH.download} size={18} stroke={2} />{busy ? 'Generando PNG…' : 'Descargar PNG'}</button>
+        </div>
+      </header>
+      <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '420px minmax(0, 1fr)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, borderRight: '1px solid #ECEBF1' }}>
+          <div style={{ padding: '16px 24px 0', display: 'flex', flexDirection: 'column', gap: 14, flexShrink: 0 }}>
+            <div className={css.tabs}>{TABS.map((id) => <button key={id} type="button" className={cx(css.tab, ed.tab === id && css.tabOn)} onClick={() => patch({ tab: id })}>{TAB_LABEL[id]}</button>)}</div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}><MarlenAvatar size={24} /><span style={{ fontSize: 13, color: '#4A4957', lineHeight: 1.45 }}>{marlenTip}</span></div>
+          </div>
+          <div className={css.scroll} style={{ padding: '18px 24px 28px', display: 'flex', flexDirection: 'column', gap: 24 }}>{tabPanel(false)}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 24px', borderTop: '1px solid #ECEBF1', flexShrink: 0 }}>
+            {tabIdx > 0 && <button type="button" className={cx(css.btn, css.md)} style={{ background: 'none', color: '#4A4957', padding: '0 12px' }} onClick={() => patch({ tab: TABS[tabIdx - 1] })}><Icon d={PATH.back} size={16} stroke={2} />{TAB_LABEL[TABS[tabIdx - 1]]}</button>}
+            <span style={{ flex: 1 }} />
+            {nextBtn}
+            {tabIdx === 3 && <button type="button" className={cx(css.btn, css.primary, css.md)} style={{ opacity: busy ? 0.6 : 1 }} onClick={() => saveAndFinish('png')}><Icon d={PATH.download} size={16} stroke={2} />Todo listo · Descargar</button>}
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', background: '#F6F6F9', minHeight: 0, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '16px 24px 0', flexWrap: 'wrap' }}>
+            {formatSeg(false)}
+            {ed.format === 'story' && (
+              <button type="button" onClick={() => patch((s) => ({ safe: !s.safe }))} aria-pressed={ed.safe} style={{ display: 'flex', alignItems: 'center', gap: 10, height: 36, padding: '0 4px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#0F0E1A' }}>
+                <span className={cx(css.switch, css.switchMagenta, ed.safe && css.switchOn)} />Zonas seguras (stories y estados)
+              </button>
+            )}
+          </div>
+          <div ref={previewRef} style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            <Creative cfg={currentCfg} width={previewW} radius={14} shadow safe={ed.safe} />
+          </div>
+          <div style={{ padding: '0 24px 20px', textAlign: 'center', fontSize: 13, color: '#6E6D7A' }}>{F.px} · {F.usage}</div>
+        </div>
+      </div>
+    </div>
+  );
+
+  /* ---------- modal pasos 1-2 ---------- */
+  const modalView = modal && (
+    <div className={cx(css.overlay, mobile && css.overlayMobile)} onClick={() => setModal(null)}>
+      <div className={cx(css.panel, mobile && css.panelMobile)} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        {mobile && <div className={css.handle} />}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+          {modal.step === 'item' && <button type="button" className={css.circle} style={{ width: 40, height: 40 }} onClick={goType} title="Otro tipo"><Icon d={PATH.back} stroke={2} /></button>}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
+            {renderStepper(false)}
+            <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>{modal.step === 'type' ? '¿Qué quieres anunciar?' : MT.question}</span>
+          </div>
+          <button type="button" className={css.circle} style={{ width: 40, height: 40 }} onClick={() => setModal(null)} aria-label="Cerrar"><Icon d={PATH.close} stroke={2} /></button>
+        </div>
+        {modal.step === 'type' ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+            {types.map((t) => {
+              const on = modal.fromEditor && t.id === ed.type;
+              return (
+                <button key={t.id} type="button" className={cx(css.rowItem, on && css.rowItemOn)} style={{ gap: 12, borderRadius: 14 }} onClick={() => startType(t.id)}>
+                  <span style={{ width: 38, height: 38, borderRadius: 10, background: on ? '#0F0E1A' : '#F2F2F7', color: on ? '#fff' : '#0F0E1A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon d={t.icon} size={19} /></span>
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}><span style={{ fontSize: 14, fontWeight: 600 }}>{t.label}</span><span style={{ fontSize: 12, color: '#6E6D7A', lineHeight: 1.3 }}>{t.desc}</span></span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {MT.items.map((it, i) => (
+                <button key={it.label} type="button" className={cx(css.rowItem, modal.fromEditor && modal.type === ed.type && i === ed.catIdx && css.rowItemOn)} onClick={() => apply(modal.type, i)}>
+                  <span style={{ width: 52, height: 52, borderRadius: 12, background: IMAGES[`${it.theme || 'centro'}-0`]?.bg, flexShrink: 0 }} />
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1, minWidth: 0 }}><span style={{ fontSize: 15, fontWeight: 600 }}>{it.label}</span><span style={{ fontSize: 13, color: '#6E6D7A' }}>{it.meta}</span></span>
+                  {it.price && <span style={{ fontSize: 15, fontWeight: 700, whiteSpace: 'nowrap' }}>{it.price}</span>}
+                  <Icon d={PATH.chevronRight} color="#6E6D7A" stroke={2} />
+                </button>
+              ))}
+            </div>
+            <div className={css.hint}>Con estos datos Marlén prepara el texto y la imagen. Podrás cambiarlo todo después.</div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  /* ---------- cierre: lista para publicar ---------- */
+  const DI = done && library.find((i) => i.id === done.id);
+  const doneView = done && DI && (
+    <div className={cx(css.overlay, mobile && css.overlayMobile)} style={{ zIndex: 35 }} onClick={() => setDone(null)}>
+      <div className={cx(css.panel, mobile && css.panelMobile)} style={{ maxWidth: mobile ? undefined : 680, gap: 20 }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        {mobile && <div className={css.handle} />}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'flex-start' }}>
+          <div style={{ flex: '0 0 auto', width: 180, height: 240, margin: '0 auto', borderRadius: 16, background: '#F6F6F9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Creative cfg={cfgOf(DI)} width={Math.floor(Math.min(156, (216 * 1080) / FORMAT_H[DI.format]))} radius={6} shadow />
+          </div>
+          <div style={{ flex: '1 1 260px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <MarlenAvatar size={40} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+                <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>{done.mode === 'share' ? 'Lista para compartir' : 'Lista para publicar'}</span>
+                <span style={{ fontSize: 13, color: '#4A4957', lineHeight: 1.4 }}>{done.mode === 'share' ? 'Guardada en tus creatividades. Elige dónde enviarla.' : 'PNG descargado y guardado en tus creatividades. El enlace de reserva ya está copiado.'}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#4A4957' }}>Compartir en</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {([['whatsapp', 'WhatsApp', PATH.whatsapp], ['email', 'Email', PATH.email], ['instagram', 'Instagram', PATH.instagram], ['copy', 'Copiar imagen', PATH.copy]] as const).map(([id, label, d]) => (
+                  <button key={id} type="button" className={cx(css.btn, css.ghost, css.md)} onClick={() => shareTo(id)}><Icon d={d} size={17} />{label}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#4A4957' }}>Descargar también en</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {FORMATS.filter((f) => f.id !== DI.format).map((f) => {
+                  const did = done.extra.includes(f.id);
+                  return (
+                    <button key={f.id} type="button" className={cx(css.btn, css.md, did ? css.soft : css.ghost)} disabled={did} onClick={() => extraFormat(f.id, f.label)}>
+                      <span className={css.ratio} style={{ width: f.iw, height: f.ih }} />{f.label}{did && ' ✓'}
+                    </button>
+                  );
+                })}
+              </div>
+              <span className={css.hint}>Marlén recoloca imagen, texto y elementos para cada formato.</span>
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end', borderTop: '1px solid #ECEBF1', paddingTop: 16 }}>
+          <button type="button" className={cx(css.btn, css.ghost)} style={{ flex: '1 1 auto' }} onClick={() => setDone(null)}>Seguir editando</button>
+          <button type="button" className={cx(css.btn, css.ghost)} style={{ flex: '1 1 auto' }} onClick={() => { setDone(null); setView('home'); setModal({ step: 'type', type: ed.type, fromEditor: false }); }}>Crear otra</button>
+          <button type="button" className={cx(css.btn, css.primary)} style={{ flex: '1 1 auto' }} onClick={() => { setDone(null); setView('home'); showToast('Guardada en tus creatividades'); }}>Ver mis creatividades</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className={css.root}>
+      {view === 'home' ? home : editor}
+      {modalView}
+      {doneView}
+      {toast && (
+        <div className={css.toast} style={{ bottom: mobile ? (view === 'editor' ? 104 : 24) : 28 }} role="status">
+          <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#fff', color: '#0F0E1A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon d={PATH.check} size={14} stroke={2.6} /></span>
+          <span>{toast.msg}</span>
+          {toast.action && <button type="button" className={css.toastAction} onClick={toast.action.fn}>{toast.action.label}</button>}
+        </div>
+      )}
+      {/* Escenario de exportación: render a 1080 px real, fuera de pantalla */}
+      <div aria-hidden="true" style={{ position: 'fixed', left: -20000, top: 0, pointerEvents: 'none' }}>
+        {exportCfg && <CreativeCanvas ref={exportRef} cfg={exportCfg} />}
+      </div>
+    </div>
+  );
+}

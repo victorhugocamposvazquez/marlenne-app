@@ -1,0 +1,162 @@
+{
+  "_meta": {
+    "version": 2,
+    "tones": {
+      "cercano": "Cálido, de tú, con mimo. Puede llevar algún diminutivo.",
+      "directo": "Corto y claro, empuja a reservar. Sin adornos.",
+      "premium": "Sobrio, pocas palabras, sin diminutivos ni exclamaciones."
+    },
+    "styleTone": { "soft": "cercano", "card": "cercano", "promo": "directo", "minimal": "directo", "editorial": "premium", "luxe": "premium" },
+    "limits": { "kicker": 24, "headline": 30, "subline": 48, "cta": 20 },
+    "placeholders": {
+      "salon": "Nombre del centro",
+      "name": "Bono/servicio/hueco: tratamiento en minúscula y sin artículo. Equipo: nombre de pila. Regalo: lo que se regala CON artículo («una limpieza facial»)",
+      "sessions": "Nº de sesiones del bono",
+      "minutes": "Duración del servicio",
+      "day": "«hoy», «mañana», «el viernes» (minúscula)",
+      "time": "Hora del hueco, «17:30»",
+      "pro": "Profesional del hueco (nombre de pila)",
+      "job": "Especialidad en minúscula, «especialista en cejas y pestañas»"
+    },
+    "rules": [
+      "Descarta la frase si falta algún dato de sus {placeholders}.",
+      "Descarta la frase si supera el límite de su campo.",
+      "Pon en mayúscula solo la primera letra de la frase final.",
+      "No repitas en el subtítulo un placeholder que ya salga en el titular.",
+      "El precio tiene su propio campo: no va dentro de los textos.",
+      "Nunca hay artículo delante de {name} (evita «un limpieza facial»), salvo en regalo, donde ya lo trae."
+    ]
+  },
+  "bono": {
+    "kicker": {
+      "cercano": ["{salon}", "Tu rutina, hecha", "Mimos con ahorro", "Hecho para repetir", "Cuidado que suma"],
+      "directo": ["Bono de sesiones", "Más sesiones, mejor precio", "{sessions} sesiones", "Ahorra con el bono"],
+      "premium": ["{salon}", "Tu ritual", "Cuidado continuo", "Programa de cuidado"]
+    },
+    "headline": {
+      "cercano": ["Mímate {sessions} veces", "Tu ritual de {name}", "Porque una vez no basta", "Más tiempo para ti", "Vuelve las veces que quieras"],
+      "directo": ["Bono de {name}", "{sessions} sesiones de {name}", "El pack que compensa", "{sessions} sesiones, un solo pago", "Ahorra en cada sesión"],
+      "premium": ["{sessions} sesiones de {name}", "El cuidado que se queda", "Constancia que se nota", "Tu ritual de {name}", "Belleza sin prisa"]
+    },
+    "subline": {
+      "cercano": ["Pide cita cuando te apetezca", "Cada sesión, un rato solo tuyo", "Ven a tu ritmo, sin prisa", "Lo pagas una vez, lo disfrutas {sessions}"],
+      "directo": ["{sessions} sesiones · Reserva online en un minuto", "Ahorra y ven más a menudo", "Sesiones a tu ritmo, agenda online", "Compra hoy, úsalo cuando quieras"],
+      "premium": ["Un programa de {sessions} sesiones a tu medida", "Resultados que se construyen sesión a sesión", "Agenda flexible, cuidado constante", "Pensado para que se note"]
+    },
+    "cta": {
+      "cercano": ["Quiero el bono", "Me lo quedo", "Empezar mi ritual"],
+      "directo": ["Comprar bono", "Reservar", "Ver disponibilidad"],
+      "premium": ["Reservar mi bono", "Descubrir el bono", "Empezar"]
+    }
+  },
+  "servicio": {
+    "kicker": {
+      "cercano": ["{salon}", "Hoy te toca a ti", "Un rato solo tuyo", "Hecho con mimo"],
+      "directo": ["Tratamiento", "Nuevo en agenda", "Reserva online", "{minutes} minutos"],
+      "premium": ["{salon}", "Cuidado experto", "Cuidado a medida", "Nuestros tratamientos"]
+    },
+    "headline": {
+      "cercano": ["Hoy toca {name}", "Mímate con {name}", "Regálate {name}", "El rato que te mereces", "Un hueco para {name}"],
+      "directo": ["{name}", "Prueba {name}", "Reserva tu {name}", "{name} en {minutes} min", "Pide cita: {name}"],
+      "premium": ["{name}", "{name}, a tu medida", "El cuidado que buscabas", "Tu ritual de {name}"]
+    },
+    "subline": {
+      "cercano": ["{minutes} minutos solo para ti", "Elige hora y ven sin prisa", "Pequeño ritual, gran cambio", "Sales con otra cara (y otro ánimo)"],
+      "directo": ["{minutes} min · Reserva online, sin llamadas", "Pide cita desde el móvil", "Elige día y hora en un minuto", "Agenda abierta esta semana"],
+      "premium": ["{minutes} minutos de cuidado experto", "Un tratamiento pensado para ti", "Cuidado cercano, resultado impecable", "Técnica, producto y tiempo para ti"]
+    },
+    "cta": {
+      "cercano": ["Me apetece", "Reservar mi momento", "Quiero ese cuidado"],
+      "directo": ["Pedir cita", "Reservar", "Ver horas libres"],
+      "premium": ["Reservar", "Elegir hora", "Descubrir"]
+    }
+  },
+  "reserva": {
+    "kicker": {
+      "cercano": ["{salon}", "Tu hueco te espera", "Desde el sofá", "Cuando tú quieras"],
+      "directo": ["Agenda abierta", "Online 24/7", "Sin llamar", "Sin esperas"],
+      "premium": ["{salon}", "Reserva online", "Agenda abierta", "Tu próxima cita"]
+    },
+    "headline": {
+      "cercano": ["Haz hueco para ti", "Tu próxima visita, ya", "Tu hueco, a un toque", "Entra, elige y respira", "Hoy es buen día para reservar"],
+      "directo": ["Reserva online", "Pide cita en un minuto", "Elige día y hora", "Agenda sin llamar", "Tu cita, sin esperas"],
+      "premium": ["Reserva online", "Tu próxima cita", "La cita que te mereces", "Tu momento, a tu ritmo"]
+    },
+    "subline": {
+      "cercano": ["Tú eliges el hueco; del resto nos encargamos", "Desde el móvil, en un suspiro", "Reserva ahora, ven cuando quieras", "Sin mensajes eternos ni esperas"],
+      "directo": ["Elige día, hora y profesional", "Confirmación al momento", "Sin llamadas ni esperas", "Abre el enlace y elige tu hueco"],
+      "premium": ["Elige día, hora y profesional", "Disponible cuando tú lo estés", "Tu agenda, siempre abierta", "Reserva en un minuto, disfruta sin prisa"]
+    },
+    "cta": {
+      "cercano": ["Quiero cita", "Reservar mi hueco", "Elegir mi hora"],
+      "directo": ["Reservar ahora", "Ver huecos", "Pedir cita"],
+      "premium": ["Reservar", "Ver disponibilidad", "Abrir agenda"]
+    }
+  },
+  "hueco": {
+    "kicker": {
+      "cercano": ["Hueco libre", "Se ha liberado", "Huequito libre", "Hueco con tu nombre"],
+      "directo": ["Última hora", "Solo {day}", "Plaza libre", "Vuela"],
+      "premium": ["Disponible {day}", "Plaza disponible", "Última hora", "Agenda de {day}"]
+    },
+    "headline": {
+      "cercano": ["¿Te vienes {day}?", "Hay hueco y te espera", "Se ha abierto un huequito", "Hueco para {name}", "{day} hay sitio para ti"],
+      "directo": ["{day} a las {time}", "Hueco {day} a las {time}", "Última hora: {name}", "Plaza libre {day}", "Se ha liberado un hueco"],
+      "premium": ["{day}, {time}", "Disponible {day} a las {time}", "Un hueco para ti", "{name}, {day}"]
+    },
+    "subline": {
+      "cercano": ["{name} con {pro}", "Si lo ves, es que aún está libre", "Ideal si te apetecía justo ahora", "No hace falta planificar semanas"],
+      "directo": ["{name} · Confirmación al momento", "Quien antes reserva, se lo queda", "Se llena en nada: reserva ya", "Solo quedan unas horas"],
+      "premium": ["{name} con {pro}", "Confirmación inmediata", "Una plaza, por poco tiempo", "El mismo cuidado, a última hora"]
+    },
+    "cta": {
+      "cercano": ["Me lo quedo", "Sí, voy", "Quiero esa hora"],
+      "directo": ["Reservar ya", "Pillar plaza", "Quiero el hueco"],
+      "premium": ["Reservar", "Confirmar hueco", "Ver hueco"]
+    }
+  },
+  "equipo": {
+    "kicker": {
+      "cercano": ["Nuestro equipo", "Quién te cuida", "Manos con mimo", "Equipo con alma"],
+      "directo": ["Nuestro equipo", "Tu profesional", "Conoce al equipo", "Reserva con nombre"],
+      "premium": ["{salon}", "Manos expertas", "El equipo", "Experiencia y detalle"]
+    },
+    "headline": {
+      "cercano": ["Conoce a {name}", "{name} te espera", "{name} te cuida", "Tu momento con {name}", "Hoy, con {name}"],
+      "directo": ["Reserva con {name}", "Cita con {name}", "Pide cita con {name}", "{name} tiene hueco"],
+      "premium": ["{name}", "Las manos de {name}", "El cuidado de {name}", "Con {name}"]
+    },
+    "subline": {
+      "cercano": ["{job}", "Trato cercano, manos expertas", "Te escucha, te asesora y te cuida", "Pide cita y ven sin prisa"],
+      "directo": ["{job} · Reserva online", "Elige su hueco en un minuto", "Online, sin llamar", "Agenda directa, sin esperas"],
+      "premium": ["{job}", "Experiencia, técnica y detalle", "Cuidado personal, de verdad", "Tu profesional de confianza"]
+    },
+    "cta": {
+      "cercano": ["Quiero cita", "Reservar con {name}", "Ver su agenda"],
+      "directo": ["Pedir cita", "Reservar", "Ver huecos"],
+      "premium": ["Reservar con {name}", "Ver agenda", "Reservar"]
+    }
+  },
+  "regalo": {
+    "kicker": {
+      "cercano": ["Para regalar", "Un mimo para alguien", "Sorpresa bonita", "Hecho de cariño"],
+      "directo": ["Tarjeta regalo", "Regalo", "El regalo fácil", "Para regalar"],
+      "premium": ["Para regalar", "El detalle perfecto", "{salon}", "Regalo con sentido"]
+    },
+    "headline": {
+      "cercano": ["Regala un rato de calma", "Porque se lo merece", "Un mimo con su nombre", "Para quien más quieres", "Regala {name}"],
+      "directo": ["Regala {name}", "El regalo que sí acierta", "Regalo resuelto", "Sorprende con {name}"],
+      "premium": ["Regala {name}", "Un detalle que dura", "Cuidado en forma de regalo", "Regala belleza"]
+    },
+    "subline": {
+      "cercano": ["Lo eliges tú, lo disfruta quien tú quieras", "Ideal para cumpleaños y fechas especiales", "Bonito de dar, mejor de recibir", "El regalo que no acaba en un cajón"],
+      "directo": ["Fácil de regalar, fácil de reservar", "Perfecto cuando no sabes qué regalar", "Para cualquier ocasión", "Lo compras hoy, lo disfrutan cuando quieran"],
+      "premium": ["Un detalle que se nota en la piel", "Listo para regalar", "Para disfrutar sin prisa", "Para alguien que se lo merece"]
+    },
+    "cta": {
+      "cercano": ["Quiero regalar", "Sorprender", "Hacer el regalo"],
+      "directo": ["Regalar", "Comprar regalo", "Elegir regalo"],
+      "premium": ["Regalar", "Descubrir", "Elegir regalo"]
+    }
+  }
+}

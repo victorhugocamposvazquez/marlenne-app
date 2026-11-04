@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Sora } from 'next/font/google';
+import { Instrument_Serif, Sora } from 'next/font/google';
 import './globals.css';
 import RegisterSW from '@/components/RegisterSW';
 import SplashScreen from '@/components/SplashScreen';
@@ -8,8 +8,15 @@ import { BRAND_NAME, BRAND_UI, SPLASH_SEEN_KEY } from '@/lib/brand';
 
 const sora = Sora({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+  weight: ['400', '500', '600', '700', '800'],
   variable: '--font-sora',
+  display: 'swap',
+});
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-serif',
   display: 'swap',
 });
 
@@ -109,7 +116,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={sora.variable}>
+    <html lang="es" className={`${sora.variable} ${instrumentSerif.variable}`}>
       <body className="font-sans font-normal text-ink">
         <style
           dangerouslySetInnerHTML={{
