@@ -143,8 +143,11 @@ export default function MarketingStudio({
   const autoN = useRef(0);
   const [previewRef, preview] = useElementSize<HTMLDivElement>();
   const [carRef, car] = useElementSize<HTMLDivElement>();
+  const carElRef = useRef<HTMLDivElement | null>(null);
   const [cIdx, setCIdx] = useState(0);
   const [cSet, setCSet] = useState(0);
+  /** true cuando Marlén ha tocado una propuesta (no solo deslizado) */
+  const [cPicked, setCPicked] = useState(false);
 
   // TODO(backend): sustituir localStorage por la API de biblioteca del centro.
   useEffect(() => {
@@ -265,6 +268,7 @@ export default function MarketingStudio({
     setClientQ('');
     setCIdx(0);
     setCSet(0);
+    setCPicked(false);
     const next = makeEditor(o);
     if (next.clientName && !next.fieldsManual) {
       const it = withClientVars(getType(next.type).items[next.catIdx] || getType(next.type).items[0], next.clientName);
@@ -970,6 +974,13 @@ export default function MarketingStudio({
   const proposals = SETS[cSet % 2].map(([style, i]) => ({ style, image: propImg(i) }));
   const carW = Math.floor(Math.min(290, (car.w || 390) - 100, (((car.h || 452) - 40) * 1080) / F.H));
   const carPad = Math.max(16, Math.round(((car.w || 390) - carW) / 2));
+  const selectProposal = (i: number) => {
+    const next = Math.max(0, Math.min(3, i));
+    setCIdx(next);
+    setCPicked(true);
+    const el = carElRef.current;
+    if (el) el.scrollTo({ left: next * (carW + 12), behavior: 'smooth' });
+  };
   const chooseProposal = () => {
     const p = proposals[cIdx] || proposals[0];
     patch({
@@ -1012,39 +1023,82 @@ export default function MarketingStudio({
         <MarlenAvatar size={28} />
         <span style={{ fontSize: 14, lineHeight: 1.45, color: '#2E2D3A' }}>
           He preparado 4 diseños para <b>{item.label}</b>
-          {ed.clientName ? <> · {firstName(ed.clientName)}</> : null}. Desliza y quédate con el que más te guste.
+          {ed.clientName ? <> · {firstName(ed.clientName)}</> : null}. Toca el que más te guste y luego continúa.
         </span>
       </div>
       <div
-        ref={carRef}
+        ref={(node) => { carElRef.current = node; carRef(node); }}
         className={css.noScrollbar}
         onScroll={(e) => {
           const i = Math.round(e.currentTarget.scrollLeft / (carW + 12));
-          if (i !== cIdx) setCIdx(Math.max(0, Math.min(3, i)));
+          const next = Math.max(0, Math.min(3, i));
+          if (next !== cIdx) {
+            setCIdx(next);
+            setCPicked(false);
+          }
         }}
         style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', gap: 12, overflowX: 'auto', scrollSnapType: 'x mandatory', padding: `0 ${carPad}px` }}
       >
-        {proposals.map((p, i) => (
-          <div key={`${p.style}-${p.image}-${i}`} style={{ flexShrink: 0, scrollSnapAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-            <div style={{ position: 'relative' }}>
-              <Creative
-                cfg={cfgOf({ ...ed, style: p.style, image: p.image, els: recommendElements(p.style, ed.type) })}
-                width={carW}
-                radius={14}
-                shadow
-              />
-              {i === 0 && cSet % 2 === 0 && (
-                <span className={css.badgeNew} style={{ top: 12, left: 12, height: 28, fontSize: 13, padding: '0 12px' }}>Mi favorita</span>
-              )}
-            </div>
-            <span style={{ fontSize: 15, fontWeight: 600 }}>{STYLES.find((x) => x.id === p.style)?.label}</span>
-          </div>
-        ))}
+        {proposals.map((p, i) => {
+          const on = i === cIdx && cPicked;
+          return (
+            <button
+              key={`${p.style}-${p.image}-${i}`}
+              type="button"
+              onClick={() => selectProposal(i)}
+              aria-pressed={on}
+              aria-label={`Elegir ${STYLES.find((x) => x.id === p.style)?.label || 'diseño'}`}
+              style={{
+                flexShrink: 0, scrollSnapAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+                border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'inherit', WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <div
+                style={{
+                  position: 'relative',
+                  borderRadius: 18,
+                  padding: 3,
+                  boxShadow: on ? '0 0 0 2.5px #0F0E1A' : '0 0 0 2.5px transparent',
+                  transition: 'box-shadow .15s ease',
+                }}
+              >
+                <Creative
+                  cfg={cfgOf({ ...ed, style: p.style, image: p.image, els: recommendElements(p.style, ed.type) })}
+                  width={carW}
+                  radius={14}
+                  shadow
+                />
+                {i === 0 && cSet % 2 === 0 && (
+                  <span className={css.badgeNew} style={{ top: 12, left: 12, height: 28, fontSize: 13, padding: '0 12px' }}>Mi favorita</span>
+                )}
+                {on && (
+                  <span
+                    aria-hidden
+                    style={{
+                      position: 'absolute', top: 12, right: 12, width: 28, height: 28, borderRadius: '50%',
+                      background: '#0F0E1A', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: '0 2px 8px rgba(15,14,26,.28)',
+                    }}
+                  >
+                    <Icon d={PATH.check} size={16} stroke={2.4} color="#fff" />
+                  </span>
+                )}
+              </div>
+              <span style={{ fontSize: 15, fontWeight: 600 }}>{STYLES.find((x) => x.id === p.style)?.label}</span>
+            </button>
+          );
+        })}
       </div>
       <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '4px 0 8px' }}>
         <div style={{ display: 'flex', gap: 6 }}>
           {proposals.map((_, i) => (
-            <span key={i} style={{ width: i === cIdx ? 22 : 8, height: 8, borderRadius: 4, background: i === cIdx ? '#0F0E1A' : '#D9D8E0', transition: 'width .2s ease' }} />
+            <button
+              key={i}
+              type="button"
+              aria-label={`Ir al diseño ${i + 1}`}
+              onClick={() => selectProposal(i)}
+              style={{ width: i === cIdx ? 22 : 8, height: 8, borderRadius: 4, border: 'none', padding: 0, background: i === cIdx ? '#0F0E1A' : '#D9D8E0', transition: 'width .2s ease', cursor: 'pointer' }}
+            />
           ))}
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
@@ -1056,8 +1110,16 @@ export default function MarketingStudio({
         </div>
       </div>
       <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 16px 26px', borderTop: '1px solid #ECEBF1' }}>
-        <button type="button" className={cx(css.btn, css.primary)} style={{ height: 56, fontSize: 16 }} onClick={chooseProposal}>Me quedo con esta</button>
-        <button type="button" className={css.btn} style={{ background: 'none', fontSize: 15 }} onClick={() => { setCSet((n) => n + 1); setCIdx(0); }}>
+        <button
+          type="button"
+          className={cx(css.btn, css.primary)}
+          style={{ height: 56, fontSize: 16, opacity: cPicked ? 1 : 0.45 }}
+          disabled={!cPicked}
+          onClick={chooseProposal}
+        >
+          Continuar
+        </button>
+        <button type="button" className={css.btn} style={{ background: 'none', fontSize: 15 }} onClick={() => { setCSet((n) => n + 1); setCIdx(0); setCPicked(false); carElRef.current?.scrollTo({ left: 0 }); }}>
           <Icon d={PATH.refresh} size={18} stroke={1.9} color="#D000A8" />Ver otras 4 propuestas
         </button>
       </div>
@@ -1184,7 +1246,7 @@ export default function MarketingStudio({
     <div className={cx(css.overlay, mobile && css.overlayMobile)} onClick={() => setModal(null)}>
       <div className={cx(css.panel, mobile && css.panelMobile)} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         {mobile && <div className={css.handle} />}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexShrink: 0 }}>
           {modal.step === 'item' && <button type="button" className={css.circle} style={{ width: 40, height: 40 }} onClick={goType} title="Otro tipo"><Icon d={PATH.back} stroke={2} /></button>}
           {modal.step === 'client' && (
             <button type="button" className={css.circle} style={{ width: 40, height: 40 }} onClick={() => setModal(m => m ? { ...m, step: 'item' } : m)} title="Otro ítem">
@@ -1211,7 +1273,7 @@ export default function MarketingStudio({
           </div>
         )}
         {modal.step === 'item' && (
-          <>
+          <div className={css.stepBody}>
             <div className={css.listStack}>
               <span className={css.sectionLabel}>Utilizar existente</span>
               {MT.items.map((it, i) => (
@@ -1223,10 +1285,10 @@ export default function MarketingStudio({
                 </button>
               ))}
             </div>
-            <div className={css.hint}>Toca un bono para seguir. Podrás cambiar texto e imagen después.</div>
-            {(modal.type === 'bono' || modal.type === 'regalo') && (
-              <div className={css.footerAction}>
-                {!newPackOpen ? (
+            <div className={css.footerAction}>
+              <div className={css.hint}>Toca un bono para seguir. Podrás cambiar texto e imagen después.</div>
+              {(modal.type === 'bono' || modal.type === 'regalo') && (
+                !newPackOpen ? (
                   <button type="button" className={css.altAction} onClick={() => setNewPackOpen(true)}>
                     <span>O </span>crear uno nuevo aquí
                   </button>
@@ -1250,13 +1312,13 @@ export default function MarketingStudio({
                       <button type="button" className={cx(css.btn, css.primary, css.block)} style={{ opacity: formBusy ? 0.6 : 1 }} onClick={() => void createPack()}>{formBusy ? 'Creando…' : 'Crear y usar'}</button>
                     </div>
                   </div>
-                )}
-              </div>
-            )}
-          </>
+                )
+              )}
+            </div>
+          </div>
         )}
         {modal.step === 'client' && (
-          <>
+          <div className={css.stepBody}>
             <button type="button" className={css.skipLink} onClick={() => applyClient({ id: null, name: null })}>
               Continuar sin clienta
             </button>
@@ -1295,7 +1357,7 @@ export default function MarketingStudio({
                   <span>O </span>crear una nueva aquí
                 </button>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 14, borderRadius: 16, background: '#F6F6F9' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 14, borderRadius: 16, background: '#F6F6F9', maxHeight: '46dvh', overflowY: 'auto' }}>
                   <span style={{ fontSize: 15, fontWeight: 700 }}>Nueva clienta</span>
                   <label className={css.field}><span className={css.label}>Nombre</span><input className={cx(css.input, css.inputMobile)} value={clientForm.fullName} onChange={e => setClientForm(f => ({ ...f, fullName: e.target.value }))} placeholder="María López" autoFocus /></label>
                   <label className={css.field}><span className={css.label}>Teléfono (opcional)</span><input className={cx(css.input, css.inputMobile)} value={clientForm.phone} onChange={e => setClientForm(f => ({ ...f, phone: e.target.value }))} inputMode="tel" /></label>
@@ -1307,7 +1369,7 @@ export default function MarketingStudio({
               )}
               <div className={css.hint}>La clienta personaliza el texto y, si quieres, puedes registrarle el bono al publicar.</div>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -1317,7 +1379,7 @@ export default function MarketingStudio({
   const DI = done && library.find((i) => i.id === done.id);
   const doneView = done && DI && (
     <div className={cx(css.overlay, mobile && css.overlayMobile)} style={{ zIndex: 35 }} onClick={() => setDone(null)}>
-      <div className={cx(css.panel, mobile && css.panelMobile)} style={{ maxWidth: mobile ? undefined : 680, gap: 20 }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div className={cx(css.panel, css.panelScroll, mobile && css.panelMobile)} style={{ maxWidth: mobile ? undefined : 680, gap: 20 }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         {mobile && <div className={css.handle} />}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'flex-start' }}>
           <div style={{ flex: '0 0 auto', width: 180, height: 240, margin: '0 auto', borderRadius: 16, background: '#F6F6F9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
