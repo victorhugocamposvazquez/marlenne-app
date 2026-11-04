@@ -130,6 +130,8 @@ export default function MarketingStudio({
   const [stockQueryIdx, setStockQueryIdx] = useState(0);
   const [filter, setFilter] = useState<'all' | FormatId>('all');
   const [highlight, setHighlight] = useState<string | null>(null);
+  /** Mobile: creatividad seleccionada en la tira (para borrar / abrir) */
+  const [libSel, setLibSel] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState(bookingLink);
@@ -836,46 +838,138 @@ export default function MarketingStudio({
 
   /* ---------- biblioteca ---------- */
   const filtered = library.filter((i) => filter === 'all' || i.format === filter);
-  const box = mobile ? { w: 169, h: 211, p: 12 } : { w: 232, h: 290, p: 20 };
-  const libraryGrid = (
-    filtered.length ? (
-      <div style={{ display: 'grid', gridTemplateColumns: mobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fill, 232px)', gap: mobile ? '20px 12px' : '28px 20px' }}>
+  const box = mobile ? { w: 152, h: 190, p: 10 } : { w: 232, h: 290, p: 20 };
+  const openLibItem = (i: LibraryItem) => {
+    setLibSel(null);
+    openEditor({
+      ...i,
+      editingId: i.id,
+      imgTheme: imgObj(i.image)?.theme || suggestTheme(i.type, i.catIdx),
+      tone: STYLE_TONE[i.style],
+      tab: 'texto',
+    });
+  };
+  const deleteLibItem = (id: string) => {
+    setLibrary((l) => l.filter((x) => x.id !== id));
+    setLibSel((s) => (s === id ? null : s));
+    showToast('Creatividad eliminada');
+  };
+  const libraryEmpty = (
+    <div style={{ border: '1.5px dashed #DCDBE3', borderRadius: 16, padding: mobile ? '28px 20px' : '40px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center' }}>
+      <div style={{ fontSize: 15, fontWeight: 600 }}>{library.length ? 'Nada en este filtro' : 'Aún no has creado ninguna'}</div>
+      <div style={{ fontSize: 14, color: '#6E6D7A' }}>{library.length ? 'Prueba con «Todas».' : 'Lo que descargues o compartas aparecerá aquí.'}</div>
+    </div>
+  );
+  const libraryStrip = filtered.length ? (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div
+        className={css.noScrollbar}
+        style={{ display: 'flex', gap: 12, overflowX: 'auto', margin: '0 -20px', padding: '2px 20px 6px', scrollSnapType: 'x proximity', WebkitOverflowScrolling: 'touch' }}
+      >
         {filtered.map((i) => {
-          const t = getType(i.type), f = FORMATS.find((x) => x.id === i.format)!;
+          const f = FORMATS.find((x) => x.id === i.format)!;
           const tw = Math.floor(Math.min(box.w - box.p * 2, ((box.h - box.p * 2) * 1080) / FORMAT_H[i.format]));
+          const on = libSel === i.id;
           return (
-            <div key={i.id} onClick={() => openEditor({ ...i, editingId: i.id, imgTheme: imgObj(i.image)?.theme || suggestTheme(i.type, i.catIdx), tone: STYLE_TONE[i.style], tab: 'texto' })} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: mobile ? 8 : 12, minWidth: 0 }}>
-              <div className={css.libThumb} style={{ height: box.h, borderRadius: mobile ? 14 : 16, boxShadow: highlight === i.id ? '0 0 0 2px #D000A8' : 'none' }}>
-                <Creative cfg={cfgOf(i)} width={tw} radius={mobile ? 5 : 6} shadow />
-                {highlight === i.id && <span className={css.badgeNew}>Nueva</span>}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-                  <div style={{ fontSize: mobile ? 13 : 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{i.fields.title}</div>
-                  <div style={{ fontSize: 12, color: '#6E6D7A' }}>{mobile ? `${f.ratio} · ${i.date}` : `${f.label} · ${t.label} · ${i.date}`}</div>
-                </div>
-                {!mobile && (
-                  <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
-                    <button type="button" className={css.iconBtn} title="Descargar PNG" onClick={async (e) => { e.stopPropagation(); downloadBlob(await capture(cfgOf(i)), `${slug(salon)}-${slug(i.fields.title)}-${i.format}.png`); }}><Icon d={PATH.download} /></button>
-                    <button type="button" className={css.iconBtn} title="Eliminar" onClick={(e) => { e.stopPropagation(); setLibrary((l) => l.filter((x) => x.id !== i.id)); showToast('Creatividad eliminada'); }}><Icon d={PATH.trash} /></button>
-                  </div>
+            <button
+              key={i.id}
+              type="button"
+              onClick={() => (on ? openLibItem(i) : setLibSel(i.id))}
+              aria-pressed={on}
+              style={{
+                flex: '0 0 auto', width: box.w, scrollSnapAlign: 'start', border: 'none', background: 'none', padding: 0,
+                cursor: 'pointer', color: 'inherit', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8,
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <div
+                className={css.libThumb}
+                style={{
+                  height: box.h, borderRadius: 14,
+                  boxShadow: on ? '0 0 0 2.5px #0F0E1A' : highlight === i.id ? '0 0 0 2px #D000A8' : 'none',
+                  position: 'relative',
+                }}
+              >
+                <Creative cfg={cfgOf(i)} width={tw} radius={5} shadow />
+                {highlight === i.id && !on && <span className={css.badgeNew}>Nueva</span>}
+                {on && (
+                  <span
+                    aria-hidden
+                    style={{
+                      position: 'absolute', top: 10, right: 10, width: 26, height: 26, borderRadius: '50%',
+                      background: '#0F0E1A', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: '0 2px 8px rgba(15,14,26,.28)',
+                    }}
+                  >
+                    <Icon d={PATH.check} size={14} stroke={2.4} color="#fff" />
+                  </span>
                 )}
               </div>
-            </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, padding: '0 2px' }}>
+                <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{i.fields.title}</div>
+                <div style={{ fontSize: 12, color: '#6E6D7A' }}>{f.ratio} · {i.date}</div>
+              </div>
+            </button>
           );
         })}
       </div>
-    ) : (
-      <div style={{ border: '1.5px dashed #DCDBE3', borderRadius: 16, padding: mobile ? '28px 20px' : '40px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center' }}>
-        <div style={{ fontSize: 15, fontWeight: 600 }}>{library.length ? 'Nada en este filtro' : 'Aún no has creado ninguna'}</div>
-        <div style={{ fontSize: 14, color: '#6E6D7A' }}>{library.length ? 'Prueba con «Todas».' : 'Lo que descargues o compartas aparecerá aquí.'}</div>
-      </div>
-    )
-  );
+      {libSel ? (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            type="button"
+            className={cx(css.btn, css.ghost)}
+            style={{ flex: 1, height: 48, gap: 8 }}
+            onClick={() => deleteLibItem(libSel)}
+          >
+            <Icon d={PATH.trash} size={18} stroke={2} />Eliminar
+          </button>
+          <button
+            type="button"
+            className={cx(css.btn, css.primary)}
+            style={{ flex: 1.2, height: 48 }}
+            onClick={() => {
+              const item = library.find((x) => x.id === libSel);
+              if (item) openLibItem(item);
+            }}
+          >
+            Abrir
+          </button>
+        </div>
+      ) : (
+        <div className={css.hint}>Toca una para seleccionarla · otra vez o Abrir para editar.</div>
+      )}
+    </div>
+  ) : libraryEmpty;
+  const libraryGrid = filtered.length ? (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, 232px)', gap: '28px 20px' }}>
+      {filtered.map((i) => {
+        const t = getType(i.type), f = FORMATS.find((x) => x.id === i.format)!;
+        const tw = Math.floor(Math.min(box.w - box.p * 2, ((box.h - box.p * 2) * 1080) / FORMAT_H[i.format]));
+        return (
+          <div key={i.id} onClick={() => openLibItem(i)} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+            <div className={css.libThumb} style={{ height: box.h, borderRadius: 16, boxShadow: highlight === i.id ? '0 0 0 2px #D000A8' : 'none' }}>
+              <Creative cfg={cfgOf(i)} width={tw} radius={6} shadow />
+              {highlight === i.id && <span className={css.badgeNew}>Nueva</span>}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{i.fields.title}</div>
+                <div style={{ fontSize: 12, color: '#6E6D7A' }}>{f.label} · {t.label} · {i.date}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                <button type="button" className={css.iconBtn} title="Descargar PNG" onClick={async (e) => { e.stopPropagation(); downloadBlob(await capture(cfgOf(i)), `${slug(salon)}-${slug(i.fields.title)}-${i.format}.png`); }}><Icon d={PATH.download} /></button>
+                <button type="button" className={css.iconBtn} title="Eliminar" onClick={(e) => { e.stopPropagation(); deleteLibItem(i.id); }}><Icon d={PATH.trash} /></button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  ) : libraryEmpty;
   const filters = (
     <div style={{ display: 'flex', gap: mobile ? 4 : 6 }}>
       {([['all', 'Todas'], ['story', '9:16'], ['square', '1:1'], ['portrait', '4:5']] as const).map(([id, label]) => (
-        <button key={id} type="button" className={cx(css.filter, filter === id && css.filterOn)} style={mobile ? { height: 32, padding: '0 12px', fontSize: 12 } : undefined} onClick={() => setFilter(id)}>{label}</button>
+        <button key={id} type="button" className={cx(css.filter, filter === id && css.filterOn)} style={mobile ? { height: 32, padding: '0 12px', fontSize: 12 } : undefined} onClick={() => { setFilter(id); setLibSel(null); }}>{label}</button>
       ))}
     </div>
   );
@@ -910,7 +1004,7 @@ export default function MarketingStudio({
       <section style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '28px 20px 0' }}>
         <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Tus creatividades <span style={{ color: '#6E6D7A', fontWeight: 500 }}>· {library.length}</span></h2>
         {filters}
-        {libraryGrid}
+        {libraryStrip}
       </section>
     </div>
   ) : (

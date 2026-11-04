@@ -8,7 +8,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Pendiente (hazlo en el MacBook o mergea la rama cloud)
 
-- **Marketing clienta + elegir diseño:** rama `cursor/marketing-clienta-crear-5156` — solape «crear una nueva aquí» (lista scroll + pie fijo) y en «Marlén te propone» tocar diseño → Continuar. Mergear PR.
+- **Marketing UX (clienta / diseño / creatividades):** rama `cursor/marketing-clienta-crear-5156` (PR #37) — pie clienta fijo, tocar diseño → Continuar, tira horizontal de creatividades con seleccionar/borrar. Mergear.
 - **Supabase Auth:** Site URL + Redirect URLs → `https://app.marlenapp.com` (y `/**`). Mantener `marlenne-app.vercel.app` un tiempo.
 - **Vercel `marlen-website`:** conectar GitHub del monorepo (falló por Login Connection) para deploys automáticos; Root `main-website`.
 - Equipo: reinstalar PWA desde `https://app.marlenapp.com`.
