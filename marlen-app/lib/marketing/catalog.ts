@@ -44,6 +44,10 @@ export function buildMarketingCatalog(input: {
     title: p.name,
     subtitle: `${p.sessions_total} sesiones${p.service_name ? ` · ${p.service_name}` : ''}`,
     theme: themeForServiceName(p.service_name || p.name),
+    templateId: p.id,
+    serviceId: p.service_id,
+    sessionsTotal: p.sessions_total,
+    priceCents: p.price_cents,
     vars: {
       name: (p.service_name || p.name).toLowerCase(),
       sessions: p.sessions_total,
@@ -58,6 +62,8 @@ export function buildMarketingCatalog(input: {
     title: s.name,
     subtitle: `${s.duration_min} min`,
     theme: themeForServiceName(s.name),
+    serviceId: s.id,
+    priceCents: s.price_cents,
     vars: { name: s.name.toLowerCase(), minutes: s.duration_min, salon },
   }));
 

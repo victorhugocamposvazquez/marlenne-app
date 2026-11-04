@@ -23,6 +23,12 @@ export function fill(str: string, vars: Record<string, string | number>): string
   return out.replace(/^([^A-Za-zÀ-ÿ0-9]*)([a-zà-ÿ])/, (_m, p, c) => p + c.toUpperCase());
 }
 
+export function withClientVars(item: CatalogItem, clientName?: string | null): CatalogItem {
+  const client = (clientName || '').trim().split(/\s+/)[0] || '';
+  if (!client) return item;
+  return { ...item, vars: { ...item.vars, client } };
+}
+
 export function pickLine(opts: {
   type: CreativeType; item: CatalogItem; tone: Tone; field: TextField; salon: string; exclude?: string; avoid?: string[];
 }): { raw: string; txt: string } | null {

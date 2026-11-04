@@ -16,7 +16,8 @@
       "day": "«hoy», «mañana», «el viernes» (minúscula)",
       "time": "Hora del hueco, «17:30»",
       "pro": "Profesional del hueco (nombre de pila)",
-      "job": "Especialidad en minúscula, «especialista en cejas y pestañas»"
+      "job": "Especialidad en minúscula, «especialista en cejas y pestañas»",
+      "client": "Nombre de pila de la clienta (solo si se eligió)"
     },
     "rules": [
       "Descarta la frase si falta algún dato de sus {placeholders}.",
@@ -29,24 +30,24 @@
   },
   "bono": {
     "kicker": {
-      "cercano": ["{salon}", "Tu rutina, hecha", "Mimos con ahorro", "Hecho para repetir", "Cuidado que suma"],
-      "directo": ["Bono de sesiones", "Más sesiones, mejor precio", "{sessions} sesiones", "Ahorra con el bono"],
-      "premium": ["{salon}", "Tu ritual", "Cuidado continuo", "Programa de cuidado"]
+      "cercano": ["{salon}", "Tu rutina, hecha", "Mimos con ahorro", "Hecho para repetir", "Cuidado que suma", "Para {client}"],
+      "directo": ["Bono de sesiones", "Más sesiones, mejor precio", "{sessions} sesiones", "Ahorra con el bono", "Bono de {client}"],
+      "premium": ["{salon}", "Tu ritual", "Cuidado continuo", "Programa de cuidado", "Para {client}"]
     },
     "headline": {
-      "cercano": ["Mímate {sessions} veces", "Tu ritual de {name}", "Porque una vez no basta", "Más tiempo para ti", "Vuelve las veces que quieras"],
-      "directo": ["Bono de {name}", "{sessions} sesiones de {name}", "El pack que compensa", "{sessions} sesiones, un solo pago", "Ahorra en cada sesión"],
-      "premium": ["{sessions} sesiones de {name}", "El cuidado que se queda", "Constancia que se nota", "Tu ritual de {name}", "Belleza sin prisa"]
+      "cercano": ["Mímate {sessions} veces", "Tu ritual de {name}", "Porque una vez no basta", "Más tiempo para ti", "Vuelve las veces que quieras", "{client}, este bono es tuyo"],
+      "directo": ["Bono de {name}", "{sessions} sesiones de {name}", "El pack que compensa", "{sessions} sesiones, un solo pago", "Ahorra en cada sesión", "{client}: bono de {name}"],
+      "premium": ["{sessions} sesiones de {name}", "El cuidado que se queda", "Constancia que se nota", "Tu ritual de {name}", "Belleza sin prisa", "{client}, tu ritual"]
     },
     "subline": {
-      "cercano": ["Pide cita cuando te apetezca", "Cada sesión, un rato solo tuyo", "Ven a tu ritmo, sin prisa", "Lo pagas una vez, lo disfrutas {sessions}"],
-      "directo": ["{sessions} sesiones · Reserva online en un minuto", "Ahorra y ven más a menudo", "Sesiones a tu ritmo, agenda online", "Compra hoy, úsalo cuando quieras"],
-      "premium": ["Un programa de {sessions} sesiones a tu medida", "Resultados que se construyen sesión a sesión", "Agenda flexible, cuidado constante", "Pensado para que se note"]
+      "cercano": ["Pide cita cuando te apetezca", "Cada sesión, un rato solo tuyo", "Ven a tu ritmo, sin prisa", "Lo pagas una vez, lo disfrutas {sessions}", "Pensado para {client}"],
+      "directo": ["{sessions} sesiones · Reserva online en un minuto", "Ahorra y ven más a menudo", "Sesiones a tu ritmo, agenda online", "Compra hoy, úsalo cuando quieras", "Para {client} · {sessions} sesiones"],
+      "premium": ["Un programa de {sessions} sesiones a tu medida", "Resultados que se construyen sesión a sesión", "Agenda flexible, cuidado constante", "Pensado para que se note", "Cuidado a medida para {client}"]
     },
     "cta": {
-      "cercano": ["Quiero el bono", "Me lo quedo", "Empezar mi ritual"],
-      "directo": ["Comprar bono", "Reservar", "Ver disponibilidad"],
-      "premium": ["Reservar mi bono", "Descubrir el bono", "Empezar"]
+      "cercano": ["Quiero el bono", "Me lo quedo", "Empezar mi ritual", "Es para {client}"],
+      "directo": ["Comprar bono", "Reservar", "Ver disponibilidad", "Bono de {client}"],
+      "premium": ["Reservar mi bono", "Descubrir el bono", "Empezar", "Reservar para {client}"]
     }
   },
   "servicio": {
@@ -139,24 +140,24 @@
   },
   "regalo": {
     "kicker": {
-      "cercano": ["Para regalar", "Un mimo para alguien", "Sorpresa bonita", "Hecho de cariño"],
-      "directo": ["Tarjeta regalo", "Regalo", "El regalo fácil", "Para regalar"],
-      "premium": ["Para regalar", "El detalle perfecto", "{salon}", "Regalo con sentido"]
+      "cercano": ["Para regalar", "Un mimo para alguien", "Sorpresa bonita", "Hecho de cariño", "Para {client}"],
+      "directo": ["Tarjeta regalo", "Regalo", "El regalo fácil", "Para regalar", "Regalo de {client}"],
+      "premium": ["Para regalar", "El detalle perfecto", "{salon}", "Regalo con sentido", "Para {client}"]
     },
     "headline": {
-      "cercano": ["Regala un rato de calma", "Porque se lo merece", "Un mimo con su nombre", "Para quien más quieres", "Regala {name}"],
-      "directo": ["Regala {name}", "El regalo que sí acierta", "Regalo resuelto", "Sorprende con {name}"],
-      "premium": ["Regala {name}", "Un detalle que dura", "Cuidado en forma de regalo", "Regala belleza"]
+      "cercano": ["Regala un rato de calma", "Porque se lo merece", "Un mimo con su nombre", "Para quien más quieres", "Regala {name}", "{client} se lo merece"],
+      "directo": ["Regala {name}", "El regalo que sí acierta", "Regalo resuelto", "Sorprende con {name}", "Regalo para {client}"],
+      "premium": ["Regala {name}", "Un detalle que dura", "Cuidado en forma de regalo", "Regala belleza", "Un mimo para {client}"]
     },
     "subline": {
-      "cercano": ["Lo eliges tú, lo disfruta quien tú quieras", "Ideal para cumpleaños y fechas especiales", "Bonito de dar, mejor de recibir", "El regalo que no acaba en un cajón"],
-      "directo": ["Fácil de regalar, fácil de reservar", "Perfecto cuando no sabes qué regalar", "Para cualquier ocasión", "Lo compras hoy, lo disfrutan cuando quieran"],
-      "premium": ["Un detalle que se nota en la piel", "Listo para regalar", "Para disfrutar sin prisa", "Para alguien que se lo merece"]
+      "cercano": ["Lo eliges tú, lo disfruta quien tú quieras", "Ideal para cumpleaños y fechas especiales", "Bonito de dar, mejor de recibir", "El regalo que no acaba en un cajón", "Pensado para {client}"],
+      "directo": ["Fácil de regalar, fácil de reservar", "Perfecto cuando no sabes qué regalar", "Para cualquier ocasión", "Lo compras hoy, lo disfrutan cuando quieran", "Para {client}, sin complicaciones"],
+      "premium": ["Un detalle que se nota en la piel", "Listo para regalar", "Para disfrutar sin prisa", "Para alguien que se lo merece", "El detalle perfecto para {client}"]
     },
     "cta": {
-      "cercano": ["Quiero regalar", "Sorprender", "Hacer el regalo"],
-      "directo": ["Regalar", "Comprar regalo", "Elegir regalo"],
-      "premium": ["Regalar", "Descubrir", "Elegir regalo"]
+      "cercano": ["Quiero regalar", "Sorprender", "Hacer el regalo", "Regalar a {client}"],
+      "directo": ["Regalar", "Comprar regalo", "Elegir regalo", "Para {client}"],
+      "premium": ["Regalar", "Descubrir", "Elegir regalo", "Regalar a {client}"]
     }
   }
 }

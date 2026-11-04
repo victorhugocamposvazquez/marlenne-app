@@ -2,7 +2,7 @@ export type StyleId = 'soft' | 'editorial' | 'promo' | 'minimal' | 'card' | 'lux
 export type FormatId = 'story' | 'square' | 'portrait';
 export type TypeId = 'bono' | 'servicio' | 'reserva' | 'ultima' | 'equipo' | 'regalo';
 export type Tone = 'cercano' | 'directo' | 'premium';
-export type TabId = 'imagen' | 'estilo' | 'elementos' | 'texto';
+export type TabId = 'imagen' | 'texto' | 'estilo' | 'elementos';
 export type ElementKey = 'seal' | 'underline' | 'sparkles' | 'shape' | 'frame';
 
 export interface Fields {
@@ -50,6 +50,11 @@ export interface CatalogItem {
   theme: string;
   /** Datos para rellenar los {placeholders} del banco de textos */
   vars: Record<string, string | number>;
+  /** Plantilla de bono (si aplica). */
+  templateId?: string | null;
+  serviceId?: string | null;
+  sessionsTotal?: number;
+  priceCents?: number;
 }
 
 export interface CreativeType {

@@ -6,15 +6,23 @@ import Creative, { CreativeCanvas } from './Creative';
 import { Icon, MarlenAvatar, PATH } from './Icons';
 import { searchStockByTheme } from '@/app/actions/marketing-stock';
 import { ALT, ELEMENTS, FORMATS, FORMAT_H, IMAGES, REC, SEAL_TEXT, STYLES, STYLE_TONE, THEMES, TONES, fieldsFor, getCatalog, getType, recommendElements, setActiveCatalog, suggestTheme } from '@/lib/marketing/data';
-import { LIMITS, type TextField, improveAll, pickLine } from '@/lib/marketing/copy';
+import { LIMITS, type TextField, improveAll, pickLine, withClientVars } from '@/lib/marketing/copy';
 import { copyBlob, copyText, downloadBlob, nodeToPng, shareBlob, slug } from '@/lib/marketing/export';
 import { stockProxyPath } from '@/lib/marketing/stock';
 import type { BankImage, CreativeConfig, CreativeType, ElementKey, Elements, Fields, FormatId, LibraryItem, StyleId, TabId, Tone, TypeId } from '@/lib/marketing/types';
+import type { ClientOption, ServiceOption } from '@/lib/types';
+import {
+  createClientQuick,
+  createPackTemplateQuick,
+  sellPackFromMarketing,
+} from '@/app/actions/marketing-catalog';
 
 const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(' ');
-const TABS: TabId[] = ['imagen', 'estilo', 'elementos', 'texto'];
-const TAB_LABEL: Record<TabId, string> = { imagen: 'Imagen', estilo: 'Estilo', elementos: 'Elementos', texto: 'Texto' };
+const TABS: TabId[] = ['imagen', 'texto', 'estilo', 'elementos'];
+const TAB_LABEL: Record<TabId, string> = { imagen: 'Imagen', texto: 'Texto', estilo: 'Estilo', elementos: 'Elementos' };
 const STORAGE_KEY = 'marlen.marketing.library.v1';
+const TYPES_WITH_CLIENT: TypeId[] = ['bono', 'regalo'];
+const firstName = (n: string) => n.trim().split(/\s+/)[0] || n;
 
 function useIsMobile(bp = 768) {
   const [m, setM] = useState(false);
@@ -43,9 +51,17 @@ function useElementSize<T extends HTMLElement>() {
 interface EditorState {
   editingId: string | null; type: TypeId; catIdx: number; style: StyleId; format: FormatId; fields: Fields; showLogo: boolean;
   image: string | null; imgTheme: string; els: Elements; elsManual: boolean; tone: Tone; toneManual: boolean; tab: TabId; safe: boolean;
+  packTemplateId: string | null; clientId: string | null; clientName: string | null; fieldsManual: boolean;
 }
-interface ModalState { step: 'type' | 'item'; type: TypeId; fromEditor: boolean }
-interface DoneState { id: string; mode: 'png' | 'share'; extra: FormatId[] }
+interface ModalState {
+  step: 'type' | 'item' | 'client';
+  type: TypeId;
+  fromEditor: boolean;
+  pendingIdx?: number;
+  pendingClientId?: string | null;
+  pendingClientName?: string | null;
+}
+interface DoneState { id: string; mode: 'png' | 'share'; extra: FormatId[]; sellPack?: boolean; sold?: boolean }
 interface ToastState { msg: string; action?: { label: string; fn: () => void } }
 
 function makeEditor(o: Partial<EditorState> & { type: TypeId; style: StyleId }): EditorState {
@@ -53,7 +69,8 @@ function makeEditor(o: Partial<EditorState> & { type: TypeId; style: StyleId }):
   return {
     editingId: null, catIdx, format: 'story', fields: fieldsFor(o.type, catIdx), showLogo: true, image: null,
     imgTheme: suggestTheme(o.type, catIdx), els: recommendElements(o.style, o.type), elsManual: false,
-    tone: STYLE_TONE[o.style], toneManual: false, tab: 'imagen', safe: false, ...o,
+    tone: STYLE_TONE[o.style], toneManual: false, tab: 'imagen', safe: false,
+    packTemplateId: null, clientId: null, clientName: null, fieldsManual: false, ...o,
   };
 }
 
@@ -63,6 +80,8 @@ export interface MarketingStudioProps {
   brandColor?: string;
   bookingLink?: string;
   catalog?: CreativeType[];
+  clients?: ClientOption[];
+  services?: ServiceOption[];
   onBack?: () => void;
 }
 
@@ -72,6 +91,8 @@ export default function MarketingStudio({
   brandColor = '#D000A8',
   bookingLink = '',
   catalog,
+  clients: clientsProp = [],
+  services: servicesProp = [],
   onBack,
 }: MarketingStudioProps) {
   const mobile = useIsMobile();
@@ -82,11 +103,20 @@ export default function MarketingStudio({
       setTypes(catalog);
     }
   }, [catalog]);
+  const [clients, setClients] = useState<ClientOption[]>(clientsProp);
+  useEffect(() => { setClients(clientsProp); }, [clientsProp]);
   const [view, setView] = useState<'home' | 'editor'>('home');
   const [ed, setEd] = useState<EditorState>(() => makeEditor({ type: 'reserva', style: 'card' }));
   const patch = useCallback((p: Partial<EditorState> | ((e: EditorState) => Partial<EditorState>)) => setEd((e) => ({ ...e, ...(typeof p === 'function' ? p(e) : p) })), []);
   const [modal, setModal] = useState<ModalState | null>(null);
   const [done, setDone] = useState<DoneState | null>(null);
+  const [clientQ, setClientQ] = useState('');
+  const [newPackOpen, setNewPackOpen] = useState(false);
+  const [newClientOpen, setNewClientOpen] = useState(false);
+  const [packForm, setPackForm] = useState({ name: '', sessions: '5', price: '', serviceId: '' });
+  const [clientForm, setClientForm] = useState({ fullName: '', phone: '' });
+  const [formBusy, setFormBusy] = useState(false);
+  const [sellBusy, setSellBusy] = useState(false);
   const [library, setLibrary] = useState<LibraryItem[]>([]);
   const [uploads, setUploads] = useState<BankImage[]>([]);
   const [stockByTheme, setStockByTheme] = useState<Record<string, BankImage[]>>({});
@@ -166,7 +196,8 @@ export default function MarketingStudio({
 
   /* ---------- datos derivados ---------- */
   const T = getType(ed.type);
-  const item = T.items[ed.catIdx] || T.items[0];
+  const rawItem = T.items[ed.catIdx] || T.items[0];
+  const item = withClientVars(rawItem, ed.clientName);
   const F = FORMATS.find((f) => f.id === ed.format) || FORMATS[0];
   const allStock = Object.values(stockByTheme).flat();
   const imgObj = (id: string | null) =>
@@ -206,35 +237,163 @@ export default function MarketingStudio({
   const openEditor = (o: Partial<EditorState> & { type: TypeId; style: StyleId }) => {
     setModal(null);
     setDone(null);
-    setEd(makeEditor(o));
+    setNewPackOpen(false);
+    setNewClientOpen(false);
+    setClientQ('');
+    const next = makeEditor(o);
+    if (next.clientName && !next.fieldsManual) {
+      const it = withClientVars(getType(next.type).items[next.catIdx] || getType(next.type).items[0], next.clientName);
+      next.fields = improveAll(getType(next.type), it, next.tone, next.fields, salon);
+    }
+    setEd(next);
     setView('editor');
   };
-  const apply = (typeId: TypeId, idx: number) => {
+  const finishApply = (typeId: TypeId, idx: number, client?: { id: string | null; name: string | null }) => {
     const t = getType(typeId), it = t.items[idx] || t.items[0], theme = it.theme || 'centro';
     const first = stockByTheme[theme]?.[0]?.id ?? null;
+    const clientId = client?.id ?? null;
+    const clientName = client?.name ?? null;
     setStockQueryIdx(0);
     if (view === 'editor' && modal?.fromEditor) {
-      patch((e) => ({ type: typeId, catIdx: idx, fields: fieldsFor(typeId, idx), image: first, imgTheme: theme, els: e.elsManual ? { ...e.els, sealText: SEAL_TEXT[typeId] } : recommendElements(e.style, typeId) }));
+      const withC = withClientVars(it, clientName);
+      patch((e) => {
+        const baseFields = e.fieldsManual ? e.fields : fieldsFor(typeId, idx);
+        const fields = e.fieldsManual ? baseFields : improveAll(t, withC, e.tone, baseFields, salon);
+        return {
+          type: typeId, catIdx: idx, fields, fieldsManual: e.fieldsManual,
+          image: first, imgTheme: theme,
+          packTemplateId: it.templateId || null,
+          clientId, clientName,
+          els: e.elsManual ? { ...e.els, sealText: SEAL_TEXT[typeId] } : recommendElements(e.style, typeId),
+        };
+      });
       setModal(null);
       showToast('Marlén ha actualizado texto e imagen');
     } else {
-      openEditor({ type: typeId, catIdx: idx, style: t.style, image: first, imgTheme: theme });
+      openEditor({
+        type: typeId, catIdx: idx, style: t.style, image: first, imgTheme: theme,
+        packTemplateId: it.templateId || null, clientId, clientName, fieldsManual: false,
+      });
     }
+  };
+  const apply = (typeId: TypeId, idx: number) => {
+    if (TYPES_WITH_CLIENT.includes(typeId)) {
+      setModal({
+        step: 'client', type: typeId, fromEditor: !!modal?.fromEditor || view === 'editor',
+        pendingIdx: idx, pendingClientId: null, pendingClientName: null,
+      });
+      setClientQ('');
+      setNewClientOpen(false);
+      return;
+    }
+    finishApply(typeId, idx);
+  };
+  const applyClient = (c: { id: string | null; name: string | null } | null) => {
+    if (!modal || modal.pendingIdx == null) return;
+    finishApply(modal.type, modal.pendingIdx, c || { id: null, name: null });
   };
   const startType = (id: TypeId) => {
     const t = getType(id);
-    if (t.items.length > 1) setModal({ step: 'item', type: id, fromEditor: !!modal?.fromEditor || view === 'editor' });
+    setNewPackOpen(false);
+    if (t.items.length > 1 || id === 'bono') setModal({ step: 'item', type: id, fromEditor: !!modal?.fromEditor || view === 'editor' });
     else apply(id, 0);
   };
   const goHome = () => { setView('home'); setModal(null); patch({ safe: false }); };
 
+  const appendPackItem = (tpl: { id: string; name: string; sessions_total: number; price_cents: number; service_id: string | null }) => {
+    const svc = servicesProp.find(s => s.id === tpl.service_id);
+    const price = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: tpl.price_cents % 100 === 0 ? 0 : 2 }).format(tpl.price_cents / 100);
+    const itemNew = {
+      label: tpl.name,
+      meta: `${tpl.sessions_total} sesiones${svc ? ` · ${svc.name}` : ''}`,
+      price,
+      title: tpl.name,
+      subtitle: `${tpl.sessions_total} sesiones${svc ? ` · ${svc.name}` : ''}`,
+      theme: 'corporal',
+      templateId: tpl.id,
+      serviceId: tpl.service_id,
+      sessionsTotal: tpl.sessions_total,
+      priceCents: tpl.price_cents,
+      vars: { name: (svc?.name || tpl.name).toLowerCase(), sessions: tpl.sessions_total, salon },
+    };
+    setTypes(prev => {
+      const next = prev.map(t => {
+        if (t.id !== 'bono' && t.id !== 'regalo') return t;
+        const items = t.id === 'bono'
+          ? [itemNew, ...t.items.filter(x => x.templateId)]
+          : [{ ...itemNew, title: `Regala ${itemNew.title}`, cta: 'Regalar', vars: { ...itemNew.vars, name: `un ${(svc?.name || 'bono').toLowerCase()}` } }, ...t.items];
+        return { ...t, items, note: `${items.length} opción${items.length === 1 ? '' : 'es'}` };
+      });
+      setActiveCatalog(next);
+      return next;
+    });
+    return 0;
+  };
+
+  const createPack = async () => {
+    if (formBusy) return;
+    const name = packForm.name.trim();
+    const sessions = Math.max(1, Math.round(Number(packForm.sessions) || 0));
+    const euros = Number(String(packForm.price).replace(',', '.'));
+    if (name.length < 2) { showToast('Pon un nombre al bono'); return; }
+    if (!sessions) { showToast('Pon al menos una sesión'); return; }
+    if (!(euros >= 0)) { showToast('Pon un precio válido'); return; }
+    setFormBusy(true);
+    try {
+      const r = await createPackTemplateQuick({
+        name,
+        sessionsTotal: sessions,
+        priceCents: Math.round(euros * 100),
+        serviceId: packForm.serviceId || null,
+      });
+      if (!r.ok) { showToast(r.error); return; }
+      const idx = appendPackItem(r.template);
+      setNewPackOpen(false);
+      setPackForm({ name: '', sessions: '5', price: '', serviceId: '' });
+      showToast(`Bono «${r.template.name}» creado`);
+      apply(modal?.type || 'bono', idx);
+    } finally {
+      setFormBusy(false);
+    }
+  };
+
+  const createClient = async () => {
+    if (formBusy) return;
+    const fullName = clientForm.fullName.trim();
+    if (fullName.length < 2) { showToast('Pon al menos el nombre'); return; }
+    setFormBusy(true);
+    try {
+      const r = await createClientQuick({ fullName, phone: clientForm.phone });
+      if (!r.ok) { showToast(r.error); return; }
+      setClients(c => [{ id: r.id, full_name: r.fullName, phone: clientForm.phone || null }, ...c.filter(x => x.id !== r.id)]);
+      setNewClientOpen(false);
+      setClientForm({ fullName: '', phone: '' });
+      applyClient({ id: r.id, name: r.fullName });
+    } finally {
+      setFormBusy(false);
+    }
+  };
+
   /* ---------- acciones del editor ---------- */
-  const onField = (e: React.ChangeEvent<HTMLInputElement>) => { const { name, value } = e.target; patch((s) => ({ fields: { ...s.fields, [name]: value } })); };
-  const reroll = (field: TextField) => { const p = pickLine({ type: T, item, tone: ed.tone, field, salon, exclude: ed.fields[field] }); if (p) patch((s) => ({ fields: { ...s.fields, [field]: p.txt } })); };
+  const onField = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    patch((s) => ({ fields: { ...s.fields, [name]: value }, fieldsManual: true }));
+  };
+  const reroll = (field: TextField) => {
+    const p = pickLine({ type: T, item, tone: ed.tone, field, salon, exclude: ed.fields[field] });
+    if (p) patch((s) => ({ fields: { ...s.fields, [field]: p.txt }, fieldsManual: true }));
+  };
   const improve = () => {
     const prev = ed.fields;
-    patch({ fields: improveAll(T, item, ed.tone, ed.fields, salon) });
+    patch({ fields: improveAll(T, item, ed.tone, ed.fields, salon), fieldsManual: true });
     showToast(`Marlén ha reescrito los textos en tono ${ed.tone}.`, { label: 'Deshacer', fn: () => { patch({ fields: prev }); showToast('Textos restaurados'); } });
+  };
+  const setEditorClient = (c: { id: string | null; name: string | null }) => {
+    patch((e) => {
+      const it = withClientVars(rawItem, c.name);
+      const fields = e.fieldsManual ? e.fields : improveAll(T, it, e.tone, fieldsFor(e.type, e.catIdx), salon);
+      return { clientId: c.id, clientName: c.name, fields };
+    });
   };
   const pickStyle = (id: StyleId) => patch((e) => ({ style: id, ...(e.toneManual ? {} : { tone: STYLE_TONE[id] }), ...(e.elsManual ? {} : { els: { ...recommendElements(id, e.type), sealText: e.els.sealText } }) }));
   const toggleEl = (k: ElementKey) => patch((e) => ({ els: { ...e.els, [k]: !e.els[k] }, elsManual: true }));
@@ -267,11 +426,34 @@ export default function MarketingStudio({
       setHighlight(it.id);
       setFilter('all');
       patch({ editingId: it.id, safe: false });
-      setDone({ id: it.id, mode, extra: [] });
+      setDone({ id: it.id, mode, extra: [], sellPack: false, sold: false });
     } catch {
       showToast('No se pudo generar la imagen. Inténtalo de nuevo.');
     } finally {
       setBusy(false);
+    }
+  };
+  const confirmSellPack = async () => {
+    if (!done || sellBusy || !ed.packTemplateId || !ed.clientId || !rawItem) return;
+    setSellBusy(true);
+    try {
+      const r = await sellPackFromMarketing({
+        ownerClientId: ed.clientId,
+        templateId: ed.packTemplateId,
+        name: rawItem.label || rawItem.title,
+        serviceId: rawItem.serviceId ?? null,
+        sessionsTotal: rawItem.sessionsTotal || Number(rawItem.vars?.sessions) || 1,
+        priceCents: rawItem.priceCents ?? 0,
+      });
+      if (!r.ok) { showToast(r.error); return; }
+      setDone(d => (d ? { ...d, sold: true, sellPack: true } : d));
+      const name = ed.clientName || 'la clienta';
+      showToast(`Bono registrado a ${name}`, {
+        label: 'Ver ficha',
+        fn: () => { window.location.href = `/clientas/${ed.clientId}`; },
+      });
+    } finally {
+      setSellBusy(false);
     }
   };
   const copyImage = async () => { try { const ok = await copyBlob(await capture(currentCfg)); showToast(ok ? 'Imagen copiada. Pégala en WhatsApp Web o en un email.' : 'Tu navegador no permite copiar imágenes'); } catch { showToast('No se pudo copiar'); } };
@@ -299,13 +481,41 @@ export default function MarketingStudio({
   };
 
   /* ---------- pasos ---------- */
-  const ctx = modal ? (modal.step === 'type' ? 1 : 2) : view === 'editor' ? 3 : 1;
+  const needsClient = TYPES_WITH_CLIENT.includes(modal?.type || ed.type);
+  const ctx = modal
+    ? (modal.step === 'type' ? 1 : modal.step === 'item' ? 2 : 3)
+    : view === 'editor' ? (needsClient ? 4 : 3) : 1;
   const MT = modal ? getType(modal.type) : T;
   const goType = () => setModal((m) => ({ step: 'type', type: m ? m.type : ed.type, fromEditor: m ? m.fromEditor : view === 'editor' }));
-  const goItem = () => (T.items.length > 1 ? setModal({ step: 'item', type: ed.type, fromEditor: true }) : goType());
-  const steps = [ctx > 1 ? MT.label : 'Qué anuncias', ctx > 2 ? item.label : 'Del catálogo', 'Diseño'].map((label, i) => {
+  const goItem = () => setModal({ step: 'item', type: ed.type, fromEditor: true });
+  const goClient = () => setModal({
+    step: 'client', type: ed.type, fromEditor: true, pendingIdx: ed.catIdx,
+    pendingClientId: ed.clientId, pendingClientName: ed.clientName,
+  });
+  const catalogLabel = (() => {
+    const it = modal?.step === 'client' && modal.pendingIdx != null
+      ? (getType(modal.type).items[modal.pendingIdx] || getType(modal.type).items[0])
+      : item;
+    const pack = it?.label || 'Del catálogo';
+    const who = (modal?.pendingClientName || ed.clientName);
+    if (who && (modal?.step === 'client' ? ctx > 3 : ctx > 2) && needsClient) return `${pack} · ${firstName(who)}`;
+    return pack;
+  })();
+  const stepDefs = needsClient
+    ? [
+        { label: ctx > 1 ? MT.label : 'Qué anuncias', go: goType as (() => void) | undefined },
+        { label: ctx > 2 ? catalogLabel : 'Del catálogo', go: goItem as (() => void) | undefined },
+        { label: ctx > 3 ? (ed.clientName ? firstName(ed.clientName) : 'Clienta') : 'Clienta', go: goClient as (() => void) | undefined },
+        { label: 'Diseño', go: undefined as (() => void) | undefined },
+      ]
+    : [
+        { label: ctx > 1 ? MT.label : 'Qué anuncias', go: goType as (() => void) | undefined },
+        { label: ctx > 2 ? item.label : 'Del catálogo', go: goItem as (() => void) | undefined },
+        { label: 'Diseño', go: undefined as (() => void) | undefined },
+      ];
+  const steps = stepDefs.map((s, i) => {
     const n = i + 1, isDone = n < ctx, on = n <= ctx;
-    return { n, label, isDone, on, go: isDone ? (n === 1 ? goType : goItem) : undefined, mw: n === 2 && isDone ? (mobile ? 150 : 260) : 220 };
+    return { n, label: s.label, isDone, on, go: isDone ? s.go : undefined, mw: n === 2 && isDone ? (mobile ? 160 : 280) : 200 };
   });
   const renderStepper = (big: boolean) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: big ? 10 : 6, flexWrap: 'wrap', minWidth: 0 }} aria-label="Pasos">
@@ -328,10 +538,18 @@ export default function MarketingStudio({
   const tabIdx = Math.max(0, TABS.indexOf(ed.tab));
   const marlenTip = {
     imagen: `He elegido una foto de ${themeLabel(sugTheme)} para tu anuncio. Cámbiala o sube una tuya.`,
+    texto: ed.clientName
+      ? `Puedo personalizar el texto para ${firstName(ed.clientName)}. Pulsa «Mejorar textos» o edítalo a mano.`
+      : 'Pulsa «Mejorar textos» y te propongo otra versión con el tono que elijas.',
     estilo: 'Cada estilo recoloca todo solo. Prueba sin miedo: tu texto y tu imagen se mantienen.',
     elementos: 'Mejor pocos y bien puestos: te propongo dos como máximo y los coloco yo.',
-    texto: 'Pulsa «Mejorar textos» y te propongo otra versión con el tono que elijas.',
   }[ed.tab];
+
+  const filteredClients = (() => {
+    const q = clientQ.trim().toLowerCase();
+    if (!q) return clients.slice(0, 12);
+    return clients.filter(c => c.full_name.toLowerCase().includes(q) || (c.phone || '').includes(q)).slice(0, 12);
+  })();
 
   const textField = (name: TextField, label: string, m: boolean) => {
     const len = (ed.fields[name] || '').length;
@@ -471,6 +689,17 @@ export default function MarketingStudio({
 
   const textPanel = (m: boolean) => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: m ? 14 : 16, flexShrink: 0 }}>
+      {TYPES_WITH_CLIENT.includes(ed.type) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#4A4957' }}>Clienta</span>
+          <button type="button" className={cx(css.chip, ed.clientId && css.chipOn)} onClick={goClient}>
+            {ed.clientName ? firstName(ed.clientName) : 'Elegir o crear'}
+          </button>
+          {ed.clientName && (
+            <button type="button" className={css.chip} onClick={() => setEditorClient({ id: null, name: null })}>Quitar</button>
+          )}
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         {!m && <span style={{ fontSize: 15, fontWeight: 700, flex: 1 }}>Texto</span>}
         {m && <div style={{ display: 'flex', gap: 6 }}>{TONES.map(([id, label]) => <button key={id} type="button" className={cx(css.chip, ed.tone === id && css.chipOn)} style={{ height: 32 }} onClick={() => patch({ tone: id, toneManual: true })}>{label}</button>)}</div>}
@@ -731,20 +960,29 @@ export default function MarketingStudio({
     </div>
   );
 
-  /* ---------- modal pasos 1-2 ---------- */
+  /* ---------- modal pasos tipo / catálogo / clienta ---------- */
+  const modalTitle =
+    modal?.step === 'type' ? '¿Qué quieres anunciar?'
+      : modal?.step === 'client' ? '¿Para qué clienta?'
+        : MT.question;
   const modalView = modal && (
     <div className={cx(css.overlay, mobile && css.overlayMobile)} onClick={() => setModal(null)}>
       <div className={cx(css.panel, mobile && css.panelMobile)} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         {mobile && <div className={css.handle} />}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
           {modal.step === 'item' && <button type="button" className={css.circle} style={{ width: 40, height: 40 }} onClick={goType} title="Otro tipo"><Icon d={PATH.back} stroke={2} /></button>}
+          {modal.step === 'client' && (
+            <button type="button" className={css.circle} style={{ width: 40, height: 40 }} onClick={() => setModal(m => m ? { ...m, step: 'item' } : m)} title="Otro ítem">
+              <Icon d={PATH.back} stroke={2} />
+            </button>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
             {renderStepper(false)}
-            <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>{modal.step === 'type' ? '¿Qué quieres anunciar?' : MT.question}</span>
+            <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>{modalTitle}</span>
           </div>
           <button type="button" className={css.circle} style={{ width: 40, height: 40 }} onClick={() => setModal(null)} aria-label="Cerrar"><Icon d={PATH.close} stroke={2} /></button>
         </div>
-        {modal.step === 'type' ? (
+        {modal.step === 'type' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
             {types.map((t) => {
               const on = modal.fromEditor && t.id === ed.type;
@@ -756,11 +994,41 @@ export default function MarketingStudio({
               );
             })}
           </div>
-        ) : (
+        )}
+        {modal.step === 'item' && (
           <>
+            {(modal.type === 'bono' || modal.type === 'regalo') && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {!newPackOpen ? (
+                  <button type="button" className={cx(css.btn, css.soft)} onClick={() => setNewPackOpen(true)}>
+                    <Icon d={PATH.sparkle} size={16} stroke={1.9} color="#D000A8" />Nuevo bono
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 14, borderRadius: 14, background: '#F6F6F9' }}>
+                    <span style={{ fontSize: 14, fontWeight: 700 }}>Alta rápida de bono</span>
+                    <label className={css.field}><span className={css.label}>Nombre</span><input className={css.input} value={packForm.name} onChange={e => setPackForm(f => ({ ...f, name: e.target.value }))} placeholder="Bono 5 sesiones · Facial" /></label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <label className={css.field}><span className={css.label}>Sesiones</span><input className={css.input} inputMode="numeric" value={packForm.sessions} onChange={e => setPackForm(f => ({ ...f, sessions: e.target.value }))} /></label>
+                      <label className={css.field}><span className={css.label}>Precio (€)</span><input className={css.input} inputMode="decimal" value={packForm.price} onChange={e => setPackForm(f => ({ ...f, price: e.target.value }))} placeholder="180" /></label>
+                    </div>
+                    <label className={css.field}>
+                      <span className={css.label}>Servicio (opcional)</span>
+                      <select className={css.input} value={packForm.serviceId} onChange={e => setPackForm(f => ({ ...f, serviceId: e.target.value }))}>
+                        <option value="">Sin servicio fijo</option>
+                        {servicesProp.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button type="button" className={cx(css.btn, css.ghost)} onClick={() => setNewPackOpen(false)}>Cancelar</button>
+                      <button type="button" className={cx(css.btn, css.primary)} style={{ opacity: formBusy ? 0.6 : 1 }} onClick={() => void createPack()}>{formBusy ? 'Creando…' : 'Crear y usar'}</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {MT.items.map((it, i) => (
-                <button key={it.label} type="button" className={cx(css.rowItem, modal.fromEditor && modal.type === ed.type && i === ed.catIdx && css.rowItemOn)} onClick={() => apply(modal.type, i)}>
+                <button key={`${it.templateId || it.label}-${i}`} type="button" className={cx(css.rowItem, modal.fromEditor && modal.type === ed.type && i === ed.catIdx && css.rowItemOn)} onClick={() => apply(modal.type, i)}>
                   <span style={{ width: 52, height: 52, borderRadius: 12, background: IMAGES[`${it.theme || 'centro'}-0`]?.bg, flexShrink: 0 }} />
                   <span style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1, minWidth: 0 }}><span style={{ fontSize: 15, fontWeight: 600 }}>{it.label}</span><span style={{ fontSize: 13, color: '#6E6D7A' }}>{it.meta}</span></span>
                   {it.price && <span style={{ fontSize: 15, fontWeight: 700, whiteSpace: 'nowrap' }}>{it.price}</span>}
@@ -769,6 +1037,48 @@ export default function MarketingStudio({
               ))}
             </div>
             <div className={css.hint}>Con estos datos Marlén prepara el texto y la imagen. Podrás cambiarlo todo después.</div>
+          </>
+        )}
+        {modal.step === 'client' && (
+          <>
+            <input
+              className={css.input}
+              value={clientQ}
+              onChange={e => setClientQ(e.target.value)}
+              placeholder="Buscar clienta por nombre o teléfono"
+              autoFocus
+            />
+            {!newClientOpen ? (
+              <button type="button" className={cx(css.btn, css.soft)} onClick={() => setNewClientOpen(true)}>
+                <Icon d={PATH.sparkle} size={16} stroke={1.9} color="#D000A8" />Nueva clienta
+              </button>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 14, borderRadius: 14, background: '#F6F6F9' }}>
+                <span style={{ fontSize: 14, fontWeight: 700 }}>Alta rápida</span>
+                <label className={css.field}><span className={css.label}>Nombre</span><input className={css.input} value={clientForm.fullName} onChange={e => setClientForm(f => ({ ...f, fullName: e.target.value }))} placeholder="María López" /></label>
+                <label className={css.field}><span className={css.label}>Teléfono (opcional)</span><input className={css.input} value={clientForm.phone} onChange={e => setClientForm(f => ({ ...f, phone: e.target.value }))} inputMode="tel" /></label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" className={cx(css.btn, css.ghost)} onClick={() => setNewClientOpen(false)}>Cancelar</button>
+                  <button type="button" className={cx(css.btn, css.primary)} style={{ opacity: formBusy ? 0.6 : 1 }} onClick={() => void createClient()}>{formBusy ? 'Creando…' : 'Crear y usar'}</button>
+                </div>
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {filteredClients.map(c => (
+                <button key={c.id} type="button" className={cx(css.rowItem, (modal.pendingClientId || ed.clientId) === c.id && css.rowItemOn)} onClick={() => applyClient({ id: c.id, name: c.full_name })}>
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1, minWidth: 0 }}>
+                    <span style={{ fontSize: 15, fontWeight: 600 }}>{c.full_name}</span>
+                    {c.phone && <span style={{ fontSize: 13, color: '#6E6D7A' }}>{c.phone}</span>}
+                  </span>
+                  <Icon d={PATH.chevronRight} color="#6E6D7A" stroke={2} />
+                </button>
+              ))}
+              {!filteredClients.length && <div className={css.hint}>No hay coincidencias. Crea una clienta nueva.</div>}
+            </div>
+            <button type="button" className={cx(css.btn, css.ghost)} onClick={() => applyClient({ id: null, name: null })}>
+              Continuar sin clienta
+            </button>
+            <div className={css.hint}>La clienta personaliza el texto y, si quieres, puedes registrarle el bono al publicar.</div>
           </>
         )}
       </div>
@@ -815,12 +1125,35 @@ export default function MarketingStudio({
               </div>
               <span className={css.hint}>Marlén recoloca imagen, texto y elementos para cada formato.</span>
             </div>
+            {ed.packTemplateId && ed.clientId && ed.clientName && !done.sold && (
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: 12, borderRadius: 12, border: '1px solid #E4E3EA', background: '#FBFBFD', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={!!done.sellPack}
+                  onChange={e => setDone(d => (d ? { ...d, sellPack: e.target.checked } : d))}
+                  style={{ marginTop: 3 }}
+                />
+                <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600 }}>Registrar bono a {firstName(ed.clientName)}</span>
+                  <span style={{ fontSize: 12, color: '#6E6D7A', lineHeight: 1.4 }}>Opcional. Crea el bono en su ficha con el precio de la plantilla (pago pendiente).</span>
+                </span>
+              </label>
+            )}
+            {done.sold && (
+              <div className={css.hint}>Bono registrado a {ed.clientName}.</div>
+            )}
           </div>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end', borderTop: '1px solid #ECEBF1', paddingTop: 16 }}>
           <button type="button" className={cx(css.btn, css.ghost)} style={{ flex: '1 1 auto' }} onClick={() => setDone(null)}>Seguir editando</button>
           <button type="button" className={cx(css.btn, css.ghost)} style={{ flex: '1 1 auto' }} onClick={() => { setDone(null); setView('home'); setModal({ step: 'type', type: ed.type, fromEditor: false }); }}>Crear otra</button>
-          <button type="button" className={cx(css.btn, css.primary)} style={{ flex: '1 1 auto' }} onClick={() => { setDone(null); setView('home'); showToast('Guardada en tus creatividades'); }}>Ver mis creatividades</button>
+          {done.sellPack && !done.sold ? (
+            <button type="button" className={cx(css.btn, css.primary)} style={{ flex: '1 1 auto', opacity: sellBusy ? 0.6 : 1 }} onClick={() => void confirmSellPack()}>
+              {sellBusy ? 'Registrando…' : `Registrar bono a ${firstName(ed.clientName || '')}`}
+            </button>
+          ) : (
+            <button type="button" className={cx(css.btn, css.primary)} style={{ flex: '1 1 auto' }} onClick={() => { setDone(null); setView('home'); showToast('Guardada en tus creatividades'); }}>Ver mis creatividades</button>
+          )}
         </div>
       </div>
     </div>

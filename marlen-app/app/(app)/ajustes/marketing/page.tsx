@@ -1,16 +1,17 @@
 import { requireRole } from '@/lib/require-session';
-import { listSalonPackTemplates, listServices, listStaff } from '@/lib/queries';
+import { listClientOptions, listSalonPackTemplates, listServices, listStaff } from '@/lib/queries';
 import { loadMarketingBrand } from '@/app/actions/marketing';
 import { buildMarketingCatalog } from '@/lib/marketing/catalog';
 import MarketingStudioHost from '@/components/marketing/MarketingStudioHost';
 
 export default async function MarketingPage() {
   await requireRole('admin');
-  const [brand, packs, services, staff] = await Promise.all([
+  const [brand, packs, services, staff, clients] = await Promise.all([
     loadMarketingBrand(),
     listSalonPackTemplates(),
     listServices({ includeInactive: false }),
     listStaff({ includeInactive: false }),
+    listClientOptions(),
   ]);
 
   const providers = staff.filter(s => s.role === 'provider' || s.role === 'admin');
@@ -31,6 +32,8 @@ export default async function MarketingPage() {
         brandColor={brand.accent}
         bookingLink={brand.bookingUrl}
         catalog={catalog}
+        clients={clients}
+        services={services}
       />
     </div>
   );
