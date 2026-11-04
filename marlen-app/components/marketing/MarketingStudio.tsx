@@ -52,6 +52,9 @@ interface EditorState {
   editingId: string | null; type: TypeId; catIdx: number; style: StyleId; format: FormatId; fields: Fields; showLogo: boolean;
   image: string | null; imgTheme: string; els: Elements; elsManual: boolean; tone: Tone; toneManual: boolean; tab: TabId; safe: boolean;
   packTemplateId: string | null; clientId: string | null; clientName: string | null; fieldsManual: boolean;
+  /** Mobile: propuestas de Marlén o lienzo con herramientas */
+  mStage: 'pick' | 'edit';
+  tool: TabId | null;
 }
 interface ModalState {
   step: 'type' | 'item' | 'client';
@@ -66,11 +69,13 @@ interface ToastState { msg: string; action?: { label: string; fn: () => void } }
 
 function makeEditor(o: Partial<EditorState> & { type: TypeId; style: StyleId }): EditorState {
   const catIdx = o.catIdx ?? 0;
+  const editingId = o.editingId ?? null;
   return {
     editingId: null, catIdx, format: 'story', fields: fieldsFor(o.type, catIdx), showLogo: true, image: null,
     imgTheme: suggestTheme(o.type, catIdx), els: recommendElements(o.style, o.type), elsManual: false,
     tone: STYLE_TONE[o.style], toneManual: false, tab: 'imagen', safe: false,
-    packTemplateId: null, clientId: null, clientName: null, fieldsManual: false, ...o,
+    packTemplateId: null, clientId: null, clientName: null, fieldsManual: false,
+    mStage: editingId ? 'edit' : 'pick', tool: null, ...o,
   };
 }
 
@@ -137,6 +142,9 @@ export default function MarketingStudio({
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const autoN = useRef(0);
   const [previewRef, preview] = useElementSize<HTMLDivElement>();
+  const [carRef, car] = useElementSize<HTMLDivElement>();
+  const [cIdx, setCIdx] = useState(0);
+  const [cSet, setCSet] = useState(0);
 
   // TODO(backend): sustituir localStorage por la API de biblioteca del centro.
   useEffect(() => {
@@ -240,6 +248,8 @@ export default function MarketingStudio({
     setNewPackOpen(false);
     setNewClientOpen(false);
     setClientQ('');
+    setCIdx(0);
+    setCSet(0);
     const next = makeEditor(o);
     if (next.clientName && !next.fieldsManual) {
       const it = withClientVars(getType(next.type).items[next.catIdx] || getType(next.type).items[0], next.clientName);
@@ -601,7 +611,7 @@ export default function MarketingStudio({
         <span className={css.label}>{label}<span className={cx(css.counter, len > LIMITS[name] && css.counterOver)}>{len}/{LIMITS[name]}</span></span>
         <span className={css.inputWrap}>
           <input name={name} value={ed.fields[name]} onChange={onField} className={cx(css.input, m && css.inputMobile, css.withAction)} />
-          <button type="button" className={css.reroll} title="Otra opción" onClick={() => reroll(name)}><Icon d={PATH.refresh} size={16} stroke={1.9} /></button>
+          <button type="button" className={cx(css.reroll, m && css.rerollLg)} title="Otra opción" onClick={() => reroll(name)}><Icon d={PATH.refresh} size={16} stroke={1.9} /></button>
         </span>
       </label>
     );
@@ -926,48 +936,182 @@ export default function MarketingStudio({
 
   const edTitle = ed.editingId ? 'Editar creatividad' : 'Nueva creatividad';
   const nextBtn = tabIdx < 3 && (
-    <button type="button" className={cx(css.btn, css.outline, mobile ? undefined : css.md)} style={mobile ? { alignSelf: 'flex-end', flexShrink: 0, fontSize: 13 } : undefined} onClick={() => patch({ tab: TABS[tabIdx + 1] })}>
+    <button type="button" className={cx(css.btn, css.outline, css.md)} onClick={() => patch({ tab: TABS[tabIdx + 1] })}>
       Siguiente: {TAB_LABEL[TABS[tabIdx + 1]]}<Icon d={PATH.next} size={16} stroke={2} />
     </button>
   );
 
-  const editor = mobile ? (
+  /* ---------- mobile: propuestas + lienzo (handoff 2), sin perder bonos/clienta/envío ---------- */
+  const ORDER: StyleId[] = ['soft', 'card', 'luxe', 'minimal', 'editorial', 'promo'];
+  const others = ORDER.filter((x) => x !== T.style);
+  const themeStock = stockByTheme[sugTheme] || [];
+  const propImg = (i: number) => themeStock[i]?.id || `${sugTheme}-${Math.min(i, 5)}`;
+  const SETS: [StyleId, number][][] = [
+    [[T.style, 0], [others[0], 1], [others[1], 2], [others[2], 3]],
+    [[others[3], 4], [others[4], 5], [T.style, 2], [others[0], 0]],
+  ];
+  const proposals = SETS[cSet % 2].map(([style, i]) => ({ style, image: propImg(i) }));
+  const carW = Math.floor(Math.min(290, (car.w || 390) - 100, (((car.h || 452) - 40) * 1080) / F.H));
+  const carPad = Math.max(16, Math.round(((car.w || 390) - carW) / 2));
+  const chooseProposal = () => {
+    const p = proposals[cIdx] || proposals[0];
+    patch({
+      style: p.style, image: p.image, imgTheme: sugTheme,
+      els: recommendElements(p.style, ed.type), elsManual: false,
+      tone: STYLE_TONE[p.style], toneManual: false, mStage: 'edit', tool: null,
+    });
+    showToast('Buena elección. Retoca lo que quieras abajo.');
+  };
+  const cycleFormat = () => {
+    const ids: FormatId[] = ['story', 'square', 'portrait'];
+    patch((e) => ({ format: ids[(ids.indexOf(e.format) + 1) % 3] }));
+  };
+  const TOOLS: [TabId | 'ideas', string, string][] = [
+    ['ideas', 'Ideas', PATH.sparkle],
+    ['imagen', 'Imagen', PATH.image],
+    ['texto', 'Texto', PATH.text],
+    ['estilo', 'Estilo', PATH.palette],
+    ['elementos', 'Elementos', PATH.shapes],
+  ];
+  const SHEET_H = 430;
+  const floatBtn: React.CSSProperties = {
+    position: 'absolute', top: 12, height: 44, padding: '0 14px', borderRadius: 999, border: 'none',
+    background: '#fff', boxShadow: '0 2px 8px rgba(15,14,26,0.12)', color: '#0F0E1A',
+    fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+  };
+  const changeAnnouncement = () => goItem();
+
+  const mobileEditor = ed.mStage === 'pick' ? (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', height: 56, flexShrink: 0 }}>
+      <div style={{ height: 60, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '0 12px' }}>
         <button type="button" className={css.circle} onClick={goHome} aria-label="Cerrar"><Icon d={PATH.close} size={20} stroke={2} /></button>
-        <div style={{ fontSize: 16, fontWeight: 700 }}>{edTitle}</div>
-        <div style={{ width: 44 }} />
-      </div>
-      <div style={{ padding: '0 14px 8px', flexShrink: 0 }}>{renderStepper(false)}</div>
-      <div style={{ height: 316, flexShrink: 0, background: '#F6F6F9', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-        <div ref={previewRef} style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-          <Creative cfg={currentCfg} width={previewW} radius={8} shadow safe={ed.safe} />
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, minWidth: 0 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#6E6D7A' }}>Diseño</span>
+          <span style={{ fontSize: 17, fontWeight: 700 }}>Marlén te propone</span>
         </div>
-        {ed.format === 'story' && (
-          <button type="button" onClick={() => patch((s) => ({ safe: !s.safe }))} title="Zonas seguras (stories y estados)" aria-pressed={ed.safe}
-            style={{ position: 'absolute', top: 10, right: 10, height: 32, padding: '0 10px', borderRadius: 999, border: 'none', background: ed.safe ? '#D000A8' : '#fff', color: ed.safe ? '#fff' : '#0F0E1A', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 1px 3px rgba(15,14,26,0.1)', cursor: 'pointer' }}>
-            <Icon d={PATH.safe} size={14} stroke={2} />Zonas
-          </button>
-        )}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '0 0 10px' }}>
-          {formatSeg(true)}
-          <div style={{ fontSize: 11, color: '#5E5D6B' }}>{F.usage}</div>
+        <button type="button" className={css.circle} onClick={changeAnnouncement} aria-label="Cambiar qué anuncias"><Icon d={PATH.back} size={20} stroke={2} /></button>
+      </div>
+      <div style={{ margin: '0 16px', display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', borderRadius: 16, background: '#F6F6F9', flexShrink: 0 }}>
+        <MarlenAvatar size={28} />
+        <span style={{ fontSize: 14, lineHeight: 1.45, color: '#2E2D3A' }}>
+          He preparado 4 diseños para <b>{item.label}</b>
+          {ed.clientName ? <> · {firstName(ed.clientName)}</> : null}. Desliza y quédate con el que más te guste.
+        </span>
+      </div>
+      <div
+        ref={carRef}
+        className={css.noScrollbar}
+        onScroll={(e) => {
+          const i = Math.round(e.currentTarget.scrollLeft / (carW + 12));
+          if (i !== cIdx) setCIdx(Math.max(0, Math.min(3, i)));
+        }}
+        style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', gap: 12, overflowX: 'auto', scrollSnapType: 'x mandatory', padding: `0 ${carPad}px` }}
+      >
+        {proposals.map((p, i) => (
+          <div key={`${p.style}-${p.image}-${i}`} style={{ flexShrink: 0, scrollSnapAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+            <div style={{ position: 'relative' }}>
+              <Creative
+                cfg={cfgOf({ ...ed, style: p.style, image: p.image, els: recommendElements(p.style, ed.type) })}
+                width={carW}
+                radius={14}
+                shadow
+              />
+              {i === 0 && cSet % 2 === 0 && (
+                <span className={css.badgeNew} style={{ top: 12, left: 12, height: 28, fontSize: 13, padding: '0 12px' }}>Mi favorita</span>
+              )}
+            </div>
+            <span style={{ fontSize: 15, fontWeight: 600 }}>{STYLES.find((x) => x.id === p.style)?.label}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '4px 0 8px' }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {proposals.map((_, i) => (
+            <span key={i} style={{ width: i === cIdx ? 22 : 8, height: 8, borderRadius: 4, background: i === cIdx ? '#0F0E1A' : '#D9D8E0', transition: 'width .2s ease' }} />
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {FORMATS.map((f) => (
+            <button key={f.id} type="button" className={cx(css.chip, f.id === ed.format && css.chipOn)} style={{ height: 40, padding: '0 14px', fontSize: 14, gap: 8 }} onClick={() => patch({ format: f.id })}>
+              <span className={css.ratio} style={{ width: f.iw, height: f.ih }} />{f.ratio}
+            </button>
+          ))}
         </div>
       </div>
-      <div className={css.mTabs}>
-        {TABS.map((id) => <button key={id} type="button" className={cx(css.mTab, ed.tab === id && css.mTabOn)} onClick={() => patch({ tab: id })}>{TAB_LABEL[id]}</button>)}
-      </div>
-      <div className={css.scroll} style={{ padding: '12px 16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexShrink: 0 }}><MarlenAvatar size={20} /><span style={{ fontSize: 12, color: '#4A4957', lineHeight: 1.4 }}>{marlenTip}</span></div>
-        {tabPanel(true)}
-        {nextBtn}
-      </div>
-      <div style={{ padding: '12px 16px 28px', borderTop: '1px solid #ECEBF1', background: '#fff', flexShrink: 0, display: 'flex', gap: 10 }}>
-        <button type="button" className={css.circle} style={{ width: 52, height: 52, background: '#fff', border: '1px solid #E4E3EA' }} title="Descargar PNG" onClick={() => saveAndFinish('png')}><Icon d={PATH.download} size={20} stroke={2} /></button>
-        <button type="button" className={cx(css.btn, css.primary, css.lg)} style={{ flex: 1, opacity: busy ? 0.6 : 1 }} onClick={() => saveAndFinish('ready')}><Icon d={PATH.share} size={18} stroke={2} />{busy ? 'Preparando…' : 'Listo · Enviar'}</button>
+      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 16px 26px', borderTop: '1px solid #ECEBF1' }}>
+        <button type="button" className={cx(css.btn, css.primary)} style={{ height: 56, fontSize: 16 }} onClick={chooseProposal}>Me quedo con esta</button>
+        <button type="button" className={css.btn} style={{ background: 'none', fontSize: 15 }} onClick={() => { setCSet((n) => n + 1); setCIdx(0); }}>
+          <Icon d={PATH.refresh} size={18} stroke={1.9} color="#D000A8" />Ver otras 4 propuestas
+        </button>
       </div>
     </div>
   ) : (
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <div style={{ height: 60, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px' }}>
+        <button type="button" className={css.circle} onClick={goHome} aria-label="Cerrar"><Icon d={PATH.close} size={20} stroke={2} /></button>
+        <button
+          type="button"
+          onClick={changeAnnouncement}
+          title="Cambiar qué anuncias"
+          style={{ flex: 1, minWidth: 0, height: 44, display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px', borderRadius: 999, border: 'none', background: '#F2F2F7', color: '#0F0E1A', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+        >
+          <span style={{ flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {item.label}{ed.clientName ? ` · ${firstName(ed.clientName)}` : ''}
+          </span>
+          <Icon d={PATH.chevronDown} size={16} stroke={2} />
+        </button>
+        <button type="button" className={css.circle} onClick={() => saveAndFinish('png')} aria-label="Descargar PNG"><Icon d={PATH.download} size={20} stroke={2} /></button>
+        <button type="button" className={cx(css.btn, css.primary)} style={{ padding: '0 16px', fontSize: 15, opacity: busy ? 0.6 : 1 }} onClick={() => saveAndFinish('ready')}>
+          {busy ? '…' : 'Enviar'}
+        </button>
+      </div>
+      <div ref={previewRef} style={{ flex: 1, minHeight: 0, background: '#F6F6F9', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+        <Creative cfg={currentCfg} width={previewW} radius={12} shadow safe={ed.safe} />
+        <button type="button" onClick={cycleFormat} style={{ ...floatBtn, left: 12 }}>
+          <span className={css.ratio} style={{ width: F.iw, height: F.ih }} />{F.ratio}<Icon d={PATH.chevronDown} size={14} stroke={2} />
+        </button>
+        {ed.format === 'story' && (
+          <button type="button" onClick={() => patch((e) => ({ safe: !e.safe }))} aria-pressed={ed.safe} style={{ ...floatBtn, right: 12, background: ed.safe ? '#D000A8' : '#fff', color: ed.safe ? '#fff' : '#0F0E1A' }}>
+            Zonas
+          </button>
+        )}
+      </div>
+      {ed.tool ? <div style={{ height: SHEET_H, flexShrink: 0 }} /> : (
+        <div style={{ height: 96, flexShrink: 0, display: 'flex', gap: 2, padding: '8px 8px 26px', borderTop: '1px solid #ECEBF1', background: '#fff' }}>
+          {TOOLS.map(([id, label, icon]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => (id === 'ideas' ? patch({ mStage: 'pick', tool: null }) : patch({ tool: id, tab: id }))}
+              style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, border: 'none', borderRadius: 16, background: 'transparent', color: '#0F0E1A', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+            >
+              <span style={{ width: 48, height: 34, borderRadius: 12, background: id === 'ideas' ? '#FBE6F6' : '#F2F2F7', color: id === 'ideas' ? '#A3007F' : '#0F0E1A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon d={icon} size={22} />
+              </span>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      {ed.tool && (
+        <div role="dialog" aria-label={TAB_LABEL[ed.tool]} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: SHEET_H, zIndex: 10, background: '#fff', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 40px rgba(15,14,26,0.14)', display: 'flex', flexDirection: 'column' }}>
+          <div className={css.handle} style={{ marginTop: 10 }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '8px 16px 12px 20px', flexShrink: 0 }}>
+            <span style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.015em' }}>{TAB_LABEL[ed.tool]}</span>
+            <button type="button" className={cx(css.btn, css.primary)} style={{ padding: '0 20px', fontSize: 15 }} onClick={() => patch({ tool: null })}>Listo</button>
+          </div>
+          <div className={css.scroll} style={{ padding: '0 20px 28px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexShrink: 0 }}>
+              <MarlenAvatar size={22} /><span style={{ fontSize: 13, color: '#4A4957', lineHeight: 1.4 }}>{marlenTip}</span>
+            </div>
+            {({ imagen: imagePanel, estilo: stylePanel, elementos: elementsPanel, texto: textPanel } as const)[ed.tool](true)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const editor = mobile ? mobileEditor : (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '16px 28px', borderBottom: '1px solid #ECEBF1', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -1259,7 +1403,7 @@ export default function MarketingStudio({
       {modalView}
       {doneView}
       {toast && (
-        <div className={css.toast} style={{ bottom: mobile ? (view === 'editor' ? 104 : 24) : 28 }} role="status">
+        <div className={css.toast} style={{ bottom: mobile ? (view === 'editor' ? (ed.tool ? SHEET_H + 16 : 110) : 24) : 28 }} role="status">
           <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#fff', color: '#0F0E1A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon d={PATH.check} size={14} stroke={2.6} /></span>
           <span>{toast.msg}</span>
           {toast.action && <button type="button" className={css.toastAction} onClick={toast.action.fn}>{toast.action.label}</button>}
