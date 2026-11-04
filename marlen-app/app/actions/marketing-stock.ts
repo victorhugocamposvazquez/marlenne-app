@@ -3,6 +3,7 @@
 import { requireRole } from '@/lib/require-session';
 import {
   pickStockQuery,
+  pickThemeQuery,
   stockOrientation,
   type StockPhoto,
 } from '@/lib/marketing/stock';
@@ -22,33 +23,25 @@ type PixabayHit = {
   tags: string;
 };
 
-export async function searchStockPhotos(input: {
-  kind: TypeId;
-  format: FormatId;
-  queryIndex?: number;
-}): Promise<
-  | { ok: true; photos: StockPhoto[]; query: string; configured: true }
-  | { ok: true; photos: []; query: string; configured: false; hint: string }
+async function fetchPixabay(
+  query: string,
+  orientation: 'horizontal' | 'vertical',
+  editorsChoice: boolean,
+): Promise<
+  | { ok: true; photos: StockPhoto[]; configured: true }
+  | { ok: true; photos: []; configured: false; hint: string }
   | { ok: false; error: string }
 > {
-  await requireRole('admin');
-
-  if (!KINDS.includes(input.kind)) return { ok: false, error: 'Tipo no válido' };
-  if (!FORMATS.includes(input.format)) return { ok: false, error: 'Formato no válido' };
-
   const key = process.env.PIXABAY_API_KEY?.trim();
-  const query = pickStockQuery(input.kind, input.queryIndex ?? 0);
   if (!key) {
     return {
       ok: true,
       photos: [],
-      query,
       configured: false,
       hint: 'Falta PIXABAY_API_KEY (gratis en pixabay.com/api/docs/)',
     };
   }
 
-  const orientation = stockOrientation(input.format);
   const url = new URL('https://pixabay.com/api/');
   url.searchParams.set('key', key);
   url.searchParams.set('q', query);
@@ -57,10 +50,7 @@ export async function searchStockPhotos(input: {
   url.searchParams.set('safesearch', 'true');
   url.searchParams.set('per_page', '12');
   url.searchParams.set('min_width', '1080');
-  url.searchParams.set(
-    'editors_choice',
-    input.queryIndex && input.queryIndex % 2 === 1 ? 'true' : 'false',
-  );
+  url.searchParams.set('editors_choice', editorsChoice ? 'true' : 'false');
 
   const res = await fetch(url.toString(), {
     next: { revalidate: 86400 },
@@ -90,5 +80,56 @@ export async function searchStockPhotos(input: {
     pageUrl: h.pageURL,
   }));
 
-  return { ok: true, photos, query, configured: true };
+  return { ok: true, photos, configured: true };
+}
+
+export async function searchStockPhotos(input: {
+  kind: TypeId;
+  format: FormatId;
+  queryIndex?: number;
+}): Promise<
+  | { ok: true; photos: StockPhoto[]; query: string; configured: true }
+  | { ok: true; photos: []; query: string; configured: false; hint: string }
+  | { ok: false; error: string }
+> {
+  await requireRole('admin');
+  if (!KINDS.includes(input.kind)) return { ok: false, error: 'Tipo no válido' };
+  if (!FORMATS.includes(input.format)) return { ok: false, error: 'Formato no válido' };
+
+  const query = pickStockQuery(input.kind, input.queryIndex ?? 0);
+  const r = await fetchPixabay(
+    query,
+    stockOrientation(input.format),
+    Boolean(input.queryIndex && input.queryIndex % 2 === 1),
+  );
+  if (!r.ok) return r;
+  if (!r.configured) return { ok: true, photos: [], query, configured: false, hint: r.hint };
+  return { ok: true, photos: r.photos, query, configured: true };
+}
+
+export async function searchStockByTheme(input: {
+  theme: string;
+  format?: FormatId;
+  queryIndex?: number;
+}): Promise<
+  | { ok: true; photos: StockPhoto[]; query: string; configured: true }
+  | { ok: true; photos: []; query: string; configured: false; hint: string }
+  | { ok: false; error: string }
+> {
+  await requireRole('admin');
+  const theme = (input.theme || 'centro').trim().slice(0, 40);
+  if (!theme || theme === 'mias') {
+    return { ok: true, photos: [], query: '', configured: true };
+  }
+
+  const query = pickThemeQuery(theme, input.queryIndex ?? 0);
+  const format = input.format ?? 'portrait';
+  const r = await fetchPixabay(
+    query,
+    stockOrientation(format),
+    Boolean(input.queryIndex && input.queryIndex % 2 === 1),
+  );
+  if (!r.ok) return r;
+  if (!r.configured) return { ok: true, photos: [], query, configured: false, hint: r.hint };
+  return { ok: true, photos: r.photos, query, configured: true };
 }

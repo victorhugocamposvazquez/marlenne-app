@@ -1,0 +1,11 @@
+{
+  "facial": ["facial skincare spa", "woman facial treatment", "beauty facial mask"],
+  "unas": ["manicure nails salon", "nail polish hands", "pedicure spa"],
+  "pestanas": ["eyelash lift beauty", "eyebrow lamination", "woman eyes makeup soft"],
+  "corporal": ["body spa treatment", "presotherapy beauty", "wellness massage body"],
+  "depilacion": ["laser hair removal", "smooth skin spa", "beauty clinic laser"],
+  "spa": ["spa massage relaxation", "hot stones massage", "aromatherapy spa"],
+  "centro": ["beauty salon interior", "spa reception modern", "beauty clinic room"],
+  "equipo": ["beauty professional portrait", "esthetician smiling", "makeup artist soft light"],
+  "temporada": ["gift self care spa", "flowers soft aesthetic", "valentine beauty gift"]
+}

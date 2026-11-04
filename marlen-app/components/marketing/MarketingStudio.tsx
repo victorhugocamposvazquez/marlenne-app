@@ -4,9 +4,11 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import css from './marketing.module.css';
 import Creative, { CreativeCanvas } from './Creative';
 import { Icon, MarlenAvatar, PATH } from './Icons';
+import { searchStockByTheme } from '@/app/actions/marketing-stock';
 import { ALT, ELEMENTS, FORMATS, FORMAT_H, IMAGES, REC, SEAL_TEXT, STYLES, STYLE_TONE, THEMES, TONES, fieldsFor, getCatalog, getType, recommendElements, setActiveCatalog, suggestTheme } from '@/lib/marketing/data';
 import { LIMITS, type TextField, improveAll, pickLine } from '@/lib/marketing/copy';
 import { copyBlob, copyText, downloadBlob, nodeToPng, shareBlob, slug } from '@/lib/marketing/export';
+import { stockProxyPath } from '@/lib/marketing/stock';
 import type { BankImage, CreativeConfig, CreativeType, ElementKey, Elements, Fields, FormatId, LibraryItem, StyleId, TabId, Tone, TypeId } from '@/lib/marketing/types';
 
 const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(' ');
@@ -87,6 +89,10 @@ export default function MarketingStudio({
   const [done, setDone] = useState<DoneState | null>(null);
   const [library, setLibrary] = useState<LibraryItem[]>([]);
   const [uploads, setUploads] = useState<BankImage[]>([]);
+  const [stockByTheme, setStockByTheme] = useState<Record<string, BankImage[]>>({});
+  const [stockLoading, setStockLoading] = useState(false);
+  const [stockHint, setStockHint] = useState<string | null>(null);
+  const [stockQueryIdx, setStockQueryIdx] = useState(0);
   const [filter, setFilter] = useState<'all' | FormatId>('all');
   const [highlight, setHighlight] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -116,11 +122,57 @@ export default function MarketingStudio({
     toastTimer.current = setTimeout(() => { setToast(null); setHighlight(null); }, action ? 6000 : 3800);
   }, []);
 
+  /* Pixabay por temática (pestaña Imagen) */
+  useEffect(() => {
+    const theme = ed.imgTheme;
+    if (view !== 'editor' || !theme || theme === 'mias') return;
+    let cancelled = false;
+    setStockLoading(true);
+    setStockHint(null);
+    void searchStockByTheme({ theme, format: ed.format, queryIndex: stockQueryIdx }).then(r => {
+      if (cancelled) return;
+      setStockLoading(false);
+      if (!r.ok) {
+        setStockHint(r.error);
+        return;
+      }
+      if (!r.configured) {
+        setStockHint(r.hint);
+        setStockByTheme(s => ({ ...s, [theme]: [] }));
+        return;
+      }
+      const images: BankImage[] = r.photos.map(p => ({
+        id: `px-${theme}-${p.id}`,
+        theme,
+        label: p.alt || p.photographer,
+        bg: '#E4E3EA',
+        src: stockProxyPath(p.srcUrl),
+      }));
+      setStockByTheme(s => ({ ...s, [theme]: images }));
+      setEd(e => {
+        if (e.imgTheme !== theme) return e;
+        const cur = e.image;
+        if (cur && images.some(x => x.id === cur)) return e;
+        if (!cur || /^[a-z]+-\d+$/.test(cur)) {
+          return { ...e, image: images[0]?.id ?? null };
+        }
+        return e;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [ed.imgTheme, ed.format, stockQueryIdx, view]);
+
   /* ---------- datos derivados ---------- */
   const T = getType(ed.type);
   const item = T.items[ed.catIdx] || T.items[0];
   const F = FORMATS.find((f) => f.id === ed.format) || FORMATS[0];
-  const imgObj = (id: string | null) => (id ? uploads.find((u) => u.id === id) || IMAGES[id] || null : null);
+  const allStock = Object.values(stockByTheme).flat();
+  const imgObj = (id: string | null) =>
+    id
+      ? uploads.find(u => u.id === id) || allStock.find(u => u.id === id) || IMAGES[id] || null
+      : null;
   const themeLabel = (id: string) => (id === 'mias' ? 'Tus fotos' : THEMES.find((t) => t.id === id)?.label || '');
   const cfgOf = (o: { style: StyleId; format: FormatId; fields: Fields; showLogo: boolean; image: string | null; els: Elements }): CreativeConfig => {
     const im = imgObj(o.image);
@@ -159,12 +211,14 @@ export default function MarketingStudio({
   };
   const apply = (typeId: TypeId, idx: number) => {
     const t = getType(typeId), it = t.items[idx] || t.items[0], theme = it.theme || 'centro';
+    const first = stockByTheme[theme]?.[0]?.id ?? null;
+    setStockQueryIdx(0);
     if (view === 'editor' && modal?.fromEditor) {
-      patch((e) => ({ type: typeId, catIdx: idx, fields: fieldsFor(typeId, idx), image: `${theme}-0`, imgTheme: theme, els: e.elsManual ? { ...e.els, sealText: SEAL_TEXT[typeId] } : recommendElements(e.style, typeId) }));
+      patch((e) => ({ type: typeId, catIdx: idx, fields: fieldsFor(typeId, idx), image: first, imgTheme: theme, els: e.elsManual ? { ...e.els, sealText: SEAL_TEXT[typeId] } : recommendElements(e.style, typeId) }));
       setModal(null);
       showToast('Marlén ha actualizado texto e imagen');
     } else {
-      openEditor({ type: typeId, catIdx: idx, style: t.style, image: `${theme}-0`, imgTheme: theme });
+      openEditor({ type: typeId, catIdx: idx, style: t.style, image: first, imgTheme: theme });
     }
   };
   const startType = (id: TypeId) => {
@@ -297,22 +351,61 @@ export default function MarketingStudio({
   );
 
   const imagePanel = (m: boolean) => {
-    const list = ed.imgTheme === 'mias' ? uploads : Object.values(IMAGES).filter((x) => x.theme === ed.imgTheme);
+    const list =
+      ed.imgTheme === 'mias'
+        ? uploads
+        : stockByTheme[ed.imgTheme] || Object.values(IMAGES).filter(x => x.theme === ed.imgTheme);
     const sel = imgObj(ed.image);
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flexShrink: 0 }}>
-        {!m && <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}><span style={{ fontSize: 15, fontWeight: 700 }}>Imagen</span><span className={css.hint}>Sugerida: {themeLabel(sugTheme)}</span></div>}
+        {!m && (
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ fontSize: 15, fontWeight: 700 }}>Imagen</span>
+            <span className={css.hint}>Sugerida: {themeLabel(sugTheme)}</span>
+          </div>
+        )}
         <div className={m ? css.noScrollbar : undefined} style={m ? { display: 'flex', gap: 6, overflowX: 'auto', margin: '0 -16px', padding: '0 16px 2px' } : { display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {[{ id: 'mias', label: 'Tus fotos' + (uploads.length ? ' · ' + uploads.length : '') }, ...THEMES].map((t) => (
-            <button key={t.id} type="button" className={cx(css.chip, ed.imgTheme === t.id && css.chipOn)} onClick={() => patch({ imgTheme: t.id })} style={m ? { height: 32 } : undefined}>
-              {t.id === sugTheme && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#D000A8' }} />}{t.label}
+          {[{ id: 'mias', label: 'Tus fotos' + (uploads.length ? ' · ' + uploads.length : '') }, ...THEMES].map(t => (
+            <button
+              key={t.id}
+              type="button"
+              className={cx(css.chip, ed.imgTheme === t.id && css.chipOn)}
+              onClick={() => {
+                setStockQueryIdx(0);
+                patch({ imgTheme: t.id });
+              }}
+              style={m ? { height: 32 } : undefined}
+            >
+              {t.id === sugTheme && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#D000A8' }} />}
+              {t.label}
             </button>
           ))}
         </div>
+        {ed.imgTheme !== 'mias' && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              type="button"
+              className={cx(css.btn, css.soft, css.sm)}
+              disabled={stockLoading}
+              onClick={() => setStockQueryIdx(i => i + 1)}
+            >
+              <Icon d={PATH.refresh} size={15} stroke={1.9} />
+              Otras fotos
+            </button>
+            {stockLoading && <span className={css.hint}>Cargando…</span>}
+          </div>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }}>
-          <button type="button" className={css.tile} style={{ borderColor: ed.image ? '#ECEBF1' : '#0F0E1A' }} onClick={() => patch({ image: null })}><Icon d={PATH.noImage} size={20} />Sin imagen</button>
-          <label className={cx(css.tile, css.tileDashed)} title="Subir una foto tuya"><input type="file" accept="image/*" onChange={onUpload} style={{ display: 'none' }} /><Icon d={PATH.upload} size={20} />Subir foto</label>
-          {list.map((x) => (
+          <button type="button" className={css.tile} style={{ borderColor: ed.image ? '#ECEBF1' : '#0F0E1A' }} onClick={() => patch({ image: null })}>
+            <Icon d={PATH.noImage} size={20} />
+            Sin imagen
+          </button>
+          <label className={cx(css.tile, css.tileDashed)} title="Subir una foto tuya">
+            <input type="file" accept="image/*" onChange={onUpload} style={{ display: 'none' }} />
+            <Icon d={PATH.upload} size={20} />
+            Subir foto
+          </label>
+          {list.map(x => (
             <button key={x.id} type="button" title={x.label} className={cx(css.ring, ed.image === x.id && css.ringOn)} onClick={() => patch({ image: x.id })}>
               <span style={{ display: 'block', position: 'relative', aspectRatio: '1', borderRadius: 8, background: x.bg, overflow: 'hidden' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -321,7 +414,17 @@ export default function MarketingStudio({
             </button>
           ))}
         </div>
-        <div className={css.hint}>{sel ? `${sel.label} · ${themeLabel(sel.theme)}` : ed.imgTheme === 'mias' && !uploads.length ? 'Sube fotos de tu centro o de tu equipo.' : 'Sin imagen'}</div>
+        <div className={css.hint}>
+          {stockHint
+            ? stockHint
+            : sel
+              ? `${sel.label} · ${themeLabel(sel.theme)}`
+              : ed.imgTheme === 'mias' && !uploads.length
+                ? 'Sube fotos de tu centro o de tu equipo.'
+                : stockLoading
+                  ? 'Buscando fotos…'
+                  : 'Sin imagen'}
+        </div>
       </div>
     );
   };

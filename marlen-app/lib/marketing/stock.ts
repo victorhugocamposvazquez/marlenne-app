@@ -1,6 +1,7 @@
 /** Stock fotos (Pixabay). Sin fetch aquí. */
 
 import queries from '@/lib/marketing/stock-queries.json';
+import themeQueries from '@/lib/marketing/theme-queries.json';
 import type { FormatId, TypeId } from '@/lib/marketing/types';
 
 export type StockProvider = 'pixabay' | 'pexels';
@@ -32,6 +33,15 @@ export function stockQueriesFor(kind: TypeId): string[] {
 
 export function pickStockQuery(kind: TypeId, salt = 0): string {
   const list = stockQueriesFor(kind);
+  return list[Math.abs(salt) % list.length] ?? list[0]!;
+}
+
+export function themeQueriesFor(theme: string): string[] {
+  return (themeQueries as Record<string, string[]>)[theme] ?? ['beauty spa soft'];
+}
+
+export function pickThemeQuery(theme: string, salt = 0): string {
+  const list = themeQueriesFor(theme);
   return list[Math.abs(salt) % list.length] ?? list[0]!;
 }
 
