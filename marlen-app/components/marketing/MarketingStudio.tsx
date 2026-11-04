@@ -230,12 +230,27 @@ export default function MarketingStudio({
   }, [exportCfg]);
   const capture = (cfg: CreativeConfig) =>
     new Promise<Blob>((resolve, reject) => {
+      let settled = false;
+      const finish = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timer);
+        fn();
+      };
+      const timer = window.setTimeout(() => {
+        finish(() => reject(new Error('Tiempo agotado al generar la imagen')));
+      }, 20000);
       exportResolve.current = async () => {
         try {
           if (document.fonts?.ready) await document.fonts.ready;
+          // Deja pintar el canvas off-screen y cargar fotos/logo
+          await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
           if (!exportRef.current) throw new Error('Sin nodo de exportación');
-          resolve(await nodeToPng(exportRef.current));
-        } catch (e) { reject(e); }
+          const blob = await nodeToPng(exportRef.current);
+          finish(() => resolve(blob));
+        } catch (e) {
+          finish(() => reject(e));
+        }
       };
       setExportCfg({ ...cfg });
     });
@@ -440,10 +455,12 @@ export default function MarketingStudio({
       setFilter('all');
       patch({ editingId: it.id, safe: false });
       setDone({ id: it.id, mode, extra: [], sellPack: false, sold: false });
-    } catch {
-      showToast('No se pudo generar la imagen. Inténtalo de nuevo.');
+    } catch (err) {
+      console.error('[marketing] export PNG', err);
+      showToast('No se pudo generar la imagen. Prueba otra foto o quita el logo y reintenta.');
     } finally {
       setBusy(false);
+      setExportCfg(null);
     }
   };
   const confirmSellPack = async () => {

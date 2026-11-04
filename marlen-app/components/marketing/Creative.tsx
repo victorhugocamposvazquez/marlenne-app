@@ -108,8 +108,16 @@ function Caption({ label, style, bg = 'rgba(15,14,26,0.32)' }: { label: string; 
 
 function Logo({ src, size, radius, style }: { src?: string; size: number; radius: number | string; style?: React.CSSProperties }) {
   if (!src) return null;
+  // crossOrigin: hace falta para html-to-image (PNG). Mismo origen / Supabase público con CORS.
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt="" style={{ width: size, height: size, borderRadius: radius, objectFit: 'cover', flexShrink: 0, ...style }} />;
+  return (
+    <img
+      src={src}
+      alt=""
+      crossOrigin={src.startsWith('blob:') || src.startsWith('data:') ? undefined : 'anonymous'}
+      style={{ width: size, height: size, borderRadius: radius, objectFit: 'cover', flexShrink: 0, ...style }}
+    />
+  );
 }
 
 function Seal({ text, size, fs, bg, color, ring, style, weight = 800, shadow = '0 14px 34px rgba(15,14,26,0.2)' }: {

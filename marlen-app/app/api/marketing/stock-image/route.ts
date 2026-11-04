@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { isAllowedStockImageUrl } from '@/lib/marketing/stock';
+import { isAllowedMarketingImageUrl } from '@/lib/marketing/stock';
 
 export const runtime = 'nodejs';
 
@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   }
 
   const src = new URL(req.url).searchParams.get('src')?.trim() ?? '';
-  if (!src || !isAllowedStockImageUrl(src)) {
+  if (!src || !isAllowedMarketingImageUrl(src)) {
     return NextResponse.json({ error: 'URL no permitida' }, { status: 400 });
   }
 
@@ -33,6 +33,9 @@ export async function GET(req: Request) {
     headers: {
       'Content-Type': contentType,
       'Cache-Control': 'private, max-age=86400',
+      // html-to-image usa <img crossOrigin="anonymous">; hace falta CORS explícito.
+      'Access-Control-Allow-Origin': '*',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
     },
   });
 }
