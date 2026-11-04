@@ -1117,7 +1117,7 @@ export default function MarketingStudio({
         <MarlenAvatar size={28} />
         <span style={{ fontSize: 14, lineHeight: 1.45, color: '#2E2D3A' }}>
           He preparado 4 diseños para <b>{item.label}</b>
-          {ed.clientName ? <> · {firstName(ed.clientName)}</> : null}. Toca el que más te guste y luego continúa.
+          {ed.clientName ? <> · {firstName(ed.clientName)}</> : null}. Desliza o toca el que más te guste y luego continúa.
         </span>
       </div>
       <div
@@ -1128,7 +1128,7 @@ export default function MarketingStudio({
           const next = Math.max(0, Math.min(3, i));
           if (next !== cIdx) {
             setCIdx(next);
-            setCPicked(false);
+            setCPicked(true);
           }
         }}
         style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', gap: 12, overflowX: 'auto', scrollSnapType: 'x mandatory', padding: `0 ${carPad}px` }}
@@ -1207,11 +1207,11 @@ export default function MarketingStudio({
         <button
           type="button"
           className={cx(css.btn, css.primary)}
-          style={{ height: 56, fontSize: 16, opacity: cPicked ? 1 : 0.45 }}
+          style={{ height: 56, fontSize: cPicked ? 16 : 15, opacity: cPicked ? 1 : 0.45 }}
           disabled={!cPicked}
           onClick={chooseProposal}
         >
-          Continuar
+          {cPicked ? 'Continuar' : 'Selecciona diseño inicial'}
         </button>
         <button type="button" className={css.btn} style={{ background: 'none', fontSize: 15 }} onClick={() => { setCSet((n) => n + 1); setCIdx(0); setCPicked(false); carElRef.current?.scrollTo({ left: 0 }); }}>
           <Icon d={PATH.refresh} size={18} stroke={1.9} color="#D000A8" />Ver otras 4 propuestas
