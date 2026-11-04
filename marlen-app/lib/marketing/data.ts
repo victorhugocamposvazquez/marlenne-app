@@ -27,24 +27,6 @@ export const TYPES: CreativeType[] = [
     items: [{ label: 'Enlace de reserva online', meta: 'app.marlenapp.com/r/arlett', price: '', title: 'Reserva online', subtitle: 'Elige día, hora y profesional', theme: 'centro', vars: {} }],
   },
   {
-    id: 'ultima', bank: 'hueco', label: 'Última hora', desc: 'Llena un hueco libre de la agenda', note: '3 huecos libres esta semana', question: '¿Qué hueco quieres llenar?', style: 'promo', eyebrow: 'Última hora', cta: 'Lo quiero',
-    icon: 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M12 7v5l3 2',
-    items: [
-      { label: 'Hoy, 17:30 · Manicura semipermanente', meta: 'Con Ana · 40 min', price: '20 €', title: 'Hoy a las 17:30', subtitle: 'Manicura semipermanente con Ana', theme: 'unas', vars: { name: 'manicura semipermanente', day: 'hoy', time: '17:30', pro: 'Ana' } },
-      { label: 'Mañana, 10:00 · Limpieza facial', meta: 'Con Carmen · 60 min', price: '-20%', title: 'Mañana a las 10:00', subtitle: 'Limpieza facial profunda con Carmen', theme: 'facial', vars: { name: 'limpieza facial', day: 'mañana', time: '10:00', pro: 'Carmen' } },
-      { label: 'Viernes, 19:00 · Lifting de pestañas', meta: 'Con Lucía · 45 min', price: '36 €', title: 'Viernes a las 19:00', subtitle: 'Lifting de pestañas con Lucía', theme: 'pestanas', vars: { name: 'lifting de pestañas', day: 'el viernes', time: '19:00', pro: 'Lucía' } },
-    ],
-  },
-  {
-    id: 'equipo', label: 'Equipo', desc: 'Presenta a una profesional', note: '3 profesionales', question: '¿A quién quieres presentar?', style: 'editorial', eyebrow: 'Nuestro equipo', cta: 'Reservar cita',
-    icon: 'M8 8a4 4 0 1 0 8 0a4 4 0 1 0-8 0M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6',
-    items: [
-      { label: 'Lucía Martín', meta: 'Cejas y pestañas', price: '', title: 'Conoce a Lucía', subtitle: 'Especialista en cejas y pestañas', cta: 'Reserva con Lucía', theme: 'equipo', vars: { name: 'Lucía', job: 'especialista en cejas y pestañas' } },
-      { label: 'Carmen Ruiz', meta: 'Facial y corporal', price: '', title: 'Conoce a Carmen', subtitle: 'Tratamientos faciales y corporales a medida', cta: 'Reserva con Carmen', theme: 'equipo', vars: { name: 'Carmen', job: 'especialista en facial y corporal' } },
-      { label: 'Ana Gil', meta: 'Manicura y pedicura', price: '', title: 'Conoce a Ana', subtitle: 'Manicura, pedicura y nail art', cta: 'Reserva con Ana', theme: 'equipo', vars: { name: 'Ana', job: 'especialista en manicura y pedicura' } },
-    ],
-  },
-  {
     id: 'regalo', label: 'Regalo', desc: 'Tarjeta o bono para regalar', note: '2 opciones para regalar', question: '¿Qué quieres que regalen?', style: 'minimal', eyebrow: 'Tarjeta regalo', cta: 'Regalar',
     icon: 'M3 8h18v5H3zM5 13v8h14v-8M12 8v13M12 8C10 4 6 4 6 6.5S9 8 12 8zM12 8c2-4 6-4 6-1.5S15 8 12 8z',
     items: [

@@ -2,7 +2,7 @@
 
 import { bookingPageUrl } from '@/lib/booking/urls';
 import type { CatalogItem, CreativeType } from '@/lib/marketing/types';
-import type { PackTemplate, Provider, ServiceOption } from '@/lib/types';
+import type { PackTemplate, ServiceOption } from '@/lib/types';
 
 function eur(cents: number): string {
   const n = cents / 100;
@@ -30,7 +30,6 @@ export function buildMarketingCatalog(input: {
   origin: string;
   packs: PackTemplate[];
   services: ServiceOption[];
-  staff: Provider[];
 }): CreativeType[] {
   const salon = input.salonName || 'Tu centro';
   const linkMeta = input.bookingSlug
@@ -67,21 +66,6 @@ export function buildMarketingCatalog(input: {
     vars: { name: s.name.toLowerCase(), minutes: s.duration_min, salon },
   }));
 
-  const staffItems: CatalogItem[] = input.staff.map(st => ({
-    label: st.full_name,
-    meta: st.job_title || 'Profesional',
-    price: '',
-    title: `Conoce a ${st.full_name.split(' ')[0] || st.full_name}`,
-    subtitle: st.job_title || 'Profesional del centro',
-    cta: `Reserva con ${st.full_name.split(' ')[0] || st.full_name}`,
-    theme: 'equipo',
-    vars: {
-      name: st.full_name.split(' ')[0] || st.full_name,
-      job: (st.job_title || 'profesional').toLowerCase(),
-      salon,
-    },
-  }));
-
   const giftItems: CatalogItem[] = [
     ...(packItems.slice(0, 4).map(p => ({
       ...p,
@@ -97,29 +81,6 @@ export function buildMarketingCatalog(input: {
       vars: { ...s.vars, name: `un ${String(s.vars.name || 'tratamiento')}` },
     }))),
   ];
-
-  const huecoItems: CatalogItem[] =
-    serviceItems.length > 0
-      ? serviceItems.slice(0, 6).map(s => ({
-          ...s,
-          label: `Hueco · ${s.label}`,
-          title: s.title,
-          subtitle: 'Hoy o mañana · reserva ya',
-          eyebrow: 'Última hora',
-          cta: 'Lo quiero',
-          vars: { ...s.vars, day: 'hoy' },
-        }))
-      : [
-          {
-            label: 'Hueco libre',
-            meta: 'Añade servicios al catálogo',
-            price: '',
-            title: 'Hay un hueco libre',
-            subtitle: 'Reserva online en un minuto',
-            theme: 'centro',
-            vars: { salon },
-          },
-        ];
 
   return [
     {
@@ -198,47 +159,6 @@ export function buildMarketingCatalog(input: {
           vars: { salon },
         },
       ],
-    },
-    {
-      id: 'ultima',
-      bank: 'hueco',
-      label: 'Última hora',
-      desc: 'Llena un hueco libre de la agenda',
-      note: `${huecoItems.length} opción${huecoItems.length === 1 ? '' : 'es'} para anunciar`,
-      question: '¿Qué hueco quieres llenar?',
-      style: 'promo',
-      eyebrow: 'Última hora',
-      cta: 'Lo quiero',
-      icon: 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M12 7v5l3 2',
-      items: huecoItems,
-    },
-    {
-      id: 'equipo',
-      label: 'Equipo',
-      desc: 'Presenta a una profesional',
-      note:
-        staffItems.length > 0
-          ? `${staffItems.length} profesional${staffItems.length === 1 ? '' : 'es'}`
-          : 'Añade equipo en Ajustes',
-      question: '¿A quién quieres presentar?',
-      style: 'editorial',
-      eyebrow: 'Nuestro equipo',
-      cta: 'Reservar cita',
-      icon: 'M8 8a4 4 0 1 0 8 0a4 4 0 1 0-8 0M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6',
-      items:
-        staffItems.length > 0
-          ? staffItems
-          : [
-              {
-                label: 'Nuestro equipo',
-                meta: salon,
-                price: '',
-                title: 'Nuestro equipo',
-                subtitle: 'Profesionales que te cuidan',
-                theme: 'equipo',
-                vars: { name: 'nuestro equipo', job: 'equipo', salon },
-              },
-            ],
     },
     {
       id: 'regalo',
