@@ -998,6 +998,7 @@ export default function MarketingStudio({
         {modal.step === 'item' && (
           <>
             <div className={css.listStack}>
+              <span className={css.sectionLabel}>Utilizar existente</span>
               {MT.items.map((it, i) => (
                 <button key={`${it.templateId || it.label}-${i}`} type="button" className={cx(css.rowItem, modal.fromEditor && modal.type === ed.type && i === ed.catIdx && css.rowItemOn)} onClick={() => apply(modal.type, i)}>
                   <span style={{ width: 52, height: 52, borderRadius: 12, background: IMAGES[`${it.theme || 'centro'}-0`]?.bg, flexShrink: 0 }} />
@@ -1007,12 +1008,12 @@ export default function MarketingStudio({
                 </button>
               ))}
             </div>
-            <div className={css.hint}>Con estos datos Marlén prepara el texto y la imagen. Podrás cambiarlo todo después.</div>
+            <div className={css.hint}>Toca un bono para seguir. Podrás cambiar texto e imagen después.</div>
             {(modal.type === 'bono' || modal.type === 'regalo') && (
               <div className={css.footerAction}>
                 {!newPackOpen ? (
-                  <button type="button" className={cx(css.btn, css.outline, css.block, css.lg)} onClick={() => setNewPackOpen(true)}>
-                    Crear nuevo bono
+                  <button type="button" className={css.altAction} onClick={() => setNewPackOpen(true)}>
+                    <span>O </span>crear uno nuevo aquí
                   </button>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 14, borderRadius: 16, background: '#F6F6F9' }}>
@@ -1057,6 +1058,7 @@ export default function MarketingStudio({
               />
             </div>
             <div className={css.listStack}>
+              <span className={css.sectionLabel}>Utilizar existente</span>
               {filteredClients.map(c => (
                 <button key={c.id} type="button" className={cx(css.rowItem, (modal.pendingClientId || ed.clientId) === c.id && css.rowItemOn)} onClick={() => applyClient({ id: c.id, name: c.full_name })}>
                   <span style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1, minWidth: 0 }}>
@@ -1074,8 +1076,8 @@ export default function MarketingStudio({
             </div>
             <div className={css.footerAction}>
               {!newClientOpen ? (
-                <button type="button" className={cx(css.btn, css.outline, css.block, css.lg)} onClick={() => setNewClientOpen(true)}>
-                  Crear nueva clienta
+                <button type="button" className={css.altAction} onClick={() => setNewClientOpen(true)}>
+                  <span>O </span>crear una nueva aquí
                 </button>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 14, borderRadius: 16, background: '#F6F6F9' }}>

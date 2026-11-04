@@ -49,7 +49,11 @@
 .searchIcon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #6E6D7A; pointer-events: none; display: flex; }
 .skipLink { width: 100%; height: 44px; border: none; background: none; color: #4A4957; font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 0; text-align: left; }
 .skipLink:hover { color: #0F0E1A; }
-.footerAction { width: 100%; margin-top: 4px; border-top: 1px solid #ECEBF1; padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+.sectionLabel { font-size: 13px; font-weight: 600; color: #6E6D7A; letter-spacing: 0.01em; }
+.altAction { width: 100%; min-height: 44px; border: none; background: none; color: #0F0E1A; font-size: 14px; font-weight: 600; cursor: pointer; padding: 10px 0; text-align: center; }
+.altAction:hover { color: #4A4957; }
+.altAction span { color: #6E6D7A; font-weight: 500; }
+.footerAction { width: 100%; margin-top: 4px; border-top: 1px solid #ECEBF1; padding-top: 10px; display: flex; flex-direction: column; gap: 10px; }
 .listStack { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
 
 /* tarjetas */
