@@ -45,18 +45,19 @@
 .reroll:hover { background: #F2F2F7; color: #0F0E1A; }
 .rerollLg { width: 44px; height: 44px; right: 4px; border-radius: 10px; }
 .hint { font-size: 12px; color: #6E6D7A; text-wrap: pretty; }
-.searchWrap { position: relative; display: block; width: 100%; }
+.searchWrap { position: relative; display: block; width: 100%; flex-shrink: 0; }
 .searchWrap .input { padding-left: 42px; height: 48px; font-size: 15px; border-radius: 14px; background: #F6F6F9; border-color: transparent; }
 .searchWrap .input:focus { background: #fff; border-color: #0F0E1A; }
 .searchIcon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #6E6D7A; pointer-events: none; display: flex; }
-.skipLink { width: 100%; height: 44px; border: none; background: none; color: #4A4957; font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 0; text-align: left; }
+.skipLink { width: 100%; height: 44px; flex-shrink: 0; border: none; background: none; color: #4A4957; font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 0; text-align: left; }
 .skipLink:hover { color: #0F0E1A; }
 .sectionLabel { font-size: 13px; font-weight: 600; color: #6E6D7A; letter-spacing: 0.01em; }
 .altAction { width: 100%; min-height: 44px; border: none; background: none; color: #0F0E1A; font-size: 14px; font-weight: 600; cursor: pointer; padding: 10px 0; text-align: center; }
 .altAction:hover { color: #4A4957; }
 .altAction span { color: #6E6D7A; font-weight: 500; }
-.footerAction { width: 100%; margin-top: 4px; border-top: 1px solid #ECEBF1; padding-top: 10px; display: flex; flex-direction: column; gap: 10px; }
-.listStack { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.stepBody { display: flex; flex-direction: column; gap: 12px; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.footerAction { width: 100%; flex-shrink: 0; margin-top: 0; border-top: 1px solid #ECEBF1; padding-top: 12px; display: flex; flex-direction: column; gap: 10px; background: #fff; position: relative; z-index: 1; }
+.listStack { display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 
 /* tarjetas */
 .typeCard { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; padding: 18px; border-radius: 18px; border: 1px solid #ECEBF1; background: #fff; cursor: pointer; text-align: left; color: #0F0E1A; transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease; }
@@ -100,9 +101,10 @@
 
 /* modal / hoja */
 .overlay { position: absolute; inset: 0; z-index: 30; background: rgba(15,14,26,.42); display: flex; align-items: center; justify-content: center; padding: 40px; }
-.panel { width: 100%; max-width: 600px; max-height: 86%; overflow-y: auto; background: #fff; border-radius: 24px; padding: 28px; display: flex; flex-direction: column; gap: 18px; box-shadow: 0 30px 80px rgba(15,14,26,.25); }
+.panel { width: 100%; max-width: 600px; max-height: 86%; overflow: hidden; background: #fff; border-radius: 24px; padding: 28px; display: flex; flex-direction: column; gap: 18px; box-shadow: 0 30px 80px rgba(15,14,26,.25); }
 .overlayMobile { align-items: flex-end; padding: 0; }
-.panelMobile { max-width: none; max-height: 88%; border-radius: 24px 24px 0 0; padding: 12px 16px 28px; }
+.panelMobile { max-width: none; max-height: 88%; border-radius: 24px 24px 0 0; padding: 12px 16px max(16px, env(safe-area-inset-bottom, 0px)); }
+.panelScroll { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .handle { width: 40px; height: 5px; border-radius: 3px; background: #D9D8E0; align-self: center; flex-shrink: 0; }
 
 /* aviso */
