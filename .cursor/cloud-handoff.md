@@ -8,7 +8,6 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Pendiente (hazlo en el MacBook o mergea la rama cloud)
 
-- **Marketing UX (clienta / diseño / creatividades):** rama `cursor/marketing-clienta-crear-5156` (PR #37) — pie clienta fijo, tocar diseño → Continuar, tira horizontal de creatividades con seleccionar/borrar. Mergear.
 - **Supabase Auth:** Site URL + Redirect URLs → `https://app.marlenapp.com` (y `/**`). Mantener `marlenne-app.vercel.app` un tiempo.
 - **Vercel `marlen-website`:** conectar GitHub del monorepo (falló por Login Connection) para deploys automáticos; Root `main-website`.
 - Equipo: reinstalar PWA desde `https://app.marlenapp.com`.
@@ -17,6 +16,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
+- 2026-11-04 — **Marketing UX:** pie clienta fijo, tocar diseño → Continuar, creatividades en tira con borrar; PR #37 → `main`.
 - 2026-11-04 — **Marketing Enviar PNG:** espera imgs + proxy logo/CORS; PR #36 → `main`.
 - 2026-11-04 — **Marketing mobile sin nav:** oculta BottomNav + VoiceFab en `/ajustes/marketing` (PR #35 → `main`).
 - 2026-11-03 — **Dominios marlenapp.com:** www/apex → coming soon (`marlen-website`); `app.` → PWA; `panel.` → ops. Envs producción actualizados.
@@ -46,4 +46,4 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 | **MacBook / Cursor local** | Al abrir el repo: **leer este archivo primero**. Si hay rama o PR en «Pendiente», continuar ahí antes de otra cosa. |
 | **Hugo** | Cuando algo esté en prod, borrar de «Pendiente» o pasarlo a «Hecho». |
 
-**Última actualización cloud:** 2026-11-04 — marketing clienta pie fijo (`cursor/marketing-clienta-crear-5156`).
+**Última actualización cloud:** 2026-11-04 — marketing UX PR #37 → `main`.
