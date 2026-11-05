@@ -88,6 +88,7 @@ export interface MarketingStudioProps {
   clients?: ClientOption[];
   services?: ServiceOption[];
   onBack?: () => void;
+  onOpenWeb?: () => void;
 }
 
 export default function MarketingStudio({
@@ -99,6 +100,7 @@ export default function MarketingStudio({
   clients: clientsProp = [],
   services: servicesProp = [],
   onBack,
+  onOpenWeb,
 }: MarketingStudioProps) {
   const mobile = useIsMobile();
   const [types, setTypes] = useState(() => (catalog?.length ? catalog : getCatalog()));
@@ -975,6 +977,13 @@ export default function MarketingStudio({
   );
 
   /* ---------- vistas ---------- */
+  const hubNav = onOpenWeb && (
+    <div style={{ display: 'flex', gap: 3, padding: 3, background: '#F2F2F7', borderRadius: 999, width: '100%', maxWidth: mobile ? undefined : 420 }}>
+      <button type="button" style={{ flex: 1, height: mobile ? 40 : 36, border: 'none', borderRadius: 999, background: '#fff', color: '#0F0E1A', fontSize: mobile ? 14 : 13, fontWeight: 600, boxShadow: '0 1px 3px rgba(15,14,26,.14)', cursor: 'pointer' }}>Creatividades</button>
+      <button type="button" onClick={onOpenWeb} style={{ flex: 1, height: mobile ? 40 : 36, border: 'none', borderRadius: 999, background: 'transparent', color: '#5E5D6B', fontSize: mobile ? 14 : 13, fontWeight: 600, cursor: 'pointer' }}>Tu página web</button>
+    </div>
+  );
+
   const home = mobile ? (
     <div className={css.scroll} style={{ paddingBottom: 32 }}>
       <div style={{ padding: '8px 20px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -982,6 +991,7 @@ export default function MarketingStudio({
           <button type="button" className={css.circle} onClick={onBack} aria-label="Volver"><Icon d={PATH.back} size={20} stroke={2} /></button>
           <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, letterSpacing: '-0.025em' }}>Marketing</h1>
         </div>
+        {hubNav}
         <p style={{ margin: 0, fontSize: 14, lineHeight: 1.45, color: '#6E6D7A' }}>Imágenes con la marca de tu centro para Instagram, WhatsApp o email.</p>
       </div>
       <section style={{ margin: '20px 16px 0', background: '#F6F6F9', borderRadius: 22, padding: '18px 14px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -1010,12 +1020,15 @@ export default function MarketingStudio({
   ) : (
     <div className={css.scroll}>
       <div style={{ maxWidth: 1320, padding: '32px 40px 64px', display: 'flex', flexDirection: 'column', gap: 36 }}>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-          <button type="button" className={css.circle} style={{ width: 48, height: 48 }} onClick={onBack} aria-label="Volver"><Icon d={PATH.back} size={20} stroke={2} /></button>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <h1 style={{ margin: 0, fontSize: 32, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: '48px' }}>Marketing</h1>
-            <p style={{ margin: 0, fontSize: 15, color: '#6E6D7A' }}>Imágenes con la marca de tu centro para Instagram, WhatsApp o email.</p>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+            <button type="button" className={css.circle} style={{ width: 48, height: 48 }} onClick={onBack} aria-label="Volver"><Icon d={PATH.back} size={20} stroke={2} /></button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <h1 style={{ margin: 0, fontSize: 32, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: '48px' }}>Marketing</h1>
+              <p style={{ margin: 0, fontSize: 15, color: '#6E6D7A' }}>Imágenes con la marca de tu centro para Instagram, WhatsApp o email.</p>
+            </div>
           </div>
+          {hubNav}
         </div>
         <section style={{ background: '#F6F6F9', borderRadius: 24, padding: 28, display: 'flex', flexDirection: 'column', gap: 22 }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap' }}>

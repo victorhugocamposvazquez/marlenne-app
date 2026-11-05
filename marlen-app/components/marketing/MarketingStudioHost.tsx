@@ -43,6 +43,7 @@ export default function MarketingStudioHost({
       clients={clients}
       services={services}
       onBack={() => router.push('/ajustes')}
+      onOpenWeb={() => router.push('/ajustes/marketing/web')}
     />
   );
 }
