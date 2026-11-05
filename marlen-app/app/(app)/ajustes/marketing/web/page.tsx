@@ -5,6 +5,11 @@ import { createClient } from '@/lib/supabase/server';
 import { servicesToWebCatalog, staffToWebTeam } from '@/lib/web/from-salon';
 import WebStudioHost from '@/components/web/WebStudioHost';
 
+type SalonContact = {
+  phone: string | null;
+  fiscal_address: string | null;
+};
+
 export default async function MarketingWebPage() {
   await requireRole('admin');
   const [brand, services, staff] = await Promise.all([
@@ -14,14 +19,23 @@ export default async function MarketingWebPage() {
   ]);
 
   const sb = createClient();
-  let row: { phone?: string | null; fiscal_address?: string | null } | null = null;
+  let contact: SalonContact = { phone: null, fiscal_address: null };
   {
-    const first = await sb.from('salons').select('phone, fiscal_address').eq('id', brand.salonId).maybeSingle();
+    const first = await sb
+      .from('salons')
+      .select('phone, fiscal_address')
+      .eq('id', brand.salonId)
+      .maybeSingle();
     if (first.error && /fiscal_address/i.test(first.error.message)) {
       const retry = await sb.from('salons').select('phone').eq('id', brand.salonId).maybeSingle();
-      row = retry.data as typeof row;
+      const data = retry.data as { phone?: string | null } | null;
+      contact = { phone: data?.phone ?? null, fiscal_address: null };
     } else {
-      row = first.data as typeof row;
+      const data = first.data as Partial<SalonContact> | null;
+      contact = {
+        phone: data?.phone ?? null,
+        fiscal_address: data?.fiscal_address ?? null,
+      };
     }
   }
   const providers = staff.filter(s => s.role === 'provider' || s.role === 'admin');
@@ -32,8 +46,8 @@ export default async function MarketingWebPage() {
         salon={brand.salonName}
         logo={brand.logoUrl}
         brandColor={brand.accent}
-        phone={row?.phone ?? null}
-        address={row?.fiscal_address ?? null}
+        phone={contact.phone}
+        address={contact.fiscal_address}
         bookingUrl={brand.bookingUrl}
         services={servicesToWebCatalog(services)}
         team={staffToWebTeam(providers)}
