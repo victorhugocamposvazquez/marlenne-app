@@ -18,7 +18,6 @@ export function useMarketingSheet(active: boolean) {
   const [height, setHeight] = useState(340);
   const [dragging, setDragging] = useState(false);
   const [hint, setHint] = useState(true);
-  const played = useRef(false);
   const session = useRef<{
     pointerId: number;
     y0: number;
@@ -41,19 +40,12 @@ export function useMarketingSheet(active: boolean) {
   };
 
   useEffect(() => {
-    if (!active || played.current) return;
     const [, mid] = marketingSheetDetents(available());
-    setLive(mid - 48);
-    const up = window.setTimeout(() => {
-      played.current = true;
-      const [, settled] = marketingSheetDetents(available());
-      setLive(settled);
-    }, 60);
-    const done = window.setTimeout(() => setHint(false), 2400);
-    return () => {
-      window.clearTimeout(up);
-      window.clearTimeout(done);
-    };
+    setLive(mid);
+    if (!active) return;
+    setHint(true);
+    const done = window.setTimeout(() => setHint(false), 1800);
+    return () => window.clearTimeout(done);
   }, [active]);
 
   const onHandleDown = useCallback((e: React.PointerEvent) => {
