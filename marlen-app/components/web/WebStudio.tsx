@@ -15,22 +15,13 @@ import { isGooglePlaceUrl, parseInstagramUser } from '@/lib/web/extras';
 import { checkBookingSlug, saveSalonBookingSlug, suggestBookingSlug } from '@/app/actions/booking-slug';
 import { listServiceBookFlags, setServiceBookableOnline } from '@/app/actions/services';
 import { checkCustomDomainStatus, checkSiteSlug, connectCustomDomain, publishSalonSite, saveSalonSiteDraft } from '@/app/actions/salon-site';
+import { loadInstagramFeedPreview } from '@/app/actions/instagram-feed';
 import type { SalonSiteConfig, SalonSiteRow, SiteFeeds } from '@/lib/web/site-config';
-import type { IgMedia } from '@/lib/web/instagram';
+import { igLayoutPlaceholders } from '@/lib/web/instagram';
 import { bookingPageToEmbedUrl } from '@/lib/web/booking-urls';
 import { photoFromUrl, publicSiteUrl, vanitySiteHost } from '@/lib/web/site-urls';
 import { createClient } from '@/lib/supabase/client';
 import { compressImage } from '@/hooks/compressImage';
-
-/** Mosaico de preview para probar carrusel/destacado/cuadrícula sin Graph API. */
-function igLayoutPlaceholders(accent: string, href: string | null): IgMedia[] {
-  return Array.from({ length: 6 }, (_, i) => ({
-    id: `ig-preview-${i}`,
-    mediaUrl: `gradient:${i}:${accent}`,
-    permalink: href || '#',
-    caption: i === 0 ? 'Vista previa del formato' : undefined,
-  }));
-}
 
 const INK = '#0F0E1A', MUTED = '#6E6D7A', SOFT = '#F2F2F7', CANVAS = '#F6F6F9', LINE = '#ECEBF1', BORDER = '#E4E3EA', GREEN = '#1A7F4E', MAGENTA = '#D000A8';
 const P_LOCK = 'M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5z', P_CHECK = 'M5 12l5 5 9-10', P_BACK = 'M15 5l-7 7 7 7', P_NEXT = 'M5 12h14M13 6l6 6-6 6', P_UP = 'M12 16V5M7 10l5-5 5 5M5 19h14';
@@ -190,6 +181,8 @@ export default function WebStudio({
   const [domMsg, setDomMsg] = useState<string | null>(null);
   const [domVerify, setDomVerify] = useState<{ type: string; domain: string; value: string }[]>([]);
   const [feeds, setFeeds] = useState<SiteFeeds>(cfg0?.feeds || {});
+  const [igFeedBusy, setIgFeedBusy] = useState(false);
+  const [igFeedHint, setIgFeedHint] = useState<string | null>(null);
   const [giftAmountsText, setGiftAmountsText] = useState(
     (cfg0?.giftAmounts?.length ? cfg0.giftAmounts : [30, 50, 100]).join(', '),
   );
@@ -219,6 +212,72 @@ export default function WebStudio({
   const say = (m: string) => { setToast(m); clearTimeout(tt.current); tt.current = setTimeout(() => setToast(null), 3200); };
   /** Marca cambios (borrador o publicados sin republicar) */
   const touch = () => { setDirty(true); };
+
+  const scrollPreviewToInstagram = () => {
+    requestAnimationFrame(() => {
+      const el = document.getElementById('instagram');
+      if (!el) return;
+      const scroller = el.closest('[data-site-scroll]') as HTMLElement | null;
+      if (scroller) {
+        const top = el.offsetTop - 12;
+        scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      } else {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  };
+
+  /** Al poner @usuario, pide el feed real (Graph + Business Discovery) o deja el mosaico de preview. */
+  useEffect(() => {
+    if (!fx.insta) {
+      setIgFeedHint(null);
+      return;
+    }
+    const u = parseInstagramUser(fx.igUser);
+    if (!u) {
+      setIgFeedHint(null);
+      return;
+    }
+    let cancelled = false;
+    const t = window.setTimeout(() => {
+      setIgFeedBusy(true);
+      void loadInstagramFeedPreview(u).then((r) => {
+        if (cancelled) return;
+        setIgFeedBusy(false);
+        if (!r.ok) {
+          setIgFeedHint(r.error);
+          setFeeds((prev) => ({ ...prev, ig: [] }));
+          scrollPreviewToInstagram();
+          return;
+        }
+        if (!r.configured) {
+          setIgFeedHint('Sin Graph API: ves el formato aquí; al publicar, enlace al perfil.');
+          setFeeds((prev) => ({ ...prev, ig: [] }));
+          scrollPreviewToInstagram();
+          return;
+        }
+        if (!r.media.length) {
+          setIgFeedHint(`@${u} no devolvió fotos (¿privada o sin posts?).`);
+          setFeeds((prev) => ({ ...prev, ig: [] }));
+          scrollPreviewToInstagram();
+          return;
+        }
+        setIgFeedHint(`✓ ${r.media.length} fotos de @${u}`);
+        setFeeds((prev) => ({ ...prev, ig: r.media, igFetchedAt: new Date().toISOString() }));
+        scrollPreviewToInstagram();
+      });
+    }, 450);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [fx.insta, fx.igUser]);
+
+  useEffect(() => {
+    if (!fx.insta) return;
+    if (!parseInstagramUser(fx.igUser)) return;
+    scrollPreviewToInstagram();
+  }, [fx.igLayout, fx.insta, fx.igUser]);
 
   const uploadPhoto = async (file: File, kind: string): Promise<Photo | null> => {
     if (!salonId) {
@@ -632,12 +691,18 @@ export default function WebStudio({
     }
     if (name === 'igUser') {
       const u = parseInstagramUser(v);
-      hint = u
-        ? `✓ El feed de @${u} se muestra en la web (embed; Graph opcional)`
-        : v
-          ? 'Usuario no válido. Prueba @tucentro o el enlace del perfil'
-          : 'Escribe tu usuario, por ejemplo @tucentro';
-      hc = u ? GREEN : (v ? '#B42318' : MUTED);
+      if (u) {
+        hint = igFeedBusy
+          ? `Cargando feed de @${u}…`
+          : (igFeedHint || `✓ @${u} — elige formato abajo y míralo en la preview`);
+        hc = igFeedHint?.startsWith('✓') ? GREEN : (igFeedBusy ? MUTED : GREEN);
+      } else if (v) {
+        hint = 'Usuario no válido. Prueba @tucentro o el enlace del perfil';
+        hc = '#B42318';
+      } else {
+        hint = 'Escribe tu usuario, por ejemplo @tucentro';
+        hc = MUTED;
+      }
     }
     return (
       <label key={name} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -793,7 +858,9 @@ export default function WebStudio({
                 </div>
                 {!(feeds.ig?.length) && (
                   <span style={{ fontSize: 11, color: MUTED, lineHeight: 1.4 }}>
-                    Vista previa del formato. Fotos reales al guardar con Graph API; si no, la web publicada usa el perfil embebido.
+                    {igFeedBusy
+                      ? 'Cargando fotos…'
+                      : 'Mosaico de formato en la preview. Con Graph API (token + Business Discovery) salen las fotos reales del @.'}
                   </span>
                 )}
               </div>

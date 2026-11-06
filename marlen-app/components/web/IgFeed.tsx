@@ -39,16 +39,20 @@ function Tile({
   const label = m.caption
     ? m.caption.slice(0, 100)
     : `Foto de Instagram${profileLabel ? ` · ${profileLabel}` : ''}`;
-  // `gradient:i:#hex` = mosaico de preview en el editor (sin Graph API).
-  const tileBg = m.mediaUrl.startsWith('gradient:')
-    ? (() => {
-        const parts = m.mediaUrl.split(':');
-        const i = Number(parts[1]) || 0;
-        const accent = parts[2] || '#C4B5A8';
-        const angles = [135, 160, 200, 115, 175, 95];
-        return `linear-gradient(${angles[i % angles.length]}deg, ${accent}55 0%, #1A1418 100%)`;
-      })()
-    : `url("${m.mediaUrl}") center / cover no-repeat`;
+  // `gradient:i:#hex` = mosaico de preview (sin Graph) o fallback si la foto falla.
+  const gradientBg = (() => {
+    if (m.mediaUrl.startsWith('gradient:')) {
+      const parts = m.mediaUrl.split(':');
+      const i = Number(parts[1]) || 0;
+      const accent = parts[2] || '#C4B5A8';
+      const angles = [135, 160, 200, 115, 175, 95];
+      return `linear-gradient(${angles[i % angles.length]}deg, ${accent}55 0%, #1A1418 100%)`;
+    }
+    const hash = Array.from(m.id).reduce((a, c) => a + c.charCodeAt(0), 0);
+    const angles = [135, 160, 200, 115, 175, 95];
+    return `linear-gradient(${angles[hash % angles.length]}deg, #C4B5A855 0%, #1A1418 100%)`;
+  })();
+  const isGradient = m.mediaUrl.startsWith('gradient:');
   const body = (
     <>
       <span
@@ -56,11 +60,29 @@ function Tile({
         style={{
           position: 'absolute',
           inset: 0,
-          background: tileBg,
+          background: gradientBg,
           transition: 'transform .55s cubic-bezier(.22,1,.36,1)',
         }}
         className="ig-tile-img"
-      />
+      >
+        {!isGradient && (
+          <img
+            src={m.mediaUrl}
+            alt=""
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: 'block',
+            }}
+          />
+        )}
+      </span>
       {caption && m.caption ? (
         <span
           style={{
