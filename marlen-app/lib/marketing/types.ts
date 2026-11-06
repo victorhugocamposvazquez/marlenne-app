@@ -5,6 +5,11 @@ export type Tone = 'cercano' | 'directo' | 'premium';
 export type TabId = 'imagen' | 'texto' | 'estilo' | 'elementos';
 export type ElementKey = 'seal' | 'underline' | 'sparkles' | 'shape' | 'frame';
 
+export type TextZone = 'eyebrow' | 'title' | 'subtitle' | 'price' | 'cta';
+
+/** Color elegido por zona. Vacío = el del estilo. */
+export type ZoneColors = Partial<Record<TextZone, string>>;
+
 export interface Fields {
   eyebrow: string;
   title: string;
@@ -39,6 +44,7 @@ export interface CreativeConfig extends Fields {
   link: string;
   image: CreativeImage | null;
   elements: Elements;
+  colors?: ZoneColors;
 }
 
 export interface CatalogItem {
@@ -93,6 +99,7 @@ export interface LibraryItem {
   /** Encuadre elegido al arrastrar la foto. */
   imageFocus?: { x: number; y: number };
   fields: Fields;
+  colors?: ZoneColors;
   els: Elements;
   showLogo: boolean;
   date: string;
