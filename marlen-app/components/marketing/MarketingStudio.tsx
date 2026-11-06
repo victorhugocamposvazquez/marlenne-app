@@ -24,9 +24,6 @@ const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).jo
 const TABS: TabId[] = ['imagen', 'texto', 'estilo', 'elementos'];
 const TAB_LABEL: Record<TabId, string> = { imagen: 'Imagen', texto: 'Texto', estilo: 'Estilo', elementos: 'Elementos' };
 const STORAGE_KEY = 'marlen.marketing.library.v1';
-const SECTIONS_SEEN_KEY = 'marlen.marketing.sections.seen';
-const SECTION_BAR_H = 104;
-const SECTION_HELP_H = 26;
 const TYPES_WITH_CLIENT: TypeId[] = ['bono', 'regalo'];
 const firstName = (n: string) => n.trim().split(/\s+/)[0] || n;
 
@@ -121,23 +118,7 @@ export default function MarketingStudio({
   useEffect(() => { setClients(clientsProp); }, [clientsProp]);
   const [view, setView] = useState<'home' | 'editor'>('home');
   const [ed, setEd] = useState<EditorState>(() => makeEditor({ type: 'reserva', style: 'card' }));
-  const sheet = useMarketingSheet(mobile && view === 'editor' && !!ed.tool, SECTION_BAR_H);
-  const [sectionsHint, setSectionsHint] = useState(false);
-  const [sectionsSeen, setSectionsSeen] = useState(true);
-  useEffect(() => {
-    try { setSectionsSeen(localStorage.getItem(SECTIONS_SEEN_KEY) === '1'); } catch { setSectionsSeen(false); }
-  }, []);
-  useEffect(() => {
-    if (!ed.tool || sectionsSeen) return;
-    setSectionsSeen(true);
-    try { localStorage.setItem(SECTIONS_SEEN_KEY, '1'); } catch { /* noop */ }
-  }, [ed.tool, sectionsSeen]);
-  useEffect(() => {
-    if (!mobile || view !== 'editor' || ed.mStage !== 'edit' || ed.tool) return;
-    setSectionsHint(true);
-    const t = window.setTimeout(() => setSectionsHint(false), 2400);
-    return () => window.clearTimeout(t);
-  }, [mobile, view, ed.mStage, ed.tool]);
+  const sheet = useMarketingSheet(mobile && view === 'editor' && !!ed.tool);
   const patch = useCallback((p: Partial<EditorState> | ((e: EditorState) => Partial<EditorState>)) => setEd((e) => ({ ...e, ...(typeof p === 'function' ? p(e) : p) })), []);
   const [modal, setModal] = useState<ModalState | null>(null);
   const [done, setDone] = useState<DoneState | null>(null);
@@ -1233,48 +1214,6 @@ export default function MarketingStudio({
     ['estilo', 'Estilo', PATH.palette],
     ['elementos', 'Elementos', PATH.shapes],
   ];
-  const activeEls = ELEMENTS.filter(([k]) => ed.els[k]).length;
-  const sectionValue: Record<TabId | 'ideas', string> = {
-    ideas: 'Otras formas',
-    imagen: !ed.image ? 'Sin foto' : uploads.some((u) => u.id === ed.image) ? 'Tu foto' : 'Del banco',
-    texto: ed.fields.title?.replace(/\s+/g, ' ').trim() || 'Sin titular',
-    estilo: STYLES.find((s) => s.id === ed.style)?.label || 'Estilo',
-    elementos: activeEls === 0 ? 'Ninguno' : activeEls === 1 ? '1 activo' : `${activeEls} activos`,
-  };
-  const showSectionsHelp = !sectionsSeen && !ed.tool;
-  const sectionBarH = SECTION_BAR_H + (showSectionsHelp ? SECTION_HELP_H : 0);
-  const sectionBar = () => (
-    <nav aria-label="Secciones de la creatividad" style={{ height: sectionBarH, flexShrink: 0, boxSizing: 'border-box', borderTop: '1px solid #ECEBF1', background: '#fff', padding: '8px 6px 18px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', position: 'relative', zIndex: 11 }}>
-      {showSectionsHelp && (
-        <p className={cx(sectionsHint && css.sectionsNudge)} style={{ margin: '0 8px 8px', textAlign: 'center', fontSize: 13, fontWeight: 600, color: '#4A4957', lineHeight: 1.3 }}>
-          Toca una sección para cambiarla
-        </p>
-      )}
-      <div className={cx(sectionsHint && css.sectionsNudge)} style={{ display: 'flex', gap: 2 }}>
-        {TOOLS.map(([id, label, icon]) => {
-          const on = ed.tool === id;
-          return (
-            <button
-              key={id}
-              type="button"
-              aria-pressed={on}
-              aria-label={`${label}: ${sectionValue[id]}`}
-              onClick={() => (id === 'ideas' ? openIdeas() : patch(on ? { tool: null } : { tool: id, tab: id }))}
-              style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, border: 'none', borderRadius: 14, background: on ? '#FBE6F6' : 'transparent', color: on ? '#A3007F' : '#0F0E1A', cursor: 'pointer', padding: '6px 2px 5px', transition: 'background .15s ease' }}
-            >
-              <span style={{ width: 44, height: 30, borderRadius: 10, background: on ? '#fff' : '#F2F2F7', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 2 }}>
-                <Icon d={icon} size={21} />
-              </span>
-              <span style={{ fontSize: 12, fontWeight: 650, lineHeight: 1.15 }}>{label}</span>
-              <span style={{ maxWidth: '100%', fontSize: 10.5, fontWeight: 500, lineHeight: 1.2, color: on ? '#A3007F' : '#6E6D7A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {sectionValue[id]}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </nav>
-  );
   const floatBtn: React.CSSProperties = {
     position: 'absolute', top: 12, height: 44, padding: '0 14px', borderRadius: 999, border: 'none',
     background: '#fff', boxShadow: '0 2px 8px rgba(15,14,26,0.12)', color: '#0F0E1A',
@@ -1439,10 +1378,25 @@ export default function MarketingStudio({
           </button>
         )}
       </div>
-      {ed.tool ? <div style={{ height: sheet.height, flexShrink: 0 }} /> : null}
-      {sectionBar()}
+      {ed.tool ? <div style={{ height: sheet.height, flexShrink: 0 }} /> : (
+        <div style={{ height: 96, flexShrink: 0, display: 'flex', gap: 2, padding: '8px 8px 26px', borderTop: '1px solid #ECEBF1', background: '#fff' }}>
+          {TOOLS.map(([id, label, icon]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => (id === 'ideas' ? openIdeas() : patch({ tool: id, tab: id }))}
+              style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, border: 'none', borderRadius: 16, background: 'transparent', color: '#0F0E1A', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+            >
+              <span style={{ width: 48, height: 34, borderRadius: 12, background: ed.tool === id ? '#FBE6F6' : '#F2F2F7', color: ed.tool === id ? '#A3007F' : '#0F0E1A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon d={icon} size={22} />
+              </span>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       {ed.tool && (
-        <div role="dialog" aria-label={TAB_LABEL[ed.tool]} style={{ position: 'absolute', left: 0, right: 0, bottom: sectionBarH, height: sheet.height, zIndex: 10, background: '#fff', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 40px rgba(15,14,26,0.14)', display: 'flex', flexDirection: 'column' }}>
+        <div role="dialog" aria-label={TAB_LABEL[ed.tool]} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: sheet.height, zIndex: 10, background: '#fff', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 40px rgba(15,14,26,0.14)', display: 'flex', flexDirection: 'column' }}>
           <div
             role="slider"
             aria-label="Alto del panel. Desliza hacia arriba para más opciones o hacia abajo para ver la creatividad más grande"
@@ -1768,7 +1722,7 @@ export default function MarketingStudio({
       {modalView}
       {doneView}
       {toast && (
-        <div className={css.toast} style={{ bottom: mobile ? (view === 'editor' ? (ed.tool ? sheet.height + SECTION_BAR_H + 16 : SECTION_BAR_H + 30) : 24) : 28 }} role="status">
+        <div className={css.toast} style={{ bottom: mobile ? (view === 'editor' ? (ed.tool ? sheet.height + 16 : 24) : 24) : 28 }} role="status">
           <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#fff', color: '#0F0E1A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon d={PATH.check} size={14} stroke={2.6} /></span>
           <span>{toast.msg}</span>
           {toast.action && <button type="button" className={css.toastAction} onClick={toast.action.fn}>{toast.action.label}</button>}
