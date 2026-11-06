@@ -23,6 +23,7 @@ import {
 } from '@/lib/booking/calendar';
 import { apiDaySlots, apiMonthDays, apiSubmitBooking } from '@/lib/booking/client';
 import { resolveBookingTheme } from '@/lib/booking/theme';
+import type { BookingThemeQuery } from '@/lib/booking/urls';
 import { durLbl, madridNow } from '@/lib/time';
 import BrandLogo from '@/components/BrandLogo';
 import BookingGoogleButton from '@/components/booking/BookingGoogleButton';
@@ -47,6 +48,7 @@ export default function BookingWizard({
   customTitle = null,
   bookingLink = null,
   embed = false,
+  themeOverride = null,
 }: {
   slug: string;
   salon: BookingSalon;
@@ -58,6 +60,8 @@ export default function BookingWizard({
   customTitle?: string | null;
   bookingLink?: BookingLink | null;
   embed?: boolean;
+  /** Gama de la web del centro (iframe / modal). */
+  themeOverride?: BookingThemeQuery | null;
 }) {
   const lockedService = services.find(s => s.id === presetServiceId) ?? null;
   const lockedProvider =
@@ -221,9 +225,9 @@ export default function BookingWizard({
     (step === 'when' && (!!selectedDay || !lockedService));
 
   const theme = resolveBookingTheme({
-    accent: salon.accent,
+    accent: themeOverride?.accent || salon.accent,
     accentSoft: salon.accent_soft,
-    ink: salon.ink,
+    ink: themeOverride?.ink || salon.ink,
   });
   const logoUrl = salon.logo_url ?? null;
 
@@ -234,8 +238,12 @@ export default function BookingWizard({
         ['--bk' as string]: theme.accent,
         ['--bk-soft' as string]: theme.accentSoft,
         ['--bk-hover' as string]: theme.accentHover,
-        ['--bk-ink' as string]: theme.ink,
+        ['--bk-ink' as string]: themeOverride?.ink || theme.ink,
         ['--bk-on' as string]: theme.onAccent,
+        ...(themeOverride?.bg ? { ['--bk-bg' as string]: themeOverride.bg } : {}),
+        ...(themeOverride?.card ? { ['--bk-card' as string]: themeOverride.card } : {}),
+        ...(themeOverride?.muted ? { ['--bk-muted' as string]: themeOverride.muted } : {}),
+        ...(themeOverride?.line ? { ['--bk-line' as string]: themeOverride.line } : {}),
       }}
     >
       <div

@@ -19,6 +19,12 @@ import {
   validateSiteSlug,
   vanitySiteHost,
 } from '@/lib/web/site-urls';
+import {
+  BOOKING_DEFAULT_ACCENT,
+  deriveAccentSoft,
+  deriveBookingInk,
+  normalizeBookingHex,
+} from '@/lib/booking/theme';
 
 type DbRow = {
   id: string;
@@ -187,6 +193,23 @@ export async function publishSalonSite(input: {
   }
 
   const site = mapRow(data as DbRow);
+
+  // Alinea el widget /r con la gama de la web publicada
+  const accentHex = normalizeBookingHex(withFeeds.themeAccent);
+  if (accentHex) {
+    const accent = accentHex === BOOKING_DEFAULT_ACCENT ? null : accentHex;
+    await sb
+      .from('salons')
+      .update({
+        booking_accent: accent,
+        booking_accent_soft: accent ? deriveAccentSoft(accent) : null,
+        booking_ink: accent ? deriveBookingInk(accent) : null,
+      })
+      .eq('id', me.salon_id);
+    revalidatePath('/r', 'layout');
+    revalidatePath('/embed', 'layout');
+  }
+
   revalidatePath('/ajustes/marketing/web');
   revalidatePath(`/s/${site.slug}`);
   return { ok: true, site, url: publicSiteUrl(site.slug, appOriginFromEnv()) };

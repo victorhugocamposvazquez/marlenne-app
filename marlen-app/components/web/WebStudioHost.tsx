@@ -13,6 +13,7 @@ export default function WebStudioHost({
   phone,
   address,
   bookingUrl,
+  bookingSlug = null,
   services,
   team,
   initialSite,
@@ -24,6 +25,7 @@ export default function WebStudioHost({
   phone: string | null;
   address: string | null;
   bookingUrl: string;
+  bookingSlug?: string | null;
   services: Service[];
   team: [string, string][];
   initialSite: SalonSiteRow | null;
@@ -38,6 +40,7 @@ export default function WebStudioHost({
       phone={phone}
       address={address}
       bookingUrl={bookingUrl}
+      bookingSlug={bookingSlug}
       services={services}
       team={team}
       initialSite={initialSite}

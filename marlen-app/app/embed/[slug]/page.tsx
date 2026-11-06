@@ -19,10 +19,12 @@ export const metadata: Metadata = {
 export default async function EmbedBookingPage({ params, searchParams }: Props) {
   const slug = decodeURIComponent(params.slug).toLowerCase();
   const cat = await loadBookingCatalog(slug);
+  const preset = parseBookingPreset(searchParams);
   return renderBookingWizard({
     salonSlug: slug,
     catalog: cat,
-    preset: parseBookingPreset(searchParams),
+    preset,
     embed: true,
+    themeOverride: preset.theme,
   });
 }

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { renderBookingWizard, bookingUnavailable } from '@/lib/booking/render';
 import { loadBookingCatalog, loadBookingLink } from '@/lib/booking/server';
 import { fulfillPaidBookingIntent } from '@/lib/booking/fulfill';
+import { parseBookingPreset } from '@/lib/booking/urls';
 
 type Props = {
   params: { slug: string; linkKey: string };
@@ -25,11 +26,13 @@ export default async function EmbedBookingLinkPage({ params, searchParams }: Pro
     await fulfillPaidBookingIntent({ intentId: intent, bookingSlug: slug });
   }
 
+  const fromQuery = parseBookingPreset(searchParams);
   return renderBookingWizard({
     salonSlug: slug,
     catalog: cat,
-    preset: { linkKey, title: lr.link.custom_title },
+    preset: { linkKey, title: lr.link.custom_title, theme: fromQuery.theme },
     bookingLink: lr.link,
     embed: true,
+    themeOverride: fromQuery.theme,
   });
 }

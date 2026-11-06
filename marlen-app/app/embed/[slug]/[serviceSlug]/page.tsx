@@ -20,11 +20,13 @@ export default async function EmbedServiceBookingPage({ params, searchParams }: 
   const salonSlug = decodeURIComponent(params.slug).toLowerCase();
   const serviceSlug = decodeURIComponent(params.serviceSlug).toLowerCase();
   const cat = await loadBookingCatalog(salonSlug);
+  const preset = parseBookingPreset(searchParams);
   return renderBookingWizard({
     salonSlug,
     catalog: cat,
-    preset: parseBookingPreset(searchParams),
+    preset,
     pathServiceSlug: serviceSlug,
     embed: true,
+    themeOverride: preset.theme,
   });
 }

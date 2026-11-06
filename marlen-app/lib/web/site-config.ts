@@ -43,6 +43,8 @@ export type SalonSiteConfig = {
   giftAmounts?: number[];
   /** Caché de Instagram / Places (rellenada al publicar o refrescar). */
   feeds?: SiteFeeds;
+  /** Accent de la gama elegida (para alinear el widget /r). */
+  themeAccent?: string;
 };
 
 export type SalonSiteRow = {

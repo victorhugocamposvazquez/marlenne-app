@@ -5,7 +5,7 @@ import {
   resolveBookingServiceId,
 } from '@/lib/booking/resolve';
 import type { BookingCatalog, BookingFail, BookingLink } from '@/lib/booking/types';
-import type { BookingLinkPreset } from '@/lib/booking/urls';
+import type { BookingLinkPreset, BookingThemeQuery } from '@/lib/booking/urls';
 
 export function bookingUnavailable(code: string, embed = false) {
   if (embed) {
@@ -32,6 +32,7 @@ export function renderBookingWizard({
   pathServiceSlug,
   bookingLink = null,
   embed = false,
+  themeOverride = null,
 }: {
   salonSlug: string;
   catalog: BookingCatalog | BookingFail;
@@ -39,6 +40,7 @@ export function renderBookingWizard({
   pathServiceSlug?: string | null;
   bookingLink?: BookingLink | null;
   embed?: boolean;
+  themeOverride?: BookingThemeQuery | null;
 }) {
   if (!catalog.ok) return bookingUnavailable(catalog.code, embed);
 
@@ -54,6 +56,7 @@ export function renderBookingWizard({
   const serviceId = resolveBookingServiceId(catalog.services, serviceKey);
   const providerId = resolveBookingProviderId(catalog.providers, providerKey);
   const customTitle = bookingLink?.custom_title || preset.title;
+  const theme = themeOverride || preset.theme || null;
 
   return (
     <BookingWizard
@@ -66,6 +69,7 @@ export function renderBookingWizard({
       customTitle={customTitle}
       bookingLink={bookingLink}
       embed={embed}
+      themeOverride={theme}
     />
   );
 }

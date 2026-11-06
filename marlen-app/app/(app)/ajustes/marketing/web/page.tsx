@@ -52,6 +52,7 @@ export default async function MarketingWebPage() {
         phone={contact.phone}
         address={contact.fiscal_address}
         bookingUrl={brand.bookingUrl}
+        bookingSlug={brand.bookingSlug}
         services={servicesToWebCatalog(services)}
         team={staffToWebTeam(providers)}
         initialSite={initialSite}

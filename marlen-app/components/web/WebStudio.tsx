@@ -12,6 +12,7 @@ import { searchStockByTheme } from '@/app/actions/marketing-stock';
 import { stockProxyPath } from '@/lib/marketing/stock';
 import { themeForService } from '@/lib/web/from-salon';
 import { isGooglePlaceUrl, parseInstagramUser } from '@/lib/web/extras';
+import { checkBookingSlug, saveSalonBookingSlug, suggestBookingSlug } from '@/app/actions/booking-slug';
 import { checkCustomDomainStatus, checkSiteSlug, connectCustomDomain, publishSalonSite, saveSalonSiteDraft } from '@/app/actions/salon-site';
 import type { SalonSiteConfig, SalonSiteRow } from '@/lib/web/site-config';
 import { bookingPageToEmbedUrl } from '@/lib/web/booking-urls';
@@ -61,6 +62,7 @@ export interface WebStudioProps {
   phone?: string | null;
   address?: string | null;
   bookingUrl?: string;
+  bookingSlug?: string | null;
   /** Catálogo real del centro (si falta, demo del handoff). */
   services?: Service[];
   /** Equipo real: [nombre, especialidad] */
@@ -78,7 +80,8 @@ export default function WebStudio({
   logo = '/marketing/arlett-logo.png',
   phone = null,
   address = null,
-  bookingUrl = '',
+  bookingUrl: bookingUrlProp = '',
+  bookingSlug: bookingSlugProp = null,
   services: servicesProp,
   team: teamProp,
   initialSite = null,
@@ -166,6 +169,12 @@ export default function WebStudio({
     .split(/[,;\s]+/)
     .map(x => Math.round(Number(x)))
     .filter(n => n >= 5 && n <= 500);
+  const [bookingUrl, setBookingUrl] = useState(bookingUrlProp);
+  const [bookingSlug, setBookingSlug] = useState(bookingSlugProp || '');
+  const [bookSlugDraft, setBookSlugDraft] = useState(bookingSlugProp || '');
+  const [bookSlugMsg, setBookSlugMsg] = useState<string | null>(null);
+  const [bookSlugOk, setBookSlugOk] = useState(Boolean(bookingSlugProp));
+  const [bookSlugBusy, setBookSlugBusy] = useState(false);
   const [published, setPublished] = useState(Boolean(initialSite?.publishedAt));
   const [dirty, setDirty] = useState(false);
   const [showPub, setShowPub] = useState(false);
@@ -182,12 +191,6 @@ export default function WebStudio({
   const say = (m: string) => { setToast(m); clearTimeout(tt.current); tt.current = setTimeout(() => setToast(null), 3200); };
   /** Marca cambios (borrador o publicados sin republicar) */
   const touch = () => { setDirty(true); };
-
-  const collectConfig = (): SalonSiteConfig => ({
-    tplId, palId, tone, txt, txtManual, sec, fx, svcs, svcMedia, iconStyle, svcImg, svcIcon, photos, zone, hours, domMode, ownDomain: own,
-    giftAmounts: giftAmounts.length ? giftAmounts : [30, 50, 100],
-    feeds: cfg0?.feeds,
-  });
 
   const uploadPhoto = async (file: File, kind: string): Promise<Photo | null> => {
     if (!salonId) {
@@ -263,6 +266,12 @@ export default function WebStudio({
   };
   const themeOfSvc = (s: Service) => themeForService(s.name);
   const T = tplOf(tplId), pals = palettesFor(T, brandColor), P = pals.find((p) => p.id === palId) || pals[1];
+  const collectConfig = (): SalonSiteConfig => ({
+    tplId, palId, tone, txt, txtManual, sec, fx, svcs, svcMedia, iconStyle, svcImg, svcIcon, photos, zone, hours, domMode, ownDomain: own,
+    giftAmounts: giftAmounts.length ? giftAmounts : [30, 50, 100],
+    feeds: cfg0?.feeds,
+    themeAccent: P.accent,
+  });
   const tabIdx = Math.max(0, TABS.findIndex((x) => x[0] === tab));
   const liveUrl = pubUrl || publicSiteUrl(sub || 'tu-centro');
   const urlLabel = domMode === 'own' && own ? own : vanitySiteHost(sub || 'tu-centro');
@@ -592,9 +601,92 @@ export default function WebStudio({
       </label>
     );
   };
+  const saveBookingSlug = async () => {
+    setBookSlugBusy(true);
+    const r = await saveSalonBookingSlug(bookSlugDraft);
+    setBookSlugBusy(false);
+    if (!r.ok) { say(r.error); setBookSlugOk(false); setBookSlugMsg(r.error); return; }
+    setBookingSlug(r.slug);
+    setBookSlugDraft(r.slug);
+    setBookingUrl(r.bookingUrl);
+    setBookSlugOk(true);
+    setBookSlugMsg(`✓ ${r.bookingUrl.replace(/^https?:\/\//, '')}`);
+    say('Página de reservas lista');
+  };
+
+  const autoBookingSlug = async () => {
+    setBookSlugBusy(true);
+    const s = await suggestBookingSlug(salon);
+    if (!s.ok) { setBookSlugBusy(false); say(s.error); return; }
+    setBookSlugDraft(s.slug);
+    const check = await checkBookingSlug(s.slug);
+    setBookSlugBusy(false);
+    if (!check.ok) { setBookSlugOk(false); setBookSlugMsg(check.error); return; }
+    setBookSlugOk(check.available);
+    setBookSlugMsg(check.message);
+  };
+
+  useEffect(() => {
+    if (bookingSlug) return;
+    const draft = bookSlugDraft.trim();
+    if (draft.length < 2) { setBookSlugMsg(null); setBookSlugOk(false); return; }
+    const t = setTimeout(() => {
+      void checkBookingSlug(draft).then(r => {
+        if (!r.ok) { setBookSlugOk(false); setBookSlugMsg(r.error); return; }
+        setBookSlugOk(r.available);
+        setBookSlugMsg(r.message);
+      });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [bookSlugDraft, bookingSlug]);
+
   const panelFx = (
     <>
       <H sub="Tu calendario público, conectado a tu agenda.">Reserva online</H>
+      {!bookingSlug ? (
+        <div style={{ borderRadius: 14, border: `1.5px solid ${INK}`, background: '#fff', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <span style={{ fontSize: 14, fontWeight: 600 }}>Activa tu página de reservas</span>
+          <span style={{ fontSize: 12, color: MUTED, lineHeight: 1.4 }}>
+            Sin un enlace público no se puede incrustar el calendario ni abrir el modal. Elige un nombre amigable.
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', height: mob ? 48 : 44, borderRadius: 12, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
+            <span style={{ height: '100%', padding: '0 12px', display: 'flex', alignItems: 'center', background: CANVAS, borderRight: `1px solid ${BORDER}`, fontSize: 13, color: '#4A4957', whiteSpace: 'nowrap' }}>/r/</span>
+            <input
+              value={bookSlugDraft}
+              aria-label="Slug de reservas"
+              placeholder="tu-centro"
+              onChange={(e) => setBookSlugDraft(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 64))}
+              style={{ flex: 1, minWidth: 0, height: '100%', border: 'none', padding: '0 12px', fontSize: mob ? 15 : 14, fontWeight: 600, outline: 'none', fontFamily: 'inherit' }}
+            />
+          </div>
+          {bookSlugMsg && (
+            <span style={{ fontSize: 13, fontWeight: 600, color: bookSlugOk ? GREEN : '#B42318' }}>{bookSlugMsg}</span>
+          )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <button
+              type="button"
+              disabled={bookSlugBusy}
+              onClick={() => void autoBookingSlug()}
+              style={{ ...btn(), height: 40, border: `1.5px solid ${INK}`, fontSize: 13 }}
+            >
+              Generar automático
+            </button>
+            <button
+              type="button"
+              disabled={bookSlugBusy || !bookSlugOk || bookSlugDraft.length < 2}
+              onClick={() => void saveBookingSlug()}
+              style={{ ...btn(), height: 40, background: INK, color: '#fff', fontSize: 13, opacity: bookSlugBusy || !bookSlugOk ? 0.5 : 1 }}
+            >
+              {bookSlugBusy ? 'Guardando…' : 'Activar reservas'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ borderRadius: 14, border: `1px solid ${LINE}`, background: '#fff', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: GREEN }}>● Reservas activas</span>
+          <span style={{ fontSize: 13, fontWeight: 600, wordBreak: 'break-all' }}>{bookingUrl.replace(/^https?:\/\//, '') || `/r/${bookingSlug}`}</span>
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         {([['float', 'Botón flotante', 'Siempre visible al hacer scroll'], ['embed', 'Incrustado', 'Calendario dentro de la web'], ['both', 'Los dos', 'Máxima visibilidad'], ['off', 'No mostrar', 'Solo el botón del menú']] as [BookingMode, string, string][]).map(([id, label, desc]) => (
           <button key={id} type="button" onClick={() => { setFx({ ...fx, book: id }); touch(); }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2, padding: '12px 14px', borderRadius: 14, border: `1.5px solid ${fx.book === id ? INK : LINE}`, background: '#fff', color: INK, textAlign: 'left', cursor: 'pointer' }}><span style={{ fontSize: 14, fontWeight: 600 }}>{label}</span><span style={{ fontSize: 12, color: MUTED, lineHeight: 1.35 }}>{desc}</span></button>

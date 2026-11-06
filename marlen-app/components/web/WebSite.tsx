@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import BookingCalendarModal from '@/components/web/BookingCalendarModal';
 import GiftCardBuy from '@/components/web/GiftCardBuy';
 import { hex, luminance, mix } from '@/lib/marketing/color';
-import { bookingPageToEmbedUrl, isBookingPageUrl } from '@/lib/web/booking-urls';
+import { bookingPageToEmbedUrl, isBookingPageUrl, withBookingTheme } from '@/lib/web/booking-urls';
 import { googleMapsEmbedUrl, instagramProfileUrl, parseInstagramUser } from '@/lib/web/extras';
 import type { SiteProps, SiteService } from '@/lib/web/types';
 
@@ -23,10 +23,18 @@ export default function WebSite(p: SiteProps) {
   const fx = p.fx || {}, n = !!p.narrow, sec = p.sec || { servicios: true, nosotros: true, equipo: true, visitanos: true };
   const salon = p.salon || 'Arlett Beauty', logo = p.logo || '/marketing/arlett-logo.png';
   const bookHref = isBookingPageUrl(p.bookingUrl) ? (p.bookingUrl || '').trim() : undefined;
-  const bookEmbed =
+  const bookEmbedRaw =
     (p.bookingEmbedUrl || '').trim() ||
     bookingPageToEmbedUrl(bookHref) ||
     undefined;
+  const bookEmbed = withBookingTheme(bookEmbedRaw, {
+    accent: P.accent,
+    ink: P.ink,
+    bg: P.bg,
+    card: P.surface,
+    muted: P.muted,
+    line: P.line,
+  }) || undefined;
   const canBook = Boolean(bookEmbed || bookHref);
   const phoneLbl = (p.phone || '').trim() || null;
   const addressLbl = (p.address || '').trim() || null;
