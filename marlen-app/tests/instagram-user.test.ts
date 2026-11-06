@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { instagramProfileUrl, parseInstagramUser } from '../lib/web/extras';
+import { mediaFromInstagramEmbedHtml } from '../lib/web/instagram';
 
 test('usuario con @, sin @ y URL del perfil', () => {
   for (const raw of [
@@ -20,6 +21,18 @@ test('usuario con @, sin @ y URL del perfil', () => {
   }
   assert.equal(instagramProfileUrl('@tucentro'), 'https://www.instagram.com/tucentro/');
   assert.equal(instagramProfileUrl('https://instagram.com/tucentro/'), 'https://www.instagram.com/tucentro/');
+});
+
+test('el HTML del embed da fotos para el diseño propio', () => {
+  const html = [
+    'shortcode\\":\\"AbCdEf12\\"',
+    'display_url\\":\\"https:\\\\\\/\\\\\\/scontent.cdninstagram.com\\\\\\/v\\\\\\/foto.jpg?oh=1&amp;oe=2\\"',
+  ].join(',');
+  const media = mediaFromInstagramEmbedHtml(html, 9);
+  assert.equal(media.length, 1);
+  assert.equal(media[0].id, 'AbCdEf12');
+  assert.equal(media[0].permalink, 'https://www.instagram.com/p/AbCdEf12/');
+  assert.ok(media[0].mediaUrl.startsWith('https://scontent.cdninstagram.com/'));
 });
 
 test('un enlace de publicación no es un usuario', () => {

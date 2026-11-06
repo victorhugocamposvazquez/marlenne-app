@@ -17,8 +17,5 @@ export async function loadInstagramFeedPreview(rawUser: string): Promise<
   if (!ig.ok) {
     return { ok: false, error: ig.error, configured: true, username };
   }
-  if (!ig.configured) {
-    return { ok: true, media: [], configured: false, username };
-  }
-  return { ok: true, media: ig.media, configured: true, username };
+  return { ok: true, media: ig.media, configured: ig.configured || ig.media.length > 0, username };
 }
