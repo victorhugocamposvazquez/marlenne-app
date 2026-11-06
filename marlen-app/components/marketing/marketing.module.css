@@ -106,7 +106,9 @@
 .panelMobile { max-width: none; max-height: 88%; border-radius: 24px 24px 0 0; padding: 12px 16px max(16px, env(safe-area-inset-bottom, 0px)); }
 .panelScroll { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .handle { width: 40px; height: 5px; border-radius: 3px; background: #D9D8E0; align-self: center; flex-shrink: 0; }
-.handleHint { background: #0F0E1A; animation: handleNudge 1.05s ease-in-out 2; }
+.handleStack { display: flex; flex-direction: column; align-items: center; gap: 1px; color: #8A8996; }
+.handleHint { color: #0F0E1A; animation: handleNudge 1.05s ease-in-out 2; }
+.handleHint .handle { background: #0F0E1A; }
 @keyframes handleNudge {
   0%, 100% { transform: translateY(0); }
   28% { transform: translateY(-7px); }
