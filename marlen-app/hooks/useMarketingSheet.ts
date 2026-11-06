@@ -12,7 +12,7 @@ const TAP = 10;
 const OPEN_HEIGHT = marketingSheetMid(marketingSheetStops(740));
 
 /** Asidero de la hoja de configuración en el editor móvil de marketing. */
-export function useMarketingSheet(active: boolean, reserved = 0) {
+export function useMarketingSheet(active: boolean) {
   const hostRef = useRef<HTMLDivElement>(null);
   const live = useRef(OPEN_HEIGHT);
   const [height, setHeight] = useState(OPEN_HEIGHT);
@@ -24,7 +24,7 @@ export function useMarketingSheet(active: boolean, reserved = 0) {
   const available = () => {
     const host = hostRef.current;
     const h = host?.clientHeight || (typeof window === 'undefined' ? 800 : window.innerHeight);
-    return Math.max(420, h - 60 - reserved);
+    return Math.max(420, h - 60);
   };
 
   const setLive = (h: number) => {
