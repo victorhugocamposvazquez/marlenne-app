@@ -11,7 +11,8 @@ import { copyBlob, copyText, downloadBlob, nodeToPng, openEmail, openInstagram, 
 import { stockProxyPath } from '@/lib/marketing/stock';
 import type { ImageFocus } from '@/lib/marketing/image-focus';
 import { useMarketingSheet } from '@/hooks/useMarketingSheet';
-import type { BankImage, CreativeConfig, CreativeType, ElementKey, Elements, Fields, FormatId, LibraryItem, StyleId, TabId, Tone, TypeId } from '@/lib/marketing/types';
+import type { BankImage, CreativeConfig, CreativeType, ElementKey, Elements, Fields, FormatId, LibraryItem, StyleId, TabId, TextZone, Tone, TypeId, ZoneColors } from '@/lib/marketing/types';
+import { sanitizeHex } from '@/lib/marketing/zone-color';
 import type { ClientOption, ServiceOption } from '@/lib/types';
 import {
   createClientQuick,
@@ -53,6 +54,7 @@ function useElementSize<T extends HTMLElement>() {
 interface EditorState {
   editingId: string | null; type: TypeId; catIdx: number; style: StyleId; format: FormatId; fields: Fields; showLogo: boolean;
   image: string | null; imgTheme: string; els: Elements; elsManual: boolean; tone: Tone; toneManual: boolean; tab: TabId; safe: boolean;
+  colors?: ZoneColors;
   packTemplateId: string | null; clientId: string | null; clientName: string | null; fieldsManual: boolean;
   /** Mobile: propuestas de Marlén o lienzo con herramientas */
   mStage: 'pick' | 'edit';
@@ -226,10 +228,10 @@ export default function MarketingStudio({
       ? uploads.find(u => u.id === id) || allStock.find(u => u.id === id) || IMAGES[id] || null
       : null;
   const themeLabel = (id: string) => (id === 'mias' ? 'Tus fotos' : THEMES.find((t) => t.id === id)?.label || '');
-  const cfgOf = (o: { style: StyleId; format: FormatId; fields: Fields; showLogo: boolean; image: string | null; els: Elements; imageFocus?: ImageFocus | null }): CreativeConfig => {
+  const cfgOf = (o: { style: StyleId; format: FormatId; fields: Fields; showLogo: boolean; image: string | null; els: Elements; imageFocus?: ImageFocus | null; colors?: ZoneColors }): CreativeConfig => {
     const im = imgObj(o.image);
     const focus = o.imageFocus ?? (o.image ? focusById[o.image] : undefined);
-    return { ...o.fields, style: o.style, format: o.format, accent: brandColor, logo, showLogo: o.showLogo, link, image: im ? { bg: im.bg, src: im.src, label: im.label, focus } : null, elements: o.els };
+    return { ...o.fields, style: o.style, format: o.format, accent: brandColor, logo, showLogo: o.showLogo, link, image: im ? { bg: im.bg, src: im.src, label: im.label, focus } : null, elements: o.els, colors: o.colors };
   };
   imageIdRef.current = ed.image;
   const setImageFocus = useCallback((focus: ImageFocus) => {
@@ -474,7 +476,7 @@ export default function MarketingStudio({
         if (!ok) downloadBlob(blob, fileName(ed.format));
       }
       if (link) await copyText(link);
-      const it: LibraryItem = { id: ed.editingId || 'c' + Date.now(), type: ed.type, catIdx: ed.catIdx, style: ed.style, format: ed.format, image: ed.image, imageFocus: ed.image ? focusById[ed.image] : undefined, fields: { ...ed.fields }, els: { ...ed.els }, showLogo: ed.showLogo, date: 'Ahora' };
+      const it: LibraryItem = { id: ed.editingId || 'c' + Date.now(), type: ed.type, catIdx: ed.catIdx, style: ed.style, format: ed.format, image: ed.image, imageFocus: ed.image ? focusById[ed.image] : undefined, fields: { ...ed.fields }, colors: ed.colors, els: { ...ed.els }, showLogo: ed.showLogo, date: 'Ahora' };
       setLibrary((l) => [it, ...l.filter((x) => x.id !== it.id)]);
       setHighlight(it.id);
       setFilter('all');
@@ -646,16 +648,74 @@ export default function MarketingStudio({
     return clients.filter(c => c.full_name.toLowerCase().includes(q) || (c.phone || '').includes(q)).slice(0, 12);
   })();
 
+  const setZoneColor = (zone: TextZone, raw: string | null) => {
+    const hex = sanitizeHex(raw);
+    patch((s) => {
+      const next: ZoneColors = { ...s.colors };
+      if (!hex) delete next[zone];
+      else next[zone] = hex;
+      return { colors: Object.keys(next).length ? next : undefined };
+    });
+  };
+  const zoneColors = (zone: TextZone) => {
+    const value = sanitizeHex(ed.colors?.[zone]);
+    const presets = [brandColor, '#0F0E1A', '#FFFFFF', '#6E4B3A', '#C4A46A', '#1A7F4E']
+      .map((c) => sanitizeHex(c))
+      .filter((c, i, all): c is string => !!c && all.indexOf(c) === i);
+    const dot = (color: string, label: string) => {
+      const on = value === color;
+      return (
+        <button
+          key={label}
+          type="button"
+          title={label}
+          aria-label={label}
+          aria-pressed={on}
+          onClick={() => setZoneColor(zone, on ? null : color)}
+          style={{
+            width: 26, height: 26, borderRadius: '50%', padding: 0, cursor: 'pointer', flexShrink: 0,
+            background: color,
+            border: 'none',
+            boxShadow: on ? '0 0 0 2px #fff, 0 0 0 4px #0F0E1A' : 'inset 0 0 0 1px rgba(15,14,26,.18)',
+          }}
+        />
+      );
+    };
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className={cx(css.chip, !value && css.chipOn)}
+          style={{ height: 26, padding: '0 8px', fontSize: 11 }}
+          aria-pressed={!value}
+          onClick={() => setZoneColor(zone, null)}
+        >
+          Auto
+        </button>
+        {presets.map((c) => dot(c, c))}
+        <label title="Otro color" style={{ width: 26, height: 26, borderRadius: '50%', overflow: 'hidden', boxShadow: 'inset 0 0 0 1px rgba(15,14,26,.18)', background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)', cursor: 'pointer', flexShrink: 0 }}>
+          <input
+            type="color"
+            aria-label="Otro color"
+            value={value || brandColor}
+            onChange={(e) => setZoneColor(zone, e.target.value)}
+            style={{ opacity: 0, width: 26, height: 26, padding: 0, border: 'none', cursor: 'pointer' }}
+          />
+        </label>
+      </div>
+    );
+  };
   const textField = (name: TextField, label: string, m: boolean) => {
     const len = (ed.fields[name] || '').length;
     return (
-      <label className={css.field} key={name}>
+      <div className={css.field} key={name}>
         <span className={css.label}>{label}<span className={cx(css.counter, len > LIMITS[name] && css.counterOver)}>{len}/{LIMITS[name]}</span></span>
+        {zoneColors(name)}
         <span className={css.inputWrap}>
           <input name={name} value={ed.fields[name]} onChange={onField} className={cx(css.input, m && css.inputMobile, css.withAction)} />
           <button type="button" className={cx(css.reroll, m && css.rerollLg)} title="Otra opción" onClick={() => reroll(name)}><Icon d={PATH.refresh} size={16} stroke={1.9} /></button>
         </span>
-      </label>
+      </div>
     );
   };
 
@@ -820,7 +880,11 @@ export default function MarketingStudio({
       {textField('title', 'Titular', m)}
       {textField('subtitle', 'Subtítulo', m)}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: m ? 10 : 12 }}>
-        <label className={css.field}><span className={css.label}>Precio</span><input name="price" value={ed.fields.price} placeholder="Opcional" onChange={onField} className={cx(css.input, m && css.inputMobile)} /></label>
+        <div className={css.field}>
+          <span className={css.label}>Precio</span>
+          {zoneColors('price')}
+          <input name="price" value={ed.fields.price} placeholder="Opcional" onChange={onField} className={cx(css.input, m && css.inputMobile)} />
+        </div>
         {textField('cta', 'Botón', m)}
       </div>
       <label className={css.field}>
