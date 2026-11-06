@@ -26,6 +26,8 @@ export interface CreativeImage {
   bg: string;
   src?: string;
   label: string;
+  /** Encuadre al arrastrar la foto (0–100). */
+  focus?: { x: number; y: number };
 }
 
 export interface CreativeConfig extends Fields {
@@ -88,6 +90,8 @@ export interface LibraryItem {
   style: StyleId;
   format: FormatId;
   image: string | null;
+  /** Encuadre elegido al arrastrar la foto. */
+  imageFocus?: { x: number; y: number };
   fields: Fields;
   els: Elements;
   showLogo: boolean;

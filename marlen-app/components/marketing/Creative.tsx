@@ -4,6 +4,7 @@ import React from 'react';
 import type { CreativeConfig, CreativeImage } from '@/lib/marketing/types';
 import { FORMAT_H } from '@/lib/marketing/data';
 import { INK, mix, onColor } from '@/lib/marketing/color';
+import { imageFocusOf, panImageFocus, type ImageFocus } from '@/lib/marketing/image-focus';
 
 /**
  * Render de una creatividad a 1080 px de ancho (coordenadas de exportación).
@@ -92,11 +93,26 @@ type L = ReturnType<typeof computeLayout>;
 /* ---------- piezas ---------- */
 
 function ImageFill({ img }: { img: CreativeImage }) {
+  const focus = imageFocusOf(img.focus);
   return (
     <div style={{ position: 'absolute', inset: 0, background: img.bg || '#E4E3EA' }}>
       {img.src && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={img.src} alt="" crossOrigin="anonymous" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        <img
+          src={img.src}
+          alt=""
+          crossOrigin="anonymous"
+          draggable={false}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: `${focus.x}% ${focus.y}%`,
+            pointerEvents: 'none',
+          }}
+        />
       )}
     </div>
   );
@@ -409,8 +425,8 @@ export const CreativeCanvas = React.forwardRef<HTMLDivElement, { cfg: CreativeCo
       {v.frame && <div style={{ position: 'absolute', inset: v.frame[0], border: `${v.frame[1]}px solid ${v.frame[2]}`, borderRadius: v.frame[3], pointerEvents: 'none', zIndex: 6 }} />}
       {safe && cfg.format === 'story' && (
         <>
-          <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 250, zIndex: 8, background: hatch, borderBottom: '4px dashed #D000A8', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 28 }}><span style={safeLabel}>Zona tapada por la app</span></div>
-          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 340, zIndex: 8, background: hatch, borderTop: '4px dashed #D000A8', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 28 }}><span style={safeLabel}>Zona tapada por la app</span></div>
+          <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 250, zIndex: 8, background: hatch, borderBottom: '4px dashed #D000A8', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 28, pointerEvents: 'none' }}><span style={safeLabel}>Zona tapada por la app</span></div>
+          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 340, zIndex: 8, background: hatch, borderTop: '4px dashed #D000A8', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 28, pointerEvents: 'none' }}><span style={safeLabel}>Zona tapada por la app</span></div>
         </>
       )}
     </div>
@@ -425,6 +441,63 @@ export default function Creative({ cfg, width, radius = 0, shadow = false, safe 
       <div style={{ position: 'absolute', left: 0, top: 0, transform: `scale(${s})`, transformOrigin: '0 0' }}>
         <CreativeCanvas cfg={cfg} safe={safe} />
       </div>
+    </div>
+  );
+}
+
+/** Vista grande: arrastrar mueve la foto dentro del recorte. */
+export function DraggableCreative({
+  cfg,
+  onImageFocus,
+  ...rest
+}: {
+  cfg: CreativeConfig;
+  width: number;
+  radius?: number;
+  shadow?: boolean;
+  safe?: boolean;
+  onImageFocus: (focus: ImageFocus) => void;
+}) {
+  const origin = React.useRef<{ px: number; py: number; focus: ImageFocus } | null>(null);
+  const [grabbing, setGrabbing] = React.useState(false);
+  const canDrag = !!cfg.image?.src;
+  const endDrag = () => {
+    origin.current = null;
+    setGrabbing(false);
+  };
+  return (
+    <div
+      onPointerDown={(e) => {
+        if (!canDrag) return;
+        if (e.button !== 0) return;
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        origin.current = {
+          px: e.clientX,
+          py: e.clientY,
+          focus: imageFocusOf(cfg.image?.focus),
+        };
+        setGrabbing(true);
+      }}
+      onPointerMove={(e) => {
+        if (!origin.current) return;
+        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        onImageFocus(panImageFocus(
+          origin.current.focus,
+          e.clientX - origin.current.px,
+          e.clientY - origin.current.py,
+          r.width,
+          r.height,
+        ));
+      }}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      style={{
+        touchAction: canDrag ? 'none' : undefined,
+        cursor: canDrag ? (grabbing ? 'grabbing' : 'grab') : undefined,
+        userSelect: 'none',
+      }}
+    >
+      <Creative cfg={cfg} {...rest} />
     </div>
   );
 }
