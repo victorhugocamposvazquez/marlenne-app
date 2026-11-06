@@ -1195,9 +1195,6 @@ export default function MarketingStudio({
     ['estilo', 'Estilo', PATH.palette],
     ['elementos', 'Elementos', PATH.shapes],
   ];
-  const sheetMotion: React.CSSProperties = {
-    transition: sheet.dragging ? 'none' : 'height .32s cubic-bezier(.22,.92,.28,1)',
-  };
   const floatBtn: React.CSSProperties = {
     position: 'absolute', top: 12, height: 44, padding: '0 14px', borderRadius: 999, border: 'none',
     background: '#fff', boxShadow: '0 2px 8px rgba(15,14,26,0.12)', color: '#0F0E1A',
@@ -1356,7 +1353,7 @@ export default function MarketingStudio({
           </button>
         )}
       </div>
-      {ed.tool ? <div style={{ height: sheet.height, flexShrink: 0, ...sheetMotion }} /> : (
+      {ed.tool ? <div style={{ height: sheet.height, flexShrink: 0 }} /> : (
         <div style={{ height: 96, flexShrink: 0, display: 'flex', gap: 2, padding: '8px 8px 26px', borderTop: '1px solid #ECEBF1', background: '#fff' }}>
           {TOOLS.map(([id, label, icon]) => (
             <button
@@ -1374,7 +1371,7 @@ export default function MarketingStudio({
         </div>
       )}
       {ed.tool && (
-        <div role="dialog" aria-label={TAB_LABEL[ed.tool]} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: sheet.height, zIndex: 10, background: '#fff', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 40px rgba(15,14,26,0.14)', display: 'flex', flexDirection: 'column', ...sheetMotion }}>
+        <div role="dialog" aria-label={TAB_LABEL[ed.tool]} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: sheet.height, zIndex: 10, background: '#fff', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 40px rgba(15,14,26,0.14)', display: 'flex', flexDirection: 'column' }}>
           <div
             role="slider"
             aria-label="Alto del panel. Desliza hacia arriba para más opciones o hacia abajo para ver la creatividad más grande"

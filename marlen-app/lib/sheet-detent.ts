@@ -14,17 +14,27 @@ export function sheetHeightForClientRows(rows: number): number {
   return SHEET_CHROME_PX + CLIENT_SEARCH_PX + Math.max(0, rows) * CLIENT_ROW_PX;
 }
 
-/**
- * Hoja de marketing en el móvil: abajo la creatividad se ve grande,
- * en medio cabe configurar, arriba casi todo es el panel.
- */
-export function marketingSheetDetents(available: number): [number, number, number] {
+/** Hoja de marketing: el recorrido es continuo y los altos van a la misma distancia. */
+export const MARKETING_SHEET_PEEK = 188;
+export const MARKETING_SHEET_PREVIEW = 96;
+export const MARKETING_SHEET_STOPS = 5;
+
+export function marketingSheetStops(available: number): number[] {
   const h = Math.max(420, available);
-  const peek = 188;
-  const mid = Math.round(Math.min(Math.max(h * 0.46, peek + 80), 400));
-  const tall = Math.round(h - 96);
-  const midC = Math.min(mid, tall - 64);
-  return [peek, Math.max(peek + 48, midC), Math.max(midC + 64, tall)];
+  const min = MARKETING_SHEET_PEEK;
+  const max = Math.max(min + 48, Math.round(h - MARKETING_SHEET_PREVIEW));
+  const gaps = MARKETING_SHEET_STOPS - 1;
+  const step = (max - min) / gaps;
+  return Array.from({ length: MARKETING_SHEET_STOPS }, (_, i) => Math.round(min + step * i));
+}
+
+export function marketingSheetMid(stops: number[]): number {
+  return stops[Math.floor((stops.length - 1) / 2)] ?? stops[0] ?? MARKETING_SHEET_PEEK;
+}
+
+/** Al soltar, el alto más cercano. No salta al extremo. */
+export function nearestSheetHeight(height: number, stops: number[]): number {
+  return snapSheetHeight(height, stops, 0);
 }
 
 export function sheetDetents(viewH: number): [number, number, number] {
