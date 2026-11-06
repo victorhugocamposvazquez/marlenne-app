@@ -1,5 +1,7 @@
 /** Últimas publicaciones de un perfil (solo lectura; Marlén no publica). */
 
+import { parseInstagramUser } from '@/lib/web/extras';
+
 export type IgMedia = {
   id: string;
   mediaUrl: string;
@@ -7,18 +9,6 @@ export type IgMedia = {
   caption?: string;
   timestamp?: string;
 };
-
-function parseUser(raw: string | null | undefined): string | null {
-  const v = (raw || '').trim();
-  if (!v) return null;
-  const u = v
-    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, '')
-    .replace(/[/?#].*$/, '')
-    .replace(/^@/, '')
-    .trim();
-  if (!/^[a-z0-9._]{2,30}$/i.test(u)) return null;
-  return u;
-}
 
 type GraphMedia = {
   id: string;
@@ -76,7 +66,7 @@ export async function fetchInstagramMedia(
 > {
   const t = token();
   const myIgId = businessAccountId();
-  const username = parseUser(opts?.username || '') || null;
+  const username = parseInstagramUser(opts?.username || '') || null;
   if (!t || !myIgId) {
     return {
       ok: true,

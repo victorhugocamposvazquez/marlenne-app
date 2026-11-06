@@ -678,10 +678,10 @@ export default function WebStudio({
           : (igFeedHint || `Últimas fotos de @${u}. Marlén no publica nada.`);
         hc = igFeedHint?.startsWith('✓') ? GREEN : (igFeedBusy ? MUTED : GREEN);
       } else if (v) {
-        hint = 'Usuario no válido. Prueba @tucentro o el enlace del perfil';
+        hint = 'No reconozco ese usuario. Prueba tucentro, @tucentro o el enlace del perfil';
         hc = '#B42318';
       } else {
-        hint = 'Escribe tu usuario, por ejemplo @tucentro';
+        hint = 'Usuario, con o sin @, o el enlace completo del perfil';
         hc = MUTED;
       }
     }
@@ -790,7 +790,7 @@ export default function WebStudio({
         ['bar', 'Barra de aviso', 'Una promo o novedad arriba del todo', 'M4 6h16v5H4zM7 15h10M9 19h6', [['barText', 'Texto de la barra', '']]],
         ['reviews', 'Reseñas de Google', 'Solo se muestran en tu web (sin enlaces)', ICONS[9][1], [['gUrl', 'Enlace de tu ficha de Google', 'https://g.page/r/…']]],
         ['gift', 'Tarjetas regalo', 'Checkout Stripe; canje en el centro', 'M3 8h18v5H3zM5 13v8h14v-8M12 8v13M12 8C10 4 6 4 6 6.5S9 8 12 8zM12 8c2-4 6-4 6-1.5S15 8 12 8z', []],
-        ['insta', 'Instagram', 'Feed en la web; el enlace al perfil es opcional', 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0M17 7h.01', [['igUser', 'Usuario o enlace de Instagram', '@tucentro']]],
+        ['insta', 'Instagram', 'Feed en la web; el enlace al perfil es opcional', 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0M17 7h.01', [['igUser', 'Usuario o enlace de Instagram', 'tucentro, @tucentro o instagram.com/tucentro']]],
       ] as [keyof Extras, string, string, string, [keyof Extras, string, string][]][]).map(([k, label, desc, d, fields]) => { const on = !!fx[k]; return (
         <div key={k} style={{ borderRadius: 14, border: `1.5px solid ${on ? INK : LINE}`, background: '#fff' }}>
           <button type="button" onClick={() => { setFx({ ...fx, [k]: !on, ...(k === 'insta' && on ? { igLink: false } : {}) }); touch(); }} style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 60, padding: '10px 14px', border: 'none', background: 'none', color: INK, textAlign: 'left', cursor: 'pointer' }}>
