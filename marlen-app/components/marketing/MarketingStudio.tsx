@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import css from './marketing.module.css';
 import Creative, { CreativeCanvas, DraggableCreative } from './Creative';
+import ScrollMore from './ScrollMore';
 import { Icon, MarlenAvatar, PATH } from './Icons';
 import { searchStockByTheme } from '@/app/actions/marketing-stock';
 import { ALT, ELEMENTS, FORMATS, FORMAT_H, IMAGES, REC, SEAL_TEXT, STYLES, STYLE_TONE, THEMES, TONES, fieldsFor, getCatalog, getType, recommendElements, setActiveCatalog, suggestTheme } from '@/lib/marketing/data';
@@ -1419,12 +1420,12 @@ export default function MarketingStudio({
               <button type="button" className={cx(css.btn, css.primary)} style={{ padding: '0 20px', fontSize: 15 }} onPointerDown={(e) => e.stopPropagation()} onClick={() => patch({ tool: null })}>Listo</button>
             </div>
           </div>
-          <div className={css.scroll} style={{ padding: '0 20px 28px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <ScrollMore key={ed.tool} style={{ padding: '0 20px 28px', display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexShrink: 0 }}>
               <MarlenAvatar size={22} /><span style={{ fontSize: 13, color: '#4A4957', lineHeight: 1.4 }}>{marlenTip}</span>
             </div>
             {({ imagen: imagePanel, estilo: stylePanel, elementos: elementsPanel, texto: textPanel } as const)[ed.tool](true)}
-          </div>
+          </ScrollMore>
         </div>
       )}
     </div>

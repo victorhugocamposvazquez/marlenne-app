@@ -5,6 +5,7 @@ import WebSite from './WebSite';
 import { Icon, MarlenAvatar, PATH } from '@/components/marketing/Icons';
 import sheetCss from '@/components/marketing/marketing.module.css';
 import { useMarketingSheet } from '@/hooks/useMarketingSheet';
+import ScrollMore from '@/components/marketing/ScrollMore';
 import {
   BANK, DEFAULT_EXTRAS, DNS_RECORDS, ICONS, RESERVED, SECTIONS, SERVICES, SERVICE_MEDIA, TABS, TEAM as TEAM_DEMO, TEMPLATES, TEXTS, TEXT_LIMITS, TIPS,
   bankImg, lookOf, palettesFor, slugify, tplOf,
@@ -1084,7 +1085,7 @@ export default function WebStudio({
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 12px 20px' }}><span style={{ fontSize: 19, fontWeight: 700 }}>{TABS[tabIdx][1]}</span><button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => setTool(null)} style={btn(true)}>Listo</button></div>
           </div>
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 20px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>{tip}{PANELS[tab]}</div>
+          <ScrollMore key={tab} style={{ padding: '0 20px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>{tip}{PANELS[tab]}</ScrollMore>
         </aside>
       )}
     </div>
