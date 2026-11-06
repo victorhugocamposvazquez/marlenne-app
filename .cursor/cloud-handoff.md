@@ -16,6 +16,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
+- 2026-11-06 — **Marketing:** arrastrar la foto para encuadrarla en la creatividad; PR #44 → `main`.
 - 2026-11-06 — **Instagram diseño:** Carrusel, Destacado y Cuadrícula aplican a las fotos del perfil; PR #43 → `main`.
 - 2026-11-06 — **Instagram usuario:** con @, sin @ o URL; PR #42 → `main`.
 - 2026-11-06 — **Web Instagram:** últimas fotos del perfil, solo lectura; PR #41 → `main`.
@@ -52,4 +53,4 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 | **MacBook / Cursor local** | Al abrir el repo: **leer este archivo primero**. Si hay rama o PR en «Pendiente», continuar ahí antes de otra cosa. |
 | **Hugo** | Cuando algo esté en prod, borrar de «Pendiente» o pasarlo a «Hecho». |
 
-**Última actualización cloud:** 2026-11-06 — Instagram diseño (fotos) PR #43 → `main`.
+**Última actualización cloud:** 2026-11-06 — Marketing arrastrar foto PR #44 → `main`.
