@@ -175,15 +175,25 @@ async function syncBookableOnline(
   svcs: SalonSiteConfig['svcs'],
 ): Promise<void> {
   if (!svcs?.length) return;
+  // Admin client: el write RLS a veces falla en server actions con cookies frágiles.
+  const admin = createAdminClient();
   await Promise.all(
     svcs.map(async s => {
       if (!s?.id) return;
-      const { error } = await sb
+      const bookable = s.book !== false;
+      const { error } = await admin
         .from('services')
-        .update({ bookable_online: s.book !== false })
+        .update({ bookable_online: bookable })
         .eq('id', s.id)
         .eq('salon_id', salonId);
-      if (error) console.error('[salon-site] bookable_online', s.id, error.message);
+      if (error) {
+        const retry = await sb
+          .from('services')
+          .update({ bookable_online: bookable })
+          .eq('id', s.id)
+          .eq('salon_id', salonId);
+        if (retry.error) console.error('[salon-site] bookable_online', s.id, retry.error.message);
+      }
     }),
   );
 }

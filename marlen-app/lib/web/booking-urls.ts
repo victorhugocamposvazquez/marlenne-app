@@ -50,6 +50,30 @@ export function withBookingTheme(
   }
 }
 
+/**
+ * Limita el catálogo del embed a estos IDs (toggle «Reserva online» de la web).
+ * Pasa siempre un array cuando la web controla el listado; así el preview
+ * refleja el toggle al instante, sin esperar a guardar en BD.
+ */
+export function withBookingOnlyServices(
+  pageOrEmbedUrl: string | null | undefined,
+  serviceIds: string[],
+): string | null {
+  const src = toSameOriginEmbedSrc(pageOrEmbedUrl);
+  if (!src) return null;
+  try {
+    const u = new URL(src, BASE);
+    const q = bookingQuery({ onlyServiceIds: serviceIds }).replace(/^\?/, '');
+    u.searchParams.delete('only');
+    if (q) {
+      for (const [k, v] of new URLSearchParams(q)) u.searchParams.set(k, v);
+    }
+    return `${u.pathname}${u.search}`;
+  } catch {
+    return src;
+  }
+}
+
 export function isBookingPageUrl(pageUrl: string | null | undefined): boolean {
   const raw = (pageUrl || '').trim();
   if (!raw) return false;

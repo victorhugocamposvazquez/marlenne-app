@@ -72,6 +72,8 @@ describe('booking deep links', () => {
       providerId: null,
       providerSlug: 'cab',
       title: 'Oferta',
+      theme: null,
+      onlyServiceIds: null,
     });
     assert.equal(
       resolveBookingServiceId(

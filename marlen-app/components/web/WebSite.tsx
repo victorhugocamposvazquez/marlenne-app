@@ -5,7 +5,8 @@ import BookingCalendarModal from '@/components/web/BookingCalendarModal';
 import GiftCardBuy from '@/components/web/GiftCardBuy';
 import IgFeed from '@/components/web/IgFeed';
 import { hex, luminance, mix } from '@/lib/marketing/color';
-import { bookingPageToEmbedUrl, isBookingPageUrl, withBookingTheme } from '@/lib/web/booking-urls';
+import { isBookingUuid } from '@/lib/booking/urls';
+import { bookingPageToEmbedUrl, isBookingPageUrl, withBookingOnlyServices, withBookingTheme } from '@/lib/web/booking-urls';
 import { googleMapsEmbedUrl, instagramProfileUrl, parseInstagramUser } from '@/lib/web/extras';
 import type { IgLayout, SiteProps, SiteService } from '@/lib/web/types';
 
@@ -28,14 +29,22 @@ export default function WebSite(p: SiteProps) {
     (p.bookingEmbedUrl || '').trim() ||
     bookingPageToEmbedUrl(bookHref) ||
     undefined;
-  const bookEmbed = withBookingTheme(bookEmbedRaw, {
-    accent: P.accent,
-    ink: P.ink,
-    bg: P.bg,
-    card: P.surface,
-    muted: P.muted,
-    line: P.line,
-  }) || undefined;
+  const bookableIds = (p.svcs || [])
+    .filter(s => s.pub !== false && s.book !== false)
+    .map(s => s.id)
+    .filter(isBookingUuid);
+  const bookEmbed =
+    withBookingOnlyServices(
+      withBookingTheme(bookEmbedRaw, {
+        accent: P.accent,
+        ink: P.ink,
+        bg: P.bg,
+        card: P.surface,
+        muted: P.muted,
+        line: P.line,
+      }),
+      bookableIds,
+    ) || undefined;
   const canBook = Boolean(bookEmbed || bookHref);
   const phoneLbl = (p.phone || '').trim() || null;
   const addressLbl = (p.address || '').trim() || null;

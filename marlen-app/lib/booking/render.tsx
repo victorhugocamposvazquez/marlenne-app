@@ -44,6 +44,11 @@ export function renderBookingWizard({
 }) {
   if (!catalog.ok) return bookingUnavailable(catalog.code, embed);
 
+  const services =
+    preset.onlyServiceIds != null
+      ? catalog.services.filter(s => preset.onlyServiceIds!.includes(s.id))
+      : catalog.services;
+
   const serviceKey =
     bookingLink?.service_id
     || pathServiceSlug
@@ -53,7 +58,7 @@ export function renderBookingWizard({
     bookingLink?.provider_id
     || preset.providerSlug
     || preset.providerId;
-  const serviceId = resolveBookingServiceId(catalog.services, serviceKey);
+  const serviceId = resolveBookingServiceId(services, serviceKey);
   const providerId = resolveBookingProviderId(catalog.providers, providerKey);
   const customTitle = bookingLink?.custom_title || preset.title;
   const theme = themeOverride || preset.theme || null;
@@ -62,7 +67,7 @@ export function renderBookingWizard({
     <BookingWizard
       slug={salonSlug}
       salon={catalog.salon}
-      services={catalog.services}
+      services={services}
       providers={catalog.providers}
       presetServiceId={serviceId}
       presetProviderId={providerId}

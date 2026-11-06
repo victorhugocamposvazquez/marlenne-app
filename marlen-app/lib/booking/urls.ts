@@ -21,6 +21,12 @@ export type BookingLinkPreset = {
   linkKey?: string | null;
   /** Gama de la web del centro (override del widget embebido). */
   theme?: BookingThemeQuery | null;
+  /**
+   * IDs permitidos desde la web (toggle «Reserva online»).
+   * Si es array (aunque vacío), el widget filtra a esa lista.
+   * `null`/`undefined` = no filtrar (catálogo bookable_online completo).
+   */
+  onlyServiceIds?: string[] | null;
 };
 
 const TITLE_MAX = 80;
@@ -68,6 +74,10 @@ export function bookingQuery(preset: BookingLinkPreset = {}): string {
   else if (preset.providerId) q.set('provider', preset.providerId);
   const title = sanitizeBookingTitle(preset.title);
   if (title) q.set('title', title);
+  if (preset.onlyServiceIds) {
+    const ids = preset.onlyServiceIds.filter(isBookingUuid);
+    q.set('only', ids.length ? ids.join(',') : 'none');
+  }
   const th = preset.theme;
   if (th) {
     const accent = hexParam(th.accent);
@@ -129,6 +139,7 @@ export function parseBookingPreset(sp: {
   card?: string | string[];
   muted?: string | string[];
   line?: string | string[];
+  only?: string | string[];
 }): BookingLinkPreset {
   const one = (v: string | string[] | undefined) =>
     (Array.isArray(v) ? v[0] : v)?.trim() || null;
@@ -148,6 +159,12 @@ export function parseBookingPreset(sp: {
     accent || ink || bg || card || muted || line
       ? { accent, ink, bg, card, muted, line }
       : null;
+  const onlyRaw = one(sp.only);
+  let onlyServiceIds: string[] | null = null;
+  if (onlyRaw != null) {
+    if (!onlyRaw || onlyRaw === 'none') onlyServiceIds = [];
+    else onlyServiceIds = onlyRaw.split(',').map(s => s.trim()).filter(isBookingUuid);
+  }
   return {
     serviceId: serviceKey && isBookingUuid(serviceKey) ? serviceKey : null,
     serviceSlug: serviceKey && !isBookingUuid(serviceKey) ? serviceKey.toLowerCase() : null,
@@ -155,5 +172,6 @@ export function parseBookingPreset(sp: {
     providerSlug: providerKey && !isBookingUuid(providerKey) ? providerKey.toLowerCase() : null,
     title: sanitizeBookingTitle(one(sp.title) ?? one(sp.t)),
     theme,
+    onlyServiceIds,
   };
 }
