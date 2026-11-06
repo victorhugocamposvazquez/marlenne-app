@@ -14,6 +14,19 @@ export function sheetHeightForClientRows(rows: number): number {
   return SHEET_CHROME_PX + CLIENT_SEARCH_PX + Math.max(0, rows) * CLIENT_ROW_PX;
 }
 
+/**
+ * Hoja de marketing en el móvil: abajo la creatividad se ve grande,
+ * en medio cabe configurar, arriba casi todo es el panel.
+ */
+export function marketingSheetDetents(available: number): [number, number, number] {
+  const h = Math.max(420, available);
+  const peek = 188;
+  const mid = Math.round(Math.min(Math.max(h * 0.46, peek + 80), 400));
+  const tall = Math.round(h - 96);
+  const midC = Math.min(mid, tall - 64);
+  return [peek, Math.max(peek + 48, midC), Math.max(midC + 64, tall)];
+}
+
 export function sheetDetents(viewH: number): [number, number, number] {
   const h = Math.max(viewH, SHEET_MIN_PX + 96);
   const peek = Math.max(SHEET_MIN_PX, sheetHeightForClientRows(CLIENT_ROWS_PEEK));

@@ -10,6 +10,7 @@ import { LIMITS, type TextField, improveAll, pickLine, withClientVars } from '@/
 import { copyBlob, copyText, downloadBlob, nodeToPng, openEmail, openInstagram, openWhatsAppChat, shareBlob, slug } from '@/lib/marketing/export';
 import { stockProxyPath } from '@/lib/marketing/stock';
 import type { ImageFocus } from '@/lib/marketing/image-focus';
+import { useMarketingSheet } from '@/hooks/useMarketingSheet';
 import type { BankImage, CreativeConfig, CreativeType, ElementKey, Elements, Fields, FormatId, LibraryItem, StyleId, TabId, Tone, TypeId } from '@/lib/marketing/types';
 import type { ClientOption, ServiceOption } from '@/lib/types';
 import {
@@ -115,6 +116,7 @@ export default function MarketingStudio({
   useEffect(() => { setClients(clientsProp); }, [clientsProp]);
   const [view, setView] = useState<'home' | 'editor'>('home');
   const [ed, setEd] = useState<EditorState>(() => makeEditor({ type: 'reserva', style: 'card' }));
+  const sheet = useMarketingSheet(mobile && view === 'editor' && !!ed.tool);
   const patch = useCallback((p: Partial<EditorState> | ((e: EditorState) => Partial<EditorState>)) => setEd((e) => ({ ...e, ...(typeof p === 'function' ? p(e) : p) })), []);
   const [modal, setModal] = useState<ModalState | null>(null);
   const [done, setDone] = useState<DoneState | null>(null);
@@ -849,7 +851,7 @@ export default function MarketingStudio({
     </div>
   );
 
-  const pad = mobile ? 12 : 36;
+  const pad = mobile ? 6 : 36;
   const pw = preview.w || (mobile ? 390 : 900), ph = preview.h || (mobile ? 260 : 640);
   const previewW = Math.max(60, Math.floor(Math.min(pw - pad * 2, ((ph - pad * 2) * 1080) / F.H, mobile ? 999 : 620)));
 
@@ -1129,7 +1131,9 @@ export default function MarketingStudio({
     ['estilo', 'Estilo', PATH.palette],
     ['elementos', 'Elementos', PATH.shapes],
   ];
-  const SHEET_H = 430;
+  const sheetMotion: React.CSSProperties = {
+    transition: sheet.dragging ? 'none' : 'height .32s cubic-bezier(.22,.92,.28,1)',
+  };
   const floatBtn: React.CSSProperties = {
     position: 'absolute', top: 12, height: 44, padding: '0 14px', borderRadius: 999, border: 'none',
     background: '#fff', boxShadow: '0 2px 8px rgba(15,14,26,0.12)', color: '#0F0E1A',
@@ -1253,7 +1257,7 @@ export default function MarketingStudio({
       </div>
     </div>
   ) : (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+    <div ref={sheet.hostRef} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <div style={{ height: 60, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px' }}>
         <button type="button" className={css.circle} onClick={goHome} aria-label="Cerrar"><Icon d={PATH.close} size={20} stroke={2} /></button>
         <button
@@ -1288,7 +1292,7 @@ export default function MarketingStudio({
           </button>
         )}
       </div>
-      {ed.tool ? <div style={{ height: SHEET_H, flexShrink: 0 }} /> : (
+      {ed.tool ? <div style={{ height: sheet.height, flexShrink: 0, ...sheetMotion }} /> : (
         <div style={{ height: 96, flexShrink: 0, display: 'flex', gap: 2, padding: '8px 8px 26px', borderTop: '1px solid #ECEBF1', background: '#fff' }}>
           {TOOLS.map(([id, label, icon]) => (
             <button
@@ -1306,11 +1310,24 @@ export default function MarketingStudio({
         </div>
       )}
       {ed.tool && (
-        <div role="dialog" aria-label={TAB_LABEL[ed.tool]} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: SHEET_H, zIndex: 10, background: '#fff', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 40px rgba(15,14,26,0.14)', display: 'flex', flexDirection: 'column' }}>
-          <div className={css.handle} style={{ marginTop: 10 }} />
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '8px 16px 12px 20px', flexShrink: 0 }}>
-            <span style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.015em' }}>{TAB_LABEL[ed.tool]}</span>
-            <button type="button" className={cx(css.btn, css.primary)} style={{ padding: '0 20px', fontSize: 15 }} onClick={() => patch({ tool: null })}>Listo</button>
+        <div role="dialog" aria-label={TAB_LABEL[ed.tool]} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: sheet.height, zIndex: 10, background: '#fff', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 40px rgba(15,14,26,0.14)', display: 'flex', flexDirection: 'column', ...sheetMotion }}>
+          <div
+            role="slider"
+            aria-label="Alto del panel. Desliza hacia arriba para más opciones o hacia abajo para ver la creatividad más grande"
+            aria-orientation="vertical"
+            aria-valuemin={188}
+            aria-valuemax={720}
+            aria-valuenow={Math.round(sheet.height)}
+            onPointerDown={sheet.onHandleDown}
+            style={{ touchAction: 'none', flexShrink: 0, cursor: 'ns-resize', userSelect: 'none' }}
+          >
+            <div style={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className={cx(css.handle, sheet.hint && css.handleHint)} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '0 16px 12px 20px' }}>
+              <span style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.015em' }}>{TAB_LABEL[ed.tool]}</span>
+              <button type="button" className={cx(css.btn, css.primary)} style={{ padding: '0 20px', fontSize: 15 }} onPointerDown={(e) => e.stopPropagation()} onClick={() => patch({ tool: null })}>Listo</button>
+            </div>
           </div>
           <div className={css.scroll} style={{ padding: '0 20px 28px', display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexShrink: 0 }}>
@@ -1615,7 +1632,7 @@ export default function MarketingStudio({
       {modalView}
       {doneView}
       {toast && (
-        <div className={css.toast} style={{ bottom: mobile ? (view === 'editor' ? (ed.tool ? SHEET_H + 16 : 24) : 24) : 28 }} role="status">
+        <div className={css.toast} style={{ bottom: mobile ? (view === 'editor' ? (ed.tool ? sheet.height + 16 : 24) : 24) : 28 }} role="status">
           <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#fff', color: '#0F0E1A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon d={PATH.check} size={14} stroke={2.6} /></span>
           <span>{toast.msg}</span>
           {toast.action && <button type="button" className={css.toastAction} onClick={toast.action.fn}>{toast.action.label}</button>}

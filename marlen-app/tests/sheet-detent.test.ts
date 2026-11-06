@@ -4,10 +4,22 @@ import {
   CLIENT_ROWS_PEEK,
   nextSheetHeight,
   rubberHeight,
+  marketingSheetDetents,
   sheetDetents,
   sheetHeightForClientRows,
   snapSheetHeight,
 } from '../lib/sheet-detent';
+
+test('la hoja de marketing deja la creatividad más grande en el medio', () => {
+  const [peek, mid, tall] = marketingSheetDetents(740);
+  assert.equal(peek, 188);
+  assert.ok(mid < 430);
+  assert.ok(mid > peek);
+  assert.ok(tall > mid);
+  assert.equal(740 - tall, 96);
+  assert.equal(snapSheetHeight(mid + 30, [peek, mid, tall], -0.8), tall);
+  assert.equal(snapSheetHeight(mid - 20, [peek, mid, tall], 0.8), peek);
+});
 
 test('el tope bajo deja 3 clientas a la vista', () => {
   const [peek, mid, tall] = sheetDetents(800);
