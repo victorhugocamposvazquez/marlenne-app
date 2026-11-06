@@ -1,15 +1,41 @@
 /** Normaliza enlaces de Google / Instagram para la web del centro. */
 
+const IG_RESERVED = new Set([
+  'p', 'reel', 'reels', 'tv', 'stories', 'explore', 'accounts',
+  'about', 'legal', 'directory', 'direct', 'share',
+]);
+
+function validIgUser(raw: string): string | null {
+  const s = raw.replace(/^@+/, '').trim();
+  if (!/^[a-z0-9._]{1,30}$/i.test(s)) return null;
+  if (!/[a-z0-9]/i.test(s)) return null;
+  return s;
+}
+
+/** Acepta usuario, @usuario o URL del perfil (con o sin https). */
 export function parseInstagramUser(raw: string | null | undefined): string | null {
-  const v = (raw || '').trim();
+  let v = (raw || '').trim();
   if (!v) return null;
-  const u = v
-    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, '')
-    .replace(/[/?#].*$/, '')
-    .replace(/^@/, '')
-    .trim();
-  if (!/^[a-z0-9._]{2,30}$/i.test(u)) return null;
-  return u;
+  v = v.replace(/^@+/, '');
+
+  const looksUrl = /^(https?:\/\/)?((www|m|l)\.)?(instagram\.com|instagr\.am)\//i.test(v);
+  if (!looksUrl) return validIgUser(v.split(/[/?#\s]/)[0] || '');
+
+  if (!/^https?:\/\//i.test(v)) v = `https://${v}`;
+  let url: URL;
+  try {
+    url = new URL(v);
+  } catch {
+    return null;
+  }
+  const host = url.hostname.toLowerCase().replace(/^(www|m|l)\./, '');
+  if (host !== 'instagram.com' && host !== 'instagr.am') return null;
+  const parts = url.pathname.split('/').filter(Boolean).map(p => decodeURIComponent(p));
+  if (!parts.length) return null;
+  const first = parts[0].toLowerCase();
+  if (first === 'stories' && parts[1]) return validIgUser(parts[1]);
+  if (IG_RESERVED.has(first)) return null;
+  return validIgUser(parts[0]);
 }
 
 export function instagramProfileUrl(raw: string | null | undefined): string | null {
