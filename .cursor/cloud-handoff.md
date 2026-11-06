@@ -16,6 +16,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
+- 2026-11-07 — **Marketing:** Ideas abre otras formas y deja el diseño actual quieto hasta Usar esta; PR #49 → `main`.
 - 2026-11-06 — **Marketing:** el asidero recorre los altos en proporción, sin salto al extremo; PR #48 → `main`.
 - 2026-11-06 — **Marketing:** color propio en antetítulo, titular, subtítulo, precio y botón; PR #47 → `main`.
 - 2026-11-06 — **Marketing:** la hoja vuelve al medio al cerrar; flechas en el asidero; PR #46 → `main`.
@@ -57,4 +58,4 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 | **MacBook / Cursor local** | Al abrir el repo: **leer este archivo primero**. Si hay rama o PR en «Pendiente», continuar ahí antes de otra cosa. |
 | **Hugo** | Cuando algo esté en prod, borrar de «Pendiente» o pasarlo a «Hecho». |
 
-**Última actualización cloud:** 2026-11-06 — Marketing asidero proporcional PR #48 → `main`.
+**Última actualización cloud:** 2026-11-07 — Marketing Ideas otras formas PR #49 → `main`.
