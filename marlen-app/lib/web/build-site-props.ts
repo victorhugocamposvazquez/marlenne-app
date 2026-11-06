@@ -75,5 +75,8 @@ export function buildSiteProps(input: {
       about: c.photos.about,
       team: (c.photos.team || []).map(p => (p ? p.bg : null)),
     },
+    igMedia: c.feeds?.ig || [],
+    place: c.feeds?.place || null,
+    giftAmounts: c.giftAmounts || [30, 50, 100],
   };
 }

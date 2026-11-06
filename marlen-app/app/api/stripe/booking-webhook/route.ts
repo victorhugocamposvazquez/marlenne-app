@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { fulfillPaidBookingIntent } from '@/lib/booking/fulfill';
 import { stripeClient, stripeWebhookSecret } from '@/lib/booking/stripe';
+import { fulfillGiftOrder } from '@/lib/web/gift-checkout';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -29,6 +30,26 @@ export async function POST(req: Request) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
+    const pi =
+      typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : session.payment_intent?.id ?? null;
+
+    if (session.metadata?.kind === 'gift' || session.metadata?.gift_order_id) {
+      const orderId = session.metadata.gift_order_id;
+      if (!orderId) return NextResponse.json({ ok: true, skipped: true });
+      const r = await fulfillGiftOrder({
+        orderId,
+        stripeCheckoutSessionId: session.id,
+        stripePaymentIntentId: pi,
+      });
+      if (!r.ok) {
+        console.error('[stripe gift webhook]', orderId, r.error);
+        return NextResponse.json({ error: r.error }, { status: 500 });
+      }
+      return NextResponse.json({ ok: true, gift: true });
+    }
+
     const intentId = session.metadata?.booking_intent_id;
     if (!intentId) {
       return NextResponse.json({ ok: true, skipped: true });
@@ -56,10 +77,7 @@ export async function POST(req: Request) {
       intentId,
       bookingSlug: slug,
       stripeCheckoutSessionId: session.id,
-      stripePaymentIntentId:
-        typeof session.payment_intent === 'string'
-          ? session.payment_intent
-          : session.payment_intent?.id ?? null,
+      stripePaymentIntentId: pi,
     });
 
     if (!r.ok) {

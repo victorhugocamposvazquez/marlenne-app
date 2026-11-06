@@ -1,6 +1,7 @@
 import React from 'react';
+import GiftCardBuy from '@/components/web/GiftCardBuy';
 import { hex, luminance, mix } from '@/lib/marketing/color';
-import { googleMapsEmbedUrl, googlePlaceUrl, instagramProfileUrl, parseInstagramUser } from '@/lib/web/extras';
+import { googleMapsEmbedUrl, instagramProfileUrl, parseInstagramUser } from '@/lib/web/extras';
 import type { SiteProps, SiteService } from '@/lib/web/types';
 
 /**
@@ -49,7 +50,7 @@ export default function WebSite(p: SiteProps) {
   const igUser = parseInstagramUser(fx.igUser);
   const igHref = instagramProfileUrl(fx.igUser);
   const igLabel = igUser ? `@${igUser}` : null;
-  const gHref = googlePlaceUrl(fx.gUrl);
+  const igShowLink = Boolean(fx.igLink && igHref);
   const mapsEmbed = googleMapsEmbedUrl(fx.gUrl, addressLbl);
   const waDigits = String(fx.waNum || '').replace(/\D/g, '');
   const waHref = fx.wa && waDigits.length >= 9
@@ -57,6 +58,10 @@ export default function WebSite(p: SiteProps) {
     : null;
   const floatBook = showFloat && bookHref && (fx.book === 'float' || fx.book === 'both');
   const heroBg = PH.hero ? PH.hero.bg : img(0), aboutBg = PH.about ? PH.about.bg : img(3);
+  const igMedia = p.igMedia || [];
+  const place = p.place || null;
+  const giftAmounts = p.giftAmounts?.length ? p.giftAmounts : [30, 50, 100];
+  const giftPreview = giftAmounts.includes(50) ? 50 : giftAmounts[0] || 50;
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'BeautySalon',
@@ -265,48 +270,45 @@ export default function WebSite(p: SiteProps) {
         </section>
       )}
 
-      {fx.reviews && (
+      {fx.reviews && place?.reviews?.length ? (
         <section id="reseñas" style={{ padding: secPad, background: P.surface, display: 'flex', flexDirection: 'column', gap: secGap }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><Label>Reseñas</Label><H2>Lo que dicen en Google</H2></div>
-            {gHref && (
-              <a href={gHref} target="_blank" rel="noopener noreferrer" style={{ fontSize: 15, fontWeight: 600, color: accentText, textDecoration: 'none' }}>
-                Ver ficha en Google →
-              </a>
-            )}
-          </div>
-          {gHref ? (
-            <div style={{ display: 'grid', gridTemplateColumns: W('1.1fr 0.9fr', '1fr'), gap: W(24, 14), alignItems: 'stretch' }}>
-              <div style={{ background: P.bg, borderRadius: r, padding: W(32, 22), display: 'flex', flexDirection: 'column', gap: 18, justifyContent: 'center' }}>
-                <span style={{ color: dark ? P.accent : mix(P.accent, P.ink, 0.75), fontSize: W(28, 22), letterSpacing: 3 }}>★★★★★</span>
-                <p style={{ margin: 0, fontSize: lead, lineHeight: 1.55, color: P.muted, maxWidth: 440, ...pretty }}>
-                  Lee las reseñas reales de nuestras clientas en Google y, si vienes, déjanos la tuya.
-                </p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                  <Btn href={gHref} style={{ alignSelf: 'flex-start' }}>Ver reseñas en Google</Btn>
-                  <a
-                    href={gHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ height: btnH, padding: `0 ${btnPx}px`, borderRadius: L.br, border: `1.5px solid ${P.ink}`, color: P.ink, fontSize: btnFs, fontWeight: 600, display: 'flex', alignItems: 'center', textDecoration: 'none', whiteSpace: 'nowrap' }}
-                  >
-                    Dejar reseña
-                  </a>
-                </div>
-              </div>
-              {mapsEmbed && (
-                <div style={{ borderRadius: r, overflow: 'hidden', minHeight: W(320, 220), border: `1px solid ${P.line}`, background: P.bg }}>
-                  <iframe title="Mapa y ficha de Google" src={mapsEmbed} style={{ width: '100%', height: '100%', minHeight: W(320, 220), border: 'none', display: 'block' }} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
-                </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><Label>Reseñas</Label><H2>Lo que dicen en Google</H2></div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: W(28, 18) }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: head, fontWeight: headW, fontSize: W(48, 36), lineHeight: 1 }}>
+                {place.rating?.toFixed(1) ?? '—'}
+              </span>
+              <span style={{ color: dark ? P.accent : mix(P.accent, P.ink, 0.75), fontSize: W(22, 18), letterSpacing: 2 }}>
+                {'★'.repeat(Math.round(place.rating || 5))}
+              </span>
+              {place.userRatingCount != null && (
+                <span style={{ fontSize: meta, color: P.muted }}>
+                  {place.userRatingCount} reseñas en Google
+                </span>
               )}
             </div>
-          ) : (
-            <p style={{ margin: 0, fontSize: meta, color: P.muted, lineHeight: 1.5 }}>
-              Añade el enlace de tu ficha de Google en Extras para mostrar reseñas aquí.
-            </p>
-          )}
+            <div style={{ display: 'grid', gridTemplateColumns: W('repeat(3, minmax(0, 1fr))', '1fr'), gap: W(16, 12) }}>
+              {place.reviews.slice(0, 3).map((rev, i) => (
+                <blockquote
+                  key={`${rev.author}-${i}`}
+                  style={{ margin: 0, padding: W(24, 18), borderRadius: r, background: P.bg, display: 'flex', flexDirection: 'column', gap: 12 }}
+                >
+                  <span style={{ color: dark ? P.accent : mix(P.accent, P.ink, 0.75), letterSpacing: 2, fontSize: 14 }}>
+                    {'★'.repeat(Math.min(5, Math.max(1, Math.round(rev.rating))))}
+                  </span>
+                  <p style={{ margin: 0, fontSize: meta, lineHeight: 1.55, color: P.muted, ...pretty }}>
+                    {rev.text.length > 220 ? `${rev.text.slice(0, 217)}…` : rev.text}
+                  </p>
+                  <footer style={{ fontSize: 13, fontWeight: 600 }}>
+                    {rev.author}
+                    {rev.relativeTime ? <span style={{ fontWeight: 500, color: P.muted }}> · {rev.relativeTime}</span> : null}
+                  </footer>
+                </blockquote>
+              ))}
+            </div>
+          </div>
         </section>
-      )}
+      ) : null}
 
       {sec.equipo && (
         <section id="equipo" style={{ padding: secPad, background: menuLook ? P.bg : P.surface, display: 'flex', flexDirection: 'column', gap: secGap }}>
@@ -323,62 +325,83 @@ export default function WebSite(p: SiteProps) {
       )}
 
       {fx.gift && (
-        <section style={{ padding: secPad, display: 'grid', gridTemplateColumns: W('1fr 1fr', '1fr'), gap: W(80, 28), alignItems: 'center' }}>
+        <section id="regalo" style={{ padding: secPad, display: 'grid', gridTemplateColumns: W('1fr 1fr', '1fr'), gap: W(80, 28), alignItems: 'center' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <Label>Tarjeta regalo</Label><H2>Regala un rato para ti, o para quien tú quieras</H2>
-            <p style={{ margin: 0, fontSize: lead, lineHeight: 1.6, color: P.muted, maxWidth: 480 }}>Elige importe o tratamiento. Llega por email al momento y se canjea en el centro.</p>
-            <Btn style={{ alignSelf: 'flex-start' }}>Comprar tarjeta regalo</Btn>
+            <p style={{ margin: 0, fontSize: lead, lineHeight: 1.6, color: P.muted, maxWidth: 480 }}>
+              Elige importe ({giftAmounts.map(a => `${a} €`).join(', ')}). Pago seguro y canje en el centro.
+            </p>
+            {siteSlug ? (
+              <GiftCardBuy
+                slug={siteSlug}
+                amountsEur={giftAmounts}
+                accent={P.accent}
+                onAccent={P.onAccent}
+                ink={P.ink}
+                muted={P.muted}
+                line={P.line}
+                bg={P.bg}
+                radius={L.br}
+                btnHeight={btnH}
+                btnPx={btnPx}
+                btnFs={btnFs}
+              />
+            ) : (
+              <Btn style={{ alignSelf: 'flex-start' }}>Comprar tarjeta regalo</Btn>
+            )}
           </div>
           <div style={{ aspectRatio: '1.6', maxWidth: 520, width: '100%', justifySelf: 'center', borderRadius: Math.max(16, r), background: `linear-gradient(135deg, ${P.accent} 0%, ${mix(P.accent, '#1A1418', 0.7)} 100%)`, color: P.onAccent, padding: W(36, 22), display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 24px 60px rgba(0,0,0,0.18)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}><span style={{ fontFamily: head, fontWeight: headW, fontSize: sf ? W(30, 22) : W(20, 16) }}>{salon}</span><span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Tarjeta regalo</span></div>
-            <span style={{ fontFamily: head, fontWeight: headW, fontSize: sf ? W(96, 60) : W(72, 48), lineHeight: 1 }}>50 €</span>
+            <span style={{ fontFamily: head, fontWeight: headW, fontSize: sf ? W(96, 60) : W(72, 48), lineHeight: 1 }}>{giftPreview} €</span>
           </div>
         </section>
       )}
 
-      {fx.insta && (
+      {fx.insta && (igMedia.length > 0 || igShowLink) && (
         <section id="instagram" style={{ padding: secPad, background: menuLook ? P.bg : P.surface, display: 'flex', flexDirection: 'column', gap: secGap }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <Label>Instagram</Label>
-              <H2>{igLabel ? `Síguenos en ${igLabel}` : 'Nuestro Instagram'}</H2>
+              <H2>{igLabel ? `En ${igLabel}` : 'Nuestro Instagram'}</H2>
             </div>
-            {igHref && (
-              <a href={igHref} target="_blank" rel="noopener noreferrer" style={{ fontSize: 15, fontWeight: 600, color: accentText, textDecoration: 'none' }}>
+            {igShowLink && (
+              <a href={igHref!} target="_blank" rel="noopener noreferrer" style={{ fontSize: 15, fontWeight: 600, color: accentText, textDecoration: 'none' }}>
                 Ver perfil →
               </a>
             )}
           </div>
-          {igHref ? (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: W('repeat(6, minmax(0, 1fr))', 'repeat(3, minmax(0, 1fr))'), gap: W(12, 6) }}>
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <a
-                    key={i}
-                    href={igHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`Abrir Instagram ${igLabel || ''}`}
-                    style={{ position: 'relative', aspectRatio: '1', borderRadius: Math.min(r, 12), background: img(i + 2), display: 'block', overflow: 'hidden', textDecoration: 'none' }}
-                  >
-                    <span style={{ position: 'absolute', inset: 0, background: 'rgba(15,14,26,0.22)' }} />
-                    <span style={{ position: 'absolute', left: 10, bottom: 10, height: 26, padding: '0 10px', borderRadius: 999, background: 'rgba(15,14,26,0.55)', color: '#fff', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center' }}>
-                      Instagram
-                    </span>
-                  </a>
-                ))}
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
-                <Btn href={igHref} style={{ alignSelf: 'flex-start' }}>Abrir {igLabel || 'Instagram'}</Btn>
-                <span style={{ fontSize: 13, color: P.muted, lineHeight: 1.4 }}>
-                  Las fotos se ven en Instagram. Aquí te llevamos directo al perfil.
-                </span>
-              </div>
-            </>
-          ) : (
-            <p style={{ margin: 0, fontSize: meta, color: P.muted, lineHeight: 1.5 }}>
-              Escribe tu usuario de Instagram en Extras (por ejemplo @tucentro) para activar el enlace.
-            </p>
+          {igMedia.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: W('repeat(6, minmax(0, 1fr))', 'repeat(3, minmax(0, 1fr))'), gap: W(12, 6) }}>
+              {igMedia.slice(0, 6).map((m) => {
+                const tileStyle: React.CSSProperties = {
+                  aspectRatio: '1',
+                  borderRadius: Math.min(r, 12),
+                  background: `url("${m.mediaUrl}") center / cover no-repeat`,
+                  display: 'block',
+                  overflow: 'hidden',
+                  textDecoration: 'none',
+                };
+                const label = m.caption ? m.caption.slice(0, 80) : `Foto de Instagram${igLabel ? ` · ${igLabel}` : ''}`;
+                if (igShowLink) {
+                  return (
+                    <a
+                      key={m.id}
+                      href={m.permalink || igHref!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={label}
+                      style={tileStyle}
+                    />
+                  );
+                }
+                return <div key={m.id} role="img" aria-label={label} style={tileStyle} />;
+              })}
+            </div>
+          )}
+          {igShowLink && (
+            <Btn href={igHref!} style={{ alignSelf: 'flex-start' }}>
+              Abrir {igLabel || 'Instagram'}
+            </Btn>
           )}
         </section>
       )}

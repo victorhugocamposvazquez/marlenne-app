@@ -1,3 +1,6 @@
+import type { IgMedia } from '@/lib/web/instagram';
+import type { PlaceSnapshot } from '@/lib/web/places';
+
 export type HeroVariant = 'split' | 'full' | 'card' | 'stack';
 export type ServiceLayout = 'menu' | 'cards' | 'grid';
 export type Tone = 'cercano' | 'directo' | 'premium';
@@ -26,6 +29,8 @@ export interface Extras {
   reviews: boolean; gUrl: string;
   gift: boolean;
   insta: boolean; igUser: string;
+  /** Mostrar enlace / botón al perfil de Instagram (además del feed). */
+  igLink: boolean;
 }
 
 /** Valor de imagen: un `background` CSS (degradado del banco o url(...) de una foto subida) */
@@ -61,4 +66,10 @@ export interface SiteProps {
   showFloat?: boolean;
   /** Slug público para enlaces legales /s/{slug}/… */
   siteSlug?: string | null;
+  /** Media cacheada de Instagram Graph (si hay token). */
+  igMedia?: IgMedia[];
+  /** Snapshot Places (reseñas / rating). */
+  place?: PlaceSnapshot | null;
+  /** Importes tarjeta regalo (€). */
+  giftAmounts?: number[];
 }

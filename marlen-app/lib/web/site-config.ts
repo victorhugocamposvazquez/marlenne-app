@@ -1,5 +1,7 @@
 /** Config persistida de la web del centro (JSON en salon_sites.config). */
 
+import type { IgMedia } from '@/lib/web/instagram';
+import type { PlaceSnapshot } from '@/lib/web/places';
 import type {
   Extras,
   IconStyle,
@@ -10,6 +12,13 @@ import type {
   SiteTexts,
   Tone,
 } from '@/lib/web/types';
+
+export type SiteFeeds = {
+  ig?: IgMedia[];
+  igFetchedAt?: string | null;
+  place?: PlaceSnapshot | null;
+  placeFetchedAt?: string | null;
+};
 
 export type SalonSiteConfig = {
   tplId: string;
@@ -30,6 +39,10 @@ export type SalonSiteConfig = {
   hours: string;
   domMode: 'marlen' | 'own';
   ownDomain: string;
+  /** Importes de tarjeta regalo en euros (p. ej. 30, 50, 100). */
+  giftAmounts?: number[];
+  /** Caché de Instagram / Places (rellenada al publicar o refrescar). */
+  feeds?: SiteFeeds;
 };
 
 export type SalonSiteRow = {
@@ -68,6 +81,7 @@ export function emptySiteConfig(partial?: Partial<SalonSiteConfig>): SalonSiteCo
       gift: false,
       insta: false,
       igUser: '',
+      igLink: false,
     },
     svcs: [],
     svcMedia: null,
@@ -79,6 +93,8 @@ export function emptySiteConfig(partial?: Partial<SalonSiteConfig>): SalonSiteCo
     hours: '',
     domMode: 'marlen',
     ownDomain: '',
+    giftAmounts: [30, 50, 100],
+    feeds: {},
     ...partial,
   };
 }
@@ -87,6 +103,9 @@ export function parseSiteConfig(raw: unknown): SalonSiteConfig {
   const base = emptySiteConfig();
   if (!raw || typeof raw !== 'object') return base;
   const o = raw as Record<string, unknown>;
+  const giftAmounts = Array.isArray(o.giftAmounts)
+    ? (o.giftAmounts as number[]).map(n => Math.round(Number(n))).filter(n => n >= 5 && n <= 500)
+    : base.giftAmounts;
   return emptySiteConfig({
     ...(o as Partial<SalonSiteConfig>),
     fx: { ...base.fx, ...((o.fx as Extras) || {}) },
@@ -100,5 +119,7 @@ export function parseSiteConfig(raw: unknown): SalonSiteConfig {
     svcImg: (o.svcImg as Record<string, Photo>) || {},
     svcIcon: (o.svcIcon as Record<string, string>) || {},
     svcs: Array.isArray(o.svcs) ? (o.svcs as Service[]) : [],
+    giftAmounts: giftAmounts?.length ? giftAmounts : base.giftAmounts,
+    feeds: (o.feeds as SiteFeeds) || {},
   });
 }

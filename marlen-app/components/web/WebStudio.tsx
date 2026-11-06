@@ -12,7 +12,7 @@ import { searchStockByTheme } from '@/app/actions/marketing-stock';
 import { stockProxyPath } from '@/lib/marketing/stock';
 import { themeForService } from '@/lib/web/from-salon';
 import { isGooglePlaceUrl, parseInstagramUser } from '@/lib/web/extras';
-import { checkSiteSlug, publishSalonSite, saveSalonSiteDraft } from '@/app/actions/salon-site';
+import { checkCustomDomainStatus, checkSiteSlug, connectCustomDomain, publishSalonSite, saveSalonSiteDraft } from '@/app/actions/salon-site';
 import type { SalonSiteConfig, SalonSiteRow } from '@/lib/web/site-config';
 import { photoFromUrl, publicSiteUrl, vanitySiteHost } from '@/lib/web/site-urls';
 import { createClient } from '@/lib/supabase/client';
@@ -155,7 +155,16 @@ export default function WebStudio({
   const [domMode, setDomMode] = useState<'marlen' | 'own'>(cfg0?.domMode || 'marlen');
   const [sub, setSub] = useState(initialSite?.slug || slugify(salon).split('-')[0] || 'tucentro');
   const [own, setOwn] = useState(cfg0?.ownDomain || initialSite?.customDomain || '');
-  const [domStatus, setDomStatus] = useState<'idle' | 'checking' | 'ok'>(initialSite?.customDomain ? 'ok' : 'idle');
+  const [domStatus, setDomStatus] = useState<'idle' | 'checking' | 'ok' | 'fail'>(initialSite?.customDomain ? 'ok' : 'idle');
+  const [domMsg, setDomMsg] = useState<string | null>(null);
+  const [domVerify, setDomVerify] = useState<{ type: string; domain: string; value: string }[]>([]);
+  const [giftAmountsText, setGiftAmountsText] = useState(
+    (cfg0?.giftAmounts?.length ? cfg0.giftAmounts : [30, 50, 100]).join(', '),
+  );
+  const giftAmounts = giftAmountsText
+    .split(/[,;\s]+/)
+    .map(x => Math.round(Number(x)))
+    .filter(n => n >= 5 && n <= 500);
   const [published, setPublished] = useState(Boolean(initialSite?.publishedAt));
   const [dirty, setDirty] = useState(false);
   const [showPub, setShowPub] = useState(false);
@@ -175,6 +184,8 @@ export default function WebStudio({
 
   const collectConfig = (): SalonSiteConfig => ({
     tplId, palId, tone, txt, txtManual, sec, fx, svcs, svcMedia, iconStyle, svcImg, svcIcon, photos, zone, hours, domMode, ownDomain: own,
+    giftAmounts: giftAmounts.length ? giftAmounts : [30, 50, 100],
+    feeds: cfg0?.feeds,
   });
 
   const uploadPhoto = async (file: File, kind: string): Promise<Photo | null> => {
@@ -276,6 +287,9 @@ export default function WebStudio({
     team: teamRows,
     svcs: svcs.map((s) => ({ ...s, img: imgOf(s).bg, icon: iconOf(s) })),
     photos: { hero: photos.hero, about: photos.about, team: photos.team.map((p) => (p ? p.bg : null)) },
+    giftAmounts: giftAmounts.length ? giftAmounts : [30, 50, 100],
+    igMedia: cfg0?.feeds?.ig || [],
+    place: cfg0?.feeds?.place || null,
   };
 
   const pickTpl = (id: string, open: boolean) => {
@@ -306,11 +320,29 @@ export default function WebStudio({
     setSvcs(svcs.map((x) => (x.id !== id ? x : key === 'pub' && x.pub ? { ...x, pub: false, nov: false } : { ...x, [key]: !x[key] })));
     touch();
   };
-  const checkDns = () => {
-    if (domStatus === 'checking') return;
+  const checkDns = async () => {
+    if (domStatus === 'checking' || !own.trim()) return;
     setDomStatus('checking');
-    // DNS real: cuando exista wildcard + custom domain en Vercel. Hoy marcamos intención.
-    setTimeout(() => { setDomStatus('ok'); touch(); say('Dominio anotado · actívalo en DNS cuando toque'); }, 800);
+    setDomMsg(null);
+    const connect = await connectCustomDomain(own);
+    if (!connect.ok) {
+      setDomStatus('fail');
+      setDomMsg(connect.error);
+      say(connect.error);
+      return;
+    }
+    const status = await checkCustomDomainStatus(own);
+    if (!status.ok) {
+      setDomStatus('fail');
+      setDomMsg(status.error);
+      say(status.error);
+      return;
+    }
+    setDomVerify(status.verification || connect.verification || []);
+    setDomMsg(status.message);
+    setDomStatus(status.verified ? 'ok' : 'fail');
+    touch();
+    say(status.message);
   };
 
   useEffect(() => {
@@ -535,7 +567,7 @@ export default function WebStudio({
     if (name === 'gUrl') {
       const ok = isGooglePlaceUrl(v);
       hint = ok
-        ? '✓ Listo · en la web habrá botón y mapa a tu ficha de Google'
+        ? '✓ Al publicar, sacamos las reseñas y las mostramos en la web'
         : v
           ? 'Pega el enlace de «Compartir» de tu ficha de Google'
           : 'Lo encuentras en Google Maps › tu centro › Compartir';
@@ -544,7 +576,7 @@ export default function WebStudio({
     if (name === 'igUser') {
       const u = parseInstagramUser(v);
       hint = u
-        ? `✓ Listo · la web enlaza a @${u}`
+        ? `✓ Al publicar, el feed de @${u} se muestra en la web`
         : v
           ? 'Usuario no válido. Prueba @tucentro o el enlace del perfil'
           : 'Escribe tu usuario, por ejemplo @tucentro';
@@ -570,17 +602,42 @@ export default function WebStudio({
       {([
         ['wa', 'WhatsApp directo', 'Botón flotante que abre un chat contigo', 'M4 20l1.4-4.2A8 8 0 1 1 8.4 19z', [['waNum', 'Número de WhatsApp', '600 000 000'], ['waMsg', 'Mensaje que se escribe solo', '']]],
         ['bar', 'Barra de aviso', 'Una promo o novedad arriba del todo', 'M4 6h16v5H4zM7 15h10M9 19h6', [['barText', 'Texto de la barra', '']]],
-        ['reviews', 'Reseñas de Google', 'Botón y mapa a tu ficha de Google', ICONS[9][1], [['gUrl', 'Enlace de tu ficha de Google', 'https://g.page/r/…']]],
-        ['gift', 'Tarjetas regalo', 'Venta online; se canjean en tu agenda', 'M3 8h18v5H3zM5 13v8h14v-8M12 8v13M12 8C10 4 6 4 6 6.5S9 8 12 8zM12 8c2-4 6-4 6-1.5S15 8 12 8z', []],
-        ['insta', 'Instagram', 'Enlace a tu perfil desde la web', 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0M17 7h.01', [['igUser', 'Usuario o enlace de Instagram', '@tucentro']]],
+        ['reviews', 'Reseñas de Google', 'Solo se muestran en tu web (sin enlaces)', ICONS[9][1], [['gUrl', 'Enlace de tu ficha de Google', 'https://g.page/r/…']]],
+        ['gift', 'Tarjetas regalo', 'Checkout Stripe; canje en el centro', 'M3 8h18v5H3zM5 13v8h14v-8M12 8v13M12 8C10 4 6 4 6 6.5S9 8 12 8zM12 8c2-4 6-4 6-1.5S15 8 12 8z', []],
+        ['insta', 'Instagram', 'Feed en la web; el enlace al perfil es opcional', 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0M17 7h.01', [['igUser', 'Usuario o enlace de Instagram', '@tucentro']]],
       ] as [keyof Extras, string, string, string, [keyof Extras, string, string][]][]).map(([k, label, desc, d, fields]) => { const on = !!fx[k]; return (
         <div key={k} style={{ borderRadius: 14, border: `1.5px solid ${on ? INK : LINE}`, background: '#fff' }}>
-          <button type="button" onClick={() => { setFx({ ...fx, [k]: !on }); touch(); }} style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 60, padding: '10px 14px', border: 'none', background: 'none', color: INK, textAlign: 'left', cursor: 'pointer' }}>
+          <button type="button" onClick={() => { setFx({ ...fx, [k]: !on, ...(k === 'insta' && on ? { igLink: false } : {}) }); touch(); }} style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 60, padding: '10px 14px', border: 'none', background: 'none', color: INK, textAlign: 'left', cursor: 'pointer' }}>
             <span style={{ width: 36, height: 36, borderRadius: 10, background: on ? INK : SOFT, color: on ? '#fff' : INK, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon d={d} size={19} /></span>
             <span style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}><span style={{ fontSize: 14, fontWeight: 600 }}>{label}</span><span style={{ fontSize: 12, color: MUTED, lineHeight: 1.35 }}>{desc}</span></span>
             <Switch on={on} w={40} />
           </button>
           {on && fields.length > 0 && <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 14px 14px 62px' }}>{fields.map(([n, l, ph]) => fxField(n, l, ph))}</div>}
+          {on && k === 'insta' && (
+            <button
+              type="button"
+              onClick={() => { setFx({ ...fx, igLink: !fx.igLink }); touch(); }}
+              style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '4px 14px 14px 62px', border: 'none', background: 'none', color: INK, textAlign: 'left', cursor: 'pointer' }}
+            >
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>Enlace y botón al perfil</span>
+                <span style={{ fontSize: 12, color: MUTED, lineHeight: 1.35 }}>«Ver perfil» y fotos clicables hacia Instagram</span>
+              </span>
+              <Switch on={!!fx.igLink} w={40} />
+            </button>
+          )}
+          {on && k === 'gift' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 14px 14px 62px' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#4A4957' }}>Importes (€), separados por coma</span>
+              <input
+                value={giftAmountsText}
+                placeholder="30, 50, 100"
+                onChange={(e) => { setGiftAmountsText(e.target.value); touch(); }}
+                style={{ ...input(mob), borderRadius: 10, padding: '0 12px' }}
+              />
+              <span style={{ fontSize: 12, color: MUTED }}>Se cobran con el mismo Stripe de reservas.</span>
+            </div>
+          )}
         </div>
       ); })}
       <H>Incluido siempre</H>
@@ -631,9 +688,25 @@ export default function WebStudio({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 700 }}>3 · Comprueba la conexión</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <button type="button" onClick={checkDns} style={{ ...btn(), height: 40, border: `1.5px solid ${INK}`, fontSize: 13 }}>{domStatus === 'checking' ? 'Comprobando…' : domStatus === 'ok' ? 'Volver a comprobar' : 'Comprobar conexión'}</button>
-                <span style={{ fontSize: 13, fontWeight: 600, color: { idle: MUTED, checking: '#B26A00', ok: GREEN }[domStatus] }}>● {{ idle: 'Sin conectar', checking: 'Buscando tus registros…', ok: 'Conectado · https activo' }[domStatus]}</span>
+                <button type="button" onClick={() => void checkDns()} style={{ ...btn(), height: 40, border: `1.5px solid ${INK}`, fontSize: 13 }}>{domStatus === 'checking' ? 'Comprobando…' : domStatus === 'ok' ? 'Volver a comprobar' : 'Comprobar conexión'}</button>
+                <span style={{ fontSize: 13, fontWeight: 600, color: { idle: MUTED, checking: '#B26A00', ok: GREEN, fail: '#B42318' }[domStatus] }}>● {{ idle: 'Sin conectar', checking: 'Añadiendo dominio en Vercel…', ok: 'Conectado · https activo', fail: 'Pendiente de DNS' }[domStatus]}</span>
               </div>
+              {domMsg && <span style={{ fontSize: 12, color: MUTED, lineHeight: 1.4 }}>{domMsg}</span>}
+              {domVerify.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700 }}>Registro de verificación</span>
+                  {domVerify.map((v, i) => (
+                    <div key={`${v.type}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 10px 10px 12px', borderRadius: 12, background: CANVAS }}>
+                      <span style={{ width: 54, fontSize: 12, fontWeight: 700 }}>{v.type}</span>
+                      <span style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                        <span style={{ fontSize: 11, color: MUTED }}>Nombre {v.domain}</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, fontFamily: 'ui-monospace, Menlo, monospace', overflow: 'hidden', textOverflow: 'ellipsis' }}>{v.value}</span>
+                      </span>
+                      <button type="button" onClick={() => copy(v.value, 'Valor copiado')} style={{ ...btn(), height: 34, padding: '0 12px', fontSize: 12 }}>Copiar</button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <span style={{ fontSize: 12, color: MUTED }}>Los cambios de DNS pueden tardar hasta 24 h. Mientras, tu web funciona en {sub}.marlenapp.com.</span>
             </div>
           </div>
