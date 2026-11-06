@@ -116,6 +116,16 @@
   74% { transform: translateY(-4px); }
 }
 
+/* hay más abajo */
+.scrollMore { position: absolute; left: 0; right: 0; bottom: 0; height: 72px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 12px; background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,.92) 55%, #fff 100%); pointer-events: none; opacity: 0; transition: opacity .2s ease; }
+.scrollMore[data-on] { opacity: 1; }
+.scrollMoreBtn { pointer-events: none; height: 32px; padding: 0 12px 0 14px; border: none; border-radius: 999px; background: #0F0E1A; color: #fff; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 4px 14px rgba(15,14,26,.22); cursor: pointer; }
+.scrollMore[data-on] .scrollMoreBtn { pointer-events: auto; animation: scrollMoreBob 1.4s ease-in-out 3; }
+@keyframes scrollMoreBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(3px); }
+}
+
 /* aviso */
 .toast { position: absolute; left: 16px; right: 16px; margin: 0 auto; width: fit-content; max-width: calc(100% - 32px); background: #0F0E1A; color: #fff; padding: 12px 16px; border-radius: 14px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 500; line-height: 1.35; box-shadow: 0 12px 32px rgba(15,14,26,.24); z-index: 40; }
 .toastAction { margin-left: 4px; height: 28px; padding: 0 10px; border: none; border-radius: 8px; background: rgba(255,255,255,.16); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; flex-shrink: 0; }
