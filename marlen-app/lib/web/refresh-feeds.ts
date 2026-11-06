@@ -9,9 +9,13 @@ export async function refreshSiteFeeds(config: SalonSiteConfig): Promise<SiteFee
   const now = new Date().toISOString();
 
   if (config.fx.insta) {
-    const ig = await fetchInstagramMedia(9);
+    const ig = await fetchInstagramMedia(9, { username: config.fx.igUser });
     if (ig.ok && ig.configured && ig.media.length) {
       next.ig = ig.media;
+      next.igFetchedAt = now;
+    } else if (ig.ok && ig.configured) {
+      // Cuenta sin posts o discovery vacío: limpia caché vieja de otro @.
+      next.ig = [];
       next.igFetchedAt = now;
     } else if (!prev.ig?.length) {
       next.ig = [];

@@ -8,6 +8,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Pendiente (hazlo en el MacBook o mergea la rama cloud)
 
+- **Web Instagram feed:** rama `cursor/web-instagram-feed-5156` — carga feed por @usuario (Business Discovery) + mosaico si no hay Graph.
 - **Supabase Auth:** Site URL + Redirect URLs → `https://app.marlenapp.com` (y `/**`). Mantener `marlenne-app.vercel.app` un tiempo.
 - **Vercel `marlen-website`:** conectar GitHub del monorepo (falló por Login Connection) para deploys automáticos; Root `main-website`.
 - Equipo: reinstalar PWA desde `https://app.marlenapp.com`.

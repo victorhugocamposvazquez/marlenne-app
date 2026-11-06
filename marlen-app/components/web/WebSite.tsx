@@ -8,6 +8,7 @@ import { hex, luminance, mix } from '@/lib/marketing/color';
 import { isBookingUuid } from '@/lib/booking/urls';
 import { bookingPageToEmbedUrl, isBookingPageUrl, withBookingOnlyServices, withBookingTheme } from '@/lib/web/booking-urls';
 import { googleMapsEmbedUrl, instagramProfileUrl, parseInstagramUser } from '@/lib/web/extras';
+import { igLayoutPlaceholders } from '@/lib/web/instagram';
 import type { IgLayout, SiteProps, SiteService } from '@/lib/web/types';
 
 /**
@@ -87,7 +88,12 @@ export default function WebSite(p: SiteProps) {
   const heroBg = PH.hero ? PH.hero.bg : img(0), aboutBg = PH.about ? PH.about.bg : img(3);
   const [bookOpen, setBookOpen] = useState(false);
   const openBook = () => { if (canBook) setBookOpen(true); };
-  const igMedia = p.igMedia || [];
+  const igMediaRaw = p.igMedia || [];
+  const igMedia = igMediaRaw.length
+    ? igMediaRaw
+    : (fx.insta && igUser
+      ? igLayoutPlaceholders(P.accent, igHref)
+      : []);
   const place = p.place || null;
   const giftAmounts = p.giftAmounts?.length ? p.giftAmounts : [30, 50, 100];
   const giftPreview = giftAmounts.includes(50) ? 50 : giftAmounts[0] || 50;
@@ -565,7 +571,7 @@ export default function WebSite(p: SiteProps) {
           </div>
           {igMedia.length > 0 ? (
             <IgFeed
-              key={`ig-${(fx.igLayout as IgLayout) || 'carousel'}-${igMedia.length}`}
+              key={`ig-${(fx.igLayout as IgLayout) || 'carousel'}-${igMedia.length}-${igMediaRaw.length ? 'live' : 'ph'}`}
               media={igMedia}
               layout={(fx.igLayout as IgLayout) || 'carousel'}
               narrow={n}
@@ -576,26 +582,16 @@ export default function WebSite(p: SiteProps) {
               accent={P.accent}
               surface={P.surface}
               bg={P.bg}
-              linkPosts={igShowLink}
+              linkPosts={igShowLink || !igMediaRaw.length}
               profileHref={igHref}
               profileLabel={igLabel}
             />
-          ) : igUser ? (
-            <div style={{ borderRadius: Math.max(12, r), overflow: 'hidden', border: `1px solid ${P.line}`, background: P.bg, minHeight: W(540, 420) }}>
-              <iframe
-                title={`Instagram ${igLabel || ''}`}
-                src={`https://www.instagram.com/${encodeURIComponent(igUser)}/embed`}
-                style={{ width: '100%', height: W(540, 420), border: 'none', display: 'block' }}
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-              />
-            </div>
           ) : (
             <p style={{ margin: 0, fontSize: meta, color: P.muted, lineHeight: 1.5 }}>
               Escribe tu usuario de Instagram en Extras (ej. @tucentro).
             </p>
           )}
-          {igShowLink && igHref && (
+          {igHref && (igShowLink || !igMediaRaw.length) && (
             <Btn href={igHref} style={{ alignSelf: 'flex-start' }}>
               Abrir {igLabel || 'Instagram'}
             </Btn>
