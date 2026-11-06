@@ -39,6 +39,16 @@ function Tile({
   const label = m.caption
     ? m.caption.slice(0, 100)
     : `Foto de Instagram${profileLabel ? ` · ${profileLabel}` : ''}`;
+  // `gradient:i:#hex` = mosaico de preview en el editor (sin Graph API).
+  const tileBg = m.mediaUrl.startsWith('gradient:')
+    ? (() => {
+        const parts = m.mediaUrl.split(':');
+        const i = Number(parts[1]) || 0;
+        const accent = parts[2] || '#C4B5A8';
+        const angles = [135, 160, 200, 115, 175, 95];
+        return `linear-gradient(${angles[i % angles.length]}deg, ${accent}55 0%, #1A1418 100%)`;
+      })()
+    : `url("${m.mediaUrl}") center / cover no-repeat`;
   const body = (
     <>
       <span
@@ -46,7 +56,7 @@ function Tile({
         style={{
           position: 'absolute',
           inset: 0,
-          background: `url("${m.mediaUrl}") center / cover no-repeat`,
+          background: tileBg,
           transition: 'transform .55s cubic-bezier(.22,1,.36,1)',
         }}
         className="ig-tile-img"

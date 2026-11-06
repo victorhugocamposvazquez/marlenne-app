@@ -565,6 +565,7 @@ export default function WebSite(p: SiteProps) {
           </div>
           {igMedia.length > 0 ? (
             <IgFeed
+              key={`ig-${(fx.igLayout as IgLayout) || 'carousel'}-${igMedia.length}`}
               media={igMedia}
               layout={(fx.igLayout as IgLayout) || 'carousel'}
               narrow={n}

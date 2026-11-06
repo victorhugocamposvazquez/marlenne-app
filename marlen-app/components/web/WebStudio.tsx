@@ -15,11 +15,22 @@ import { isGooglePlaceUrl, parseInstagramUser } from '@/lib/web/extras';
 import { checkBookingSlug, saveSalonBookingSlug, suggestBookingSlug } from '@/app/actions/booking-slug';
 import { listServiceBookFlags, setServiceBookableOnline } from '@/app/actions/services';
 import { checkCustomDomainStatus, checkSiteSlug, connectCustomDomain, publishSalonSite, saveSalonSiteDraft } from '@/app/actions/salon-site';
-import type { SalonSiteConfig, SalonSiteRow } from '@/lib/web/site-config';
+import type { SalonSiteConfig, SalonSiteRow, SiteFeeds } from '@/lib/web/site-config';
+import type { IgMedia } from '@/lib/web/instagram';
 import { bookingPageToEmbedUrl } from '@/lib/web/booking-urls';
 import { photoFromUrl, publicSiteUrl, vanitySiteHost } from '@/lib/web/site-urls';
 import { createClient } from '@/lib/supabase/client';
 import { compressImage } from '@/hooks/compressImage';
+
+/** Mosaico de preview para probar carrusel/destacado/cuadrícula sin Graph API. */
+function igLayoutPlaceholders(accent: string, href: string | null): IgMedia[] {
+  return Array.from({ length: 6 }, (_, i) => ({
+    id: `ig-preview-${i}`,
+    mediaUrl: `gradient:${i}:${accent}`,
+    permalink: href || '#',
+    caption: i === 0 ? 'Vista previa del formato' : undefined,
+  }));
+}
 
 const INK = '#0F0E1A', MUTED = '#6E6D7A', SOFT = '#F2F2F7', CANVAS = '#F6F6F9', LINE = '#ECEBF1', BORDER = '#E4E3EA', GREEN = '#1A7F4E', MAGENTA = '#D000A8';
 const P_LOCK = 'M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5z', P_CHECK = 'M5 12l5 5 9-10', P_BACK = 'M15 5l-7 7 7 7', P_NEXT = 'M5 12h14M13 6l6 6-6 6', P_UP = 'M12 16V5M7 10l5-5 5 5M5 19h14';
@@ -178,6 +189,7 @@ export default function WebStudio({
   const [domStatus, setDomStatus] = useState<'idle' | 'checking' | 'ok' | 'fail'>(initialSite?.customDomain ? 'ok' : 'idle');
   const [domMsg, setDomMsg] = useState<string | null>(null);
   const [domVerify, setDomVerify] = useState<{ type: string; domain: string; value: string }[]>([]);
+  const [feeds, setFeeds] = useState<SiteFeeds>(cfg0?.feeds || {});
   const [giftAmountsText, setGiftAmountsText] = useState(
     (cfg0?.giftAmounts?.length ? cfg0.giftAmounts : [30, 50, 100]).join(', '),
   );
@@ -285,7 +297,7 @@ export default function WebStudio({
   const collectConfig = (): SalonSiteConfig => ({
     tplId, palId, tone, txt, txtManual, sec, fx, svcs, svcMedia, iconStyle, svcImg, svcIcon, photos, zone, hours, domMode, ownDomain: own,
     giftAmounts: giftAmounts.length ? giftAmounts : [30, 50, 100],
-    feeds: cfg0?.feeds,
+    feeds,
     themeAccent: P.accent,
   });
   const tabIdx = Math.max(0, TABS.findIndex((x) => x[0] === tab));
@@ -301,6 +313,12 @@ export default function WebStudio({
     return bankImg(demo ? demo[0] : th, demo ? demo[1] : 0);
   };
   const iconOf = (s: Service) => svcIcon[s.id] || ICONS[(SERVICE_MEDIA[s.id] || ['', 0, 0])[2] ?? 0]?.[1] || ICONS[0][1];
+  const igUserLive = parseInstagramUser(fx.igUser);
+  const igHrefLive = igUserLive ? `https://www.instagram.com/${igUserLive}/` : null;
+  const realIg = feeds.ig || [];
+  const igMediaPreview = realIg.length
+    ? realIg
+    : (fx.insta && igUserLive ? igLayoutPlaceholders(P.accent, igHrefLive) : []);
   const siteProps = {
     look: lookOf(T), pal: P, txt, sec, fx, svcMedia: media, iconStyle, salon, logo,
     bookingUrl: bookingUrl || undefined,
@@ -315,8 +333,8 @@ export default function WebStudio({
     svcs: svcs.map((s) => ({ ...s, img: imgOf(s).bg, icon: iconOf(s) })),
     photos: { hero: photos.hero, about: photos.about, team: photos.team.map((p) => (p ? p.bg : null)) },
     giftAmounts: giftAmounts.length ? giftAmounts : [30, 50, 100],
-    igMedia: cfg0?.feeds?.ig || [],
-    place: cfg0?.feeds?.place || null,
+    igMedia: igMediaPreview,
+    place: feeds.place || null,
   };
 
   const pickTpl = (id: string, open: boolean) => {
@@ -331,6 +349,7 @@ export default function WebStudio({
     const r = await saveSalonSiteDraft({ slug: sub, config: collectConfig(), customDomain: domMode === 'own' ? own : null });
     setBusy(false);
     if (!r.ok) { say(r.error); return false; }
+    if (r.site.config.feeds) setFeeds(r.site.config.feeds);
     setPubUrl(r.url); setDirty(false); say('Borrador guardado'); return true;
   };
   const publish = async () => {
@@ -338,6 +357,7 @@ export default function WebStudio({
     const r = await publishSalonSite({ slug: sub, config: collectConfig(), customDomain: domMode === 'own' ? own : null });
     setBusy(false);
     if (!r.ok) { say(r.error); return; }
+    if (r.site.config.feeds) setFeeds(r.site.config.feeds);
     setPublished(true); setDirty(false); setPubUrl(r.url); setShowPub(true); setTool(null); say('Web publicada');
   };
   const copy = async (text: string, msg = 'Copiado') => { try { await navigator.clipboard.writeText(text); } catch { /* sin permiso */ } say(msg); };
@@ -732,12 +752,12 @@ export default function WebStudio({
             <span style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}><span style={{ fontSize: 14, fontWeight: 600 }}>{label}</span><span style={{ fontSize: 12, color: MUTED, lineHeight: 1.35 }}>{desc}</span></span>
             <Switch on={on} w={40} />
           </button>
-          {on && fields.length > 0 && <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 14px 14px 62px' }}>{fields.map(([n, l, ph]) => fxField(n, l, ph))}</div>}
+          {on && fields.length > 0 && <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 14px 14px' }}>{fields.map(([n, l, ph]) => fxField(n, l, ph))}</div>}
           {on && k === 'insta' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 14px 14px 62px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 14px 14px', minWidth: 0 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#4A4957' }}>Cómo se muestran las fotos</span>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
                   {([
                     ['carousel', 'Carrusel', 'Desliza y autoavanza'],
                     ['spotlight', 'Destacado', 'Una grande + rejilla'],
@@ -748,20 +768,34 @@ export default function WebStudio({
                       <button
                         key={id}
                         type="button"
-                        onClick={() => { setFx({ ...fx, igLayout: id }); touch(); }}
+                        onClick={() => { setFx({ ...fx, igLayout: id }); touch(); say(label); }}
                         style={{
-                          display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2,
-                          padding: '10px 10px', borderRadius: 12,
-                          border: `1.5px solid ${sel ? INK : LINE}`, background: '#fff', color: INK,
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                          width: '100%', boxSizing: 'border-box',
+                          padding: '10px 12px', borderRadius: 12,
+                          border: `1.5px solid ${sel ? INK : LINE}`, background: sel ? SOFT : '#fff', color: INK,
                           textAlign: 'left', cursor: 'pointer',
                         }}
                       >
-                        <span style={{ fontSize: 13, fontWeight: 600 }}>{label}</span>
-                        <span style={{ fontSize: 11, color: MUTED, lineHeight: 1.3 }}>{desc}</span>
+                        <span style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600 }}>{label}</span>
+                          <span style={{ fontSize: 11, color: MUTED, lineHeight: 1.3 }}>{desc}</span>
+                        </span>
+                        <span style={{
+                          width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                          border: `2px solid ${sel ? GREEN : LINE}`,
+                          background: sel ? GREEN : 'transparent',
+                          boxShadow: sel ? 'inset 0 0 0 3px #fff' : 'none',
+                        }} />
                       </button>
                     );
                   })}
                 </div>
+                {!(feeds.ig?.length) && (
+                  <span style={{ fontSize: 11, color: MUTED, lineHeight: 1.4 }}>
+                    Vista previa del formato. Fotos reales al guardar con Graph API; si no, la web publicada usa el perfil embebido.
+                  </span>
+                )}
               </div>
               <button
                 type="button"
@@ -777,7 +811,7 @@ export default function WebStudio({
             </div>
           )}
           {on && k === 'gift' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 14px 14px 62px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 14px 14px' }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: '#4A4957' }}>Importes (€), separados por coma</span>
               <input
                 value={giftAmountsText}
