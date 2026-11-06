@@ -11,6 +11,7 @@ import type { BookingMode, Extras, IconStyle, Photo, Sections, Service, ServiceM
 import { searchStockByTheme } from '@/app/actions/marketing-stock';
 import { stockProxyPath } from '@/lib/marketing/stock';
 import { themeForService } from '@/lib/web/from-salon';
+import { isGooglePlaceUrl, parseInstagramUser } from '@/lib/web/extras';
 
 const INK = '#0F0E1A', MUTED = '#6E6D7A', SOFT = '#F2F2F7', CANVAS = '#F6F6F9', LINE = '#ECEBF1', BORDER = '#E4E3EA', GREEN = '#1A7F4E', MAGENTA = '#D000A8';
 const P_LOCK = 'M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5z', P_CHECK = 'M5 12l5 5 9-10', P_BACK = 'M15 5l-7 7 7 7', P_NEXT = 'M5 12h14M13 6l6 6-6 6', P_UP = 'M12 16V5M7 10l5-5 5 5M5 19h14';
@@ -437,8 +438,24 @@ export default function WebStudio({
 
   const fxField = (name: keyof Extras, label: string, ph: string) => {
     const v = String(fx[name] || '').trim(); let hint = '', hc = MUTED;
-    if (name === 'gUrl') { const ok = /(google\.|g\.page|goo\.gl|maps\.app)/i.test(v); hint = ok ? '✓ Ficha encontrada · reseñas importadas' : v ? 'Pega el enlace de «Compartir» de tu ficha de Google' : 'Lo encuentras en Google Maps › tu centro › Compartir'; hc = ok ? GREEN : MUTED; }
-    if (name === 'igUser') { const u = v.replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/[/?].*$/, '').replace(/^@/, ''); const ok = /^[a-z0-9._]{2,30}$/i.test(u); hint = ok ? `✓ Conectado a @${u} · 6 últimas publicaciones` : 'Escribe tu usuario, por ejemplo @tucentro'; hc = ok ? GREEN : '#B42318'; }
+    if (name === 'gUrl') {
+      const ok = isGooglePlaceUrl(v);
+      hint = ok
+        ? '✓ Listo · en la web habrá botón y mapa a tu ficha de Google'
+        : v
+          ? 'Pega el enlace de «Compartir» de tu ficha de Google'
+          : 'Lo encuentras en Google Maps › tu centro › Compartir';
+      hc = ok ? GREEN : MUTED;
+    }
+    if (name === 'igUser') {
+      const u = parseInstagramUser(v);
+      hint = u
+        ? `✓ Listo · la web enlaza a @${u}`
+        : v
+          ? 'Usuario no válido. Prueba @tucentro o el enlace del perfil'
+          : 'Escribe tu usuario, por ejemplo @tucentro';
+      hc = u ? GREEN : (v ? '#B42318' : MUTED);
+    }
     return (
       <label key={name} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <span style={{ fontSize: 12, fontWeight: 600, color: '#4A4957' }}>{label}</span>
@@ -459,9 +476,9 @@ export default function WebStudio({
       {([
         ['wa', 'WhatsApp directo', 'Botón flotante que abre un chat contigo', 'M4 20l1.4-4.2A8 8 0 1 1 8.4 19z', [['waNum', 'Número de WhatsApp', '600 000 000'], ['waMsg', 'Mensaje que se escribe solo', '']]],
         ['bar', 'Barra de aviso', 'Una promo o novedad arriba del todo', 'M4 6h16v5H4zM7 15h10M9 19h6', [['barText', 'Texto de la barra', '']]],
-        ['reviews', 'Reseñas de Google', 'Se importan de tu ficha y se actualizan solas', ICONS[9][1], [['gUrl', 'Enlace de tu ficha de Google', 'https://g.page/r/…']]],
+        ['reviews', 'Reseñas de Google', 'Botón y mapa a tu ficha de Google', ICONS[9][1], [['gUrl', 'Enlace de tu ficha de Google', 'https://g.page/r/…']]],
         ['gift', 'Tarjetas regalo', 'Venta online; se canjean en tu agenda', 'M3 8h18v5H3zM5 13v8h14v-8M12 8v13M12 8C10 4 6 4 6 6.5S9 8 12 8zM12 8c2-4 6-4 6-1.5S15 8 12 8z', []],
-        ['insta', 'Instagram', 'Tus 6 últimas publicaciones', 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0M17 7h.01', [['igUser', 'Usuario o enlace de Instagram', '@tucentro']]],
+        ['insta', 'Instagram', 'Enlace a tu perfil desde la web', 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0M17 7h.01', [['igUser', 'Usuario o enlace de Instagram', '@tucentro']]],
       ] as [keyof Extras, string, string, string, [keyof Extras, string, string][]][]).map(([k, label, desc, d, fields]) => { const on = !!fx[k]; return (
         <div key={k} style={{ borderRadius: 14, border: `1.5px solid ${on ? INK : LINE}`, background: '#fff' }}>
           <button type="button" onClick={() => { setFx({ ...fx, [k]: !on }); touch(); }} style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 60, padding: '10px 14px', border: 'none', background: 'none', color: INK, textAlign: 'left', cursor: 'pointer' }}>

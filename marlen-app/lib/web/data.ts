@@ -81,9 +81,9 @@ export const SERVICES: Service[] = [
 export const TEAM: [string, string][] = [['Lucía Martín', 'Cejas y pestañas'], ['Carmen Ruiz', 'Facial y corporal'], ['Ana Gil', 'Manicura y pedicura']];
 
 export const DEFAULT_EXTRAS: Extras = {
-  book: 'float', wa: true, waNum: '612 345 678', waMsg: 'Hola, quiero pedir cita',
-  bar: false, barText: '−15 % en tu primera visita', reviews: true, gUrl: 'https://g.page/r/arlett-beauty',
-  gift: false, insta: false, igUser: '@arlettbeauty',
+  book: 'float', wa: true, waNum: '', waMsg: 'Hola, quiero pedir cita',
+  bar: false, barText: '−15 % en tu primera visita', reviews: false, gUrl: '',
+  gift: false, insta: false, igUser: '',
 };
 
 // TODO(backend): banco de imágenes real por temáticas (hoy, degradados con el nombre de la foto que iría).

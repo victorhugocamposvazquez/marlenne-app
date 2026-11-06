@@ -1,5 +1,6 @@
 import React from 'react';
 import { hex, luminance, mix } from '@/lib/marketing/color';
+import { googleMapsEmbedUrl, googlePlaceUrl, instagramProfileUrl, parseInstagramUser } from '@/lib/web/extras';
 import type { SiteProps, SiteService } from '@/lib/web/types';
 
 /**
@@ -41,7 +42,11 @@ export default function WebSite(p: SiteProps) {
     img: x.img || img(i + 9),
     cta: x.book === false ? 'Pide información' : t.cta,
   }));
-  const ig = '@' + ((fx.igUser || 'arlettbeauty').replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/[/?].*$/, '').replace(/^@/, '') || 'tucentro');
+  const igUser = parseInstagramUser(fx.igUser);
+  const igHref = instagramProfileUrl(fx.igUser);
+  const igLabel = igUser ? `@${igUser}` : null;
+  const gHref = googlePlaceUrl(fx.gUrl);
+  const mapsEmbed = googleMapsEmbedUrl(fx.gUrl, addressLbl);
   const heroBg = PH.hero ? PH.hero.bg : img(0), aboutBg = PH.about ? PH.about.bg : img(3);
 
   const Label = ({ children }: { children: React.ReactNode }) => <span style={{ fontSize: lbl, letterSpacing: lblTrack, textTransform: 'uppercase', color: accentText, fontWeight: 600 }}>{children}</span>;
@@ -242,21 +247,45 @@ export default function WebSite(p: SiteProps) {
       )}
 
       {fx.reviews && (
-        // TODO(backend): reseñas reales desde la ficha de Google (fx.gUrl).
-        <section style={{ padding: secPad, background: P.surface, display: 'flex', flexDirection: 'column', gap: secGap }}>
+        <section id="reseñas" style={{ padding: secPad, background: P.surface, display: 'flex', flexDirection: 'column', gap: secGap }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><Label>Reseñas</Label><H2>Lo que dicen nuestras clientas</H2></div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}><span style={{ fontFamily: head, fontWeight: headW, fontSize: sf ? W(72, 48) : W(56, 40), lineHeight: 1 }}>4,9</span><span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}><span style={{ color: dark ? P.accent : mix(P.accent, P.ink, 0.75), fontSize: 18, letterSpacing: 2 }}>★★★★★</span><span style={{ fontSize: 13, color: P.muted }}>128 reseñas en Google</span></span></div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><Label>Reseñas</Label><H2>Lo que dicen en Google</H2></div>
+            {gHref && (
+              <a href={gHref} target="_blank" rel="noopener noreferrer" style={{ fontSize: 15, fontWeight: 600, color: accentText, textDecoration: 'none' }}>
+                Ver ficha en Google →
+              </a>
+            )}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: W('repeat(3, minmax(0, 1fr))', '1fr'), gap: W(20, 10) }}>
-            {[['Lucía me hizo el lifting y estoy encantada. Trato cercano y muy profesional.', 'María G.'], ['La mejor limpieza facial que me han hecho. Repetiré seguro.', 'Paula R.'], ['Reservar online es comodísimo y siempre son puntuales.', 'Elena S.']].map(([q, nm]) => (
-              <div key={nm} style={{ background: P.bg, borderRadius: r, padding: W(28, 20), display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <span style={{ color: dark ? P.accent : mix(P.accent, P.ink, 0.75), fontSize: 15, letterSpacing: 2 }}>★★★★★</span>
-                <p style={{ margin: 0, fontSize: W(17, 15), lineHeight: 1.55, ...pretty }}>«{q}»</p>
-                <span style={{ fontSize: 13, fontWeight: 600, color: P.muted }}>{nm} · Google</span>
+          {gHref ? (
+            <div style={{ display: 'grid', gridTemplateColumns: W('1.1fr 0.9fr', '1fr'), gap: W(24, 14), alignItems: 'stretch' }}>
+              <div style={{ background: P.bg, borderRadius: r, padding: W(32, 22), display: 'flex', flexDirection: 'column', gap: 18, justifyContent: 'center' }}>
+                <span style={{ color: dark ? P.accent : mix(P.accent, P.ink, 0.75), fontSize: W(28, 22), letterSpacing: 3 }}>★★★★★</span>
+                <p style={{ margin: 0, fontSize: lead, lineHeight: 1.55, color: P.muted, maxWidth: 440, ...pretty }}>
+                  Lee las reseñas reales de nuestras clientas en Google y, si vienes, déjanos la tuya.
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                  <Btn href={gHref} style={{ alignSelf: 'flex-start' }}>Ver reseñas en Google</Btn>
+                  <a
+                    href={gHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ height: btnH, padding: `0 ${btnPx}px`, borderRadius: L.br, border: `1.5px solid ${P.ink}`, color: P.ink, fontSize: btnFs, fontWeight: 600, display: 'flex', alignItems: 'center', textDecoration: 'none', whiteSpace: 'nowrap' }}
+                  >
+                    Dejar reseña
+                  </a>
+                </div>
               </div>
-            ))}
-          </div>
+              {mapsEmbed && (
+                <div style={{ borderRadius: r, overflow: 'hidden', minHeight: W(320, 220), border: `1px solid ${P.line}`, background: P.bg }}>
+                  <iframe title="Mapa y ficha de Google" src={mapsEmbed} style={{ width: '100%', height: '100%', minHeight: W(320, 220), border: 'none', display: 'block' }} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+                </div>
+              )}
+            </div>
+          ) : (
+            <p style={{ margin: 0, fontSize: meta, color: P.muted, lineHeight: 1.5 }}>
+              Añade el enlace de tu ficha de Google en Extras para mostrar reseñas aquí.
+            </p>
+          )}
         </section>
       )}
 
@@ -289,15 +318,49 @@ export default function WebSite(p: SiteProps) {
       )}
 
       {fx.insta && (
-        // TODO(backend): últimas 6 publicaciones de Instagram (fx.igUser).
-        <section style={{ padding: secPad, background: menuLook ? P.bg : P.surface, display: 'flex', flexDirection: 'column', gap: secGap }}>
+        <section id="instagram" style={{ padding: secPad, background: menuLook ? P.bg : P.surface, display: 'flex', flexDirection: 'column', gap: secGap }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><Label>Instagram</Label><H2>Síguenos en {ig}</H2></div>
-            <span style={{ fontSize: 15, fontWeight: 600, color: accentText }}>Ver perfil →</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <Label>Instagram</Label>
+              <H2>{igLabel ? `Síguenos en ${igLabel}` : 'Nuestro Instagram'}</H2>
+            </div>
+            {igHref && (
+              <a href={igHref} target="_blank" rel="noopener noreferrer" style={{ fontSize: 15, fontWeight: 600, color: accentText, textDecoration: 'none' }}>
+                Ver perfil →
+              </a>
+            )}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: W('repeat(6, minmax(0, 1fr))', 'repeat(3, minmax(0, 1fr))'), gap: W(12, 6) }}>
-            {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} style={{ aspectRatio: '1', borderRadius: Math.min(r, 12), background: img(i + 2) }} />)}
-          </div>
+          {igHref ? (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: W('repeat(6, minmax(0, 1fr))', 'repeat(3, minmax(0, 1fr))'), gap: W(12, 6) }}>
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <a
+                    key={i}
+                    href={igHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Abrir Instagram ${igLabel || ''}`}
+                    style={{ position: 'relative', aspectRatio: '1', borderRadius: Math.min(r, 12), background: img(i + 2), display: 'block', overflow: 'hidden', textDecoration: 'none' }}
+                  >
+                    <span style={{ position: 'absolute', inset: 0, background: 'rgba(15,14,26,0.22)' }} />
+                    <span style={{ position: 'absolute', left: 10, bottom: 10, height: 26, padding: '0 10px', borderRadius: 999, background: 'rgba(15,14,26,0.55)', color: '#fff', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center' }}>
+                      Instagram
+                    </span>
+                  </a>
+                ))}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+                <Btn href={igHref} style={{ alignSelf: 'flex-start' }}>Abrir {igLabel || 'Instagram'}</Btn>
+                <span style={{ fontSize: 13, color: P.muted, lineHeight: 1.4 }}>
+                  Las fotos se ven en Instagram. Aquí te llevamos directo al perfil.
+                </span>
+              </div>
+            </>
+          ) : (
+            <p style={{ margin: 0, fontSize: meta, color: P.muted, lineHeight: 1.5 }}>
+              Escribe tu usuario de Instagram en Extras (por ejemplo @tucentro) para activar el enlace.
+            </p>
+          )}
         </section>
       )}
 
