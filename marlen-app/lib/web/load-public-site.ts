@@ -102,7 +102,8 @@ export async function loadPublicSiteBundle(slug: string): Promise<PublicSiteBund
   // Si faltan reseñas/feed en caché, intenta rellenar ahora (Places / Graph).
   let config = site.config;
   const needsPlace = config.fx.reviews && (config.fx.gUrl || '').trim() && !(config.feeds?.place?.reviews?.length);
-  const needsIg = config.fx.insta && !(config.feeds?.ig?.length);
+  const igAge = config.feeds?.igFetchedAt ? Date.now() - Date.parse(config.feeds.igFetchedAt) : Infinity;
+  const needsIg = config.fx.insta && (!(config.feeds?.ig?.length) || igAge > 12 * 60 * 60 * 1000);
   if (needsPlace || needsIg) {
     const feeds = await refreshSiteFeeds(config);
     config = { ...config, feeds };
