@@ -5,31 +5,12 @@ import { requireRole } from '@/lib/require-session';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { appOriginFromEnv } from '@/lib/app-origin';
-import { bookingPageUrl, slugifyBooking } from '@/lib/booking/urls';
-
-const RESERVED = new Set([
-  'app', 'www', 'api', 'admin', 'mail', 'blog', 'help', 'ayuda', 'status',
-  'r', 'cdn', 'static', 'sites', 'marlen', 'marlenapp', 'soporte', 'login',
-  'pago', 'pagos', 's', 'panel', 'embed', 'ops', 'auth', 'ajustes',
-]);
-
-const SLUG_RE = /^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$/;
-
-export function normalizeBookingSlug(raw: string): string {
-  return slugifyBooking(raw).slice(0, 64);
-}
-
-export function validateBookingSlug(slug: string): { ok: true } | { ok: false; error: string } {
-  if (slug.length < 2) return { ok: false, error: 'Mínimo 2 caracteres' };
-  if (slug.length > 64) return { ok: false, error: 'Máximo 64 caracteres' };
-  if (!SLUG_RE.test(slug)) {
-    return { ok: false, error: 'Solo minúsculas, números y guiones (sin empezar ni acabar en guion)' };
-  }
-  if (RESERVED.has(slug)) {
-    return { ok: false, error: 'Ese nombre está reservado. Prueba otro.' };
-  }
-  return { ok: true };
-}
+import { bookingPageUrl } from '@/lib/booking/urls';
+import {
+  isReservedBookingSlug,
+  normalizeBookingSlug,
+  validateBookingSlug,
+} from '@/lib/booking/slug';
 
 async function isSlugTaken(slug: string, salonId: string): Promise<boolean> {
   const admin = createAdminClient();
@@ -55,7 +36,7 @@ export async function suggestBookingSlug(salonName?: string): Promise<
     name = ((data as { name?: string } | null)?.name || 'centro').trim();
   }
   let base = normalizeBookingSlug(name) || 'centro';
-  if (RESERVED.has(base) || base.length < 2) base = `centro-${base}`.slice(0, 64);
+  if (isReservedBookingSlug(base) || base.length < 2) base = `centro-${base}`.slice(0, 64);
 
   for (let i = 0; i < 40; i++) {
     const candidate = i === 0 ? base : `${base.slice(0, 60)}-${i + 1}`;
@@ -140,7 +121,6 @@ export async function saveSalonBookingSlug(raw: string): Promise<
     ok: true,
     slug,
     bookingUrl: bookingPageUrl(origin, slug),
-    // Relativo: funciona en Vercel preview y en app.marlenapp.com
     bookingEmbedUrl: `/embed/${encodeURIComponent(slug)}`,
   };
 }
