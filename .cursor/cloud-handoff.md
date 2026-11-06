@@ -8,7 +8,6 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Pendiente (hazlo en el MacBook o mergea la rama cloud)
 
-- **Web Instagram fotos:** rama `cursor/web-ig-feed-fotos-5156` — últimas fotos del perfil (embed), sin publicar desde Marlén.
 - **Supabase Auth:** Site URL + Redirect URLs → `https://app.marlenapp.com` (y `/**`). Mantener `marlenne-app.vercel.app` un tiempo.
 - **Vercel `marlen-website`:** conectar GitHub del monorepo (falló por Login Connection) para deploys automáticos; Root `main-website`.
 - Equipo: reinstalar PWA desde `https://app.marlenapp.com`.
@@ -17,6 +16,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
+- 2026-11-06 — **Web Instagram:** últimas fotos del perfil, solo lectura; PR #41 → `main`.
 - 2026-11-06 — **Web Instagram feed:** carga por @usuario (Business Discovery) + mosaico sin Graph; PR #40 → `main`.
 - 2026-11-04 — **Marketing:** sin Equipo ni Última hora; PR #39 → `main`.
 - 2026-11-04 — **Marketing diseño:** «Selecciona diseño inicial» → Continuar + autoselect al deslizar; PR #38 → `main`.
@@ -50,4 +50,4 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 | **MacBook / Cursor local** | Al abrir el repo: **leer este archivo primero**. Si hay rama o PR en «Pendiente», continuar ahí antes de otra cosa. |
 | **Hugo** | Cuando algo esté en prod, borrar de «Pendiente» o pasarlo a «Hecho». |
 
-**Última actualización cloud:** 2026-11-06 — web Instagram feed PR #40 → `main`.
+**Última actualización cloud:** 2026-11-06 — Instagram últimas fotos PR #41 → `main`.
