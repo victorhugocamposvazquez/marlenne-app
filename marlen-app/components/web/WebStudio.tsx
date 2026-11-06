@@ -2,7 +2,9 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import WebSite from './WebSite';
-import { Icon, MarlenAvatar } from '@/components/marketing/Icons';
+import { Icon, MarlenAvatar, PATH } from '@/components/marketing/Icons';
+import sheetCss from '@/components/marketing/marketing.module.css';
+import { useMarketingSheet } from '@/hooks/useMarketingSheet';
 import {
   BANK, DEFAULT_EXTRAS, DNS_RECORDS, ICONS, RESERVED, SECTIONS, SERVICES, SERVICE_MEDIA, TABS, TEAM as TEAM_DEMO, TEMPLATES, TEXTS, TEXT_LIMITS, TIPS,
   bankImg, lookOf, palettesFor, slugify, tplOf,
@@ -123,6 +125,7 @@ export default function WebStudio({
   const [sec, setSec] = useState<Sections>(cfg0?.sec || { servicios: true, nosotros: true, equipo: true, visitanos: true });
   const [tab, setTab] = useState<TabId>('look');
   const [tool, setTool] = useState<TabId | null>(null);
+  const sheet = useMarketingSheet(mob && view === 'editor' && !!tool);
   const [device, setDevice] = useState<'desk' | 'mob'>('desk');
   const [fx, setFx] = useState<Extras>(() => ({
     ...DEFAULT_EXTRAS,
@@ -1053,17 +1056,34 @@ export default function WebStudio({
 
   const tip = <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}><MarlenAvatar size={24} /><span style={{ fontSize: 13, lineHeight: 1.45, color: '#4A4957' }}>{TIPS[tab]}</span></div>;
   const editor = mob ? (
-    <div style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+    <div ref={sheet.hostRef} style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
       {preview}
-      {tool ? <div style={{ height: 430, flexShrink: 0 }} /> : (
+      {tool ? <div style={{ height: sheet.height, flexShrink: 0 }} /> : (
         <div style={{ height: 96, flexShrink: 0, display: 'flex', gap: 2, padding: '8px 6px 26px', borderTop: `1px solid ${LINE}`, background: '#fff' }}>
           {TABS.map(([id, label, d]) => <button key={id} type="button" onClick={() => { setTab(id); setTool(id); }} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, border: 'none', background: 'transparent', color: INK, fontSize: 11.5, fontWeight: 600, whiteSpace: 'nowrap', cursor: 'pointer' }}><span style={{ width: 44, height: 34, borderRadius: 12, background: SOFT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon d={d} size={22} /></span>{label}</button>)}
         </div>
       )}
       {tool && (
-        <aside style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 430, zIndex: 10, display: 'flex', flexDirection: 'column', background: '#fff', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 40px rgba(15,14,26,.14)' }}>
-          <div style={{ width: 40, height: 5, borderRadius: 3, background: '#D9D8E0', alignSelf: 'center', marginTop: 10 }} />
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 12px 20px' }}><span style={{ fontSize: 19, fontWeight: 700 }}>{TABS[tabIdx][1]}</span><button type="button" onClick={() => setTool(null)} style={btn(true)}>Listo</button></div>
+        <aside aria-label={TABS[tabIdx][1]} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: sheet.height, zIndex: 10, display: 'flex', flexDirection: 'column', background: '#fff', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 40px rgba(15,14,26,.14)' }}>
+          <div
+            role="slider"
+            aria-label="Alto del panel. Desliza hacia arriba para más opciones o hacia abajo para ver la web más grande"
+            aria-orientation="vertical"
+            aria-valuemin={188}
+            aria-valuemax={720}
+            aria-valuenow={Math.round(sheet.height)}
+            onPointerDown={sheet.onHandleDown}
+            style={{ touchAction: 'none', flexShrink: 0, cursor: 'ns-resize', userSelect: 'none' }}
+          >
+            <div style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span className={`${sheetCss.handleStack}${sheet.hint ? ` ${sheetCss.handleHint}` : ''}`}>
+                <Icon d={PATH.chevronDown} size={14} stroke={2.6} style={{ transform: 'rotate(180deg)' }} />
+                <span className={sheetCss.handle} />
+                <Icon d={PATH.chevronDown} size={14} stroke={2.6} />
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 12px 20px' }}><span style={{ fontSize: 19, fontWeight: 700 }}>{TABS[tabIdx][1]}</span><button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => setTool(null)} style={btn(true)}>Listo</button></div>
+          </div>
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 20px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>{tip}{PANELS[tab]}</div>
         </aside>
       )}
@@ -1138,7 +1158,7 @@ export default function WebStudio({
           </div>
         </div>
       )}
-      {toast && <div role="status" style={{ position: 'absolute', left: 16, right: 16, bottom: mob ? (tool ? 446 : 108) : 28, margin: '0 auto', width: 'fit-content', maxWidth: 'calc(100% - 32px)', background: INK, color: '#fff', padding: '12px 16px', borderRadius: 14, fontSize: 14, fontWeight: 500, boxShadow: '0 12px 32px rgba(15,14,26,.24)', zIndex: 40 }}>{toast}</div>}
+      {toast && <div role="status" style={{ position: 'absolute', left: 16, right: 16, bottom: mob ? (tool ? sheet.height + 16 : 108) : 28, margin: '0 auto', width: 'fit-content', maxWidth: 'calc(100% - 32px)', background: INK, color: '#fff', padding: '12px 16px', borderRadius: 14, fontSize: 14, fontWeight: 500, boxShadow: '0 12px 32px rgba(15,14,26,.24)', zIndex: 40 }}>{toast}</div>}
     </div>
   );
 }
