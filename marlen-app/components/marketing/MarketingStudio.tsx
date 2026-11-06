@@ -118,7 +118,14 @@ export default function MarketingStudio({
   useEffect(() => { setClients(clientsProp); }, [clientsProp]);
   const [view, setView] = useState<'home' | 'editor'>('home');
   const [ed, setEd] = useState<EditorState>(() => makeEditor({ type: 'reserva', style: 'card' }));
-  const sheet = useMarketingSheet(mobile && view === 'editor' && !!ed.tool);
+  const sheet = useMarketingSheet(mobile && view === 'editor' && !!ed.tool, 128);
+  const [sectionsHint, setSectionsHint] = useState(false);
+  useEffect(() => {
+    if (!mobile || view !== 'editor' || ed.mStage !== 'edit' || ed.tool) return;
+    setSectionsHint(true);
+    const t = window.setTimeout(() => setSectionsHint(false), 2400);
+    return () => window.clearTimeout(t);
+  }, [mobile, view, ed.mStage, ed.tool]);
   const patch = useCallback((p: Partial<EditorState> | ((e: EditorState) => Partial<EditorState>)) => setEd((e) => ({ ...e, ...(typeof p === 'function' ? p(e) : p) })), []);
   const [modal, setModal] = useState<ModalState | null>(null);
   const [done, setDone] = useState<DoneState | null>(null);
@@ -1214,6 +1221,32 @@ export default function MarketingStudio({
     ['estilo', 'Estilo', PATH.palette],
     ['elementos', 'Elementos', PATH.shapes],
   ];
+  const sectionBar = (inSheet: boolean) => (
+    <div style={{ height: 128, flexShrink: 0, boxSizing: 'border-box', borderTop: '1px solid #ECEBF1', background: '#fff', padding: '10px 8px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <p className={cx(!inSheet && sectionsHint && css.sectionsNudge)} style={{ margin: inSheet ? '0 8px 6px' : '0 8px 8px', textAlign: 'center', fontSize: inSheet ? 12 : 13, fontWeight: 600, color: '#4A4957', lineHeight: 1.3 }}>
+        {inSheet ? 'Sigue con otra sección' : 'Toca una sección para seguir retocándola'}
+      </p>
+      <div className={cx(!inSheet && sectionsHint && css.sectionsNudge)} style={{ display: 'flex', gap: 2 }}>
+        {TOOLS.map(([id, label, icon]) => {
+          const on = ed.tool === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={on}
+              onClick={() => (id === 'ideas' ? openIdeas() : patch(on ? { tool: null } : { tool: id, tab: id }))}
+              style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, border: 'none', borderRadius: 16, background: 'transparent', color: on ? '#A3007F' : '#0F0E1A', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: '4px 0' }}
+            >
+              <span style={{ width: 48, height: 34, borderRadius: 12, background: on ? '#FBE6F6' : '#F2F2F7', color: on ? '#A3007F' : '#0F0E1A', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: on ? 'inset 0 0 0 1.5px #F3B6E4' : 'inset 0 0 0 1px #E4E3EA' }}>
+                <Icon d={icon} size={22} />
+              </span>
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
   const floatBtn: React.CSSProperties = {
     position: 'absolute', top: 12, height: 44, padding: '0 14px', borderRadius: 999, border: 'none',
     background: '#fff', boxShadow: '0 2px 8px rgba(15,14,26,0.12)', color: '#0F0E1A',
@@ -1378,25 +1411,10 @@ export default function MarketingStudio({
           </button>
         )}
       </div>
-      {ed.tool ? <div style={{ height: sheet.height, flexShrink: 0 }} /> : (
-        <div style={{ height: 96, flexShrink: 0, display: 'flex', gap: 2, padding: '8px 8px 26px', borderTop: '1px solid #ECEBF1', background: '#fff' }}>
-          {TOOLS.map(([id, label, icon]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => (id === 'ideas' ? openIdeas() : patch({ tool: id, tab: id }))}
-              style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, border: 'none', borderRadius: 16, background: 'transparent', color: '#0F0E1A', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-            >
-              <span style={{ width: 48, height: 34, borderRadius: 12, background: ed.tool === id ? '#FBE6F6' : '#F2F2F7', color: ed.tool === id ? '#A3007F' : '#0F0E1A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon d={icon} size={22} />
-              </span>
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
+      {ed.tool ? <div style={{ height: sheet.height, flexShrink: 0 }} /> : null}
+      {sectionBar(!!ed.tool)}
       {ed.tool && (
-        <div role="dialog" aria-label={TAB_LABEL[ed.tool]} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: sheet.height, zIndex: 10, background: '#fff', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 40px rgba(15,14,26,0.14)', display: 'flex', flexDirection: 'column' }}>
+        <div role="dialog" aria-label={TAB_LABEL[ed.tool]} style={{ position: 'absolute', left: 0, right: 0, bottom: 128, height: sheet.height, zIndex: 10, background: '#fff', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 40px rgba(15,14,26,0.14)', display: 'flex', flexDirection: 'column' }}>
           <div
             role="slider"
             aria-label="Alto del panel. Desliza hacia arriba para más opciones o hacia abajo para ver la creatividad más grande"
@@ -1722,7 +1740,7 @@ export default function MarketingStudio({
       {modalView}
       {doneView}
       {toast && (
-        <div className={css.toast} style={{ bottom: mobile ? (view === 'editor' ? (ed.tool ? sheet.height + 16 : 24) : 24) : 28 }} role="status">
+        <div className={css.toast} style={{ bottom: mobile ? (view === 'editor' ? (ed.tool ? sheet.height + 16 : 132) : 24) : 28 }} role="status">
           <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#fff', color: '#0F0E1A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon d={PATH.check} size={14} stroke={2.6} /></span>
           <span>{toast.msg}</span>
           {toast.action && <button type="button" className={css.toastAction} onClick={toast.action.fn}>{toast.action.label}</button>}
