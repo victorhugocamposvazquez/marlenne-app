@@ -160,6 +160,8 @@ export default function MarketingStudio({
   const [cSet, setCSet] = useState(0);
   /** true cuando Marlén ha tocado una propuesta (no solo deslizado) */
   const [cPicked, setCPicked] = useState(false);
+  /** Volvió a Ideas desde un diseño ya elegido: las propuestas no son ese mismo diseño. */
+  const [revisitingIdeas, setRevisitingIdeas] = useState(false);
 
   // TODO(backend): sustituir localStorage por la API de biblioteca del centro.
   useEffect(() => {
@@ -292,6 +294,7 @@ export default function MarketingStudio({
     setCIdx(0);
     setCSet(0);
     setCPicked(false);
+    setRevisitingIdeas(false);
     const next = makeEditor(o);
     if (next.clientName && !next.fieldsManual) {
       const it = withClientVars(getType(next.type).items[next.catIdx] || getType(next.type).items[0], next.clientName);
@@ -1165,7 +1168,11 @@ export default function MarketingStudio({
     [[T.style, 0], [others[0], 1], [others[1], 2], [others[2], 3]],
     [[others[3], 4], [others[4], 5], [T.style, 2], [others[0], 0]],
   ];
-  const proposals = SETS[cSet % 2].map(([style, i]) => ({ style, image: propImg(i) }));
+  const freshSets: [StyleId, number][][] = [
+    [[others[0], 1], [others[1], 2], [others[2], 3], [others[3], 4]],
+    [[others[4] || others[0], 5], [others[0], 2], [others[1], 3], [others[2], 0]],
+  ];
+  const proposals = (revisitingIdeas ? freshSets : SETS)[cSet % 2].map(([style, i]) => ({ style, image: propImg(i) }));
   const carW = Math.floor(Math.min(290, (car.w || 390) - 100, (((car.h || 452) - 40) * 1080) / F.H));
   const carPad = Math.max(16, Math.round(((car.w || 390) - carW) / 2));
   const selectProposal = (i: number) => {
@@ -1182,7 +1189,19 @@ export default function MarketingStudio({
       els: recommendElements(p.style, ed.type), elsManual: false,
       tone: STYLE_TONE[p.style], toneManual: false, mStage: 'edit', tool: null,
     });
+    setRevisitingIdeas(false);
     showToast('Buena elección. Retoca lo que quieras abajo.');
+  };
+  const openIdeas = () => {
+    setRevisitingIdeas(true);
+    setCIdx(0);
+    setCSet(0);
+    setCPicked(false);
+    patch({ mStage: 'pick', tool: null });
+  };
+  const backToYours = () => {
+    setRevisitingIdeas(false);
+    patch({ mStage: 'edit', tool: null });
   };
   const cycleFormat = () => {
     const ids: FormatId[] = ['story', 'square', 'portrait'];
@@ -1205,18 +1224,24 @@ export default function MarketingStudio({
   const mobileEditor = ed.mStage === 'pick' ? (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <div style={{ height: 60, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '0 12px' }}>
-        <button type="button" className={css.circle} onClick={goHome} aria-label="Cerrar"><Icon d={PATH.close} size={20} stroke={2} /></button>
+        <button type="button" className={css.circle} onClick={revisitingIdeas ? backToYours : goHome} aria-label={revisitingIdeas ? 'Volver a tu diseño' : 'Cerrar'}><Icon d={revisitingIdeas ? PATH.back : PATH.close} size={20} stroke={2} /></button>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, minWidth: 0 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: '#6E6D7A' }}>Diseño</span>
-          <span style={{ fontSize: 17, fontWeight: 700 }}>Marlén te propone</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#6E6D7A' }}>{revisitingIdeas ? 'Ideas' : 'Diseño'}</span>
+          <span style={{ fontSize: 17, fontWeight: 700 }}>{revisitingIdeas ? 'Otras formas' : 'Marlén te propone'}</span>
         </div>
-        <button type="button" className={css.circle} onClick={changeAnnouncement} aria-label="Cambiar qué anuncias"><Icon d={PATH.back} size={20} stroke={2} /></button>
+        {revisitingIdeas ? <span style={{ width: 44, flexShrink: 0 }} /> : (
+          <button type="button" className={css.circle} onClick={changeAnnouncement} aria-label="Cambiar qué anuncias"><Icon d={PATH.back} size={20} stroke={2} /></button>
+        )}
       </div>
       <div style={{ margin: '0 16px', display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', borderRadius: 16, background: '#F6F6F9', flexShrink: 0 }}>
         <MarlenAvatar size={28} />
         <span style={{ fontSize: 14, lineHeight: 1.45, color: '#2E2D3A' }}>
-          He preparado 4 diseños para <b>{item.label}</b>
-          {ed.clientName ? <> · {firstName(ed.clientName)}</> : null}. Desliza o toca el que más te guste y luego continúa.
+          {revisitingIdeas ? (
+            <>Tu diseño de <b>{item.label}</b> sigue igual. Estas son otras formas de contarlo: elige una solo si te gusta más.</>
+          ) : (
+            <>He preparado 4 diseños para <b>{item.label}</b>
+            {ed.clientName ? <> · {firstName(ed.clientName)}</> : null}. Desliza o toca el que más te guste y luego continúa.</>
+          )}
         </span>
       </div>
       <div
@@ -1261,7 +1286,7 @@ export default function MarketingStudio({
                   radius={14}
                   shadow
                 />
-                {i === 0 && cSet % 2 === 0 && (
+                {i === 0 && cSet % 2 === 0 && !revisitingIdeas && (
                   <span className={css.badgeNew} style={{ top: 12, left: 12, height: 28, fontSize: 13, padding: '0 12px' }}>Mi favorita</span>
                 )}
                 {on && (
@@ -1310,7 +1335,7 @@ export default function MarketingStudio({
           disabled={!cPicked}
           onClick={chooseProposal}
         >
-          {cPicked ? 'Continuar' : 'Selecciona diseño inicial'}
+          {cPicked ? (revisitingIdeas ? 'Usar esta' : 'Continuar') : (revisitingIdeas ? 'Elige una idea' : 'Selecciona diseño inicial')}
         </button>
         <button type="button" className={css.btn} style={{ background: 'none', fontSize: 15 }} onClick={() => { setCSet((n) => n + 1); setCIdx(0); setCPicked(false); carElRef.current?.scrollTo({ left: 0 }); }}>
           <Icon d={PATH.refresh} size={18} stroke={1.9} color="#D000A8" />Ver otras 4 propuestas
@@ -1339,7 +1364,7 @@ export default function MarketingStudio({
       </div>
       <div ref={previewRef} style={{ flex: 1, minHeight: 0, background: '#F6F6F9', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
         <DraggableCreative cfg={currentCfg} width={previewW} radius={12} shadow safe={ed.safe} onImageFocus={setImageFocus} />
-        {currentCfg.image?.src && (
+        {ed.tool === 'imagen' && currentCfg.image?.src && (
           <span style={{ position: 'absolute', left: 12, right: 12, bottom: 8, textAlign: 'center', fontSize: 12, fontWeight: 600, color: '#6E6D7A', pointerEvents: 'none' }}>
             Arrastra la foto para encuadrarla
           </span>
@@ -1359,10 +1384,10 @@ export default function MarketingStudio({
             <button
               key={id}
               type="button"
-              onClick={() => (id === 'ideas' ? patch({ mStage: 'pick', tool: null }) : patch({ tool: id, tab: id }))}
+              onClick={() => (id === 'ideas' ? openIdeas() : patch({ tool: id, tab: id }))}
               style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, border: 'none', borderRadius: 16, background: 'transparent', color: '#0F0E1A', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
             >
-              <span style={{ width: 48, height: 34, borderRadius: 12, background: id === 'ideas' ? '#FBE6F6' : '#F2F2F7', color: id === 'ideas' ? '#A3007F' : '#0F0E1A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ width: 48, height: 34, borderRadius: 12, background: ed.tool === id ? '#FBE6F6' : '#F2F2F7', color: ed.tool === id ? '#A3007F' : '#0F0E1A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Icon d={icon} size={22} />
               </span>
               {label}
