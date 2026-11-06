@@ -4,11 +4,44 @@ import { revalidatePath } from 'next/cache';
 import { getSession } from '@/lib/queries';
 import { categorySlug } from '@/lib/categories';
 import { createClient } from '@/lib/supabase/server';
+import { parseSiteConfig } from '@/lib/web/site-config';
 
 function bump() {
   revalidatePath('/ajustes', 'layout');
   revalidatePath('/agenda');
   revalidatePath('/hoy');
+  revalidatePath('/ajustes/marketing/web');
+  revalidatePath('/r', 'layout');
+  revalidatePath('/embed', 'layout');
+}
+
+/** Mantiene el toggle de la web alineado con bookable_online. */
+async function syncSiteBookFlag(
+  sb: ReturnType<typeof createClient>,
+  salonId: string,
+  serviceId: string,
+  book: boolean,
+) {
+  const { data } = await sb
+    .from('salon_sites')
+    .select('id, config')
+    .eq('salon_id', salonId)
+    .maybeSingle();
+  if (!data) return;
+  const config = parseSiteConfig(data.config);
+  if (!config.svcs?.length) return;
+  let changed = false;
+  const svcs = config.svcs.map(s => {
+    if (s.id !== serviceId || s.book === book) return s;
+    changed = true;
+    return { ...s, book };
+  });
+  if (!changed) return;
+  await sb
+    .from('salon_sites')
+    .update({ config: { ...config, svcs }, updated_at: new Date().toISOString() })
+    .eq('id', (data as { id: string }).id);
+  revalidatePath('/s', 'layout');
 }
 
 async function requireAdmin() {
@@ -96,6 +129,7 @@ export async function createService(input: {
   duration_min: number;
   price_cents: number;
   color?: string | null;
+  bookable_online?: boolean;
 }) {
   const me = await requireAdmin();
   if (!me) return { ok: false, error: 'Solo dirección' };
@@ -113,6 +147,7 @@ export async function createService(input: {
     .order('sort_order', { ascending: false })
     .limit(1)
     .maybeSingle();
+  const bookable = input.bookable_online !== false;
   const { error } = await sb.from('services').insert({
     salon_id: me.salon_id,
     name,
@@ -121,6 +156,7 @@ export async function createService(input: {
     price_cents: input.price_cents,
     color: input.color || null,
     is_active: true,
+    bookable_online: bookable,
     sort_order: (last?.sort_order ?? 0) + 10,
   });
   bump();
@@ -135,6 +171,7 @@ export async function updateService(input: {
   price_cents: number;
   is_active: boolean;
   color?: string | null;
+  bookable_online?: boolean;
 }) {
   const me = await requireAdmin();
   if (!me) return { ok: false, error: 'Solo dirección' };
@@ -144,14 +181,17 @@ export async function updateService(input: {
   const name = input.name?.trim();
   if (name !== undefined && name.length < 2) return { ok: false, error: 'Pon el nombre del servicio' };
   const sb = createClient();
+  const bookable = input.bookable_online !== false;
   const { error } = await sb.from('services').update({
     ...(name ? { name } : {}),
     ...(input.category_id ? { category_id: input.category_id } : {}),
     duration_min: input.duration_min,
     price_cents: input.price_cents,
     is_active: input.is_active,
+    bookable_online: bookable,
     ...(input.color !== undefined ? { color: input.color || null } : {}),
-  }).eq('id', input.id);
+  }).eq('id', input.id).eq('salon_id', me.salon_id);
+  if (!error) await syncSiteBookFlag(sb, me.salon_id, input.id, bookable);
   bump();
   return { ok: !error, error: error?.message ?? null };
 }

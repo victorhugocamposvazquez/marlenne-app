@@ -97,7 +97,8 @@ export default function WebStudio({
     const byId = new Map(cfg0.svcs.map(s => [s.id, s]));
     return liveSvcs.map(s => {
       const saved = byId.get(s.id);
-      return saved ? { ...s, pub: saved.pub, nov: saved.nov, book: saved.book } : s;
+      // book viene de services.bookable_online (convive con Ajustes → Tratamientos).
+      return saved ? { ...s, pub: saved.pub, nov: saved.nov, book: s.book } : s;
     });
   })();
   const teamRows = teamProp?.length ? teamProp : TEAM_DEMO;
@@ -134,7 +135,7 @@ export default function WebStudio({
       const byId = new Map(prev.map(s => [s.id, s]));
       return servicesProp.map(s => {
         const saved = byId.get(s.id);
-        return saved ? { ...s, pub: saved.pub, nov: saved.nov, book: saved.book } : s;
+        return saved ? { ...s, pub: saved.pub, nov: saved.nov, book: s.book } : s;
       });
     });
   }, [servicesProp]);
@@ -559,7 +560,7 @@ export default function WebStudio({
             </button>
             {open && (
               <div style={{ padding: '0 14px 6px', borderTop: `1px solid ${SOFT}` }}>
-                {([['pub', 'Visible en web', 'Aparece en la lista de servicios de tu web'], ['nov', 'Novedad', 'Sale destacado arriba, con la etiqueta «Nuevo»'], ['book', 'Reserva online', 'Se puede reservar en tu calendario público']] as ['pub' | 'nov' | 'book', string, string][]).map(([k, label, desc]) => { const dis = k === 'nov' && !s.pub; return (
+                {([['pub', 'Visible en web', 'Aparece en la lista de servicios de tu web'], ['nov', 'Novedad', 'Sale destacado arriba, con la etiqueta «Nuevo»'], ['book', 'Reserva online', 'Mismo flag que en Ajustes → Tratamientos · calendario público']] as ['pub' | 'nov' | 'book', string, string][]).map(([k, label, desc]) => { const dis = k === 'nov' && !s.pub; return (
                   <button key={k} type="button" onClick={() => setSvcFlag(s.id, k)} style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 56, padding: '6px 0', border: 'none', borderBottom: `1px solid ${CANVAS}`, background: 'none', color: INK, textAlign: 'left', cursor: 'pointer', opacity: dis ? 0.5 : 1 }}>
                     <span style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}><span style={{ fontSize: 14, fontWeight: 600 }}>{label}</span><span style={{ fontSize: 12, color: MUTED, lineHeight: 1.35 }}>{dis ? 'Primero hazlo visible en la web' : desc}</span></span>
                     <Switch on={s[k]} disabled={dis} />

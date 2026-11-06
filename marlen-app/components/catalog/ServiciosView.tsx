@@ -149,7 +149,10 @@ export default function ServiciosView({
                       onClick={() => setSheet({ kind: 'svc', catId: cat.id, service: s })}
                       accent={s.color || look.color}
                       title={s.name}
-                      meta={serviceMeta(s.duration_min, s.price_cents)}
+                      meta={[
+                        serviceMeta(s.duration_min, s.price_cents),
+                        s.bookable_online === false ? 'Sin reserva online' : null,
+                      ].filter(Boolean).join(' · ')}
                       badge={s.is_active === false ? 'Oculto' : undefined}
                       muted={s.is_active === false}
                     />
@@ -212,6 +215,7 @@ export default function ServiciosView({
                 duration_min: input.duration_min,
                 price_cents: input.price_cents,
                 is_active: input.is_active ?? true,
+                bookable_online: input.bookable_online ?? true,
                 color: input.color,
               })
               : createService(input),
@@ -309,6 +313,7 @@ function ServiceSheet({
     duration_min: number;
     price_cents: number;
     is_active?: boolean;
+    bookable_online?: boolean;
     color?: string | null;
   }) => void;
   onDelete?: () => void;
@@ -318,6 +323,7 @@ function ServiceSheet({
   const [mins, setMins] = useState(String(initial?.duration_min ?? 30));
   const [euros, setEuros] = useState(initial ? String(initial.price_cents / 100) : '');
   const [active, setActive] = useState(initial?.is_active !== false);
+  const [bookable, setBookable] = useState(initial?.bookable_online !== false);
   const [color, setColor] = useState<string | null>(initial?.color ?? null);
   const catColor = categories.find(c => c.id === categoryId)?.color ?? '#8B5CF6';
   const durNum = Number(mins);
@@ -350,6 +356,7 @@ function ServiceSheet({
             duration_min: durNum,
             price_cents: Math.round(priceNum * 100),
             is_active: active,
+            bookable_online: bookable,
             color,
           })}
         />
@@ -429,6 +436,13 @@ function ServiceSheet({
             onChange={setColor}
           />
         </div>
+
+        <SettingsToggleRow
+          title="Visible en el calendario público"
+          hint="Sale en la reserva online (/r y la web). Si lo apagas, solo se agenda desde Marlenapp."
+          on={bookable}
+          onToggle={() => setBookable(b => !b)}
+        />
 
         {initial && (
           <SettingsToggleRow

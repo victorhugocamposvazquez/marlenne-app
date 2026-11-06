@@ -33,7 +33,8 @@ export function buildSiteProps(input: {
       ...live,
       pub: saved?.pub ?? live.pub,
       nov: saved?.nov ?? live.nov,
-      book: saved?.book ?? live.book,
+      // bookable_online (agenda / BD) manda; el toggle de la web escribe ahí al guardar.
+      book: live.book,
     };
   });
 
