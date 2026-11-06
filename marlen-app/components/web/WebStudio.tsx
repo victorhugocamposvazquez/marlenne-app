@@ -14,6 +14,7 @@ import { themeForService } from '@/lib/web/from-salon';
 import { isGooglePlaceUrl, parseInstagramUser } from '@/lib/web/extras';
 import { checkCustomDomainStatus, checkSiteSlug, connectCustomDomain, publishSalonSite, saveSalonSiteDraft } from '@/app/actions/salon-site';
 import type { SalonSiteConfig, SalonSiteRow } from '@/lib/web/site-config';
+import { bookingPageToEmbedUrl } from '@/lib/web/booking-urls';
 import { photoFromUrl, publicSiteUrl, vanitySiteHost } from '@/lib/web/site-urls';
 import { createClient } from '@/lib/supabase/client';
 import { compressImage } from '@/hooks/compressImage';
@@ -278,12 +279,13 @@ export default function WebStudio({
   const siteProps = {
     look: lookOf(T), pal: P, txt, sec, fx, svcMedia: media, iconStyle, salon, logo,
     bookingUrl: bookingUrl || undefined,
+    bookingEmbedUrl: bookingPageToEmbedUrl(bookingUrl) || undefined,
     phone,
     address,
     hours: hours || undefined,
     zone: zone || undefined,
     siteSlug: sub || undefined,
-    showFloat: false,
+    showFloat: true,
     team: teamRows,
     svcs: svcs.map((s) => ({ ...s, img: imgOf(s).bg, icon: iconOf(s) })),
     photos: { hero: photos.hero, about: photos.about, team: photos.team.map((p) => (p ? p.bg : null)) },
@@ -567,7 +569,7 @@ export default function WebStudio({
     if (name === 'gUrl') {
       const ok = isGooglePlaceUrl(v);
       hint = ok
-        ? '✓ Al publicar, sacamos las reseñas y las mostramos en la web'
+        ? '✓ Guarda o publica para traer reseñas (hace falta GOOGLE_PLACES_API_KEY)'
         : v
           ? 'Pega el enlace de «Compartir» de tu ficha de Google'
           : 'Lo encuentras en Google Maps › tu centro › Compartir';
@@ -576,7 +578,7 @@ export default function WebStudio({
     if (name === 'igUser') {
       const u = parseInstagramUser(v);
       hint = u
-        ? `✓ Al publicar, el feed de @${u} se muestra en la web`
+        ? `✓ El feed de @${u} se muestra en la web (embed; Graph opcional)`
         : v
           ? 'Usuario no válido. Prueba @tucentro o el enlace del perfil'
           : 'Escribe tu usuario, por ejemplo @tucentro';
@@ -751,7 +753,6 @@ export default function WebStudio({
 
   /* ---------------- vista previa ---------------- */
   const narrowPreview = mob || device === 'mob';
-  const fl = { r: narrowPreview ? 14 : 22, br: T.br === '0px' ? '0px' : T.br === '4px' ? '6px' : '999px' };
   const preview = (
     <div style={{ flex: 1, minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 14, background: CANVAS, padding: mob ? '0 12px 12px' : '18px 24px 24px' }}>
       {!mob && (
@@ -767,10 +768,6 @@ export default function WebStudio({
           </div>
           {/* La web se renderiza a su ancho real (1280 / 390) y se reduce con zoom para que la maqueta sea idéntica a la publicada. */}
           <PreviewScroll narrow={narrowPreview}><WebSite {...siteProps} narrow={narrowPreview} /></PreviewScroll>
-          <div style={{ position: 'absolute', right: fl.r, bottom: fl.r, display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'none' }}>
-            {(fx.book === 'float' || fx.book === 'both') && <span style={{ height: 44, padding: `0 ${narrowPreview ? 14 : 18}px`, borderRadius: fl.br, background: P.accent, color: P.onAccent, fontSize: narrowPreview ? 13 : 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', boxShadow: '0 10px 24px rgba(0,0,0,.22)' }}><Icon d="M6 5h12a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3zM3 10h18M8 3v4M16 3v4" size={16} stroke={2} />{txt.cta}</span>}
-            {fx.wa && <span style={{ width: 44, height: 44, borderRadius: '50%', background: '#25D366', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 24px rgba(0,0,0,.22)' }}><Icon d="M4 20l1.4-4.2A8 8 0 1 1 8.4 19zM9.5 9.5c.3 1.8 1.7 3.4 3.5 4l1-1 1.5.8" size={22} stroke={2} /></span>}
-          </div>
         </div>
       </div>
     </div>
@@ -925,7 +922,7 @@ function PreviewScroll({ narrow, children }: { narrow: boolean; children: React.
   useEffect(() => { const el = ref.current; if (!el) return; const ro = new ResizeObserver(() => setW(el.clientWidth)); ro.observe(el); return () => ro.disconnect(); }, []);
   const base = narrow ? 390 : 1280;
   return (
-    <div ref={ref} style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+    <div ref={ref} data-site-scroll style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
       <div style={{ zoom: w ? w / base : 0.75, width: base }}>{children}</div>
     </div>
   );

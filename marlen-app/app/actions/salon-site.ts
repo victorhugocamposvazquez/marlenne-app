@@ -130,11 +130,14 @@ export async function saveSalonSiteDraft(input: {
     return { ok: false, error: 'Ese nombre de web ya está en uso' };
   }
 
+  const feeds = await refreshSiteFeeds(input.config);
+  const config = { ...input.config, feeds };
+
   const payload = {
     salon_id: me.salon_id,
     slug,
     custom_domain: customDomain,
-    config: input.config,
+    config,
     updated_at: new Date().toISOString(),
   };
 

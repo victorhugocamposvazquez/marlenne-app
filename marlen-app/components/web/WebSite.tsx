@@ -1,6 +1,10 @@
-import React from 'react';
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import BookingCalendarModal from '@/components/web/BookingCalendarModal';
 import GiftCardBuy from '@/components/web/GiftCardBuy';
 import { hex, luminance, mix } from '@/lib/marketing/color';
+import { bookingPageToEmbedUrl, isBookingPageUrl } from '@/lib/web/booking-urls';
 import { googleMapsEmbedUrl, instagramProfileUrl, parseInstagramUser } from '@/lib/web/extras';
 import type { SiteProps, SiteService } from '@/lib/web/types';
 
@@ -18,7 +22,12 @@ export default function WebSite(p: SiteProps) {
   const { look: L, pal: P, txt: t } = p;
   const fx = p.fx || {}, n = !!p.narrow, sec = p.sec || { servicios: true, nosotros: true, equipo: true, visitanos: true };
   const salon = p.salon || 'Arlett Beauty', logo = p.logo || '/marketing/arlett-logo.png';
-  const bookHref = (p.bookingUrl || '').trim() || undefined;
+  const bookHref = isBookingPageUrl(p.bookingUrl) ? (p.bookingUrl || '').trim() : undefined;
+  const bookEmbed =
+    (p.bookingEmbedUrl || '').trim() ||
+    bookingPageToEmbedUrl(bookHref) ||
+    undefined;
+  const canBook = Boolean(bookEmbed || bookHref);
   const phoneLbl = (p.phone || '').trim() || null;
   const addressLbl = (p.address || '').trim() || null;
   const hoursLbl = (p.hours || '').trim() || null;
@@ -56,8 +65,10 @@ export default function WebSite(p: SiteProps) {
   const waHref = fx.wa && waDigits.length >= 9
     ? `https://wa.me/${waDigits.startsWith('34') ? waDigits : `34${waDigits}`}${fx.waMsg ? `?text=${encodeURIComponent(fx.waMsg)}` : ''}`
     : null;
-  const floatBook = showFloat && bookHref && (fx.book === 'float' || fx.book === 'both');
+  const floatBook = showFloat && canBook && (fx.book === 'float' || fx.book === 'both');
   const heroBg = PH.hero ? PH.hero.bg : img(0), aboutBg = PH.about ? PH.about.bg : img(3);
+  const [bookOpen, setBookOpen] = useState(false);
+  const openBook = () => { if (canBook) setBookOpen(true); };
   const igMedia = p.igMedia || [];
   const place = p.place || null;
   const giftAmounts = p.giftAmounts?.length ? p.giftAmounts : [30, 50, 100];
@@ -74,10 +85,13 @@ export default function WebSite(p: SiteProps) {
 
   const Label = ({ children }: { children: React.ReactNode }) => <span style={{ fontSize: lbl, letterSpacing: lblTrack, textTransform: 'uppercase', color: accentText, fontWeight: 600 }}>{children}</span>;
   const H2 = ({ children }: { children: React.ReactNode }) => <h2 style={{ margin: 0, fontFamily: head, fontWeight: headW, fontSize: h2, lineHeight: 1.05, letterSpacing: headTrack, ...balance }}>{children}</h2>;
-  const Btn = ({ children, style, href }: { children: React.ReactNode; style?: React.CSSProperties; href?: string }) => {
-    const css: React.CSSProperties = { height: btnH, padding: `0 ${btnPx}px`, borderRadius: L.br, background: P.accent, color: P.onAccent, fontSize: btnFs, fontWeight: 600, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', textDecoration: 'none', ...style };
-    const to = href || bookHref;
-    return to ? <a href={to} target="_blank" rel="noopener noreferrer" style={css}>{children}</a> : <span style={css}>{children}</span>;
+  const Btn = ({ children, style, href, onClick }: { children: React.ReactNode; style?: React.CSSProperties; href?: string; onClick?: () => void }) => {
+    const css: React.CSSProperties = { height: btnH, padding: `0 ${btnPx}px`, borderRadius: L.br, background: P.accent, color: P.onAccent, fontSize: btnFs, fontWeight: 600, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', textDecoration: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', ...style };
+    if (href) return <a href={href} target="_blank" rel="noopener noreferrer" style={css}>{children}</a>;
+    if (onClick || canBook) {
+      return <button type="button" onClick={onClick || openBook} style={css}>{children}</button>;
+    }
+    return <span style={css}>{children}</span>;
   };
   const Caption = ({ text, style }: { text: string; style: React.CSSProperties }) => (text ? <span style={{ position: 'absolute', fontSize: 12, fontWeight: 600, color: '#FFFFFF', background: 'rgba(15,14,26,0.35)', padding: '6px 12px', borderRadius: 999, ...style }}>{text}</span> : null);
   const New = () => <span style={{ height: 22, padding: '0 9px', borderRadius: 999, background: P.accent, color: P.onAccent, fontFamily: "var(--font-sora), 'Sora', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>NUEVO</span>;
@@ -88,27 +102,174 @@ export default function WebSite(p: SiteProps) {
     </div>
   );
   const chipR = Math.min(12, r + 8);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const showReviews = Boolean(fx.reviews && ((place?.reviews?.length || 0) > 0 || (fx.gUrl || '').trim()));
+  const showInsta = Boolean(fx.insta && (igMedia.length > 0 || igUser || igShowLink));
+
+  const navLinks: { id: string; label: string }[] = [];
+  if (sec.servicios) navLinks.push({ id: 'servicios', label: 'Servicios' });
+  if (sec.nosotros) navLinks.push({ id: 'nosotros', label: 'Nosotros' });
+  if (sec.equipo) navLinks.push({ id: 'equipo', label: 'Equipo' });
+  if (showReviews) navLinks.push({ id: 'reseñas', label: 'Reseñas' });
+  if (fx.gift) navLinks.push({ id: 'regalo', label: 'Tarjeta regalo' });
+  if (showInsta) navLinks.push({ id: 'instagram', label: 'Instagram' });
+  if (sec.visitanos) navLinks.push({ id: 'visitanos', label: 'Visítanos' });
+
+  const goTo = (id: string) => {
+    setMenuOpen(false);
+    // rAF: el menú móvil se cierra antes de medir; necesario con zoom del preview
+    requestAnimationFrame(() => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const scroller = el.closest('[data-site-scroll]') as HTMLElement | null;
+      if (scroller) {
+        const delta = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+        scroller.scrollBy({ top: delta - 16, behavior: 'smooth' });
+        return;
+      }
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
+
+  const navLinkCss: React.CSSProperties = {
+    color: P.muted,
+    textDecoration: 'none',
+    background: 'none',
+    border: 'none',
+    padding: 0,
+    font: 'inherit',
+    fontSize: 14,
+    cursor: 'pointer',
+  };
 
   return (
     <div style={{ position: 'relative', width: '100%', background: P.bg, color: P.ink, fontFamily: "var(--font-sora), 'Sora', system-ui, sans-serif", WebkitFontSmoothing: 'antialiased' }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
-      {fx.bar && (fx.barText || '').trim() && <div style={{ background: P.accent, color: P.onAccent, textAlign: 'center', fontSize: W(14, 12), fontWeight: 600, padding: W('11px 24px', '9px 16px') }}>{fx.barText}</div>}
-      <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, padding: W(`20px ${px}px`, '14px 20px'), background: P.bg, borderBottom: `1px solid ${P.line}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logo} alt="" style={{ width: W(44, 34), height: W(44, 34), borderRadius: sf ? '50%' : Math.min(12, r + 6), objectFit: 'cover', flexShrink: 0 }} />
-          <span style={{ fontFamily: head, fontWeight: headW, fontSize: sf ? W(28, 22) : W(19, 16), letterSpacing: headTrack, whiteSpace: 'nowrap' }}>{salon}</span>
-        </div>
-        {!n && <div style={{ display: 'flex', alignItems: 'center', gap: 32, fontSize: 14, color: P.muted }}><span>Servicios</span><span>Nosotros</span><span>Equipo</span><span>Visítanos</span></div>}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {bookHref ? (
-            <a href={bookHref} target="_blank" rel="noopener noreferrer" style={{ height: W(44, 36), padding: `0 ${W(20, 14)}px`, borderRadius: L.br, background: P.accent, color: P.onAccent, fontSize: W(14, 13), fontWeight: 600, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', textDecoration: 'none' }}>{t.cta}</a>
-          ) : (
-            <span style={{ height: W(44, 36), padding: `0 ${W(20, 14)}px`, borderRadius: L.br, background: P.accent, color: P.onAccent, fontSize: W(14, 13), fontWeight: 600, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>{t.cta}</span>
+      <div style={{ position: 'sticky', top: 0, zIndex: 30 }}>
+        {fx.bar && (fx.barText || '').trim() && <div style={{ background: P.accent, color: P.onAccent, textAlign: 'center', fontSize: W(14, 12), fontWeight: 600, padding: W('11px 24px', '9px 16px') }}>{fx.barText}</div>}
+        <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, padding: W(`20px ${px}px`, '14px 20px'), background: P.bg, borderBottom: `1px solid ${P.line}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={logo} alt="" style={{ width: W(44, 34), height: W(44, 34), borderRadius: sf ? '50%' : Math.min(12, r + 6), objectFit: 'cover', flexShrink: 0 }} />
+            <span style={{ fontFamily: head, fontWeight: headW, fontSize: sf ? W(28, 22) : W(19, 16), letterSpacing: headTrack, whiteSpace: 'nowrap' }}>{salon}</span>
+          </div>
+          {!n && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 28, flexWrap: 'wrap', justifyContent: 'center', flex: 1, minWidth: 0 }}>
+              {navLinks.map(l => (
+                <a
+                  key={l.id}
+                  href={`#${l.id}`}
+                  onClick={e => { e.preventDefault(); goTo(l.id); }}
+                  style={{ ...navLinkCss, display: 'inline-flex' }}
+                >
+                  {l.label}
+                </a>
+              ))}
+            </div>
           )}
-          {n && <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ strokeWidth: 1.8, strokeLinecap: 'round' }}><path d="M4 7h16M4 12h16M4 17h16" /></svg>}
-        </div>
-      </nav>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {canBook ? (
+              <button type="button" onClick={openBook} style={{ height: W(44, 36), padding: `0 ${W(20, 14)}px`, borderRadius: L.br, background: P.accent, color: P.onAccent, fontSize: W(14, 13), fontWeight: 600, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{t.cta}</button>
+            ) : (
+              <span style={{ height: W(44, 36), padding: `0 ${W(20, 14)}px`, borderRadius: L.br, background: P.accent, color: P.onAccent, fontSize: W(14, 13), fontWeight: 600, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>{t.cta}</span>
+            )}
+            {n && (
+              <button
+                type="button"
+                aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen(o => !o)}
+                style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'none', color: P.ink, cursor: 'pointer', padding: 0, flexShrink: 0 }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ strokeWidth: 1.8, strokeLinecap: 'round' }}>
+                  {menuOpen
+                    ? <path d="M6 6l12 12M18 6L6 18" />
+                    : <path d="M4 7h16M4 12h16M4 17h16" />}
+                </svg>
+              </button>
+            )}
+          </div>
+        </nav>
+
+        {n && menuOpen && (
+          <div
+            role="dialog"
+            aria-label="Menú"
+            style={{
+              background: P.bg,
+              borderBottom: `1px solid ${P.line}`,
+              boxShadow: '0 16px 40px rgba(15,14,26,0.12)',
+              padding: '8px 20px 20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+            }}
+          >
+            {navLinks.map(l => (
+              <button
+                key={l.id}
+                type="button"
+                onClick={() => goTo(l.id)}
+                style={{
+                  height: 48,
+                  padding: '0 4px',
+                  border: 'none',
+                  background: 'none',
+                  color: P.ink,
+                  fontSize: 17,
+                  fontWeight: 600,
+                  fontFamily: 'inherit',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  borderBottom: `1px solid ${P.line}`,
+                }}
+              >
+                {l.label}
+              </button>
+            ))}
+            {canBook && (
+              <button
+                type="button"
+                onClick={() => { setMenuOpen(false); openBook(); }}
+                style={{
+                  marginTop: 12,
+                  height: btnH,
+                  borderRadius: L.br,
+                  background: P.accent,
+                  color: P.onAccent,
+                  fontSize: btnFs,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {t.cta}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {n && menuOpen && (
+        <button
+          type="button"
+          aria-label="Cerrar menú"
+          onClick={() => setMenuOpen(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 20, border: 'none', background: 'rgba(15,14,26,0.28)', cursor: 'pointer' }}
+        />
+      )}
 
       {L.hero === 'split' && (
         <section style={{ display: 'grid', gridTemplateColumns: W('1.05fr 0.95fr', '1fr'), gap: W(72, 32), alignItems: 'center', padding: W(`72px ${px}px 104px`, '32px 20px 52px') }}>
@@ -118,7 +279,7 @@ export default function WebSite(p: SiteProps) {
             <p style={{ margin: 0, fontSize: lead, lineHeight: 1.55, color: P.muted, maxWidth: 480, ...pretty }}>{t.heroSub}</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
               <Btn>{t.cta}</Btn>
-              <span style={{ fontSize: btnFs, fontWeight: 600, borderBottom: '1.5px solid currentColor', paddingBottom: 2, whiteSpace: 'nowrap' }}>Ver servicios</span>
+              <button type="button" onClick={() => goTo('servicios')} style={{ fontSize: btnFs, fontWeight: 600, whiteSpace: 'nowrap', background: 'none', border: 'none', borderBottom: '1.5px solid currentColor', color: 'inherit', cursor: 'pointer', fontFamily: 'inherit', padding: '0 0 2px' }}>Ver servicios</button>
             </div>
           </div>
           <div style={{ position: 'relative', height: W(640, 400), borderRadius: W('320px 320px 0 0', '170px 170px 0 0'), overflow: 'hidden', background: heroBg }}><Caption text={capHero} style={{ left: 16, bottom: 16 }} /></div>
@@ -188,7 +349,11 @@ export default function WebSite(p: SiteProps) {
         <section id="servicios" style={{ padding: secPad, background: menuLook ? P.surface : P.bg, display: 'flex', flexDirection: 'column', gap: secGap }}>
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><Label>Servicios</Label><H2>Nuestros tratamientos</H2></div>
-            {bookHref ? <a href={bookHref} target="_blank" rel="noopener noreferrer" style={{ fontSize: 15, fontWeight: 600, color: accentText, textDecoration: 'none' }}>Reservar online →</a> : <span style={{ fontSize: 15, fontWeight: 600, color: accentText }}>Reservar online →</span>}
+            {canBook ? (
+              <button type="button" onClick={openBook} style={{ fontSize: 15, fontWeight: 600, color: accentText, textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>Reservar online →</button>
+            ) : (
+              <span style={{ fontSize: 15, fontWeight: 600, color: accentText }}>Reservar online →</span>
+            )}
           </div>
           {L.svc === 'menu' && (
             <div style={{ display: 'grid', gridTemplateColumns: W('1fr 1fr', '1fr'), columnGap: 72 }}>
@@ -243,13 +408,15 @@ export default function WebSite(p: SiteProps) {
       {(fx.book === 'embed' || fx.book === 'both') && (
         <section id="reservar" style={{ padding: secPad, display: 'flex', flexDirection: 'column', gap: secGap }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><Label>Reserva online</Label><H2>Elige día y hora</H2></div>
-          {bookHref ? (
-            <div style={{ borderRadius: r, overflow: 'hidden', border: `1px solid ${P.line}`, background: dark ? P.surface : '#FFFFFF', minHeight: W(640, 520) }}>
-              <iframe title="Reservar cita" src={bookHref} style={{ width: '100%', height: W(640, 520), border: 'none', display: 'block' }} />
+          {bookEmbed ? (
+            <div style={{ borderRadius: r, overflow: 'hidden', border: `1px solid ${P.line}`, background: dark ? P.surface : '#FFFFFF', minHeight: W(720, 560) }}>
+              <iframe title="Reservar cita" src={bookEmbed} style={{ width: '100%', height: W(720, 560), border: 'none', display: 'block' }} />
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: W(28, 20), borderRadius: r, border: `1px solid ${P.line}`, background: dark ? P.surface : '#FFFFFF' }}>
-              <p style={{ margin: 0, fontSize: lead, color: P.muted, lineHeight: 1.5 }}>Activa el enlace de reservas en Ajustes para incrustar tu calendario aquí.</p>
+              <p style={{ margin: 0, fontSize: lead, color: P.muted, lineHeight: 1.5 }}>
+                Configura el enlace público de reservas en Ajustes → Reservas para incrustar el calendario aquí.
+              </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {LIST.filter((x) => x.book !== false).slice(0, 4).map((x) => (
                   <span key={x.id} style={{ height: 40, padding: '0 14px', borderRadius: chipR, border: `1px solid ${P.line}`, fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center' }}>{x.name}</span>
@@ -270,45 +437,53 @@ export default function WebSite(p: SiteProps) {
         </section>
       )}
 
-      {fx.reviews && place?.reviews?.length ? (
+      {showReviews && (
         <section id="reseñas" style={{ padding: secPad, background: P.surface, display: 'flex', flexDirection: 'column', gap: secGap }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><Label>Reseñas</Label><H2>Lo que dicen en Google</H2></div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: W(28, 18) }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: head, fontWeight: headW, fontSize: W(48, 36), lineHeight: 1 }}>
-                {place.rating?.toFixed(1) ?? '—'}
-              </span>
-              <span style={{ color: dark ? P.accent : mix(P.accent, P.ink, 0.75), fontSize: W(22, 18), letterSpacing: 2 }}>
-                {'★'.repeat(Math.round(place.rating || 5))}
-              </span>
-              {place.userRatingCount != null && (
-                <span style={{ fontSize: meta, color: P.muted }}>
-                  {place.userRatingCount} reseñas en Google
+          {place?.reviews?.length ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: W(28, 18) }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: head, fontWeight: headW, fontSize: W(48, 36), lineHeight: 1 }}>
+                  {place.rating?.toFixed(1) ?? '—'}
                 </span>
-              )}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: W('repeat(3, minmax(0, 1fr))', '1fr'), gap: W(16, 12) }}>
-              {place.reviews.slice(0, 3).map((rev, i) => (
-                <blockquote
-                  key={`${rev.author}-${i}`}
-                  style={{ margin: 0, padding: W(24, 18), borderRadius: r, background: P.bg, display: 'flex', flexDirection: 'column', gap: 12 }}
-                >
-                  <span style={{ color: dark ? P.accent : mix(P.accent, P.ink, 0.75), letterSpacing: 2, fontSize: 14 }}>
-                    {'★'.repeat(Math.min(5, Math.max(1, Math.round(rev.rating))))}
+                <span style={{ color: dark ? P.accent : mix(P.accent, P.ink, 0.75), fontSize: W(22, 18), letterSpacing: 2 }}>
+                  {'★'.repeat(Math.round(place.rating || 5))}
+                </span>
+                {place.userRatingCount != null && (
+                  <span style={{ fontSize: meta, color: P.muted }}>
+                    {place.userRatingCount} reseñas en Google
                   </span>
-                  <p style={{ margin: 0, fontSize: meta, lineHeight: 1.55, color: P.muted, ...pretty }}>
-                    {rev.text.length > 220 ? `${rev.text.slice(0, 217)}…` : rev.text}
-                  </p>
-                  <footer style={{ fontSize: 13, fontWeight: 600 }}>
-                    {rev.author}
-                    {rev.relativeTime ? <span style={{ fontWeight: 500, color: P.muted }}> · {rev.relativeTime}</span> : null}
-                  </footer>
-                </blockquote>
-              ))}
+                )}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: W('repeat(3, minmax(0, 1fr))', '1fr'), gap: W(16, 12) }}>
+                {place.reviews.slice(0, 3).map((rev, i) => (
+                  <blockquote
+                    key={`${rev.author}-${i}`}
+                    style={{ margin: 0, padding: W(24, 18), borderRadius: r, background: P.bg, display: 'flex', flexDirection: 'column', gap: 12 }}
+                  >
+                    <span style={{ color: dark ? P.accent : mix(P.accent, P.ink, 0.75), letterSpacing: 2, fontSize: 14 }}>
+                      {'★'.repeat(Math.min(5, Math.max(1, Math.round(rev.rating))))}
+                    </span>
+                    <p style={{ margin: 0, fontSize: meta, lineHeight: 1.55, color: P.muted, ...pretty }}>
+                      {rev.text.length > 220 ? `${rev.text.slice(0, 217)}…` : rev.text}
+                    </p>
+                    <footer style={{ fontSize: 13, fontWeight: 600 }}>
+                      {rev.author}
+                      {rev.relativeTime ? <span style={{ fontWeight: 500, color: P.muted }}> · {rev.relativeTime}</span> : null}
+                    </footer>
+                  </blockquote>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <p style={{ margin: 0, fontSize: meta, color: P.muted, lineHeight: 1.5, maxWidth: 520 }}>
+              {showFloat
+                ? 'Las reseñas se cargan al publicar (hace falta GOOGLE_PLACES_API_KEY en el servidor).'
+                : 'Vista previa: al publicar con GOOGLE_PLACES_API_KEY saldrán aquí las reseñas reales de tu ficha.'}
+            </p>
+          )}
         </section>
-      ) : null}
+      )}
 
       {sec.equipo && (
         <section id="equipo" style={{ padding: secPad, background: menuLook ? P.bg : P.surface, display: 'flex', flexDirection: 'column', gap: secGap }}>
@@ -357,20 +532,20 @@ export default function WebSite(p: SiteProps) {
         </section>
       )}
 
-      {fx.insta && (igMedia.length > 0 || igShowLink) && (
+      {showInsta && (
         <section id="instagram" style={{ padding: secPad, background: menuLook ? P.bg : P.surface, display: 'flex', flexDirection: 'column', gap: secGap }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <Label>Instagram</Label>
               <H2>{igLabel ? `En ${igLabel}` : 'Nuestro Instagram'}</H2>
             </div>
-            {igShowLink && (
-              <a href={igHref!} target="_blank" rel="noopener noreferrer" style={{ fontSize: 15, fontWeight: 600, color: accentText, textDecoration: 'none' }}>
+            {igShowLink && igHref && (
+              <a href={igHref} target="_blank" rel="noopener noreferrer" style={{ fontSize: 15, fontWeight: 600, color: accentText, textDecoration: 'none' }}>
                 Ver perfil →
               </a>
             )}
           </div>
-          {igMedia.length > 0 && (
+          {igMedia.length > 0 ? (
             <div style={{ display: 'grid', gridTemplateColumns: W('repeat(6, minmax(0, 1fr))', 'repeat(3, minmax(0, 1fr))'), gap: W(12, 6) }}>
               {igMedia.slice(0, 6).map((m) => {
                 const tileStyle: React.CSSProperties = {
@@ -382,11 +557,11 @@ export default function WebSite(p: SiteProps) {
                   textDecoration: 'none',
                 };
                 const label = m.caption ? m.caption.slice(0, 80) : `Foto de Instagram${igLabel ? ` · ${igLabel}` : ''}`;
-                if (igShowLink) {
+                if (igShowLink && igHref) {
                   return (
                     <a
                       key={m.id}
-                      href={m.permalink || igHref!}
+                      href={m.permalink || igHref}
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={label}
@@ -397,9 +572,23 @@ export default function WebSite(p: SiteProps) {
                 return <div key={m.id} role="img" aria-label={label} style={tileStyle} />;
               })}
             </div>
+          ) : igUser ? (
+            <div style={{ borderRadius: Math.max(12, r), overflow: 'hidden', border: `1px solid ${P.line}`, background: P.bg, minHeight: W(540, 420) }}>
+              <iframe
+                title={`Instagram ${igLabel || ''}`}
+                src={`https://www.instagram.com/${encodeURIComponent(igUser)}/embed`}
+                style={{ width: '100%', height: W(540, 420), border: 'none', display: 'block' }}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+          ) : (
+            <p style={{ margin: 0, fontSize: meta, color: P.muted, lineHeight: 1.5 }}>
+              Escribe tu usuario de Instagram en Extras (ej. @tucentro).
+            </p>
           )}
-          {igShowLink && (
-            <Btn href={igHref!} style={{ alignSelf: 'flex-start' }}>
+          {igShowLink && igHref && (
+            <Btn href={igHref} style={{ alignSelf: 'flex-start' }}>
               Abrir {igLabel || 'Instagram'}
             </Btn>
           )}
@@ -464,9 +653,13 @@ export default function WebSite(p: SiteProps) {
       {(floatBook || waHref) && (
         <div style={{ position: 'fixed', right: W(28, 16), bottom: W(28, 16), zIndex: 50, display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'auto' }}>
           {floatBook && (
-            <a href={bookHref} target="_blank" rel="noopener noreferrer" style={{ height: 48, padding: '0 18px', borderRadius: L.br === '0px' ? 0 : L.br === '4px' ? 6 : 999, background: P.accent, color: P.onAccent, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', boxShadow: '0 10px 24px rgba(0,0,0,.22)' }}>
+            <button
+              type="button"
+              onClick={openBook}
+              style={{ height: 48, padding: '0 18px', borderRadius: L.br === '0px' ? 0 : L.br === '4px' ? 6 : 999, background: P.accent, color: P.onAccent, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 10px 24px rgba(0,0,0,.22)' }}
+            >
               {t.cta}
-            </a>
+            </button>
           )}
           {waHref && (
             <a href={waHref} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" style={{ width: 48, height: 48, borderRadius: '50%', background: '#25D366', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', boxShadow: '0 10px 24px rgba(0,0,0,.22)' }}>
@@ -474,6 +667,19 @@ export default function WebSite(p: SiteProps) {
             </a>
           )}
         </div>
+      )}
+
+      {bookEmbed && (
+        <BookingCalendarModal
+          open={bookOpen}
+          onClose={() => setBookOpen(false)}
+          embedUrl={bookEmbed}
+          title={t.cta || 'Reservar cita'}
+          accent={P.accent}
+          onAccent={P.onAccent}
+          ink={P.ink}
+          bg={P.bg}
+        />
       )}
     </div>
   );

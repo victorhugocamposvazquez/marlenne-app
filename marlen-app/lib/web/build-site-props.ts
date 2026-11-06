@@ -11,6 +11,7 @@ export function buildSiteProps(input: {
   logo?: string | null;
   brandColor: string;
   bookingUrl?: string | null;
+  bookingEmbedUrl?: string | null;
   phone?: string | null;
   address?: string | null;
   siteSlug?: string | null;
@@ -62,6 +63,7 @@ export function buildSiteProps(input: {
     salon: input.salon,
     logo: input.logo || undefined,
     bookingUrl: input.bookingUrl || undefined,
+    bookingEmbedUrl: input.bookingEmbedUrl || undefined,
     phone: input.phone,
     address: input.address,
     team: input.team,

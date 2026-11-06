@@ -52,7 +52,7 @@ export async function loadMarketingBrand(): Promise<MarketingBrand> {
     logoUrl: publicLogoUrl(row?.logo_path ?? null),
     accent: (row?.booking_accent ?? '').trim() || '#D000A8',
     bookingSlug,
-    bookingUrl: bookingSlug ? bookingPageUrl(origin, bookingSlug) : origin,
+    bookingUrl: bookingSlug ? bookingPageUrl(origin, bookingSlug) : '',
     origin,
   };
 }

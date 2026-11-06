@@ -47,6 +47,31 @@ export function extractPlaceIdFromUrl(raw: string): string | null {
   return null;
 }
 
+/** Sigue redirects de g.page / maps.app.goo.gl para sacar ChI… */
+async function resolvePlaceIdFromShortUrl(raw: string): Promise<string | null> {
+  const direct = extractPlaceIdFromUrl(raw);
+  if (direct) return direct;
+  let href = raw.trim();
+  if (!href) return null;
+  if (!/^https?:\/\//i.test(href)) href = `https://${href}`;
+  try {
+    const res = await fetch(href, {
+      method: 'GET',
+      redirect: 'follow',
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MarlenBot/1.0)' },
+    });
+    const finalUrl = res.url || href;
+    const fromFinal = extractPlaceIdFromUrl(finalUrl);
+    if (fromFinal) return fromFinal;
+    const html = await res.text();
+    const chI = html.match(/place_id['"]?\s*[:=]\s*['"]?(ChI[\w-]+)/i) || html.match(/(ChI[\w-]{20,})/);
+    if (chI) return chI[1];
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
 export async function fetchPlaceReviews(
   placeIdOrUrl: string,
   maxReviews = 5,
@@ -65,7 +90,7 @@ export async function fetchPlaceReviews(
     };
   }
 
-  let placeId = extractPlaceIdFromUrl(placeIdOrUrl);
+  let placeId = await resolvePlaceIdFromShortUrl(placeIdOrUrl);
   if (!placeId) {
     // Text Search fallback con la URL / nombre
     const searchRes = await fetch('https://places.googleapis.com/v1/places:searchText', {

@@ -55,6 +55,8 @@ export interface SiteProps {
   svcMedia?: ServiceMedia; iconStyle?: IconStyle; narrow?: boolean;
   salon?: string; logo?: string;
   bookingUrl?: string;
+  /** URL /embed/… para iframe y modal (si falta, se deriva de bookingUrl). */
+  bookingEmbedUrl?: string;
   /** Datos de Visítanos (cuenta del centro). */
   phone?: string | null;
   address?: string | null;
