@@ -7,7 +7,7 @@ import {
   BANK, DEFAULT_EXTRAS, DNS_RECORDS, ICONS, RESERVED, SECTIONS, SERVICES, SERVICE_MEDIA, TABS, TEAM as TEAM_DEMO, TEMPLATES, TEXTS, TEXT_LIMITS, TIPS,
   bankImg, lookOf, palettesFor, slugify, tplOf,
 } from '@/lib/web/data';
-import type { BookingMode, Extras, IconStyle, Photo, Sections, Service, ServiceMedia, SiteTexts, TabId, Tone } from '@/lib/web/types';
+import type { BookingMode, Extras, IgLayout, IconStyle, Photo, Sections, Service, ServiceMedia, SiteTexts, TabId, Tone } from '@/lib/web/types';
 import { searchStockByTheme } from '@/app/actions/marketing-stock';
 import { stockProxyPath } from '@/lib/marketing/stock';
 import { themeForService } from '@/lib/web/from-salon';
@@ -708,17 +708,47 @@ export default function WebStudio({
           </button>
           {on && fields.length > 0 && <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 14px 14px 62px' }}>{fields.map(([n, l, ph]) => fxField(n, l, ph))}</div>}
           {on && k === 'insta' && (
-            <button
-              type="button"
-              onClick={() => { setFx({ ...fx, igLink: !fx.igLink }); touch(); }}
-              style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '4px 14px 14px 62px', border: 'none', background: 'none', color: INK, textAlign: 'left', cursor: 'pointer' }}
-            >
-              <span style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>Enlace y botón al perfil</span>
-                <span style={{ fontSize: 12, color: MUTED, lineHeight: 1.35 }}>«Ver perfil» y fotos clicables hacia Instagram</span>
-              </span>
-              <Switch on={!!fx.igLink} w={40} />
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 14px 14px 62px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#4A4957' }}>Cómo se muestran las fotos</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                  {([
+                    ['carousel', 'Carrusel', 'Desliza y autoavanza'],
+                    ['spotlight', 'Destacado', 'Una grande + rejilla'],
+                    ['grid', 'Cuadrícula', 'Mosaico clásico'],
+                  ] as [IgLayout, string, string][]).map(([id, label, desc]) => {
+                    const sel = (fx.igLayout || 'carousel') === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => { setFx({ ...fx, igLayout: id }); touch(); }}
+                        style={{
+                          display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2,
+                          padding: '10px 10px', borderRadius: 12,
+                          border: `1.5px solid ${sel ? INK : LINE}`, background: '#fff', color: INK,
+                          textAlign: 'left', cursor: 'pointer',
+                        }}
+                      >
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>{label}</span>
+                        <span style={{ fontSize: 11, color: MUTED, lineHeight: 1.3 }}>{desc}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setFx({ ...fx, igLink: !fx.igLink }); touch(); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: 0, border: 'none', background: 'none', color: INK, textAlign: 'left', cursor: 'pointer' }}
+              >
+                <span style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>Enlace y botón al perfil</span>
+                  <span style={{ fontSize: 12, color: MUTED, lineHeight: 1.35 }}>«Ver perfil» y fotos clicables hacia Instagram</span>
+                </span>
+                <Switch on={!!fx.igLink} w={40} />
+              </button>
+            </div>
           )}
           {on && k === 'gift' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 14px 14px 62px' }}>

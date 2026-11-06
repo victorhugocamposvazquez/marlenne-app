@@ -93,6 +93,8 @@ export type ServiceOption = {
   duration_min: number;
   price_cents: number;
   is_active?: boolean;
+  /** Si false, no sale en el calendario / widget de reserva online. */
+  bookable_online?: boolean;
 };
 
 export type ClientOption = {

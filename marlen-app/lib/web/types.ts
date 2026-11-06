@@ -8,6 +8,8 @@ export type TabId = 'look' | 'photo' | 'text' | 'svc' | 'fx' | 'dom';
 export type ServiceMedia = 'photo' | 'icon' | 'none';
 export type IconStyle = 'line' | 'solid' | 'plain';
 export type BookingMode = 'float' | 'embed' | 'both' | 'off';
+/** Cómo se muestran las fotos de Instagram en la web. */
+export type IgLayout = 'carousel' | 'spotlight' | 'grid';
 
 export interface Palette {
   id: string; label: string; sub?: string;
@@ -31,6 +33,8 @@ export interface Extras {
   insta: boolean; igUser: string;
   /** Mostrar enlace / botón al perfil de Instagram (además del feed). */
   igLink: boolean;
+  /** Presentación del feed (carrusel por defecto). */
+  igLayout: IgLayout;
 }
 
 /** Valor de imagen: un `background` CSS (degradado del banco o url(...) de una foto subida) */

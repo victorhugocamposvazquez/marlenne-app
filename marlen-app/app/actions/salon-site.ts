@@ -158,9 +158,34 @@ export async function saveSalonSiteDraft(input: {
     return { ok: false, error: error?.message || 'No se ha podido guardar' };
   }
 
+  // Alinea services.bookable_online con el toggle «Reserva online» de la web.
+  // El RPC booking_catalog solo lista bookable_online = true.
+  await syncBookableOnline(sb, me.salon_id, config.svcs);
+
   revalidatePath('/ajustes/marketing/web');
   revalidatePath(`/s/${slug}`);
+  revalidatePath('/r', 'layout');
+  revalidatePath('/embed', 'layout');
   return { ok: true, site: mapRow(data as DbRow), url: publicSiteUrl(slug) };
+}
+
+async function syncBookableOnline(
+  sb: ReturnType<typeof createClient>,
+  salonId: string,
+  svcs: SalonSiteConfig['svcs'],
+): Promise<void> {
+  if (!svcs?.length) return;
+  await Promise.all(
+    svcs.map(async s => {
+      if (!s?.id) return;
+      const { error } = await sb
+        .from('services')
+        .update({ bookable_online: s.book !== false })
+        .eq('id', s.id)
+        .eq('salon_id', salonId);
+      if (error) console.error('[salon-site] bookable_online', s.id, error.message);
+    }),
+  );
 }
 
 export async function publishSalonSite(input: {

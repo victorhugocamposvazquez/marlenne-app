@@ -21,7 +21,7 @@ export function instagramConfigured(): boolean {
 }
 
 /** Resuelve user → business account no es trivial sin token; usamos el ID fijo del env. */
-export async function fetchInstagramMedia(limit = 6): Promise<
+export async function fetchInstagramMedia(limit = 9): Promise<
   | { ok: true; media: IgMedia[]; configured: true }
   | { ok: true; media: []; configured: false; hint: string }
   | { ok: false; error: string; configured: true }

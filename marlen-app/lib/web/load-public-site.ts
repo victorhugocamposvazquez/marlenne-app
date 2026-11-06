@@ -38,7 +38,7 @@ export async function loadPublicSiteBundle(slug: string): Promise<PublicSiteBund
 
   const { data: serviceRows } = await sb
     .from('services')
-    .select('id, name, category, duration_min, price_cents, is_active')
+    .select('id, name, category, duration_min, price_cents, is_active, bookable_online')
     .eq('salon_id', site.salonId)
     .eq('is_active', true)
     .order('sort_order');
@@ -50,6 +50,7 @@ export async function loadPublicSiteBundle(slug: string): Promise<PublicSiteBund
       category: string;
       duration_min: number;
       price_cents: number;
+      bookable_online?: boolean;
     }[]).map(
       (s): ServiceOption => ({
         id: s.id,
@@ -58,6 +59,7 @@ export async function loadPublicSiteBundle(slug: string): Promise<PublicSiteBund
         duration_min: s.duration_min,
         price_cents: s.price_cents,
         is_active: true,
+        bookable_online: s.bookable_online !== false,
       }),
     ),
   );

@@ -83,7 +83,7 @@ export const TEAM: [string, string][] = [['Lucía Martín', 'Cejas y pestañas']
 export const DEFAULT_EXTRAS: Extras = {
   book: 'float', wa: true, waNum: '', waMsg: 'Hola, quiero pedir cita',
   bar: false, barText: '−15 % en tu primera visita', reviews: false, gUrl: '',
-  gift: false, insta: false, igUser: '', igLink: false,
+  gift: false, insta: false, igUser: '', igLink: false, igLayout: 'carousel',
 };
 
 // TODO(backend): banco de imágenes real por temáticas (hoy, degradados con el nombre de la foto que iría).

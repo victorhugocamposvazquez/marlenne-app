@@ -133,6 +133,7 @@ function mapService(row: Record<string, unknown>): ServiceOption {
     duration_min: row.duration_min as number,
     price_cents: row.price_cents as number,
     is_active: row.is_active as boolean | undefined,
+    bookable_online: (row.bookable_online as boolean | undefined) ?? true,
   };
 }
 
@@ -140,19 +141,19 @@ export async function listServices(opts?: { includeInactive?: boolean }): Promis
   const sb = createClient();
   let query = sb
     .from('services')
-    .select('id, name, category, category_id, duration_min, price_cents, is_active, color, cat:service_categories(name, color)')
+    .select('id, name, category, category_id, duration_min, price_cents, is_active, color, bookable_online, cat:service_categories(name, color)')
     .order('sort_order');
   if (!opts?.includeInactive) query = query.eq('is_active', true);
   const { data, error } = await query;
   if (error || !data) {
     let fallback = sb
       .from('services')
-      .select('id, name, category, duration_min, price_cents, is_active')
+      .select('id, name, category, duration_min, price_cents, is_active, bookable_online')
       .order('category')
       .order('sort_order');
     if (!opts?.includeInactive) fallback = fallback.eq('is_active', true);
     const again = await fallback;
-    return (again.data ?? []) as ServiceOption[];
+    return (again.data ?? []).map(row => mapService(row as Record<string, unknown>));
   }
   return data.map(row => mapService(row as Record<string, unknown>));
 }

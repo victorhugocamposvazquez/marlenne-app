@@ -9,7 +9,7 @@ export async function refreshSiteFeeds(config: SalonSiteConfig): Promise<SiteFee
   const now = new Date().toISOString();
 
   if (config.fx.insta) {
-    const ig = await fetchInstagramMedia(6);
+    const ig = await fetchInstagramMedia(9);
     if (ig.ok && ig.configured && ig.media.length) {
       next.ig = ig.media;
       next.igFetchedAt = now;

@@ -84,6 +84,7 @@ export function emptySiteConfig(partial?: Partial<SalonSiteConfig>): SalonSiteCo
       insta: false,
       igUser: '',
       igLink: false,
+      igLayout: 'carousel',
     },
     svcs: [],
     svcMedia: null,
@@ -110,7 +111,14 @@ export function parseSiteConfig(raw: unknown): SalonSiteConfig {
     : base.giftAmounts;
   return emptySiteConfig({
     ...(o as Partial<SalonSiteConfig>),
-    fx: { ...base.fx, ...((o.fx as Extras) || {}) },
+    fx: (() => {
+      const fx = { ...base.fx, ...((o.fx as Extras) || {}) };
+      const layout = fx.igLayout;
+      if (layout !== 'carousel' && layout !== 'spotlight' && layout !== 'grid') {
+        fx.igLayout = 'carousel';
+      }
+      return fx;
+    })(),
     sec: { ...base.sec, ...((o.sec as Sections) || {}) },
     txt: { ...base.txt, ...((o.txt as SiteTexts) || {}) },
     photos: {

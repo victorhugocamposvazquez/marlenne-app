@@ -3,10 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import BookingCalendarModal from '@/components/web/BookingCalendarModal';
 import GiftCardBuy from '@/components/web/GiftCardBuy';
+import IgFeed from '@/components/web/IgFeed';
 import { hex, luminance, mix } from '@/lib/marketing/color';
 import { bookingPageToEmbedUrl, isBookingPageUrl, withBookingTheme } from '@/lib/web/booking-urls';
 import { googleMapsEmbedUrl, instagramProfileUrl, parseInstagramUser } from '@/lib/web/extras';
-import type { SiteProps, SiteService } from '@/lib/web/types';
+import type { IgLayout, SiteProps, SiteService } from '@/lib/web/types';
 
 /**
  * Web pública del centro. Mismo componente para la vista previa del editor y para la web publicada.
@@ -554,32 +555,21 @@ export default function WebSite(p: SiteProps) {
             )}
           </div>
           {igMedia.length > 0 ? (
-            <div style={{ display: 'grid', gridTemplateColumns: W('repeat(6, minmax(0, 1fr))', 'repeat(3, minmax(0, 1fr))'), gap: W(12, 6) }}>
-              {igMedia.slice(0, 6).map((m) => {
-                const tileStyle: React.CSSProperties = {
-                  aspectRatio: '1',
-                  borderRadius: Math.min(r, 12),
-                  background: `url("${m.mediaUrl}") center / cover no-repeat`,
-                  display: 'block',
-                  overflow: 'hidden',
-                  textDecoration: 'none',
-                };
-                const label = m.caption ? m.caption.slice(0, 80) : `Foto de Instagram${igLabel ? ` · ${igLabel}` : ''}`;
-                if (igShowLink && igHref) {
-                  return (
-                    <a
-                      key={m.id}
-                      href={m.permalink || igHref}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={label}
-                      style={tileStyle}
-                    />
-                  );
-                }
-                return <div key={m.id} role="img" aria-label={label} style={tileStyle} />;
-              })}
-            </div>
+            <IgFeed
+              media={igMedia}
+              layout={(fx.igLayout as IgLayout) || 'carousel'}
+              narrow={n}
+              radius={r}
+              line={P.line}
+              muted={P.muted}
+              ink={P.ink}
+              accent={P.accent}
+              surface={P.surface}
+              bg={P.bg}
+              linkPosts={igShowLink}
+              profileHref={igHref}
+              profileLabel={igLabel}
+            />
           ) : igUser ? (
             <div style={{ borderRadius: Math.max(12, r), overflow: 'hidden', border: `1px solid ${P.line}`, background: P.bg, minHeight: W(540, 420) }}>
               <iframe

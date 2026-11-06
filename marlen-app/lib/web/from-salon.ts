@@ -20,7 +20,7 @@ export function servicesToWebCatalog(services: ServiceOption[]): Service[] {
     price: eur(s.price_cents),
     pub: true,
     nov: i < 2,
-    book: true,
+    book: s.bookable_online !== false,
   }));
 }
 
