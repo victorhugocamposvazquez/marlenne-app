@@ -2,13 +2,14 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import css from './marketing.module.css';
-import Creative, { CreativeCanvas } from './Creative';
+import Creative, { CreativeCanvas, DraggableCreative } from './Creative';
 import { Icon, MarlenAvatar, PATH } from './Icons';
 import { searchStockByTheme } from '@/app/actions/marketing-stock';
 import { ALT, ELEMENTS, FORMATS, FORMAT_H, IMAGES, REC, SEAL_TEXT, STYLES, STYLE_TONE, THEMES, TONES, fieldsFor, getCatalog, getType, recommendElements, setActiveCatalog, suggestTheme } from '@/lib/marketing/data';
 import { LIMITS, type TextField, improveAll, pickLine, withClientVars } from '@/lib/marketing/copy';
 import { copyBlob, copyText, downloadBlob, nodeToPng, openEmail, openInstagram, openWhatsAppChat, shareBlob, slug } from '@/lib/marketing/export';
 import { stockProxyPath } from '@/lib/marketing/stock';
+import type { ImageFocus } from '@/lib/marketing/image-focus';
 import type { BankImage, CreativeConfig, CreativeType, ElementKey, Elements, Fields, FormatId, LibraryItem, StyleId, TabId, Tone, TypeId } from '@/lib/marketing/types';
 import type { ClientOption, ServiceOption } from '@/lib/types';
 import {
@@ -126,6 +127,9 @@ export default function MarketingStudio({
   const [sellBusy, setSellBusy] = useState(false);
   const [library, setLibrary] = useState<LibraryItem[]>([]);
   const [uploads, setUploads] = useState<BankImage[]>([]);
+  /** Encuadre por id de foto (arrastre en la vista previa). */
+  const [focusById, setFocusById] = useState<Record<string, ImageFocus>>({});
+  const imageIdRef = useRef<string | null>(null);
   const [stockByTheme, setStockByTheme] = useState<Record<string, BankImage[]>>({});
   const [stockLoading, setStockLoading] = useState(false);
   const [stockHint, setStockHint] = useState<string | null>(null);
@@ -220,10 +224,21 @@ export default function MarketingStudio({
       ? uploads.find(u => u.id === id) || allStock.find(u => u.id === id) || IMAGES[id] || null
       : null;
   const themeLabel = (id: string) => (id === 'mias' ? 'Tus fotos' : THEMES.find((t) => t.id === id)?.label || '');
-  const cfgOf = (o: { style: StyleId; format: FormatId; fields: Fields; showLogo: boolean; image: string | null; els: Elements }): CreativeConfig => {
+  const cfgOf = (o: { style: StyleId; format: FormatId; fields: Fields; showLogo: boolean; image: string | null; els: Elements; imageFocus?: ImageFocus | null }): CreativeConfig => {
     const im = imgObj(o.image);
-    return { ...o.fields, style: o.style, format: o.format, accent: brandColor, logo, showLogo: o.showLogo, link, image: im ? { bg: im.bg, src: im.src, label: im.label } : null, elements: o.els };
+    const focus = o.imageFocus ?? (o.image ? focusById[o.image] : undefined);
+    return { ...o.fields, style: o.style, format: o.format, accent: brandColor, logo, showLogo: o.showLogo, link, image: im ? { bg: im.bg, src: im.src, label: im.label, focus } : null, elements: o.els };
   };
+  imageIdRef.current = ed.image;
+  const setImageFocus = useCallback((focus: ImageFocus) => {
+    const id = imageIdRef.current;
+    if (!id) return;
+    setFocusById((m) => {
+      const prev = m[id];
+      if (prev && prev.x === focus.x && prev.y === focus.y) return m;
+      return { ...m, [id]: focus };
+    });
+  }, []);
   const currentCfg = cfgOf(ed);
   const sugTheme = suggestTheme(ed.type, ed.catIdx);
 
@@ -457,7 +472,7 @@ export default function MarketingStudio({
         if (!ok) downloadBlob(blob, fileName(ed.format));
       }
       if (link) await copyText(link);
-      const it: LibraryItem = { id: ed.editingId || 'c' + Date.now(), type: ed.type, catIdx: ed.catIdx, style: ed.style, format: ed.format, image: ed.image, fields: { ...ed.fields }, els: { ...ed.els }, showLogo: ed.showLogo, date: 'Ahora' };
+      const it: LibraryItem = { id: ed.editingId || 'c' + Date.now(), type: ed.type, catIdx: ed.catIdx, style: ed.style, format: ed.format, image: ed.image, imageFocus: ed.image ? focusById[ed.image] : undefined, fields: { ...ed.fields }, els: { ...ed.els }, showLogo: ed.showLogo, date: 'Ahora' };
       setLibrary((l) => [it, ...l.filter((x) => x.id !== it.id)]);
       setHighlight(it.id);
       setFilter('all');
@@ -714,7 +729,7 @@ export default function MarketingStudio({
           {stockHint
             ? stockHint
             : sel
-              ? `${sel.label} · ${themeLabel(sel.theme)}`
+              ? `${sel.label} · ${themeLabel(sel.theme)}. Arrastra la foto en la vista previa para moverla.`
               : ed.imgTheme === 'mias' && !uploads.length
                 ? 'Sube fotos de tu centro o de tu equipo.'
                 : stockLoading
@@ -843,9 +858,15 @@ export default function MarketingStudio({
   const box = mobile ? { w: 152, h: 190, p: 10 } : { w: 232, h: 290, p: 20 };
   const openLibItem = (i: LibraryItem) => {
     setLibSel(null);
+    if (i.image && i.imageFocus) {
+      const id = i.image;
+      const focus = i.imageFocus;
+      setFocusById((m) => ({ ...m, [id]: focus }));
+    }
+    const { imageFocus: _focus, seed: _seed, date: _date, id, ...rest } = i;
     openEditor({
-      ...i,
-      editingId: i.id,
+      ...rest,
+      editingId: id,
       imgTheme: imgObj(i.image)?.theme || suggestTheme(i.type, i.catIdx),
       tone: STYLE_TONE[i.style],
       tab: 'texto',
@@ -1252,7 +1273,12 @@ export default function MarketingStudio({
         </button>
       </div>
       <div ref={previewRef} style={{ flex: 1, minHeight: 0, background: '#F6F6F9', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
-        <Creative cfg={currentCfg} width={previewW} radius={12} shadow safe={ed.safe} />
+        <DraggableCreative cfg={currentCfg} width={previewW} radius={12} shadow safe={ed.safe} onImageFocus={setImageFocus} />
+        {currentCfg.image?.src && (
+          <span style={{ position: 'absolute', left: 12, right: 12, bottom: 8, textAlign: 'center', fontSize: 12, fontWeight: 600, color: '#6E6D7A', pointerEvents: 'none' }}>
+            Arrastra la foto para encuadrarla
+          </span>
+        )}
         <button type="button" onClick={cycleFormat} style={{ ...floatBtn, left: 12 }}>
           <span className={css.ratio} style={{ width: F.iw, height: F.ih }} />{F.ratio}<Icon d={PATH.chevronDown} size={14} stroke={2} />
         </button>
@@ -1336,9 +1362,9 @@ export default function MarketingStudio({
             )}
           </div>
           <div ref={previewRef} style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-            <Creative cfg={currentCfg} width={previewW} radius={14} shadow safe={ed.safe} />
+            <DraggableCreative cfg={currentCfg} width={previewW} radius={14} shadow safe={ed.safe} onImageFocus={setImageFocus} />
           </div>
-          <div style={{ padding: '0 24px 20px', textAlign: 'center', fontSize: 13, color: '#6E6D7A' }}>{F.px} · {F.usage}</div>
+          <div style={{ padding: '0 24px 20px', textAlign: 'center', fontSize: 13, color: '#6E6D7A' }}>{currentCfg.image?.src ? 'Arrastra la foto para encuadrarla · ' : ''}{F.px} · {F.usage}</div>
         </div>
       </div>
     </div>
