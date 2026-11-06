@@ -20,6 +20,10 @@ export default function WebSite(p: SiteProps) {
   const bookHref = (p.bookingUrl || '').trim() || undefined;
   const phoneLbl = (p.phone || '').trim() || null;
   const addressLbl = (p.address || '').trim() || null;
+  const hoursLbl = (p.hours || '').trim() || null;
+  const zoneLbl = (p.zone || '').trim() || null;
+  const showFloat = p.showFloat !== false;
+  const siteSlug = (p.siteSlug || '').trim() || null;
   const W = <T,>(a: T, b: T) => (n ? b : a), sf = L.serif, dark = luminance(P.bg) < 0.2;
   const px = W(72, 20), py = W(112, 60), r = n ? Math.min(L.radius, 18) : L.radius;
   const ang = [150, 205, 120, 175, 235, 95, 140, 190, 110, 165, 130, 215], pos = ['28% 30%', '72% 24%', '34% 72%', '76% 66%', '50% 42%', '22% 78%'];
@@ -47,7 +51,21 @@ export default function WebSite(p: SiteProps) {
   const igLabel = igUser ? `@${igUser}` : null;
   const gHref = googlePlaceUrl(fx.gUrl);
   const mapsEmbed = googleMapsEmbedUrl(fx.gUrl, addressLbl);
+  const waDigits = String(fx.waNum || '').replace(/\D/g, '');
+  const waHref = fx.wa && waDigits.length >= 9
+    ? `https://wa.me/${waDigits.startsWith('34') ? waDigits : `34${waDigits}`}${fx.waMsg ? `?text=${encodeURIComponent(fx.waMsg)}` : ''}`
+    : null;
+  const floatBook = showFloat && bookHref && (fx.book === 'float' || fx.book === 'both');
   const heroBg = PH.hero ? PH.hero.bg : img(0), aboutBg = PH.about ? PH.about.bg : img(3);
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'BeautySalon',
+    name: salon,
+    ...(addressLbl ? { address: addressLbl } : {}),
+    ...(phoneLbl ? { telephone: phoneLbl } : {}),
+    ...(bookHref ? { url: bookHref } : {}),
+    ...(zoneLbl ? { areaServed: zoneLbl } : {}),
+  };
 
   const Label = ({ children }: { children: React.ReactNode }) => <span style={{ fontSize: lbl, letterSpacing: lblTrack, textTransform: 'uppercase', color: accentText, fontWeight: 600 }}>{children}</span>;
   const H2 = ({ children }: { children: React.ReactNode }) => <h2 style={{ margin: 0, fontFamily: head, fontWeight: headW, fontSize: h2, lineHeight: 1.05, letterSpacing: headTrack, ...balance }}>{children}</h2>;
@@ -67,7 +85,8 @@ export default function WebSite(p: SiteProps) {
   const chipR = Math.min(12, r + 8);
 
   return (
-    <div style={{ width: '100%', background: P.bg, color: P.ink, fontFamily: "var(--font-sora), 'Sora', system-ui, sans-serif", WebkitFontSmoothing: 'antialiased' }}>
+    <div style={{ position: 'relative', width: '100%', background: P.bg, color: P.ink, fontFamily: "var(--font-sora), 'Sora', system-ui, sans-serif", WebkitFontSmoothing: 'antialiased' }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
       {fx.bar && (fx.barText || '').trim() && <div style={{ background: P.accent, color: P.onAccent, textAlign: 'center', fontSize: W(14, 12), fontWeight: 600, padding: W('11px 24px', '9px 16px') }}>{fx.barText}</div>}
       <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, padding: W(`20px ${px}px`, '14px 20px'), background: P.bg, borderBottom: `1px solid ${P.line}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
@@ -370,21 +389,33 @@ export default function WebSite(p: SiteProps) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><Label>Visítanos</Label><H2>Te esperamos</H2></div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18, fontSize: lead, lineHeight: 1.5 }}>
               {addressLbl && <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}><span style={{ fontSize: 13, color: P.muted }}>Dirección</span><span>{addressLbl}</span></div>}
+              {hoursLbl && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span style={{ fontSize: 13, color: P.muted }}>Horario</span>
+                  {hoursLbl.split('\n').map((line, i) => <span key={i}>{line}</span>)}
+                </div>
+              )}
               {phoneLbl && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <span style={{ fontSize: 13, color: P.muted }}>Teléfono</span>
                   <a href={`tel:${phoneLbl.replace(/\s/g, '')}`} style={{ color: 'inherit', textDecoration: 'none' }}>{phoneLbl}</a>
                 </div>
               )}
-              {!addressLbl && !phoneLbl && (
+              {!addressLbl && !phoneLbl && !hoursLbl && (
                 <p style={{ margin: 0, fontSize: meta, color: P.muted, lineHeight: 1.5 }}>Añade dirección y teléfono en Ajustes → Centro para mostrarlos aquí.</p>
               )}
             </div>
             <Btn style={{ alignSelf: 'flex-start' }}>{t.cta}</Btn>
           </div>
           <div style={{ position: 'relative', minHeight: W(460, 260), borderRadius: r, overflow: 'hidden', background: P.surface, backgroundImage: `repeating-linear-gradient(0deg, ${rgba(P.ink, 0.06)} 0 1px, transparent 1px 48px), repeating-linear-gradient(90deg, ${rgba(P.ink, 0.06)} 0 1px, transparent 1px 48px)` }}>
-            <div style={{ position: 'absolute', left: '50%', top: '46%', width: 44, height: 44, margin: '-22px 0 0 -22px', borderRadius: '50% 50% 50% 0', transform: 'rotate(-45deg)', background: P.accent, boxShadow: '0 8px 20px rgba(0,0,0,0.2)' }} />
-            <span style={{ position: 'absolute', left: 16, bottom: 16, fontSize: 12, fontWeight: 600, color: P.ink, background: P.bg, padding: '6px 12px', borderRadius: 999 }}>{addressLbl ? `Mapa · ${addressLbl}` : salon}</span>
+            {mapsEmbed ? (
+              <iframe title="Mapa" src={mapsEmbed} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }} loading="lazy" />
+            ) : (
+              <>
+                <div style={{ position: 'absolute', left: '50%', top: '46%', width: 44, height: 44, margin: '-22px 0 0 -22px', borderRadius: '50% 50% 50% 0', transform: 'rotate(-45deg)', background: P.accent, boxShadow: '0 8px 20px rgba(0,0,0,0.2)' }} />
+                <span style={{ position: 'absolute', left: 16, bottom: 16, fontSize: 12, fontWeight: 600, color: P.ink, background: P.bg, padding: '6px 12px', borderRadius: 999 }}>{addressLbl ? `Mapa · ${addressLbl}` : salon}</span>
+              </>
+            )}
           </div>
         </section>
       )}
@@ -394,9 +425,33 @@ export default function WebSite(p: SiteProps) {
         <Btn style={{ background: P.onAccent, color: P.accent, flexShrink: 0 }}>{t.cta}</Btn>
       </section>
       <footer style={{ padding: W(`28px ${px}px`, '20px 20px 28px'), display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: 13, color: P.muted, borderTop: `1px solid ${P.line}` }}>
-        <span>© 2026 {salon}{addressLbl ? ` · ${addressLbl}` : ''}</span>
-        <span>Web creada con Marlenapp</span>
+        <span>© {new Date().getFullYear()} {salon}{addressLbl ? ` · ${addressLbl}` : ''}</span>
+        <span style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+          {siteSlug && (
+            <>
+              <a href={`/s/${siteSlug}/aviso-legal`} style={{ color: 'inherit' }}>Aviso legal</a>
+              <a href={`/s/${siteSlug}/privacidad`} style={{ color: 'inherit' }}>Privacidad</a>
+              <a href={`/s/${siteSlug}/cookies`} style={{ color: 'inherit' }}>Cookies</a>
+            </>
+          )}
+          <span>Web creada con Marlenapp</span>
+        </span>
       </footer>
+
+      {(floatBook || waHref) && (
+        <div style={{ position: 'fixed', right: W(28, 16), bottom: W(28, 16), zIndex: 50, display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'auto' }}>
+          {floatBook && (
+            <a href={bookHref} target="_blank" rel="noopener noreferrer" style={{ height: 48, padding: '0 18px', borderRadius: L.br === '0px' ? 0 : L.br === '4px' ? 6 : 999, background: P.accent, color: P.onAccent, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', boxShadow: '0 10px 24px rgba(0,0,0,.22)' }}>
+              {t.cta}
+            </a>
+          )}
+          {waHref && (
+            <a href={waHref} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" style={{ width: 48, height: 48, borderRadius: '50%', background: '#25D366', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', boxShadow: '0 10px 24px rgba(0,0,0,.22)' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}><path d="M4 20l1.4-4.2A8 8 0 1 1 8.4 19zM9.5 9.5c.3 1.8 1.7 3.4 3.5 4l1-1 1.5.8" /></svg>
+            </a>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -121,9 +121,7 @@ export const SERVICE_MEDIA: Record<string, [string, number, number]> = {
 };
 
 /** Subdominios que ningún centro puede usar en nombre.marlenapp.com */
-export const RESERVED = ['app', 'www', 'api', 'admin', 'mail', 'blog', 'help', 'ayuda', 'status', 'r', 'cdn', 'static', 'sites', 'marlen', 'marlenapp', 'soporte', 'login', 'pago', 'pagos'];
-// TODO(backend): consultar disponibilidad real.
-export const TAKEN_DEMO = ['belleza', 'estetica', 'spa', 'nails', 'beauty'];
+export const RESERVED = ['app', 'www', 'api', 'admin', 'mail', 'blog', 'help', 'ayuda', 'status', 'r', 'cdn', 'static', 'sites', 'marlen', 'marlenapp', 'soporte', 'login', 'pago', 'pagos', 's', 'panel'];
 export const DNS_RECORDS: [string, string, string][] = [['A', '@', '76.76.21.21'], ['CNAME', 'www', 'sites.marlenapp.com']];
 
 export const slugify = (x: string) => x.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');

@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import WebSite from './WebSite';
 import { Icon, MarlenAvatar } from '@/components/marketing/Icons';
 import {
-  BANK, DEFAULT_EXTRAS, DNS_RECORDS, ICONS, RESERVED, SECTIONS, SERVICES, SERVICE_MEDIA, TABS, TAKEN_DEMO, TEAM as TEAM_DEMO, TEMPLATES, TEXTS, TEXT_LIMITS, TIPS,
+  BANK, DEFAULT_EXTRAS, DNS_RECORDS, ICONS, RESERVED, SECTIONS, SERVICES, SERVICE_MEDIA, TABS, TEAM as TEAM_DEMO, TEMPLATES, TEXTS, TEXT_LIMITS, TIPS,
   bankImg, lookOf, palettesFor, slugify, tplOf,
 } from '@/lib/web/data';
 import type { BookingMode, Extras, IconStyle, Photo, Sections, Service, ServiceMedia, SiteTexts, TabId, Tone } from '@/lib/web/types';
@@ -12,6 +12,11 @@ import { searchStockByTheme } from '@/app/actions/marketing-stock';
 import { stockProxyPath } from '@/lib/marketing/stock';
 import { themeForService } from '@/lib/web/from-salon';
 import { isGooglePlaceUrl, parseInstagramUser } from '@/lib/web/extras';
+import { checkSiteSlug, publishSalonSite, saveSalonSiteDraft } from '@/app/actions/salon-site';
+import type { SalonSiteConfig, SalonSiteRow } from '@/lib/web/site-config';
+import { photoFromUrl, publicSiteUrl, vanitySiteHost } from '@/lib/web/site-urls';
+import { createClient } from '@/lib/supabase/client';
+import { compressImage } from '@/hooks/compressImage';
 
 const INK = '#0F0E1A', MUTED = '#6E6D7A', SOFT = '#F2F2F7', CANVAS = '#F6F6F9', LINE = '#ECEBF1', BORDER = '#E4E3EA', GREEN = '#1A7F4E', MAGENTA = '#D000A8';
 const P_LOCK = 'M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5z', P_CHECK = 'M5 12l5 5 9-10', P_BACK = 'M15 5l-7 7 7 7', P_NEXT = 'M5 12h14M13 6l6 6-6 6', P_UP = 'M12 16V5M7 10l5-5 5 5M5 19h14';
@@ -21,11 +26,6 @@ function useIsMobile(bp = 768) {
   useEffect(() => { const q = window.matchMedia(`(max-width: ${bp - 1}px)`); const f = () => setM(q.matches); f(); q.addEventListener('change', f); return () => q.removeEventListener('change', f); }, [bp]);
   return m;
 }
-const fileToPhoto = (e: React.ChangeEvent<HTMLInputElement>): Photo | null => {
-  const f = e.target.files?.[0]; e.target.value = '';
-  // TODO(backend): subir a storage y guardar la URL definitiva.
-  return f ? { bg: `url("${URL.createObjectURL(f)}") center / cover no-repeat`, label: null, mine: true } : null;
-};
 
 const Switch = ({ on, disabled, w = 44 }: { on: boolean; disabled?: boolean; w?: number }) => (
   <span style={{ width: w, height: w * 0.59, borderRadius: 999, background: on && !disabled ? GREEN : '#D9D8E0', position: 'relative', flexShrink: 0, transition: 'background .15s' }}>
@@ -53,6 +53,7 @@ const btn = (primary = false): React.CSSProperties => ({ height: 44, padding: '0
 const input = (m: boolean): React.CSSProperties => ({ width: '100%', height: m ? 48 : 44, padding: '0 14px', borderRadius: 12, border: `1px solid ${BORDER}`, fontSize: m ? 15 : 14, color: INK, outline: 'none', fontFamily: 'inherit' });
 
 export interface WebStudioProps {
+  salonId?: string;
   brandColor?: string;
   salon?: string;
   logo?: string;
@@ -63,12 +64,14 @@ export interface WebStudioProps {
   services?: Service[];
   /** Equipo real: [nombre, especialidad] */
   team?: [string, string][];
+  initialSite?: SalonSiteRow | null;
   startView?: 'intro' | 'editor';
   onBack?: () => void;
   onOpenCreatives?: () => void;
 }
 
 export default function WebStudio({
+  salonId,
   brandColor = '#C5AC6A',
   salon = 'Tu centro',
   logo = '/marketing/arlett-logo.png',
@@ -77,19 +80,30 @@ export default function WebStudio({
   bookingUrl = '',
   services: servicesProp,
   team: teamProp,
+  initialSite = null,
   startView = 'intro',
   onBack,
   onOpenCreatives,
 }: WebStudioProps) {
   const mob = useIsMobile();
-  const initialSvcs = servicesProp?.length ? servicesProp : SERVICES;
+  const cfg0 = initialSite?.config;
+  const liveSvcs = servicesProp?.length ? servicesProp : SERVICES;
+  const initialSvcs = (() => {
+    if (!cfg0?.svcs?.length) return liveSvcs;
+    const byId = new Map(cfg0.svcs.map(s => [s.id, s]));
+    return liveSvcs.map(s => {
+      const saved = byId.get(s.id);
+      return saved ? { ...s, pub: saved.pub, nov: saved.nov, book: saved.book } : s;
+    });
+  })();
   const teamRows = teamProp?.length ? teamProp : TEAM_DEMO;
-  const [view, setView] = useState<'intro' | 'editor'>(startView);
-  const [tplId, setTplId] = useState('atelier');
-  const [palId, setPalId] = useState('crema');
-  const [tone, setTone] = useState<Tone>('cercano');
+  const [view, setView] = useState<'intro' | 'editor'>(initialSite ? 'editor' : startView);
+  const [tplId, setTplId] = useState(cfg0?.tplId || 'atelier');
+  const [palId, setPalId] = useState(cfg0?.palId || 'crema');
+  const [tone, setTone] = useState<Tone>(cfg0?.tone || 'cercano');
   const [txtIdx, setTxtIdx] = useState(0);
   const [txt, setTxt] = useState<SiteTexts>(() => {
+    if (cfg0?.txt?.heroTitle) return cfg0.txt;
     const base = { ...TEXTS.cercano[0] };
     return {
       ...base,
@@ -98,53 +112,98 @@ export default function WebStudio({
       aboutText: base.aboutText.replace(/Arlett Beauty/g, salon),
     };
   });
-  const [txtManual, setTxtManual] = useState(false);
-  const [sec, setSec] = useState<Sections>({ servicios: true, nosotros: true, equipo: true, visitanos: true });
+  const [txtManual, setTxtManual] = useState(cfg0?.txtManual || false);
+  const [sec, setSec] = useState<Sections>(cfg0?.sec || { servicios: true, nosotros: true, equipo: true, visitanos: true });
   const [tab, setTab] = useState<TabId>('look');
   const [tool, setTool] = useState<TabId | null>(null);
   const [device, setDevice] = useState<'desk' | 'mob'>('desk');
   const [fx, setFx] = useState<Extras>(() => ({
     ...DEFAULT_EXTRAS,
-    waNum: (phone || '').replace(/\D/g, '').slice(-9) || DEFAULT_EXTRAS.waNum,
-    waMsg: `Hola, quiero pedir cita en ${salon}`,
+    ...(cfg0?.fx || {}),
+    waNum: cfg0?.fx?.waNum || (phone || '').replace(/\D/g, '').slice(-9) || DEFAULT_EXTRAS.waNum,
+    waMsg: cfg0?.fx?.waMsg || `Hola, quiero pedir cita en ${salon}`,
   }));
   const [svcs, setSvcs] = useState<Service[]>(initialSvcs);
   useEffect(() => {
-    if (servicesProp?.length) setSvcs(servicesProp);
+    if (!servicesProp?.length) return;
+    setSvcs(prev => {
+      const byId = new Map(prev.map(s => [s.id, s]));
+      return servicesProp.map(s => {
+        const saved = byId.get(s.id);
+        return saved ? { ...s, pub: saved.pub, nov: saved.nov, book: saved.book } : s;
+      });
+    });
   }, [servicesProp]);
   const [svcOpen, setSvcOpen] = useState<string | null>(initialSvcs[0]?.id ?? null);
   const [photos, setPhotos] = useState<{ hero: Photo | null; about: Photo | null; team: (Photo | null)[] }>({
-    hero: null,
-    about: null,
-    team: teamRows.map(() => null),
+    hero: cfg0?.photos?.hero || null,
+    about: cfg0?.photos?.about || null,
+    team: cfg0?.photos?.team?.length ? cfg0.photos.team : teamRows.map(() => null),
   });
   useEffect(() => {
     setPhotos(p => ({ ...p, team: teamRows.map((_, i) => p.team[i] ?? null) }));
   }, [teamRows]);
   const [phTarget, setPhTarget] = useState<'hero' | 'about' | 'team'>('hero');
   const [phTheme, setPhTheme] = useState('facial');
-  const [svcMedia, setSvcMedia] = useState<ServiceMedia | null>(null);
-  const [iconStyle, setIconStyle] = useState<IconStyle>('line');
-  const [svcImg, setSvcImg] = useState<Record<string, Photo>>({});
-  const [svcIcon, setSvcIcon] = useState<Record<string, string>>({});
+  const [svcMedia, setSvcMedia] = useState<ServiceMedia | null>(cfg0?.svcMedia ?? null);
+  const [iconStyle, setIconStyle] = useState<IconStyle>(cfg0?.iconStyle || 'line');
+  const [svcImg, setSvcImg] = useState<Record<string, Photo>>(cfg0?.svcImg || {});
+  const [svcIcon, setSvcIcon] = useState<Record<string, string>>(cfg0?.svcIcon || {});
   const [mediaOpen, setMediaOpen] = useState<string | null>(null);
-  const [zone, setZone] = useState('');
-  const [domMode, setDomMode] = useState<'marlen' | 'own'>('marlen');
-  const [sub, setSub] = useState(slugify(salon).split('-')[0] || 'tucentro');
-  const [own, setOwn] = useState('');
-  const [domStatus, setDomStatus] = useState<'idle' | 'checking' | 'ok'>('idle');
-  const [published, setPublished] = useState(false);
+  const [zone, setZone] = useState(cfg0?.zone || '');
+  const [hours, setHours] = useState(cfg0?.hours || '');
+  const [domMode, setDomMode] = useState<'marlen' | 'own'>(cfg0?.domMode || 'marlen');
+  const [sub, setSub] = useState(initialSite?.slug || slugify(salon).split('-')[0] || 'tucentro');
+  const [own, setOwn] = useState(cfg0?.ownDomain || initialSite?.customDomain || '');
+  const [domStatus, setDomStatus] = useState<'idle' | 'checking' | 'ok'>(initialSite?.customDomain ? 'ok' : 'idle');
+  const [published, setPublished] = useState(Boolean(initialSite?.publishedAt));
   const [dirty, setDirty] = useState(false);
   const [showPub, setShowPub] = useState(false);
   const [carIdx, setCarIdx] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [pubUrl, setPubUrl] = useState(initialSite ? publicSiteUrl(initialSite.slug) : '');
+  const [subMsgLive, setSubMsgLive] = useState<string | null>(null);
+  const [subOkLive, setSubOkLive] = useState(true);
   const tt = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [stockByTheme, setStockByTheme] = useState<Record<string, Photo[]>>({});
   const [stockLoading, setStockLoading] = useState(false);
 
   const say = (m: string) => { setToast(m); clearTimeout(tt.current); tt.current = setTimeout(() => setToast(null), 3200); };
-  /** Marca cambios sin publicar */
-  const touch = () => { if (published) setDirty(true); };
+  /** Marca cambios (borrador o publicados sin republicar) */
+  const touch = () => { setDirty(true); };
+
+  const collectConfig = (): SalonSiteConfig => ({
+    tplId, palId, tone, txt, txtManual, sec, fx, svcs, svcMedia, iconStyle, svcImg, svcIcon, photos, zone, hours, domMode, ownDomain: own,
+  });
+
+  const uploadPhoto = async (file: File, kind: string): Promise<Photo | null> => {
+    if (!salonId) {
+      say('No se puede subir sin sesión de centro');
+      return null;
+    }
+    try {
+      const blob = await compressImage(file);
+      const path = `${salonId}/${kind}-${Date.now()}.jpg`;
+      const sb = createClient();
+      const { error } = await sb.storage.from('salon-sites').upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+      if (error) throw error;
+      const { data } = sb.storage.from('salon-sites').getPublicUrl(path);
+      return photoFromUrl(data.publicUrl, file.name, true);
+    } catch (e) {
+      say(e instanceof Error ? e.message : 'No se ha podido subir la foto');
+      return null;
+    }
+  };
+
+  const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>, kind: string, apply: (p: Photo) => void) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    say('Subiendo foto…');
+    const photo = await uploadPhoto(f, kind);
+    if (photo) { apply(photo); touch(); say('Foto guardada'); }
+  };
 
   /* Pixabay: temática activa + temas de servicios del catálogo */
   useEffect(() => {
@@ -193,7 +252,8 @@ export default function WebStudio({
   const themeOfSvc = (s: Service) => themeForService(s.name);
   const T = tplOf(tplId), pals = palettesFor(T, brandColor), P = pals.find((p) => p.id === palId) || pals[1];
   const tabIdx = Math.max(0, TABS.findIndex((x) => x[0] === tab));
-  const url = domMode === 'own' && domStatus === 'ok' ? own : `${sub || 'tu-centro'}.marlenapp.com`;
+  const liveUrl = pubUrl || publicSiteUrl(sub || 'tu-centro');
+  const urlLabel = domMode === 'own' && own ? own : vanitySiteHost(sub || 'tu-centro');
   const media: ServiceMedia = svcMedia || (T.svc === 'cards' ? 'photo' : 'none');
   const imgOf = (s: Service) => {
     if (svcImg[s.id]) return svcImg[s.id];
@@ -209,6 +269,10 @@ export default function WebStudio({
     bookingUrl: bookingUrl || undefined,
     phone,
     address,
+    hours: hours || undefined,
+    zone: zone || undefined,
+    siteSlug: sub || undefined,
+    showFloat: false,
     team: teamRows,
     svcs: svcs.map((s) => ({ ...s, img: imgOf(s).bg, icon: iconOf(s) })),
     photos: { hero: photos.hero, about: photos.about, team: photos.team.map((p) => (p ? p.bg : null)) },
@@ -221,7 +285,20 @@ export default function WebStudio({
     if (open) { setView('editor'); setTab('look'); setTool(null); }
     touch();
   };
-  const publish = () => { setPublished(true); setDirty(false); setShowPub(true); setTool(null); };
+  const saveDraft = async () => {
+    setBusy(true);
+    const r = await saveSalonSiteDraft({ slug: sub, config: collectConfig(), customDomain: domMode === 'own' ? own : null });
+    setBusy(false);
+    if (!r.ok) { say(r.error); return false; }
+    setPubUrl(r.url); setDirty(false); say('Borrador guardado'); return true;
+  };
+  const publish = async () => {
+    setBusy(true);
+    const r = await publishSalonSite({ slug: sub, config: collectConfig(), customDomain: domMode === 'own' ? own : null });
+    setBusy(false);
+    if (!r.ok) { say(r.error); return; }
+    setPublished(true); setDirty(false); setPubUrl(r.url); setShowPub(true); setTool(null); say('Web publicada');
+  };
   const copy = async (text: string, msg = 'Copiado') => { try { await navigator.clipboard.writeText(text); } catch { /* sin permiso */ } say(msg); };
   const setSvcFlag = (id: string, key: 'pub' | 'nov' | 'book') => {
     const s = svcs.find((x) => x.id === id)!;
@@ -229,15 +306,32 @@ export default function WebStudio({
     setSvcs(svcs.map((x) => (x.id !== id ? x : key === 'pub' && x.pub ? { ...x, pub: false, nov: false } : { ...x, [key]: !x[key] })));
     touch();
   };
-  const checkDns = () => { if (domStatus === 'checking') return; setDomStatus('checking'); setTimeout(() => { setDomStatus('ok'); touch(); say('Dominio conectado'); }, 1800); }; // TODO(backend): verificación DNS real
+  const checkDns = () => {
+    if (domStatus === 'checking') return;
+    setDomStatus('checking');
+    // DNS real: cuando exista wildcard + custom domain en Vercel. Hoy marcamos intención.
+    setTimeout(() => { setDomStatus('ok'); touch(); say('Dominio anotado · actívalo en DNS cuando toque'); }, 800);
+  };
 
-  // subdominio
-  const subShort = sub.length < 3, subDash = /^-|-$/.test(sub), subRes = RESERVED.includes(sub), subTaken = TAKEN_DEMO.includes(sub);
-  const subOk = !subShort && !subDash && !subRes && !subTaken;
-  const subMsg = subShort ? 'Usa al menos 3 letras o números' : subDash ? 'No puede empezar ni acabar en guion' : subRes ? `«${sub}» está reservado. Prueba con el nombre de tu centro` : subTaken ? `${sub}.marlenapp.com ya está ocupado. Prueba ${sub}-madrid` : `✓ ${sub}.marlenapp.com está disponible`;
+  useEffect(() => {
+    const slug = sub;
+    const t = setTimeout(() => {
+      void checkSiteSlug(slug).then(r => {
+        if (!r.ok) { setSubOkLive(false); setSubMsgLive(r.error); return; }
+        setSubOkLive(r.available);
+        setSubMsgLive(r.message);
+      });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [sub]);
+
+  const subShort = sub.length < 3, subDash = /^-|-$/.test(sub), subRes = RESERVED.includes(sub);
+  const subOk = !subShort && !subDash && !subRes && subOkLive;
+  const subMsg = subMsgLive
+    || (subShort ? 'Usa al menos 3 letras o números' : subDash ? 'No puede empezar ni acabar en guion' : subRes ? `«${sub}» está reservado. Prueba con el nombre de tu centro` : `Comprobando ${vanitySiteHost(sub)}…`);
 
   const statusDot = published ? (dirty ? MAGENTA : GREEN) : '#C9C8D3';
-  const statusLabel = published ? (dirty ? 'Cambios sin publicar' : 'Publicada · ' + url) : 'Borrador · sin publicar';
+  const statusLabel = published ? (dirty ? 'Cambios sin publicar' : `Publicada · ${liveUrl.replace(/^https?:\/\//, '')}`) : 'Borrador · sin publicar';
 
   /* ---------------- paneles ---------------- */
   const panelLook = (
@@ -325,7 +419,7 @@ export default function WebStudio({
                   {media === 'photo' ? (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 6 }}>
                       <label style={{ aspectRatio: '1', borderRadius: 10, border: '1.5px dashed #C9C8D3', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, fontSize: 10.5, fontWeight: 600, color: '#4A4957', cursor: 'pointer' }}>
-                        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const v = fileToPhoto(e); if (v) { setSvcImg({ ...svcImg, [s.id]: v }); touch(); } }} /><Icon d={P_UP} size={18} stroke={2} />Subir
+                        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { void onPickFile(e, `svc-${s.id}`, (v) => setSvcImg({ ...svcImg, [s.id]: v })); }} /><Icon d={P_UP} size={18} stroke={2} />Subir
                       </label>
                       {bankPhotos(th).map((im, i) => <button key={i} type="button" title={im.label || ''} onClick={() => { setSvcImg({ ...svcImg, [s.id]: im }); touch(); }} style={{ padding: 2, borderRadius: 12, border: `2.5px solid ${im.bg === cur.bg ? INK : 'transparent'}`, background: 'none', cursor: 'pointer' }}><span style={{ display: 'block', aspectRatio: '1', borderRadius: 8, background: im.bg }} /></button>)}
                     </div>
@@ -349,7 +443,7 @@ export default function WebStudio({
               <span style={{ position: 'absolute', left: 10, bottom: 10, height: 26, padding: '0 10px', borderRadius: 999, background: 'rgba(15,14,26,.55)', color: '#fff', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center' }}>{curPhoto ? (curPhoto.mine ? 'Tu foto' : `${curPhoto.theme} · ${curPhoto.label}`) : 'Elegida por Marlén según tu look'}</span>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <Upload onFile={(e) => { const v = fileToPhoto(e); if (v) { setPhoto(phTarget as 'hero' | 'about', v); say('Foto subida'); } }} />
+              <Upload onFile={(e) => { void onPickFile(e, phTarget, (v) => setPhoto(phTarget as 'hero' | 'about', v)); }} />
               {curPhoto && <button type="button" onClick={() => setPhoto(phTarget as 'hero' | 'about', null)} style={{ ...btn(), height: 40, fontSize: 13 }}>Que elija Marlén</button>}
             </div>
             <span style={{ fontSize: 13, fontWeight: 600, color: '#4A4957' }}>O elige del banco de imágenes</span>
@@ -371,7 +465,7 @@ export default function WebStudio({
               <div key={name + i} style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 60, padding: '6px 2px', borderBottom: `1px solid ${SOFT}` }}>
                 <span style={{ width: 48, height: 48, borderRadius: '50%', background: p ? p.bg : LINE, flexShrink: 0 }} />
                 <span style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}><span style={{ fontSize: 14, fontWeight: 600 }}>{name}</span><span style={{ fontSize: 12, color: p ? GREEN : MUTED }}>{p ? 'Tu foto' : 'Sin foto'}</span></span>
-                <Upload label={p ? 'Cambiar' : 'Subir foto'} onFile={(e) => { const v = fileToPhoto(e); if (v) { const tm = photos.team.slice(); tm[i] = v; setPhotos({ ...photos, team: tm }); touch(); } }} />
+                <Upload label={p ? 'Cambiar' : 'Subir foto'} onFile={(e) => { void onPickFile(e, `team-${i}`, (v) => { const tm = photos.team.slice(); tm[i] = v; setPhotos({ ...photos, team: tm }); }); }} />
               </div>
             ); })}
             <span style={{ fontSize: 12, color: MUTED, lineHeight: 1.45 }}>Para el equipo mejor fotos reales. Sin foto se muestra un fondo con el color de tu web.</span>
@@ -554,7 +648,7 @@ export default function WebStudio({
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={logo} alt="" style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover' }} />
-            <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}><span style={{ fontSize: 13, color: '#202124' }}>{salon}</span><span style={{ fontSize: 12, color: '#4D5156' }}>https://{url}</span></span>
+            <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}><span style={{ fontSize: 13, color: '#202124' }}>{salon}</span><span style={{ fontSize: 12, color: '#4D5156' }}>{liveUrl}</span></span>
           </div>
           <span style={{ fontSize: 18, lineHeight: 1.3, color: '#1A0DAB' }}>{seoTitle}</span>
           <span style={{ fontSize: 13, lineHeight: 1.5, color: '#4D5156' }}>{seoDesc}</span>
@@ -566,8 +660,11 @@ export default function WebStudio({
           <input value={zone} placeholder="Barrio o ciudad" onChange={(e) => { setZone(e.target.value.slice(0, 30)); touch(); }} style={input(mob)} />
           <span style={{ fontSize: 12, color: MUTED }}>Marlén la usa en títulos y páginas: «Limpieza facial en {z}».</span>
         </label>
-        {/* TODO(backend): generar páginas por servicio, schema.org LocalBusiness/BeautySalon, sitemap y envío a Search Console al publicar. */}
-        {[['Una página por servicio', `Para salir cuando buscan «limpieza facial en ${z}»`, true], ['Datos de negocio local', 'Dirección, horario, precios y reseñas en el formato que entiende Google', true], ['Mapa del sitio', published ? 'Enviado a Google · hoy' : 'Se envía solo al publicar', published], ['Rápida y adaptada al móvil', 'Imágenes optimizadas y https incluido', true]].map(([l, d, ok]) => (
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#4A4957' }}>Horario (Visítanos)</span>
+          <textarea value={hours} onChange={(e) => { setHours(e.target.value); touch(); }} rows={3} placeholder={'Lunes a viernes, 10:00 – 20:00\nSábados, 10:00 – 14:00'} style={{ ...input(mob), height: 'auto', padding: '12px 14px', lineHeight: 1.45, resize: 'vertical' }} />
+        </label>
+        {[['Schema.org BeautySalon', 'Se incluye en la web publicada', true], ['Datos de negocio', 'Dirección, teléfono y horario de tu cuenta', true], ['Mapa del sitio', published ? `/s/${sub}/sitemap.xml` : 'Se genera al publicar', published], ['Aviso legal y cookies', 'Páginas generadas con los datos del centro', true]].map(([l, d, ok]) => (
           <div key={String(l)} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
             <span style={{ width: 22, height: 22, borderRadius: '50%', background: ok ? '#E8F4EE' : SOFT, color: ok ? GREEN : MUTED, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon d={ok ? P_CHECK : 'M12 7v5l3 2'} size={12} stroke={3} /></span>
             <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}><span style={{ fontSize: 14, fontWeight: 600 }}>{l}</span><span style={{ fontSize: 12, color: MUTED }}>{d}</span></span>
@@ -593,7 +690,7 @@ export default function WebStudio({
       <div style={{ flex: 1, minHeight: 0, display: 'flex', justifyContent: 'center' }}>
         <div style={{ position: 'relative', width: !mob && device === 'mob' ? 375 : '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#fff', borderRadius: !mob && device === 'mob' ? 28 : mob ? 18 : 12, overflow: 'hidden', boxShadow: '0 24px 60px rgba(15,14,26,.14), 0 0 0 1px rgba(15,14,26,.06)' }}>
           <div style={{ height: mob ? 34 : 40, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 14px', background: SOFT, borderBottom: `1px solid ${BORDER}` }}>
-            <span style={{ height: 26, maxWidth: 420, minWidth: 0, padding: '0 14px', borderRadius: 999, background: '#fff', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#4A4957' }}><Icon d={P_LOCK} size={12} stroke={2.2} /><span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{url}</span></span>
+            <span style={{ height: 26, maxWidth: 420, minWidth: 0, padding: '0 14px', borderRadius: 999, background: '#fff', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#4A4957' }}><Icon d={P_LOCK} size={12} stroke={2.2} /><span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{liveUrl.replace(/^https?:\/\//, '')}</span></span>
           </div>
           {/* La web se renderiza a su ancho real (1280 / 390) y se reduce con zoom para que la maqueta sea idéntica a la publicada. */}
           <PreviewScroll narrow={narrowPreview}><WebSite {...siteProps} narrow={narrowPreview} /></PreviewScroll>
@@ -686,7 +783,7 @@ export default function WebStudio({
           {tabIdx > 0 && <button type="button" onClick={() => setTab(TABS[tabIdx - 1][0])} style={{ ...btn(), height: 40, border: 'none', color: '#4A4957', fontSize: 13 }}><Icon d={P_BACK} size={16} stroke={2} />{TABS[tabIdx - 1][1]}</button>}
           <span style={{ flex: 1 }} />
           {tabIdx < TABS.length - 1 ? <button type="button" onClick={() => setTab(TABS[tabIdx + 1][0])} style={{ ...btn(), height: 40, border: `1.5px solid ${INK}`, fontSize: 13 }}>Siguiente: {TABS[tabIdx + 1][1]}<Icon d={P_NEXT} size={16} stroke={2} /></button>
-            : <button type="button" onClick={publish} style={{ ...btn(true), height: 40, fontSize: 13 }}>Todo listo · Publicar</button>}
+            : <button type="button" disabled={busy || !subOk} onClick={() => void publish()} style={{ ...btn(true), height: 40, fontSize: 13, opacity: busy ? 0.6 : 1 }}>Todo listo · Publicar</button>}
         </div>
       </aside>
       {preview}
@@ -704,7 +801,8 @@ export default function WebStudio({
           {view === 'editor' && (
             <>
               <span style={{ display: 'flex', alignItems: 'center', gap: 8, height: 36, maxWidth: 320, minWidth: 0, padding: '0 14px', borderRadius: 999, background: CANVAS, fontSize: 13, fontWeight: 600, color: '#4A4957' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: statusDot, flexShrink: 0 }} /><span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{statusLabel}</span></span>
-              <button type="button" onClick={publish} style={btn(true)}><Icon d={TABS[5][2]} size={18} stroke={1.9} />{published ? 'Publicar cambios' : 'Publicar web'}</button>
+              <button type="button" disabled={busy || !subOk} onClick={() => void saveDraft()} style={{ ...btn(), opacity: busy ? 0.6 : 1 }}>Guardar</button>
+              <button type="button" disabled={busy || !subOk} onClick={() => void publish()} style={{ ...btn(true), opacity: busy ? 0.6 : 1 }}><Icon d={TABS[5][2]} size={18} stroke={1.9} />{published ? 'Publicar cambios' : 'Publicar web'}</button>
             </>
           )}
         </header>
@@ -717,7 +815,7 @@ export default function WebStudio({
         <div style={{ height: 60, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px' }}>
           {circle(P_BACK, () => { setView('intro'); setTool(null); })}
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}><span style={{ fontSize: 16, fontWeight: 700 }}>Tu página web</span><span style={{ fontSize: 12, color: MUTED, display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: statusDot, flexShrink: 0 }} /><span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{statusLabel}</span></span></div>
-          <button type="button" onClick={publish} style={{ ...btn(true), fontSize: 15 }}>Publicar</button>
+          <button type="button" disabled={busy || !subOk} onClick={() => void publish()} style={{ ...btn(true), fontSize: 15, opacity: busy ? 0.6 : 1 }}>Publicar</button>
         </div>
       )}
       {view === 'intro' ? intro : editor}
@@ -727,15 +825,17 @@ export default function WebStudio({
           <div onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" style={{ width: '100%', maxWidth: 540, background: '#fff', borderRadius: mob ? '24px 24px 0 0' : 24, padding: mob ? '20px 20px 28px' : 28, display: 'flex', flexDirection: 'column', gap: 20, boxShadow: '0 30px 80px rgba(15,14,26,.25)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}><MarlenAvatar size={48} /><div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}><span style={{ fontSize: 21, fontWeight: 700 }}>Tu web ya está publicada</span><span style={{ fontSize: 14, color: '#4A4957' }}>La he dejado lista con tu catálogo, tu equipo y tu botón de reserva.</span></div></div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px 12px 16px', borderRadius: 14, background: CANVAS }}>
-              <Icon d={P_LOCK} size={16} stroke={2.2} color={GREEN} /><span style={{ flex: 1, minWidth: 0, fontSize: 16, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{url}</span>
-              <button type="button" onClick={() => copy('https://' + url, 'Enlace copiado')} style={{ ...btn(), height: 36, fontSize: 13 }}>Copiar</button>
+              <Icon d={P_LOCK} size={16} stroke={2.2} color={GREEN} /><span style={{ flex: 1, minWidth: 0, fontSize: 16, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{liveUrl.replace(/^https?:\/\//, '')}</span>
+              <button type="button" onClick={() => copy(liveUrl, 'Enlace copiado')} style={{ ...btn(), height: 36, fontSize: 13 }}>Copiar</button>
             </div>
+            <span style={{ fontSize: 12, color: MUTED }}>También {urlLabel} cuando el DNS esté listo.</span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              <button type="button" onClick={() => window.open('https://wa.me/?text=' + encodeURIComponent('https://' + url), '_blank')} style={btn()}>WhatsApp</button>
-              <button type="button" onClick={() => copy('https://' + url, 'Enlace copiado para tu bio')} style={btn()}>Bio de Instagram</button>
-              <button type="button" onClick={() => copy('https://' + url, 'Enlace copiado para tu firma')} style={btn()}>Firma de email</button>
+              <button type="button" onClick={() => window.open(liveUrl, '_blank')} style={btn(true)}>Abrir web</button>
+              <button type="button" onClick={() => window.open('https://wa.me/?text=' + encodeURIComponent(liveUrl), '_blank')} style={btn()}>WhatsApp</button>
+              <button type="button" onClick={() => copy(liveUrl, 'Enlace copiado para tu bio')} style={btn()}>Bio de Instagram</button>
+              <button type="button" onClick={() => copy(liveUrl, 'Enlace copiado para tu firma')} style={btn()}>Firma de email</button>
             </div>
-            <span style={{ fontSize: 13, lineHeight: 1.45, color: MUTED }}>Ya la he enviado a Google. Si cambias un servicio, un precio o un horario en Marlenapp, tu web y lo que ve Google se actualizan solos.</span>
+            <span style={{ fontSize: 13, lineHeight: 1.45, color: MUTED }}>Al guardar o republicar, la web pública se actualiza. Sitemap: /s/{sub}/sitemap.xml</span>
             <button type="button" onClick={() => setShowPub(false)} style={{ ...btn(true), height: 48 }}>Seguir editando</button>
           </div>
         </div>

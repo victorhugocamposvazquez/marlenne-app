@@ -1,6 +1,7 @@
 import { requireRole } from '@/lib/require-session';
 import { listServices, listStaff } from '@/lib/queries';
 import { loadMarketingBrand } from '@/app/actions/marketing';
+import { loadSalonSite } from '@/app/actions/salon-site';
 import { createClient } from '@/lib/supabase/server';
 import { servicesToWebCatalog, staffToWebTeam } from '@/lib/web/from-salon';
 import WebStudioHost from '@/components/web/WebStudioHost';
@@ -12,10 +13,11 @@ type SalonContact = {
 
 export default async function MarketingWebPage() {
   await requireRole('admin');
-  const [brand, services, staff] = await Promise.all([
+  const [brand, services, staff, initialSite] = await Promise.all([
     loadMarketingBrand(),
     listServices({ includeInactive: false }),
     listStaff({ includeInactive: false }),
+    loadSalonSite(),
   ]);
 
   const sb = createClient();
@@ -43,6 +45,7 @@ export default async function MarketingWebPage() {
   return (
     <div className="h-0 min-h-0 flex-1 overflow-hidden bg-[#F6F6F9]">
       <WebStudioHost
+        salonId={brand.salonId}
         salon={brand.salonName}
         logo={brand.logoUrl}
         brandColor={brand.accent}
@@ -51,6 +54,7 @@ export default async function MarketingWebPage() {
         bookingUrl={brand.bookingUrl}
         services={servicesToWebCatalog(services)}
         team={staffToWebTeam(providers)}
+        initialSite={initialSite}
       />
     </div>
   );

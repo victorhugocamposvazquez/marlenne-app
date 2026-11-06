@@ -53,4 +53,12 @@ export interface SiteProps {
   /** Datos de Visítanos (cuenta del centro). */
   phone?: string | null;
   address?: string | null;
+  /** Horario (texto libre, líneas). */
+  hours?: string | null;
+  /** Zona SEO («en Chamberí»). */
+  zone?: string | null;
+  /** Muestra botones flotantes (desactivar en miniaturas del editor). */
+  showFloat?: boolean;
+  /** Slug público para enlaces legales /s/{slug}/… */
+  siteSlug?: string | null;
 }
