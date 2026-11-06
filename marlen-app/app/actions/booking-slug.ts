@@ -5,7 +5,7 @@ import { requireRole } from '@/lib/require-session';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { appOriginFromEnv } from '@/lib/app-origin';
-import { bookingEmbedUrl, bookingPageUrl, slugifyBooking } from '@/lib/booking/urls';
+import { bookingPageUrl, slugifyBooking } from '@/lib/booking/urls';
 
 const RESERVED = new Set([
   'app', 'www', 'api', 'admin', 'mail', 'blog', 'help', 'ayuda', 'status',
@@ -140,6 +140,7 @@ export async function saveSalonBookingSlug(raw: string): Promise<
     ok: true,
     slug,
     bookingUrl: bookingPageUrl(origin, slug),
-    bookingEmbedUrl: bookingEmbedUrl(origin, slug),
+    // Relativo: funciona en Vercel preview y en app.marlenapp.com
+    bookingEmbedUrl: `/embed/${encodeURIComponent(slug)}`,
   };
 }

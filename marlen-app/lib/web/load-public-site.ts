@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { publicLogoUrl } from '@/lib/salon-branding';
-import { bookingEmbedUrl, bookingPageUrl } from '@/lib/booking/urls';
+import { bookingPageUrl } from '@/lib/booking/urls';
 import { appOriginFromEnv } from '@/lib/app-origin';
 import { servicesToWebCatalog, staffToWebTeam } from '@/lib/web/from-salon';
 import { buildSiteProps } from '@/lib/web/build-site-props';
@@ -94,7 +94,8 @@ export async function loadPublicSiteBundle(slug: string): Promise<PublicSiteBund
   const salonName = (row?.name || '').trim() || 'Centro';
   const origin = appOriginFromEnv();
   const bookingUrl = row?.booking_slug ? bookingPageUrl(origin, row.booking_slug) : undefined;
-  const bookingEmbed = row?.booking_slug ? bookingEmbedUrl(origin, row.booking_slug) : undefined;
+  // Relativo: el iframe/modal cargan el mismo host que /s/[slug] (Vercel o app.marlenapp.com).
+  const bookingEmbed = row?.booking_slug ? `/embed/${encodeURIComponent(row.booking_slug)}` : undefined;
 
   // Si faltan reseñas/feed en caché, intenta rellenar ahora (Places / Graph).
   let config = site.config;
