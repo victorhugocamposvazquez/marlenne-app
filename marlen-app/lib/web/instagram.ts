@@ -1,4 +1,4 @@
-/** Instagram Graph API → últimas publicaciones (opcional). */
+/** Últimas publicaciones de un perfil (solo lectura; Marlén no publica). */
 
 export type IgMedia = {
   id: string;
@@ -7,16 +7,6 @@ export type IgMedia = {
   caption?: string;
   timestamp?: string;
 };
-
-/** Mosaico de formato cuando aún no hay fotos Graph (preview o web sin token). */
-export function igLayoutPlaceholders(accent: string, href: string | null, count = 6): IgMedia[] {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `ig-preview-${i}`,
-    mediaUrl: `gradient:${i}:${accent}`,
-    permalink: href || '#',
-    caption: i === 0 ? 'Ver en Instagram' : undefined,
-  }));
-}
 
 function parseUser(raw: string | null | undefined): string | null {
   const v = (raw || '').trim();

@@ -17,7 +17,6 @@ import { listServiceBookFlags, setServiceBookableOnline } from '@/app/actions/se
 import { checkCustomDomainStatus, checkSiteSlug, connectCustomDomain, publishSalonSite, saveSalonSiteDraft } from '@/app/actions/salon-site';
 import { loadInstagramFeedPreview } from '@/app/actions/instagram-feed';
 import type { SalonSiteConfig, SalonSiteRow, SiteFeeds } from '@/lib/web/site-config';
-import { igLayoutPlaceholders } from '@/lib/web/instagram';
 import { bookingPageToEmbedUrl } from '@/lib/web/booking-urls';
 import { photoFromUrl, publicSiteUrl, vanitySiteHost } from '@/lib/web/site-urls';
 import { createClient } from '@/lib/supabase/client';
@@ -227,7 +226,7 @@ export default function WebStudio({
     });
   };
 
-  /** Al poner @usuario, pide el feed real (Graph + Business Discovery) o deja el mosaico de preview. */
+  /** Al poner @usuario, intenta las últimas fotos. Si Instagram no las da, la web muestra su embed (solo lectura). */
   useEffect(() => {
     if (!fx.insta) {
       setIgFeedHint(null);
@@ -244,26 +243,13 @@ export default function WebStudio({
       void loadInstagramFeedPreview(u).then((r) => {
         if (cancelled) return;
         setIgFeedBusy(false);
-        if (!r.ok) {
-          setIgFeedHint(r.error);
+        if (r.ok && r.media.length) {
+          setIgFeedHint(`✓ ${r.media.length} fotos de @${u}`);
+          setFeeds((prev) => ({ ...prev, ig: r.media, igFetchedAt: new Date().toISOString() }));
+        } else {
+          setIgFeedHint(`Últimas fotos de @${u} en la web. Marlén no publica nada.`);
           setFeeds((prev) => ({ ...prev, ig: [] }));
-          scrollPreviewToInstagram();
-          return;
         }
-        if (!r.configured) {
-          setIgFeedHint('Sin Graph API: ves el formato aquí; al publicar, enlace al perfil.');
-          setFeeds((prev) => ({ ...prev, ig: [] }));
-          scrollPreviewToInstagram();
-          return;
-        }
-        if (!r.media.length) {
-          setIgFeedHint(`@${u} no devolvió fotos (¿privada o sin posts?).`);
-          setFeeds((prev) => ({ ...prev, ig: [] }));
-          scrollPreviewToInstagram();
-          return;
-        }
-        setIgFeedHint(`✓ ${r.media.length} fotos de @${u}`);
-        setFeeds((prev) => ({ ...prev, ig: r.media, igFetchedAt: new Date().toISOString() }));
         scrollPreviewToInstagram();
       });
     }, 450);
@@ -372,12 +358,7 @@ export default function WebStudio({
     return bankImg(demo ? demo[0] : th, demo ? demo[1] : 0);
   };
   const iconOf = (s: Service) => svcIcon[s.id] || ICONS[(SERVICE_MEDIA[s.id] || ['', 0, 0])[2] ?? 0]?.[1] || ICONS[0][1];
-  const igUserLive = parseInstagramUser(fx.igUser);
-  const igHrefLive = igUserLive ? `https://www.instagram.com/${igUserLive}/` : null;
-  const realIg = feeds.ig || [];
-  const igMediaPreview = realIg.length
-    ? realIg
-    : (fx.insta && igUserLive ? igLayoutPlaceholders(P.accent, igHrefLive) : []);
+  const igMediaPreview = (feeds.ig || []).filter((m) => m.mediaUrl && !m.mediaUrl.startsWith('gradient:'));
   const siteProps = {
     look: lookOf(T), pal: P, txt, sec, fx, svcMedia: media, iconStyle, salon, logo,
     bookingUrl: bookingUrl || undefined,
@@ -693,8 +674,8 @@ export default function WebStudio({
       const u = parseInstagramUser(v);
       if (u) {
         hint = igFeedBusy
-          ? `Cargando feed de @${u}…`
-          : (igFeedHint || `✓ @${u} — elige formato abajo y míralo en la preview`);
+          ? `Cargando fotos de @${u}…`
+          : (igFeedHint || `Últimas fotos de @${u}. Marlén no publica nada.`);
         hc = igFeedHint?.startsWith('✓') ? GREEN : (igFeedBusy ? MUTED : GREEN);
       } else if (v) {
         hint = 'Usuario no válido. Prueba @tucentro o el enlace del perfil';
@@ -856,13 +837,11 @@ export default function WebStudio({
                     );
                   })}
                 </div>
-                {!(feeds.ig?.length) && (
-                  <span style={{ fontSize: 11, color: MUTED, lineHeight: 1.4 }}>
-                    {igFeedBusy
-                      ? 'Cargando fotos…'
-                      : 'Mosaico de formato en la preview. Con Graph API (token + Business Discovery) salen las fotos reales del @.'}
-                  </span>
-                )}
+                <span style={{ fontSize: 11, color: MUTED, lineHeight: 1.4 }}>
+                  {igFeedBusy
+                    ? 'Cargando fotos…'
+                    : 'Solo lectura: se ven las últimas fotos. Desde Marlén no se publica nada.'}
+                </span>
               </div>
               <button
                 type="button"
@@ -1164,15 +1143,34 @@ export default function WebStudio({
   );
 }
 
-/** Scroll de la vista previa: mide el ancho y aplica zoom para pintar la web a 1280 px (o 390 px en móvil) */
+/** Scroll de la vista previa: escala la web a 1280 px (o 390 en móvil).
+ *  transform y no zoom: el zoom deja el iframe de Instagram en blanco. */
 function PreviewScroll({ narrow, children }: { narrow: boolean; children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
+  const inner = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(0);
-  useEffect(() => { const el = ref.current; if (!el) return; const ro = new ResizeObserver(() => setW(el.clientWidth)); ro.observe(el); return () => ro.disconnect(); }, []);
+  const [h, setH] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setW(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  useEffect(() => {
+    const el = inner.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setH(el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const base = narrow ? 390 : 1280;
+  const scale = w ? w / base : 0.75;
   return (
     <div ref={ref} data-site-scroll style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-      <div style={{ zoom: w ? w / base : 0.75, width: base }}>{children}</div>
+      <div style={{ height: Math.max(1, h * scale), width: '100%', position: 'relative' }}>
+        <div ref={inner} style={{ width: base, transform: `scale(${scale})`, transformOrigin: 'top left' }}>{children}</div>
+      </div>
     </div>
   );
 }
