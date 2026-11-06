@@ -3,29 +3,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { haptic } from '@/hooks/haptics';
 import {
-  marketingSheetDetents,
-  nextSheetHeight,
-  rubberHeight,
-  snapSheetHeight,
+  marketingSheetMid,
+  marketingSheetStops,
+  nearestSheetHeight,
 } from '@/lib/sheet-detent';
 
 const TAP = 10;
+const OPEN_HEIGHT = marketingSheetMid(marketingSheetStops(740));
 
 /** Asidero de la hoja de configuración en el editor móvil de marketing. */
 export function useMarketingSheet(active: boolean) {
   const hostRef = useRef<HTMLDivElement>(null);
-  const live = useRef(340);
-  const [height, setHeight] = useState(340);
+  const live = useRef(OPEN_HEIGHT);
+  const [height, setHeight] = useState(OPEN_HEIGHT);
   const [dragging, setDragging] = useState(false);
   const [hint, setHint] = useState(true);
-  const session = useRef<{
-    pointerId: number;
-    y0: number;
-    h0: number;
-    lastY: number;
-    lastTs: number;
-    vel: number;
-  } | null>(null);
+  const session = useRef<{ pointerId: number; y0: number; h0: number } | null>(null);
   const cleanup = useRef<(() => void) | null>(null);
 
   const available = () => {
@@ -40,7 +33,7 @@ export function useMarketingSheet(active: boolean) {
   };
 
   useEffect(() => {
-    const [, mid] = marketingSheetDetents(available());
+    const mid = marketingSheetMid(marketingSheetStops(available()));
     setLive(mid);
     if (!active) return;
     setHint(true);
@@ -59,14 +52,7 @@ export function useMarketingSheet(active: boolean) {
     const pointerId = e.pointerId;
     const capture = e.currentTarget as HTMLElement;
     try { capture.setPointerCapture(pointerId); } catch { /* ya capturado */ }
-    session.current = {
-      pointerId,
-      y0: e.clientY,
-      h0: live.current,
-      lastY: e.clientY,
-      lastTs: performance.now(),
-      vel: 0,
-    };
+    session.current = { pointerId, y0: e.clientY, h0: live.current };
     setDragging(true);
     haptic('start');
 
@@ -74,26 +60,22 @@ export function useMarketingSheet(active: boolean) {
       const s = session.current;
       if (!s || ev.pointerId !== s.pointerId) return;
       ev.preventDefault();
-      const now = performance.now();
-      const dt = Math.max(8, now - s.lastTs);
-      s.vel = (ev.clientY - s.lastY) / dt;
-      s.lastY = ev.clientY;
-      s.lastTs = now;
-      const [min, , max] = marketingSheetDetents(available());
-      setLive(rubberHeight(s.h0 - (ev.clientY - s.y0), min, max));
+      const stops = marketingSheetStops(available());
+      const min = stops[0];
+      const max = stops[stops.length - 1];
+      const raw = s.h0 - (ev.clientY - s.y0);
+      setLive(Math.min(max, Math.max(min, raw)));
     };
 
     const end = (ev: PointerEvent) => {
       const s = session.current;
       if (!s || ev.pointerId !== s.pointerId) return;
-      const detents = marketingSheetDetents(available());
-      const [min] = detents;
+      const stops = marketingSheetStops(available());
       const moved = ev.clientY - s.y0;
-      const next = live.current < min
-        ? min
-        : Math.abs(moved) < TAP
-          ? nextSheetHeight(s.h0, detents)
-          : snapSheetHeight(live.current, detents, s.vel);
+      const stepUp = stops.find((d) => d > s.h0 + 12);
+      const next = Math.abs(moved) < TAP
+        ? (stepUp ?? marketingSheetMid(stops))
+        : nearestSheetHeight(live.current, stops);
       session.current = null;
       setDragging(false);
       setLive(next);

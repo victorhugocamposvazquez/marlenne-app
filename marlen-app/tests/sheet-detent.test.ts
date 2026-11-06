@@ -2,23 +2,29 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   CLIENT_ROWS_PEEK,
+  marketingSheetMid,
+  marketingSheetStops,
+  nearestSheetHeight,
   nextSheetHeight,
   rubberHeight,
-  marketingSheetDetents,
   sheetDetents,
   sheetHeightForClientRows,
   snapSheetHeight,
 } from '../lib/sheet-detent';
 
-test('la hoja de marketing deja la creatividad más grande en el medio', () => {
-  const [peek, mid, tall] = marketingSheetDetents(740);
-  assert.equal(peek, 188);
-  assert.ok(mid < 430);
-  assert.ok(mid > peek);
-  assert.ok(tall > mid);
-  assert.equal(740 - tall, 96);
-  assert.equal(snapSheetHeight(mid + 30, [peek, mid, tall], -0.8), tall);
-  assert.equal(snapSheetHeight(mid - 20, [peek, mid, tall], 0.8), peek);
+test('la hoja de marketing recorre altos a la misma distancia', () => {
+  const stops = marketingSheetStops(740);
+  assert.equal(stops[0], 188);
+  assert.equal(stops[stops.length - 1], 644);
+  assert.equal(stops.length, 5);
+  const gaps = stops.slice(1).map((h, i) => h - stops[i]);
+  const gap = gaps[0];
+  assert.ok(gaps.every((g) => Math.abs(g - gap) <= 1));
+  const mid = marketingSheetMid(stops);
+  assert.equal(mid, stops[2]);
+  assert.equal(nearestSheetHeight(mid + 30, stops), mid);
+  assert.notEqual(nearestSheetHeight(stops[1] + 10, stops), stops[0]);
+  assert.notEqual(nearestSheetHeight(stops[3] - 10, stops), stops[stops.length - 1]);
 });
 
 test('el tope bajo deja 3 clientas a la vista', () => {
