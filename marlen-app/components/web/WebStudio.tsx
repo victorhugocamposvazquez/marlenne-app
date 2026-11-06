@@ -13,6 +13,7 @@ import { stockProxyPath } from '@/lib/marketing/stock';
 import { themeForService } from '@/lib/web/from-salon';
 import { isGooglePlaceUrl, parseInstagramUser } from '@/lib/web/extras';
 import { checkBookingSlug, saveSalonBookingSlug, suggestBookingSlug } from '@/app/actions/booking-slug';
+import { listServiceBookFlags, setServiceBookableOnline } from '@/app/actions/services';
 import { checkCustomDomainStatus, checkSiteSlug, connectCustomDomain, publishSalonSite, saveSalonSiteDraft } from '@/app/actions/salon-site';
 import type { SalonSiteConfig, SalonSiteRow } from '@/lib/web/site-config';
 import { bookingPageToEmbedUrl } from '@/lib/web/booking-urls';
@@ -139,6 +140,20 @@ export default function WebStudio({
       });
     });
   }, [servicesProp]);
+  // Relee bookable_online (por si se cambió en Ajustes → Tratamientos).
+  useEffect(() => {
+    let cancelled = false;
+    const pull = () => {
+      void listServiceBookFlags().then(flags => {
+        if (cancelled || !Object.keys(flags).length) return;
+        setSvcs(prev => prev.map(s => (flags[s.id] === undefined ? s : { ...s, book: flags[s.id]! })));
+      });
+    };
+    pull();
+    const onVis = () => { if (document.visibilityState === 'visible') pull(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { cancelled = true; document.removeEventListener('visibilitychange', onVis); };
+  }, []);
   const [svcOpen, setSvcOpen] = useState<string | null>(initialSvcs[0]?.id ?? null);
   const [photos, setPhotos] = useState<{ hero: Photo | null; about: Photo | null; team: (Photo | null)[] }>({
     hero: cfg0?.photos?.hero || null,
@@ -329,8 +344,18 @@ export default function WebStudio({
   const setSvcFlag = (id: string, key: 'pub' | 'nov' | 'book') => {
     const s = svcs.find((x) => x.id === id)!;
     if (key === 'nov' && !s.pub) { say('Primero hazlo visible en la web'); return; }
-    setSvcs(svcs.map((x) => (x.id !== id ? x : key === 'pub' && x.pub ? { ...x, pub: false, nov: false } : { ...x, [key]: !x[key] })));
+    const next = key === 'pub' && s.pub ? { ...s, pub: false, nov: false } : { ...s, [key]: !s[key] };
+    setSvcs(svcs.map((x) => (x.id !== id ? x : next)));
     touch();
+    // Reserva online = bookable_online: se guarda ya (convive con Tratamientos).
+    if (key === 'book') {
+      void setServiceBookableOnline(id, next.book).then(r => {
+        if (!r.ok) {
+          setSvcs(prev => prev.map(x => (x.id !== id ? x : { ...x, book: s.book })));
+          say(r.error || 'No se ha podido guardar la reserva online');
+        }
+      });
+    }
   };
   const checkDns = async () => {
     if (domStatus === 'checking' || !own.trim()) return;

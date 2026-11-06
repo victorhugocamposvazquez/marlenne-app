@@ -123,6 +123,39 @@ export async function deleteCategory(id: string) {
   return { ok: !error, error: error?.message ?? null };
 }
 
+/** Flags de reserva online para alinear el editor de web con Ajustes → Tratamientos. */
+export async function listServiceBookFlags(): Promise<Record<string, boolean>> {
+  const me = await requireAdmin();
+  if (!me) return {};
+  const sb = createClient();
+  const { data } = await sb
+    .from('services')
+    .select('id, bookable_online')
+    .eq('salon_id', me.salon_id)
+    .eq('is_active', true);
+  const out: Record<string, boolean> = {};
+  for (const row of data ?? []) {
+    const r = row as { id: string; bookable_online?: boolean };
+    out[r.id] = r.bookable_online !== false;
+  }
+  return out;
+}
+
+/** Cambia solo la visibilidad en el calendario público (agenda ↔ web). */
+export async function setServiceBookableOnline(id: string, bookable: boolean) {
+  const me = await requireAdmin();
+  if (!me) return { ok: false, error: 'Solo dirección' };
+  const sb = createClient();
+  const { error } = await sb
+    .from('services')
+    .update({ bookable_online: bookable })
+    .eq('id', id)
+    .eq('salon_id', me.salon_id);
+  if (!error) await syncSiteBookFlag(sb, me.salon_id, id, bookable);
+  bump();
+  return { ok: !error, error: error?.message ?? null };
+}
+
 export async function createService(input: {
   name: string;
   category_id: string;
