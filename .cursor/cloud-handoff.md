@@ -16,6 +16,8 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
+- 2026-11-07 — **Marketing + Web:** degradado y «Más abajo» cuando la hoja tiene más opciones debajo; PR #54 → `main`.
+- 2026-11-07 — **Pendiente de idea:** repensar los iconos de abajo de creatividades (Hugo lo verá).
 - 2026-11-07 — **Marketing:** barra de abajo como antes (se deshacen #50 y #51 a petición de Hugo); PR #53 → `main`.
 - 2026-11-07 — **Web diseño:** asidero en la hoja móvil, igual que marketing; PR #52 → `main`.
 - 2026-11-07 — **Marketing:** Ideas abre otras formas y deja el diseño actual quieto hasta Usar esta; PR #49 → `main`.
@@ -60,4 +62,4 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 | **MacBook / Cursor local** | Al abrir el repo: **leer este archivo primero**. Si hay rama o PR en «Pendiente», continuar ahí antes de otra cosa. |
 | **Hugo** | Cuando algo esté en prod, borrar de «Pendiente» o pasarlo a «Hecho». |
 
-**Última actualización cloud:** 2026-11-07 — Marketing barra original PR #53 → `main`.
+**Última actualización cloud:** 2026-11-07 — Hojas «Más abajo» PR #54 → `main`.
