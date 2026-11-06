@@ -49,4 +49,4 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 | **MacBook / Cursor local** | Al abrir el repo: **leer este archivo primero**. Si hay rama o PR en «Pendiente», continuar ahí antes de otra cosa. |
 | **Hugo** | Cuando algo esté en prod, borrar de «Pendiente» o pasarlo a «Hecho». |
 
-**Última actualización cloud:** 2026-11-04 — marketing diseño autoselect PR #38 → `main`.
+**Última actualización cloud:** 2026-11-06 — web Instagram feed PR #40 → `main`.
