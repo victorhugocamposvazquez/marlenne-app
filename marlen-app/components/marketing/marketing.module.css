@@ -107,6 +107,8 @@
 .panelScroll { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .handle { width: 40px; height: 5px; border-radius: 3px; background: #D9D8E0; align-self: center; flex-shrink: 0; }
 .handleStack { display: flex; flex-direction: column; align-items: center; gap: 1px; color: #8A8996; }
+.handleRow { height: 44px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.handleLabel { font-size: 12px; font-weight: 600; color: #6E6D7A; white-space: nowrap; }
 .handleHint { color: #0F0E1A; animation: handleNudge 1.05s ease-in-out 2; }
 .handleHint .handle { background: #0F0E1A; }
 @keyframes handleNudge {
