@@ -1408,12 +1408,13 @@ export default function MarketingStudio({
             onPointerDown={sheet.onHandleDown}
             style={{ touchAction: 'none', flexShrink: 0, cursor: 'ns-resize', userSelect: 'none' }}
           >
-            <div style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className={css.handleRow}>
               <span className={cx(css.handleStack, sheet.hint && css.handleHint)}>
                 <Icon d={PATH.chevronDown} size={14} stroke={2.6} style={{ transform: 'rotate(180deg)' }} />
                 <span className={css.handle} />
                 <Icon d={PATH.chevronDown} size={14} stroke={2.6} />
               </span>
+              <span className={css.handleLabel}>Desliza arriba o abajo</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '0 16px 12px 20px' }}>
               <span style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.015em' }}>{TAB_LABEL[ed.tool]}</span>
