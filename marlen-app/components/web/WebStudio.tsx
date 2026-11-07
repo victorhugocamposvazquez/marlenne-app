@@ -400,7 +400,7 @@ export default function WebStudio({
       case 'about-photo': return { label: 'Cambiar foto', go: () => openField('photo', 'web-photos', () => setPhTarget('about')) };
       case 'equipo': return { label: 'Fotos del equipo', go: () => openField('photo', 'web-photos', () => setPhTarget('team')) };
       case 'servicios': case 'novedades': return { label: 'Editar servicios', go: () => openField('svc', null) };
-      case 'reservar': case 'book-float': return { label: 'Reserva online', go: () => openField('fx', 'web-book') };
+      case 'reservar': case 'book-float': case 'book-link': return { label: 'Reserva online', go: () => openField('fx', 'web-book') };
       case 'bar': return { label: 'Editar aviso', go: () => openField('fx', 'web-fx-bar') };
       case 'reviews': return { label: 'Reseñas', go: () => openField('fx', 'web-fx-reviews') };
       case 'regalo': return { label: 'Tarjetas regalo', go: () => openField('fx', 'web-fx-gift') };

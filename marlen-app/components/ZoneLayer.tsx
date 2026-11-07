@@ -11,7 +11,9 @@ const MAGENTA = '#D000A8';
 const FLASH_MS = 1400;
 const FADE_MS = 500;
 const TAP = 6;
-const INTERACTIVE = 'a, button, input, textarea, select, label, iframe';
+const FORM_FIELD = 'input, textarea, select, label';
+const ACTION = 'a[href], button';
+const TRY_KEY = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
 const PENCIL = 'M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4';
 
 export const zoneSelector = (id: string) => `[data-zone="${CSS.escape(id)}"]`;
@@ -66,8 +68,10 @@ export default function ZoneLayer({
   const down = useRef<{ x: number; y: number } | null>(null);
   const fine = useFinePointer();
   const editable = hover && fine && !!onEdit && !!labelOf;
-  const [hot, setHot] = useState<{ id: string; label: string; box: Box } | null>(null);
+  const [hot, setHot] = useState<{ id: string; label: string; act: boolean; box: Box } | null>(null);
   const [lit, setLit] = useState<(Box & { o: number }) | null>(null);
+  const [chipW, setChipW] = useState(0);
+  const chipRef = (el: HTMLButtonElement | null) => { if (el && el.offsetWidth !== chipW) setChipW(el.offsetWidth); };
 
   const measure = (el: HTMLElement): Box => {
     const c = box.current!.getBoundingClientRect();
@@ -107,20 +111,31 @@ export default function ZoneLayer({
     if (!z) { setHot(null); return; }
     const id = z.dataset.zone || '';
     const b = measure(z);
-    setHot((h) => (h && h.id === id && Math.abs(h.box.top - b.top) < 1 && Math.abs(h.box.height - b.height) < 1 ? h : { id, label: labelOf!(id) || '', box: b }));
+    setHot((h) => (h && h.id === id && Math.abs(h.box.top - b.top) < 1 && Math.abs(h.box.height - b.height) < 1 ? h : { id, label: labelOf!(id) || '', act: z.matches(ACTION), box: b }));
   };
 
-  const onClick = (e: React.MouseEvent) => {
+  // Captura: el clic en una zona edita aunque sea un botón o enlace de la web (⌘/Ctrl + clic lo prueba).
+  const onClickCapture = (e: React.MouseEvent) => {
     if (!editable || !root.current) return;
     const target = e.target as HTMLElement;
-    if (!root.current.contains(target) || target.closest(INTERACTIVE)) return;
+    if (!root.current.contains(target) || target.closest(FORM_FIELD)) return;
+    if (e.metaKey || e.ctrlKey) return;
     const d = down.current;
-    if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP) return;
-    const z = zoneAt(root.current, e.clientX, e.clientY, canEdit);
-    if (z) onEdit!(z.dataset.zone || '');
+    const moved = !!d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP;
+    const z = moved ? null : zoneAt(root.current, e.clientX, e.clientY, canEdit);
+    if (z) {
+      e.preventDefault();
+      e.stopPropagation();
+      onEdit!(z.dataset.zone || '');
+      return;
+    }
+    const link = target.closest<HTMLAnchorElement>('a[href]');
+    if (link && !link.getAttribute('href')?.startsWith('#')) e.preventDefault();
   };
 
   const chipTop = hot ? (hot.box.top >= 34 ? hot.box.top - 34 : hot.box.top + 8) : 0;
+  const boxW = box.current?.clientWidth ?? 0;
+  const chipLeft = hot ? Math.max(8, Math.min(hot.box.left + hot.box.width - chipW, boxW - chipW - 8)) : 0;
 
   return (
     <div
@@ -128,7 +143,7 @@ export default function ZoneLayer({
       onPointerMove={onPointerMove}
       onPointerLeave={() => setHot(null)}
       onPointerDown={(e) => { down.current = { x: e.clientX, y: e.clientY }; }}
-      onClick={onClick}
+      onClickCapture={onClickCapture}
       style={{ position: 'relative', ...style }}
     >
       <div ref={root} style={{ height: '100%', cursor: hot ? 'pointer' : undefined }}>{children}</div>
@@ -152,11 +167,12 @@ export default function ZoneLayer({
             }}
           />
           <button
+            ref={chipRef}
             type="button"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onEdit!(hot.id); }}
             style={{
-              position: 'absolute', top: chipTop, left: Math.max(8, hot.box.left + hot.box.width - 8), transform: 'translateX(-100%)',
+              position: 'absolute', top: chipTop, left: chipLeft,
               zIndex: 42, height: 28, padding: '0 11px', borderRadius: 999, border: 'none', background: '#0F0E1A', color: '#fff',
               fontSize: 12, fontWeight: 600, fontFamily: "var(--font-sora), 'Sora', system-ui, sans-serif",
               display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', cursor: 'pointer',
@@ -165,6 +181,7 @@ export default function ZoneLayer({
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ strokeWidth: 2.2, strokeLinecap: 'round', strokeLinejoin: 'round' }}><path d={PENCIL} /></svg>
             {hot.label}
+            {hot.act && <span style={{ fontWeight: 500, color: 'rgba(255,255,255,.6)' }}>· {TRY_KEY} + clic para probar</span>}
           </button>
         </>
       )}

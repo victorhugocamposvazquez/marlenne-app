@@ -368,9 +368,9 @@ export default function WebSite(p: SiteProps) {
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><Label>Servicios</Label><H2>Nuestros tratamientos</H2></div>
             {canBook ? (
-              <button type="button" onClick={openBook} style={{ fontSize: 15, fontWeight: 600, color: accentText, textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>Reservar online →</button>
+              <button data-zone="book-link" type="button" onClick={openBook} style={{ fontSize: 15, fontWeight: 600, color: accentText, textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>Reservar online →</button>
             ) : (
-              <span style={{ fontSize: 15, fontWeight: 600, color: accentText }}>Reservar online →</span>
+              <span data-zone="book-link" style={{ fontSize: 15, fontWeight: 600, color: accentText }}>Reservar online →</span>
             )}
           </div>
           {L.svc === 'menu' && (
