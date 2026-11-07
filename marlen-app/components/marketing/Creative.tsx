@@ -98,7 +98,7 @@ type L = ReturnType<typeof computeLayout>;
 function ImageFill({ img }: { img: CreativeImage }) {
   const focus = imageFocusOf(img.focus);
   return (
-    <div style={{ position: 'absolute', inset: 0, background: img.bg || '#E4E3EA' }}>
+    <div data-zone="image" style={{ position: 'absolute', inset: 0, background: img.bg || '#E4E3EA' }}>
       {img.src && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -131,6 +131,7 @@ function Logo({ src, size, radius, style }: { src?: string; size: number; radius
   // eslint-disable-next-line @next/next/no-img-element
   return (
     <img
+      data-zone="logo"
       src={src}
       alt=""
       crossOrigin={src.startsWith('blob:') || src.startsWith('data:') ? undefined : 'anonymous'}
@@ -143,7 +144,7 @@ function Seal({ text, size, fs, bg, color, ring, style, weight = 800, shadow = '
   text: string; size: number; fs: number; bg: string; color: string; ring: string; style: React.CSSProperties; weight?: number; shadow?: string;
 }) {
   return (
-    <div style={{ position: 'absolute', width: size, height: size, borderRadius: '50%', background: bg, color, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', transform: 'rotate(-10deg)', boxShadow: shadow, zIndex: 4, ...style }}>
+    <div data-zone="seal" style={{ position: 'absolute', width: size, height: size, borderRadius: '50%', background: bg, color, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', transform: 'rotate(-10deg)', boxShadow: shadow, zIndex: 4, ...style }}>
       <div style={{ position: 'absolute', inset: 12, borderRadius: '50%', border: `3px dashed ${ring}` }} />
       <span style={{ position: 'relative', fontSize: fs, fontWeight: weight, lineHeight: 1.02, letterSpacing: '-0.02em', padding: '0 34px', ...balance }}>{text}</span>
     </div>
@@ -172,7 +173,7 @@ function Underline({ width, color, mt, align = 'flex-start', sw = 14, h = 34 }: 
 }
 
 const Pill = ({ children, style }: { children: React.ReactNode; style: React.CSSProperties }) => (
-  <div style={{ height: 124, padding: '0 64px', borderRadius: 999, fontSize: 42, fontWeight: 600, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', ...style }}>{children}</div>
+  <div data-zone="cta" style={{ height: 124, padding: '0 64px', borderRadius: 999, fontSize: 42, fontWeight: 600, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', ...style }}>{children}</div>
 );
 
 /* ---------- estilos ---------- */
@@ -193,22 +194,22 @@ function Soft({ c, v }: { c: CreativeConfig; v: L }) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 32, padding: v.padC }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
           {v.showLogoTop && <Logo src={c.logo} size={120} radius={28} />}
-          {v.hasEyebrow && <div style={{ fontSize: 34, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: v.z.eyebrow }}>{c.eyebrow}</div>}
+          {v.hasEyebrow && <div style={{ fontSize: 34, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: v.z.eyebrow }} data-zone="eyebrow">{c.eyebrow}</div>}
         </div>
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 32 }}>
           {v.sealA && <Seal {...sealProps} style={{ right: 0, bottom: 'calc(100% + 20px)' }} />}
           {v.sparkA && <Sparkles color={v.sparkC} style={{ right: 8, bottom: 'calc(100% + 8px)' }} />}
           {v.sparkL && <Sparkles w={160} two color={v.sparkC} style={{ left: -20, bottom: 'calc(100% + 4px)' }} />}
-          <div style={{ fontSize: v.tSize, fontWeight: 700, lineHeight: 1.02, letterSpacing: '-0.035em', color: v.z.title, ...balance }}>{v.title}</div>
+          <div style={{ fontSize: v.tSize, fontWeight: 700, lineHeight: 1.02, letterSpacing: '-0.035em', color: v.z.title, ...balance }} data-zone="title">{v.title}</div>
           {v.ul && <Underline width={v.ulW} color={v.ulC} mt={-22} />}
-          {v.hasSubtitle && <div style={{ fontSize: 44, lineHeight: 1.35, color: v.z.subtitle, maxWidth: 840 }}>{c.subtitle}</div>}
+          {v.hasSubtitle && <div style={{ fontSize: 44, lineHeight: 1.35, color: v.z.subtitle, maxWidth: 840 }} data-zone="subtitle">{c.subtitle}</div>}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: 40 }}>
-            {v.hasPrice && <div style={{ flex: 1, fontSize: v.prSize, fontWeight: 700, letterSpacing: '-0.045em', lineHeight: 0.9, color: v.z.price, whiteSpace: 'nowrap' }}>{v.price}</div>}
+            {v.hasPrice && <div style={{ flex: 1, fontSize: v.prSize, fontWeight: 700, letterSpacing: '-0.045em', lineHeight: 0.9, color: v.z.price, whiteSpace: 'nowrap' }} data-zone="price">{v.price}</div>}
             {v.hasCta && <Pill style={v.ctaCss}>{c.cta}</Pill>}
           </div>
-          {v.showLink && <div style={{ fontSize: 30, color: '#4A4957' }}>{v.linkShort}</div>}
+          {v.showLink && <div style={{ fontSize: 30, color: '#4A4957' }} data-zone="link">{v.linkShort}</div>}
         </div>
       </div>
     </div>
@@ -222,7 +223,7 @@ function Editorial({ c, v }: { c: CreativeConfig; v: L }) {
     <div style={{ position: 'absolute', inset: 0, background: '#F6F3ED', display: 'flex', flexDirection: 'column', padding: v.pad, isolation: 'isolate' }}>
       {v.shape && <div style={{ position: 'absolute', zIndex: -1, right: -240, top: v.edShapeTop, width: 780, height: 780, borderRadius: '50%', border: `3px solid ${v.A}` }} />}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 32, paddingBottom: 32, borderBottom: `3px solid ${INK}`, minHeight: 120 }}>
-        <div style={{ fontSize: 30, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', color: v.z.eyebrow }}>{c.eyebrow}</div>
+        <div style={{ fontSize: 30, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', color: v.z.eyebrow }} data-zone="eyebrow">{c.eyebrow}</div>
         {v.showLogo && <Logo src={c.logo} size={88} radius="50%" />}
       </div>
       {v.img && (
@@ -237,21 +238,21 @@ function Editorial({ c, v }: { c: CreativeConfig; v: L }) {
           {v.sealA && <Seal {...sealProps} style={{ right: 0, bottom: 'calc(100% + 16px)' }} />}
           {v.sparkA && <Sparkles color={v.sparkC} style={{ right: 8, bottom: 'calc(100% + 4px)' }} />}
           {v.sparkL && <Sparkles w={160} two color={v.sparkC} style={{ left: -20, bottom: 'calc(100% + 4px)' }} />}
-          <div style={{ ...serif, fontSize: v.serifT, lineHeight: 0.95, letterSpacing: '-0.01em', color: v.z.title, ...balance }}>{v.title}</div>
+          <div style={{ ...serif, fontSize: v.serifT, lineHeight: 0.95, letterSpacing: '-0.01em', color: v.z.title, ...balance }} data-zone="title">{v.title}</div>
           {v.ul && <Underline width={v.ulW} color={v.ulC} mt={-20} sw={12} />}
-          {v.hasSubtitle && <div style={{ fontSize: 40, lineHeight: 1.4, color: v.z.subtitle, maxWidth: 780 }}>{c.subtitle}</div>}
+          {v.hasSubtitle && <div style={{ fontSize: 40, lineHeight: 1.4, color: v.z.subtitle, maxWidth: 780 }} data-zone="subtitle">{c.subtitle}</div>}
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 40, paddingTop: 32, borderTop: `3px solid ${INK}` }}>
-        {v.hasPrice && <div style={{ ...serif, fontSize: v.serifPr, lineHeight: 0.9, color: v.z.price, whiteSpace: 'nowrap' }}>{v.price}</div>}
+        {v.hasPrice && <div style={{ ...serif, fontSize: v.serifPr, lineHeight: 0.9, color: v.z.price, whiteSpace: 'nowrap' }} data-zone="price">{v.price}</div>}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 14, marginLeft: 'auto', textAlign: 'right' }}>
           {v.hasCta && (
-            <div style={{ fontSize: 40, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 16, color: v.ctaCss.color }}>
+            <div data-zone="cta" style={{ fontSize: 40, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 16, color: v.ctaCss.color }}>
               {c.cta}
               <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}><path d="M5 12h14M13 6l6 6-6 6" /></svg>
             </div>
           )}
-          {v.showLink && <div style={{ fontSize: 28, color: '#55534E' }}>{v.linkShort}</div>}
+          {v.showLink && <div style={{ fontSize: 28, color: '#55534E' }} data-zone="link">{v.linkShort}</div>}
         </div>
       </div>
     </div>
@@ -271,12 +272,12 @@ function Promo({ c, v }: { c: CreativeConfig; v: L }) {
         <div style={{ position: 'relative', isolation: 'isolate', overflow: 'hidden', background: v.A, color: v.onA, padding: v.promoTop, display: 'flex', flexDirection: 'column', gap: 32 }}>
           {v.shape && <div style={{ position: 'absolute', zIndex: -1, right: -170, top: -170, width: 580, height: 580, borderRadius: '50%', border: `48px solid ${v.ringC}` }} />}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
-            {v.hasEyebrow && <div style={{ fontSize: 32, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '14px 30px', border: '4px solid currentColor', borderRadius: 999, color: v.z.eyebrow }}>{c.eyebrow}</div>}
+            {v.hasEyebrow && <div style={{ fontSize: 32, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '14px 30px', border: '4px solid currentColor', borderRadius: 999, color: v.z.eyebrow }} data-zone="eyebrow">{c.eyebrow}</div>}
             {v.showLogo && <Logo src={c.logo} size={104} radius={24} style={{ marginLeft: 'auto' }} />}
           </div>
           <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 32 }}>
             {v.sparkA && <Sparkles w={180} color={v.sparkC} style={{ right: 0, top: -40 }} />}
-            <div style={{ fontSize: v.promoT, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.045em', maxWidth: 860, color: v.z.title, ...balance }}>{v.title}</div>
+            <div style={{ fontSize: v.promoT, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.045em', maxWidth: 860, color: v.z.title, ...balance }} data-zone="title">{v.title}</div>
             {v.ul && <Underline width={v.ulW} color={v.ulC} mt={-22} />}
           </div>
         </div>
@@ -285,12 +286,12 @@ function Promo({ c, v }: { c: CreativeConfig; v: L }) {
           {v.sealPromo && <Seal text={v.sealText} size={v.sealS} fs={v.sealFs} bg="#FFFFFF" color={INK} ring="rgba(15,14,26,0.3)" shadow="0 14px 34px rgba(0,0,0,0.3)" style={{ right: v.K.px, top: v.sealPromoTop }} />}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
             {v.promoPh && v.img && <span style={{ alignSelf: 'flex-start', fontSize: 26, fontWeight: 600, color: '#FFFFFF', background: 'rgba(15,14,26,0.45)', padding: '10px 22px', borderRadius: 999 }}>Foto · {v.img.label}</span>}
-            {v.hasPrice && <div style={{ fontSize: v.promoPr, fontWeight: 800, letterSpacing: '-0.05em', lineHeight: 0.85, color: v.z.price, whiteSpace: 'nowrap' }}>{v.price}</div>}
-            {v.hasSubtitle && <div style={{ fontSize: 44, lineHeight: 1.3, color: v.z.subtitle, maxWidth: 860 }}>{c.subtitle}</div>}
+            {v.hasPrice && <div style={{ fontSize: v.promoPr, fontWeight: 800, letterSpacing: '-0.05em', lineHeight: 0.85, color: v.z.price, whiteSpace: 'nowrap' }} data-zone="price">{v.price}</div>}
+            {v.hasSubtitle && <div style={{ fontSize: 44, lineHeight: 1.3, color: v.z.subtitle, maxWidth: 860 }} data-zone="subtitle">{c.subtitle}</div>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 32 }}>
             {v.hasCta && <Pill style={v.ctaCss}>{c.cta}</Pill>}
-            {v.showLink && <div style={{ fontSize: 30, color: '#C9C8D3' }}>{v.linkShort}</div>}
+            {v.showLink && <div style={{ fontSize: 30, color: '#C9C8D3' }} data-zone="link">{v.linkShort}</div>}
           </div>
         </div>
       </div>
@@ -312,19 +313,19 @@ function Minimal({ c, v }: { c: CreativeConfig; v: L }) {
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
         <div style={{ width: 28, height: 28, borderRadius: '50%', background: v.A, flexShrink: 0 }} />
-        <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: '0.02em', color: v.z.eyebrow }}>{c.eyebrow}</div>
+        <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: '0.02em', color: v.z.eyebrow }} data-zone="eyebrow">{c.eyebrow}</div>
       </div>
       <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 32 }}>
         {v.sealA && <Seal {...sealProps} style={{ right: 0, bottom: 'calc(100% + 12px)' }} />}
         {v.sparkA && <Sparkles color={v.sparkC} style={{ right: 8, bottom: 'calc(100% + 4px)' }} />}
         {v.sparkL && <Sparkles w={160} two color={v.sparkC} style={{ left: -20, bottom: 'calc(100% + 4px)' }} />}
-        <div style={{ fontSize: v.minT, fontWeight: 600, lineHeight: 1, letterSpacing: '-0.05em', color: v.z.title, ...balance }}>{v.title}</div>
+        <div style={{ fontSize: v.minT, fontWeight: 600, lineHeight: 1, letterSpacing: '-0.05em', color: v.z.title, ...balance }} data-zone="title">{v.title}</div>
         {v.ul && <Underline width={v.ulW} color={v.ulC} mt={-20} />}
-        {v.hasSubtitle && <div style={{ fontSize: 44, lineHeight: 1.35, color: v.z.subtitle, maxWidth: 820 }}>{c.subtitle}</div>}
-        {v.hasPrice && <div style={{ fontSize: 72, fontWeight: 600, letterSpacing: '-0.03em', color: v.z.price }}>{v.price}</div>}
+        {v.hasSubtitle && <div style={{ fontSize: 44, lineHeight: 1.35, color: v.z.subtitle, maxWidth: 820 }} data-zone="subtitle">{c.subtitle}</div>}
+        {v.hasPrice && <div style={{ fontSize: 72, fontWeight: 600, letterSpacing: '-0.03em', color: v.z.price }} data-zone="price">{v.price}</div>}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 32 }}>
-        {v.hasCta && <div style={{ height: 116, padding: '0 56px', borderRadius: 999, fontSize: 40, fontWeight: 600, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', ...v.ctaCss }}>{c.cta}</div>}
+        {v.hasCta && <div style={{ height: 116, padding: '0 56px', borderRadius: 999, fontSize: 40, fontWeight: 600, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', ...v.ctaCss }} data-zone="cta">{c.cta}</div>}
         {v.showLogo && <Logo src={c.logo} size={96} radius={22} style={{ marginLeft: 'auto' }} />}
       </div>
     </div>
@@ -355,18 +356,18 @@ function Card({ c, v }: { c: CreativeConfig; v: L }) {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', gap: 24, textAlign: 'center', padding: v.hasImg ? v.K.cpadI : v.K.cpad }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 28 }}>
             {v.showLogoTop && <Logo src={c.logo} size={v.K.lg} radius={36} />}
-            {v.hasEyebrow && <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', color: v.z.eyebrow }}>{c.eyebrow}</div>}
+            {v.hasEyebrow && <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', color: v.z.eyebrow }} data-zone="eyebrow">{c.eyebrow}</div>}
           </div>
           <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 28 }}>
             {v.sparkA && <Sparkles w={150} color={v.sparkC} style={{ right: -40, top: -96 }} />}
-            <div style={{ fontSize: v.cardT, fontWeight: 700, lineHeight: 1.04, letterSpacing: '-0.035em', color: v.z.title, ...balance }}>{v.title}</div>
+            <div style={{ fontSize: v.cardT, fontWeight: 700, lineHeight: 1.04, letterSpacing: '-0.035em', color: v.z.title, ...balance }} data-zone="title">{v.title}</div>
             {v.ul && <Underline width={v.ulW} color={v.ulC} mt={-18} align="center" sw={12} h={30} />}
-            {v.hasSubtitle && <div style={{ fontSize: 42, lineHeight: 1.35, color: v.z.subtitle, maxWidth: 760 }}>{c.subtitle}</div>}
-            {v.hasPrice && <div style={{ fontSize: v.cardPr, fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1, color: v.z.price, whiteSpace: 'nowrap' }}>{v.price}</div>}
+            {v.hasSubtitle && <div style={{ fontSize: 42, lineHeight: 1.35, color: v.z.subtitle, maxWidth: 760 }} data-zone="subtitle">{c.subtitle}</div>}
+            {v.hasPrice && <div style={{ fontSize: v.cardPr, fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1, color: v.z.price, whiteSpace: 'nowrap' }} data-zone="price">{v.price}</div>}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24 }}>
             {v.hasCta && <Pill style={v.ctaCss}>{c.cta}</Pill>}
-            {v.showLink && <div style={{ fontSize: 28, color: '#5E5D6B' }}>{v.linkShort}</div>}
+            {v.showLink && <div style={{ fontSize: 28, color: '#5E5D6B' }} data-zone="link">{v.linkShort}</div>}
           </div>
         </div>
       </div>
@@ -396,18 +397,18 @@ function Luxe({ c, v }: { c: CreativeConfig; v: L }) {
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', textAlign: 'center', padding: v.pad }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
           {v.showLogo && <Logo src={c.logo} size={v.K.lg} radius="50%" />}
-          {v.hasEyebrow && <div style={{ fontSize: 30, fontWeight: 500, letterSpacing: '0.32em', textTransform: 'uppercase', color: v.z.eyebrow }}>{c.eyebrow}</div>}
+          {v.hasEyebrow && <div style={{ fontSize: 30, fontWeight: 500, letterSpacing: '0.32em', textTransform: 'uppercase', color: v.z.eyebrow }} data-zone="eyebrow">{c.eyebrow}</div>}
         </div>
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 36 }}>
           {v.sparkA && <Sparkles w={150} color={v.sparkC} style={{ right: -30, top: -110 }} />}
-          <div style={{ ...serif, fontSize: v.serifT, lineHeight: 0.98, color: v.z.title, ...balance }}>{v.title}</div>
+          <div style={{ ...serif, fontSize: v.serifT, lineHeight: 0.98, color: v.z.title, ...balance }} data-zone="title">{v.title}</div>
           {v.ul && <Underline width={v.ulW} color={v.ulC} mt={-24} align="center" sw={8} h={30} />}
-          {v.hasSubtitle && <div style={{ fontSize: 40, lineHeight: 1.4, color: v.z.subtitle, maxWidth: 780 }}>{c.subtitle}</div>}
-          {v.hasPrice && <div style={{ ...serif, fontSize: v.serifPr, lineHeight: 1, color: v.z.price, whiteSpace: 'nowrap' }}>{v.price}</div>}
+          {v.hasSubtitle && <div style={{ fontSize: 40, lineHeight: 1.4, color: v.z.subtitle, maxWidth: 780 }} data-zone="subtitle">{c.subtitle}</div>}
+          {v.hasPrice && <div style={{ ...serif, fontSize: v.serifPr, lineHeight: 1, color: v.z.price, whiteSpace: 'nowrap' }} data-zone="price">{v.price}</div>}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 28 }}>
-          {v.hasCta && <div style={{ height: 116, padding: '0 60px', borderRadius: 999, fontSize: 38, fontWeight: 600, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', ...v.ctaCss }}>{c.cta}</div>}
-          {v.showLink && <div style={{ fontSize: 28, color: '#A9A6B4' }}>{v.linkShort}</div>}
+          {v.hasCta && <div style={{ height: 116, padding: '0 60px', borderRadius: 999, fontSize: 38, fontWeight: 600, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', ...v.ctaCss }} data-zone="cta">{c.cta}</div>}
+          {v.showLink && <div style={{ fontSize: 28, color: '#A9A6B4' }} data-zone="link">{v.linkShort}</div>}
         </div>
       </div>
     </div>

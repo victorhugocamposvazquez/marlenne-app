@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import css from './marketing.module.css';
 import Creative, { CreativeCanvas, DraggableCreative } from './Creative';
 import ScrollMore from './ScrollMore';
+import ZoneLayer, { jumpToField, type ZoneFocus } from '@/components/ZoneLayer';
 import { Icon, MarlenAvatar, PATH } from './Icons';
 import { searchStockByTheme } from '@/app/actions/marketing-stock';
 import { ALT, ELEMENTS, FORMATS, FORMAT_H, IMAGES, REC, SEAL_TEXT, STYLES, STYLE_TONE, THEMES, TONES, fieldsFor, getCatalog, getType, recommendElements, setActiveCatalog, suggestTheme } from '@/lib/marketing/data';
@@ -27,6 +28,18 @@ const TAB_LABEL: Record<TabId, string> = { imagen: 'Imagen', texto: 'Texto', est
 const STORAGE_KEY = 'marlen.marketing.library.v1';
 const TYPES_WITH_CLIENT: TypeId[] = ['bono', 'regalo'];
 const firstName = (n: string) => n.trim().split(/\s+/)[0] || n;
+/** Zona de la creatividad → pestaña, ajuste del panel y texto del botón «Editar». */
+const ZONE_EDIT: Record<string, [TabId, string | null, string]> = {
+  eyebrow: ['texto', 'mkt-eyebrow', 'Editar antetítulo'],
+  title: ['texto', 'mkt-title', 'Editar titular'],
+  subtitle: ['texto', 'mkt-subtitle', 'Editar subtítulo'],
+  price: ['texto', 'mkt-price', 'Editar precio'],
+  cta: ['texto', 'mkt-cta', 'Editar botón'],
+  link: ['texto', 'mkt-link', 'Editar enlace'],
+  logo: ['texto', 'mkt-logo', 'Logo'],
+  image: ['imagen', null, 'Cambiar imagen'],
+  seal: ['elementos', 'mkt-seal', 'Editar sello'],
+};
 
 function useIsMobile(bp = 768) {
   const [m, setM] = useState(false);
@@ -431,6 +444,16 @@ export default function MarketingStudio({
   };
 
   /* ---------- acciones del editor ---------- */
+  const [zoneFocus, setZoneFocus] = useState<ZoneFocus>(null);
+  /** Marca en la creatividad la zona que se está editando. */
+  const show = (id: string) => setZoneFocus((f) => ({ id, n: (f?.n ?? 0) + 1 }));
+  const zoneLabel = (id: string) => ZONE_EDIT[id]?.[2] ?? null;
+  const editZone = (id: string) => {
+    const z = ZONE_EDIT[id];
+    if (!z) return;
+    patch(mobile ? { tab: z[0], tool: z[0] } : { tab: z[0] });
+    jumpToField(z[1]);
+  };
   const onField = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     patch((s) => ({ fields: { ...s.fields, [name]: value }, fieldsManual: true }));
@@ -654,6 +677,7 @@ export default function MarketingStudio({
 
   const setZoneColor = (zone: TextZone, raw: string | null) => {
     const hex = sanitizeHex(raw);
+    show(zone);
     patch((s) => {
       const next: ZoneColors = { ...s.colors };
       if (!hex) delete next[zone];
@@ -712,12 +736,12 @@ export default function MarketingStudio({
   const textField = (name: TextField, label: string, m: boolean) => {
     const len = (ed.fields[name] || '').length;
     return (
-      <div className={css.field} key={name}>
+      <div className={css.field} key={name} data-field={`mkt-${name}`} style={{ borderRadius: 12 }}>
         <span className={css.label}>{label}<span className={cx(css.counter, len > LIMITS[name] && css.counterOver)}>{len}/{LIMITS[name]}</span></span>
         {zoneColors(name)}
         <span className={css.inputWrap}>
-          <input name={name} value={ed.fields[name]} onChange={onField} className={cx(css.input, m && css.inputMobile, css.withAction)} />
-          <button type="button" className={cx(css.reroll, m && css.rerollLg)} title="Otra opción" onClick={() => reroll(name)}><Icon d={PATH.refresh} size={16} stroke={1.9} /></button>
+          <input name={name} value={ed.fields[name]} onChange={onField} onFocus={() => show(name)} className={cx(css.input, m && css.inputMobile, css.withAction)} />
+          <button type="button" className={cx(css.reroll, m && css.rerollLg)} title="Otra opción" onClick={() => { reroll(name); show(name); }}><Icon d={PATH.refresh} size={16} stroke={1.9} /></button>
         </span>
       </div>
     );
@@ -783,7 +807,7 @@ export default function MarketingStudio({
             Subir foto
           </label>
           {list.map(x => (
-            <button key={x.id} type="button" title={x.label} className={cx(css.ring, ed.image === x.id && css.ringOn)} onClick={() => patch({ image: x.id })}>
+            <button key={x.id} type="button" title={x.label} className={cx(css.ring, ed.image === x.id && css.ringOn)} onClick={() => { patch({ image: x.id }); show('image'); }}>
               <span style={{ display: 'block', position: 'relative', aspectRatio: '1', borderRadius: 8, background: x.bg, overflow: 'hidden' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {x.src && <img src={x.src} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
@@ -833,13 +857,13 @@ export default function MarketingStudio({
       {!m && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}><span style={{ fontSize: 15, fontWeight: 700 }}>Elementos</span>{marlenBtn('Sugerir', autoEls, 'Marlén elige la combinación que mejor funciona con este estilo')}</div>}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {ELEMENTS.map(([k, label, icon]) => (
-          <button key={k} type="button" className={cx(css.chip, css.chipLg, ed.els[k] && css.chipOn)} onClick={() => toggleEl(k)} aria-pressed={!!ed.els[k]}><Icon d={icon} size={18} />{label}</button>
+          <button key={k} type="button" className={cx(css.chip, css.chipLg, ed.els[k] && css.chipOn)} onClick={() => { toggleEl(k); if (k === 'seal' && !ed.els.seal) show('seal'); }} aria-pressed={!!ed.els[k]}><Icon d={icon} size={18} />{label}</button>
         ))}
         {m && marlenBtn('Sugerir', autoEls, 'Marlén elige la combinación que mejor funciona con este estilo')}
       </div>
       {ed.els.seal && (
-        <label className={css.field}><span className={css.label}>Texto del sello</span>
-          <input value={ed.els.sealText} maxLength={14} onChange={(e) => { const v = e.target.value; patch((s) => ({ els: { ...s.els, sealText: v }, elsManual: true })); }} className={cx(css.input, m && css.inputMobile)} />
+        <label className={css.field} data-field="mkt-seal" style={{ borderRadius: 12 }}><span className={css.label}>Texto del sello</span>
+          <input value={ed.els.sealText} maxLength={14} onFocus={() => show('seal')} onChange={(e) => { const v = e.target.value; patch((s) => ({ els: { ...s.els, sealText: v }, elsManual: true })); }} className={cx(css.input, m && css.inputMobile)} />
         </label>
       )}
       <div className={css.hint}>Se colocan solos según el estilo, el formato y la imagen.</div>
@@ -884,22 +908,22 @@ export default function MarketingStudio({
       {textField('title', 'Titular', m)}
       {textField('subtitle', 'Subtítulo', m)}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: m ? 10 : 12 }}>
-        <div className={css.field}>
+        <div className={css.field} data-field="mkt-price" style={{ borderRadius: 12 }}>
           <span className={css.label}>Precio</span>
           {zoneColors('price')}
-          <input name="price" value={ed.fields.price} placeholder="Opcional" onChange={onField} className={cx(css.input, m && css.inputMobile)} />
+          <input name="price" value={ed.fields.price} placeholder="Opcional" onChange={onField} onFocus={() => show('price')} className={cx(css.input, m && css.inputMobile)} />
         </div>
         {textField('cta', 'Botón', m)}
       </div>
-      <label className={css.field}>
+      <label className={css.field} data-field="mkt-link" style={{ borderRadius: 12 }}>
         <span className={css.label}>Enlace de reserva (opcional)</span>
         <div style={{ display: 'flex', gap: 8 }}>
-          <input value={link} onChange={(e) => setLink(e.target.value)} className={cx(css.input, m && css.inputMobile)} style={{ flex: 1, minWidth: 0 }} placeholder="Para pegar en story o sticker" />
+          <input value={link} onChange={(e) => setLink(e.target.value)} onFocus={() => show('link')} className={cx(css.input, m && css.inputMobile)} style={{ flex: 1, minWidth: 0 }} placeholder="Para pegar en story o sticker" />
           {!m && <button type="button" className={cx(css.btn, css.ghost)} style={{ borderRadius: 12, padding: '0 14px', fontSize: 13 }} onClick={async () => { await copyText(link); showToast('Enlace copiado'); }}>Copiar</button>}
         </div>
         <span className={css.hint}>No se manda por WhatsApp con la foto: cópialo si quieres pegarlo en un sticker o en el chat aparte.</span>
       </label>
-      <button type="button" onClick={() => patch((s) => ({ showLogo: !s.showLogo }))} aria-pressed={ed.showLogo}
+      <button type="button" data-field="mkt-logo" onClick={() => { patch((s) => ({ showLogo: !s.showLogo })); if (!ed.showLogo) show('logo'); }} aria-pressed={ed.showLogo}
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: m ? 52 : 48, padding: '0 14px', borderRadius: 12, border: '1px solid #E4E3EA', background: '#fff', cursor: 'pointer', color: '#0F0E1A', fontSize: 14, fontWeight: 600 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}><img src={logo} alt="" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'cover' }} />Mostrar logo del centro</span>
@@ -1364,7 +1388,9 @@ export default function MarketingStudio({
         </button>
       </div>
       <div ref={previewRef} style={{ flex: 1, minHeight: 0, background: '#F6F6F9', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
-        <DraggableCreative cfg={currentCfg} width={previewW} radius={12} shadow safe={ed.safe} onImageFocus={setImageFocus} />
+        <ZoneLayer focus={zoneFocus}>
+          <DraggableCreative cfg={currentCfg} width={previewW} radius={12} shadow safe={ed.safe} onImageFocus={setImageFocus} />
+        </ZoneLayer>
         {ed.tool === 'imagen' && currentCfg.image?.src && (
           <span style={{ position: 'absolute', left: 12, right: 12, bottom: 8, textAlign: 'center', fontSize: 12, fontWeight: 600, color: '#6E6D7A', pointerEvents: 'none' }}>
             Arrastra la foto para encuadrarla
@@ -1472,7 +1498,9 @@ export default function MarketingStudio({
             )}
           </div>
           <div ref={previewRef} style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-            <DraggableCreative cfg={currentCfg} width={previewW} radius={14} shadow safe={ed.safe} onImageFocus={setImageFocus} />
+            <ZoneLayer focus={zoneFocus} hover labelOf={zoneLabel} onEdit={editZone}>
+              <DraggableCreative cfg={currentCfg} width={previewW} radius={14} shadow safe={ed.safe} onImageFocus={setImageFocus} />
+            </ZoneLayer>
           </div>
           <div style={{ padding: '0 24px 20px', textAlign: 'center', fontSize: 13, color: '#6E6D7A' }}>{currentCfg.image?.src ? 'Arrastra la foto para encuadrarla · ' : ''}{F.px} · {F.usage}</div>
         </div>

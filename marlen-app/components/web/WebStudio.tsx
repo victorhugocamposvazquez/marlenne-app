@@ -6,6 +6,7 @@ import { Icon, MarlenAvatar, PATH } from '@/components/marketing/Icons';
 import sheetCss from '@/components/marketing/marketing.module.css';
 import { useMarketingSheet } from '@/hooks/useMarketingSheet';
 import ScrollMore from '@/components/marketing/ScrollMore';
+import ZoneLayer, { jumpToField, zoneSelector, type ZoneFocus } from '@/components/ZoneLayer';
 import {
   BANK, DEFAULT_EXTRAS, DNS_RECORDS, ICONS, RESERVED, SECTIONS, SERVICES, SERVICE_MEDIA, TABS, TEAM as TEAM_DEMO, TEMPLATES, TEXTS, TEXT_LIMITS, TIPS,
   bankImg, lookOf, palettesFor, slugify, tplOf,
@@ -216,19 +217,9 @@ export default function WebStudio({
   /** Marca cambios (borrador o publicados sin republicar) */
   const touch = () => { setDirty(true); };
 
-  const scrollPreviewToInstagram = () => {
-    requestAnimationFrame(() => {
-      const el = document.getElementById('instagram');
-      if (!el) return;
-      const scroller = el.closest('[data-site-scroll]') as HTMLElement | null;
-      if (scroller) {
-        const top = el.offsetTop - 12;
-        scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-      } else {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    });
-  };
+  const [zoneFocus, setZoneFocus] = useState<ZoneFocus>(null);
+  /** Lleva la vista previa a la zona que se está editando y la marca. */
+  const show = (id: string | null | undefined) => { if (id) setZoneFocus((f) => ({ id, n: (f?.n ?? 0) + 1 })); };
 
   /** Al poner @usuario, intenta las últimas fotos. Si Instagram no las da, la web muestra su embed (solo lectura). */
   useEffect(() => {
@@ -254,7 +245,7 @@ export default function WebStudio({
           setIgFeedHint(`Últimas fotos de @${u} en la web. Marlén no publica nada.`);
           setFeeds((prev) => ({ ...prev, ig: [] }));
         }
-        scrollPreviewToInstagram();
+        show('instagram');
       });
     }, 450);
     return () => {
@@ -262,12 +253,6 @@ export default function WebStudio({
       window.clearTimeout(t);
     };
   }, [fx.insta, fx.igUser]);
-
-  useEffect(() => {
-    if (!fx.insta) return;
-    if (!parseInstagramUser(fx.igUser)) return;
-    scrollPreviewToInstagram();
-  }, [fx.igLayout, fx.insta, fx.igUser]);
 
   const uploadPhoto = async (file: File, kind: string): Promise<Photo | null> => {
     if (!salonId) {
@@ -381,6 +366,51 @@ export default function WebStudio({
     place: feeds.place || null,
   };
 
+  /* ---------------- zonas de la vista previa ↔ ajustes ---------------- */
+  const TEXT_ZONE: Record<keyof SiteTexts, string> = { heroTitle: 'hero-title', heroSub: 'hero-sub', aboutTitle: 'about-title', aboutText: 'about-text', cta: 'cta' };
+  const FX_ZONE: Partial<Record<keyof Extras, string>> = { wa: 'wa', waNum: 'wa', waMsg: 'wa', bar: 'bar', barText: 'bar', reviews: 'reviews', gUrl: 'reviews', gift: 'regalo', insta: 'instagram', igUser: 'instagram' };
+  const TAB_ZONE: Partial<Record<TabId, string>> = { photo: 'servicios', text: 'hero-title', svc: 'servicios' };
+  const hoursZone = hours.trim() ? 'hours' : 'visitanos';
+  const photoZone = (k: 'hero' | 'about' | 'team') => (k === 'hero' ? 'hero-photo' : k === 'about' ? 'about-photo' : 'equipo');
+  const goTab = (id: TabId) => { setTab(id); show(TAB_ZONE[id]); };
+  const openField = (id: TabId, field: string | null, prep?: () => void) => {
+    setTab(id);
+    if (mob) setTool(id);
+    prep?.();
+    jumpToField(field);
+  };
+  const zoneEdit = (id: string): { label: string; go: () => void } | null => {
+    const textAt = (k: keyof SiteTexts, label: string) => ({ label, go: () => openField('text', `web-${k}`) });
+    const svcAt = (svcId: string) => {
+      const s = svcs.find((x) => x.id === svcId);
+      if (!s) return null;
+      if (media === 'none') return { label: 'Editar servicio', go: () => openField('svc', `web-svc-${svcId}`, () => setSvcOpen(svcId)) };
+      return { label: media === 'icon' ? 'Cambiar icono' : 'Cambiar foto', go: () => openField('photo', `web-media-${svcId}`, () => { setMediaOpen(svcId); setPhTheme(themeOfSvc(s)); }) };
+    };
+    const team = /^team-(\d+)$/.exec(id);
+    if (team) return { label: 'Cambiar foto', go: () => openField('photo', `web-team-${team[1]}`, () => setPhTarget('team')) };
+    if (id.startsWith('svc-') || id.startsWith('nov-')) return svcAt(id.slice(4));
+    switch (id) {
+      case 'hero-title': return textAt('heroTitle', 'Editar titular');
+      case 'hero-sub': return textAt('heroSub', 'Editar subtítulo');
+      case 'cta': return textAt('cta', 'Editar botón');
+      case 'about-title': case 'nosotros': return textAt('aboutTitle', 'Editar «Sobre nosotros»');
+      case 'about-text': return textAt('aboutText', 'Editar texto');
+      case 'hero-photo': return { label: 'Cambiar foto de portada', go: () => openField('photo', 'web-photos', () => setPhTarget('hero')) };
+      case 'about-photo': return { label: 'Cambiar foto', go: () => openField('photo', 'web-photos', () => setPhTarget('about')) };
+      case 'equipo': return { label: 'Fotos del equipo', go: () => openField('photo', 'web-photos', () => setPhTarget('team')) };
+      case 'servicios': case 'novedades': return { label: 'Editar servicios', go: () => openField('svc', null) };
+      case 'reservar': case 'book-float': return { label: 'Reserva online', go: () => openField('fx', 'web-book') };
+      case 'bar': return { label: 'Editar aviso', go: () => openField('fx', 'web-fx-bar') };
+      case 'reviews': return { label: 'Reseñas', go: () => openField('fx', 'web-fx-reviews') };
+      case 'regalo': return { label: 'Tarjetas regalo', go: () => openField('fx', 'web-fx-gift') };
+      case 'instagram': return { label: 'Instagram', go: () => openField('fx', 'web-fx-insta') };
+      case 'wa': return { label: 'WhatsApp', go: () => openField('fx', 'web-fx-wa') };
+      case 'hours': case 'visitanos': return { label: 'Editar horario', go: () => openField('dom', 'web-hours') };
+      default: return null;
+    }
+  };
+
   const pickTpl = (id: string, open: boolean) => {
     const t = tplOf(id);
     setTplId(id); setPalId(t.pals[0].id);
@@ -411,6 +441,7 @@ export default function WebStudio({
     const next = key === 'pub' && s.pub ? { ...s, pub: false, nov: false } : { ...s, [key]: !s[key] };
     setSvcs(svcs.map((x) => (x.id !== id ? x : next)));
     touch();
+    show(key === 'nov' && next.nov ? `nov-${id}` : `svc-${id}`);
     // Reserva online = bookable_online: se guarda ya (convive con Tratamientos).
     if (key === 'book') {
       void setServiceBookableOnline(id, next.book).then(r => {
@@ -494,7 +525,7 @@ export default function WebStudio({
       <H>Secciones</H>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {SECTIONS.map(([k, label, desc]) => (
-          <button key={k} type="button" onClick={() => { setSec({ ...sec, [k]: !sec[k] }); touch(); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 52, padding: '0 14px', borderRadius: 12, border: `1px solid ${BORDER}`, background: '#fff', color: INK, textAlign: 'left', cursor: 'pointer' }}>
+          <button key={k} type="button" onClick={() => { setSec({ ...sec, [k]: !sec[k] }); touch(); if (!sec[k]) show(k); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 52, padding: '0 14px', borderRadius: 12, border: `1px solid ${BORDER}`, background: '#fff', color: INK, textAlign: 'left', cursor: 'pointer' }}>
             <span style={{ display: 'flex', flexDirection: 'column', gap: 1 }}><span style={{ fontSize: 14, fontWeight: 600 }}>{label}</span><span style={{ fontSize: 12, color: MUTED }}>{desc}</span></span><Switch on={sec[k]} w={40} />
           </button>
         ))}
@@ -503,13 +534,13 @@ export default function WebStudio({
   );
 
   const curPhoto = phTarget !== 'team' ? photos[phTarget] : null;
-  const setPhoto = (k: 'hero' | 'about', v: Photo | null) => { setPhotos({ ...photos, [k]: v }); touch(); };
+  const setPhoto = (k: 'hero' | 'about', v: Photo | null) => { setPhotos({ ...photos, [k]: v }); touch(); show(photoZone(k)); };
   const panelPhoto = (
     <>
       <H sub="Decídelo primero: cambia cómo se ve toda la lista de servicios.">Tus servicios, ¿con fotos o con iconos?</H>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
         {([['photo', 'Fotos', 'Más visual'], ['icon', 'Iconos', 'Limpio y uniforme'], ['none', 'Sin imagen', 'Estilo carta']] as [ServiceMedia, string, string][]).map(([k, label, desc]) => { const on = media === k; return (
-          <button key={k} type="button" aria-pressed={on} onClick={() => { setSvcMedia(k); setMediaOpen(null); touch(); }} style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 8, padding: 10, borderRadius: 14, border: `2px solid ${on ? GREEN : LINE}`, background: '#fff', color: INK, textAlign: 'left', cursor: 'pointer', minWidth: 0 }}>
+          <button key={k} type="button" aria-pressed={on} onClick={() => { setSvcMedia(k); setMediaOpen(null); touch(); show('servicios'); }} style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 8, padding: 10, borderRadius: 14, border: `2px solid ${on ? GREEN : LINE}`, background: '#fff', color: INK, textAlign: 'left', cursor: 'pointer', minWidth: 0 }}>
             <span style={{ height: 62, borderRadius: 9, background: CANVAS, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6, padding: '0 8px' }}>
               {['#D9B8A6', '#B8C7B5', '#C9B9D6'].map((c) => (
                 <span key={c} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -529,7 +560,7 @@ export default function WebStudio({
           <span style={{ fontSize: 14, fontWeight: 700 }}>Estilo de los iconos</span>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
             {([['line', 'Línea', SOFT, INK, 12], ['solid', 'Relleno', INK, '#fff', '50%'], ['plain', 'Sin fondo', 'transparent', INK, 12]] as [IconStyle, string, string, string, number | string][]).map(([k, label, bg, c, rr]) => (
-              <button key={k} type="button" onClick={() => { setIconStyle(k); touch(); }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '12px 6px 10px', borderRadius: 14, border: `2px solid ${iconStyle === k ? GREEN : LINE}`, background: '#fff', color: INK, cursor: 'pointer' }}>
+              <button key={k} type="button" onClick={() => { setIconStyle(k); touch(); show('servicios'); }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '12px 6px 10px', borderRadius: 14, border: `2px solid ${iconStyle === k ? GREEN : LINE}`, background: '#fff', color: INK, cursor: 'pointer' }}>
                 <span style={{ width: 44, height: 44, borderRadius: rr, background: bg, color: c, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon d={ICONS[0][1]} size={22} stroke={1.7} /></span>
                 <span style={{ fontSize: 12.5, fontWeight: 600 }}>{label}</span>
               </button>
@@ -541,8 +572,8 @@ export default function WebStudio({
         <>
           <H sub={media === 'icon' ? 'Marlén ha elegido uno para cada servicio. Toca para cambiarlo.' : 'Marlén ha elegido una del banco para cada uno. Toca para cambiarla o subir la tuya.'}>{media === 'icon' ? 'Icono de cada servicio' : 'Foto de cada servicio'}</H>
           {svcs.filter((s) => s.pub).map((s) => { const open = mediaOpen === s.id, th = themeOfSvc(s), cur = imgOf(s), ic = iconOf(s); return (
-            <div key={s.id} style={{ borderRadius: 14, border: `1.5px solid ${open ? INK : LINE}`, background: '#fff' }}>
-              <button type="button" onClick={() => { setMediaOpen(open ? null : s.id); setPhTheme(th); }} style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 60, padding: '8px 12px', border: 'none', background: 'none', color: INK, textAlign: 'left', cursor: 'pointer' }}>
+            <div key={s.id} data-field={`web-media-${s.id}`} style={{ borderRadius: 14, border: `1.5px solid ${open ? INK : LINE}`, background: '#fff' }}>
+              <button type="button" onClick={() => { setMediaOpen(open ? null : s.id); setPhTheme(th); show(`svc-${s.id}`); }} style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 60, padding: '8px 12px', border: 'none', background: 'none', color: INK, textAlign: 'left', cursor: 'pointer' }}>
                 {media === 'photo' ? <span style={{ width: 44, height: 44, borderRadius: 10, background: cur.bg, flexShrink: 0 }} /> : <span style={{ width: 44, height: 44, borderRadius: 12, background: SOFT, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon d={ic} size={22} stroke={1.7} /></span>}
                 <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600 }}>{s.name}</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#4A4957' }}>{open ? 'Cerrar' : 'Cambiar'}</span>
@@ -552,13 +583,13 @@ export default function WebStudio({
                   {media === 'photo' ? (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 6 }}>
                       <label style={{ aspectRatio: '1', borderRadius: 10, border: '1.5px dashed #C9C8D3', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, fontSize: 10.5, fontWeight: 600, color: '#4A4957', cursor: 'pointer' }}>
-                        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { void onPickFile(e, `svc-${s.id}`, (v) => setSvcImg({ ...svcImg, [s.id]: v })); }} /><Icon d={P_UP} size={18} stroke={2} />Subir
+                        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { void onPickFile(e, `svc-${s.id}`, (v) => { setSvcImg({ ...svcImg, [s.id]: v }); show(`svc-${s.id}`); }); }} /><Icon d={P_UP} size={18} stroke={2} />Subir
                       </label>
-                      {bankPhotos(th).map((im, i) => <button key={i} type="button" title={im.label || ''} onClick={() => { setSvcImg({ ...svcImg, [s.id]: im }); touch(); }} style={{ padding: 2, borderRadius: 12, border: `2.5px solid ${im.bg === cur.bg ? INK : 'transparent'}`, background: 'none', cursor: 'pointer' }}><span style={{ display: 'block', aspectRatio: '1', borderRadius: 8, background: im.bg }} /></button>)}
+                      {bankPhotos(th).map((im, i) => <button key={i} type="button" title={im.label || ''} onClick={() => { setSvcImg({ ...svcImg, [s.id]: im }); touch(); show(`svc-${s.id}`); }} style={{ padding: 2, borderRadius: 12, border: `2.5px solid ${im.bg === cur.bg ? INK : 'transparent'}`, background: 'none', cursor: 'pointer' }}><span style={{ display: 'block', aspectRatio: '1', borderRadius: 8, background: im.bg }} /></button>)}
                     </div>
                   ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 6 }}>
-                      {ICONS.map(([label, d]) => <button key={label} type="button" title={label} onClick={() => { setSvcIcon({ ...svcIcon, [s.id]: d }); touch(); }} style={{ aspectRatio: '1', borderRadius: 12, border: `2px solid ${d === ic ? INK : 'transparent'}`, background: CANVAS, color: INK, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Icon d={d} size={22} stroke={1.7} /></button>)}
+                      {ICONS.map(([label, d]) => <button key={label} type="button" title={label} onClick={() => { setSvcIcon({ ...svcIcon, [s.id]: d }); touch(); show(`svc-${s.id}`); }} style={{ aspectRatio: '1', borderRadius: 12, border: `2px solid ${d === ic ? INK : 'transparent'}`, background: CANVAS, color: INK, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Icon d={d} size={22} stroke={1.7} /></button>)}
                     </div>
                   )}
                 </div>
@@ -567,9 +598,9 @@ export default function WebStudio({
           ); })}
         </>
       ) : <span style={{ fontSize: 12, color: MUTED }}>Tus servicios se mostrarán solo con nombre, descripción y precio.</span>}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 16, borderTop: `1px solid ${LINE}` }}>
+      <div data-field="web-photos" style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 16, borderTop: `1px solid ${LINE}` }}>
         <H sub="Portada, sobre nosotros y equipo.">Fotos de la web</H>
-        <Seg items={[['hero', 'Portada'], ['about', 'Sobre nosotros'], ['team', 'Equipo']]} value={phTarget} onChange={setPhTarget} />
+        <Seg items={[['hero', 'Portada'], ['about', 'Sobre nosotros'], ['team', 'Equipo']]} value={phTarget} onChange={(v) => { setPhTarget(v); show(photoZone(v)); }} />
         {phTarget !== 'team' ? (
           <>
             <div style={{ position: 'relative', height: 150, borderRadius: 14, background: curPhoto ? curPhoto.bg : `linear-gradient(135deg, ${P.surface} 0%, ${P.accent} 100%)` }}>
@@ -595,10 +626,10 @@ export default function WebStudio({
         ) : (
           <>
             {teamRows.map(([name], i) => { const p = photos.team[i]; return (
-              <div key={name + i} style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 60, padding: '6px 2px', borderBottom: `1px solid ${SOFT}` }}>
+              <div key={name + i} data-field={`web-team-${i}`} onClick={() => show(`team-${i}`)} style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 60, padding: '6px 2px', borderBottom: `1px solid ${SOFT}` }}>
                 <span style={{ width: 48, height: 48, borderRadius: '50%', background: p ? p.bg : LINE, flexShrink: 0 }} />
                 <span style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}><span style={{ fontSize: 14, fontWeight: 600 }}>{name}</span><span style={{ fontSize: 12, color: p ? GREEN : MUTED }}>{p ? 'Tu foto' : 'Sin foto'}</span></span>
-                <Upload label={p ? 'Cambiar' : 'Subir foto'} onFile={(e) => { void onPickFile(e, `team-${i}`, (v) => { const tm = photos.team.slice(); tm[i] = v; setPhotos({ ...photos, team: tm }); }); }} />
+                <Upload label={p ? 'Cambiar' : 'Subir foto'} onFile={(e) => { void onPickFile(e, `team-${i}`, (v) => { const tm = photos.team.slice(); tm[i] = v; setPhotos({ ...photos, team: tm }); show(`team-${i}`); }); }} />
               </div>
             ); })}
             <span style={{ fontSize: 12, color: MUTED, lineHeight: 1.45 }}>Para el equipo mejor fotos reales. Sin foto se muestra un fondo con el color de tu web.</span>
@@ -613,19 +644,20 @@ export default function WebStudio({
       <span style={{ fontSize: 13, fontWeight: 600, color: '#4A4957' }}>Tono</span>
       <div style={{ display: 'flex', gap: 6 }}>
         {([['cercano', 'Cercano'], ['directo', 'Directo'], ['premium', 'Premium']] as [Tone, string][]).map(([id, label]) => { const on = tone === id; return (
-          <button key={id} type="button" onClick={() => { setTone(id); setTxtIdx(0); setTxt({ ...TEXTS[id][0] }); setTxtManual(false); touch(); say('Textos en tono ' + label.toLowerCase()); }} style={{ flex: 1, height: 40, borderRadius: 999, border: `1px solid ${on ? INK : BORDER}`, background: on ? INK : '#fff', color: on ? '#fff' : INK, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{label}</button>
+          <button key={id} type="button" onClick={() => { setTone(id); setTxtIdx(0); setTxt({ ...TEXTS[id][0] }); setTxtManual(false); touch(); show('hero-title'); say('Textos en tono ' + label.toLowerCase()); }} style={{ flex: 1, height: 40, borderRadius: 999, border: `1px solid ${on ? INK : BORDER}`, background: on ? INK : '#fff', color: on ? '#fff' : INK, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{label}</button>
         ); })}
       </div>
-      <button type="button" onClick={() => { const i = (txtIdx + 1) % TEXTS[tone].length; setTxtIdx(i); setTxt({ ...TEXTS[tone][i] }); setTxtManual(false); touch(); say('Marlén ha reescrito los textos en tono ' + tone); }} style={{ ...btn(), height: 48, border: 'none', background: SOFT }}>
+      <button type="button" onClick={() => { const i = (txtIdx + 1) % TEXTS[tone].length; setTxtIdx(i); setTxt({ ...TEXTS[tone][i] }); setTxtManual(false); touch(); show('hero-title'); say('Marlén ha reescrito los textos en tono ' + tone); }} style={{ ...btn(), height: 48, border: 'none', background: SOFT }}>
         <Icon d={ICONS[0][1]} size={17} stroke={1.9} color={MAGENTA} />Marlén, propón otra versión
       </button>
       {([['heroTitle', 'Titular'], ['heroSub', 'Subtítulo'], ['aboutTitle', 'Título de «Sobre nosotros»'], ['aboutText', 'Texto de «Sobre nosotros»'], ['cta', 'Botón de reserva']] as [keyof SiteTexts, string][]).map(([k, label]) => {
         const v = txt[k], max = TEXT_LIMITS[k], area = k === 'aboutText' || k === 'heroSub';
         const onChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { setTxt({ ...txt, [k]: e.target.value }); setTxtManual(true); touch(); };
+        const onFocus = () => show(TEXT_ZONE[k]);
         return (
-          <label key={k} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <label key={k} data-field={`web-${k}`} style={{ display: 'flex', flexDirection: 'column', gap: 6, borderRadius: 12 }}>
             <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, fontWeight: 600, color: '#4A4957' }}>{label}<span style={{ fontSize: 11, fontWeight: 500, color: v.length > max ? '#B42318' : MUTED }}>{v.length}/{max}</span></span>
-            {area ? <textarea value={v} onChange={onChange} rows={4} style={{ ...input(mob), height: 'auto', padding: '12px 14px', lineHeight: 1.5, resize: 'none' }} /> : <input value={v} onChange={onChange} style={input(mob)} />}
+            {area ? <textarea value={v} onChange={onChange} onFocus={onFocus} rows={4} style={{ ...input(mob), height: 'auto', padding: '12px 14px', lineHeight: 1.5, resize: 'none' }} /> : <input value={v} onChange={onChange} onFocus={onFocus} style={input(mob)} />}
           </label>
         );
       })}
@@ -639,8 +671,8 @@ export default function WebStudio({
         const G = { background: '#E8F4EE', color: '#16683F' }, O = { background: SOFT, color: '#5E5D6B' };
         const tags: [string, React.CSSProperties][] = [[s.pub ? 'Visible en web' : 'Oculto en web', s.pub ? G : O], ...(s.nov ? [['Nuevo', G] as [string, React.CSSProperties]] : []), [s.book ? 'Reserva online' : 'Sin reserva online', s.book ? G : O]];
         return (
-          <div key={s.id} style={{ borderRadius: 14, border: `1.5px solid ${open ? INK : LINE}`, background: '#fff' }}>
-            <button type="button" onClick={() => setSvcOpen(open ? null : s.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 64, padding: '10px 14px', border: 'none', background: 'none', color: INK, textAlign: 'left', cursor: 'pointer' }}>
+          <div key={s.id} data-field={`web-svc-${s.id}`} style={{ borderRadius: 14, border: `1.5px solid ${open ? INK : LINE}`, background: '#fff' }}>
+            <button type="button" onClick={() => { setSvcOpen(open ? null : s.id); if (!open) show(`svc-${s.id}`); }} style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 64, padding: '10px 14px', border: 'none', background: 'none', color: INK, textAlign: 'left', cursor: 'pointer' }}>
               <span style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
                 <span style={{ fontSize: 14, fontWeight: 600 }}>{s.name}</span>
                 <span style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{tags.map(([l, st]) => <span key={l} style={{ height: 22, padding: '0 8px', borderRadius: 6, fontSize: 11.5, fontWeight: 600, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', ...st }}>{l}</span>)}</span>
@@ -692,7 +724,7 @@ export default function WebStudio({
     return (
       <label key={name} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <span style={{ fontSize: 12, fontWeight: 600, color: '#4A4957' }}>{label}</span>
-        <input value={String(fx[name] || '')} placeholder={ph} onChange={(e) => { setFx({ ...fx, [name]: e.target.value }); touch(); }} style={{ ...input(mob), borderRadius: 10, padding: '0 12px' }} />
+        <input value={String(fx[name] || '')} placeholder={ph} onFocus={() => show(FX_ZONE[name])} onChange={(e) => { setFx({ ...fx, [name]: e.target.value }); touch(); }} style={{ ...input(mob), borderRadius: 10, padding: '0 12px' }} />
         {hint && <span style={{ fontSize: 12, fontWeight: 600, color: hc, lineHeight: 1.4 }}>{hint}</span>}
       </label>
     );
@@ -783,9 +815,9 @@ export default function WebStudio({
           <span style={{ fontSize: 13, fontWeight: 600, wordBreak: 'break-all' }}>{bookingUrl.replace(/^https?:\/\//, '') || `/r/${bookingSlug}`}</span>
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+      <div data-field="web-book" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, borderRadius: 14 }}>
         {([['float', 'Botón flotante', 'Siempre visible al hacer scroll'], ['embed', 'Incrustado', 'Calendario dentro de la web'], ['both', 'Los dos', 'Máxima visibilidad'], ['off', 'No mostrar', 'Solo el botón del menú']] as [BookingMode, string, string][]).map(([id, label, desc]) => (
-          <button key={id} type="button" onClick={() => { setFx({ ...fx, book: id }); touch(); }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2, padding: '12px 14px', borderRadius: 14, border: `1.5px solid ${fx.book === id ? INK : LINE}`, background: '#fff', color: INK, textAlign: 'left', cursor: 'pointer' }}><span style={{ fontSize: 14, fontWeight: 600 }}>{label}</span><span style={{ fontSize: 12, color: MUTED, lineHeight: 1.35 }}>{desc}</span></button>
+          <button key={id} type="button" onClick={() => { setFx({ ...fx, book: id }); touch(); show(id === 'float' ? 'book-float' : id === 'off' ? 'cta' : 'reservar'); }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2, padding: '12px 14px', borderRadius: 14, border: `1.5px solid ${fx.book === id ? INK : LINE}`, background: '#fff', color: INK, textAlign: 'left', cursor: 'pointer' }}><span style={{ fontSize: 14, fontWeight: 600 }}>{label}</span><span style={{ fontSize: 12, color: MUTED, lineHeight: 1.35 }}>{desc}</span></button>
         ))}
       </div>
       <H>Más funciones</H>
@@ -796,8 +828,8 @@ export default function WebStudio({
         ['gift', 'Tarjetas regalo', 'Checkout Stripe; canje en el centro', 'M3 8h18v5H3zM5 13v8h14v-8M12 8v13M12 8C10 4 6 4 6 6.5S9 8 12 8zM12 8c2-4 6-4 6-1.5S15 8 12 8z', []],
         ['insta', 'Instagram', 'Feed en la web; el enlace al perfil es opcional', 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0M17 7h.01', [['igUser', 'Usuario o enlace de Instagram', 'tucentro, @tucentro o instagram.com/tucentro']]],
       ] as [keyof Extras, string, string, string, [keyof Extras, string, string][]][]).map(([k, label, desc, d, fields]) => { const on = !!fx[k]; return (
-        <div key={k} style={{ borderRadius: 14, border: `1.5px solid ${on ? INK : LINE}`, background: '#fff' }}>
-          <button type="button" onClick={() => { setFx({ ...fx, [k]: !on, ...(k === 'insta' && on ? { igLink: false } : {}) }); touch(); }} style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 60, padding: '10px 14px', border: 'none', background: 'none', color: INK, textAlign: 'left', cursor: 'pointer' }}>
+        <div key={k} data-field={`web-fx-${k}`} style={{ borderRadius: 14, border: `1.5px solid ${on ? INK : LINE}`, background: '#fff' }}>
+          <button type="button" onClick={() => { setFx({ ...fx, [k]: !on, ...(k === 'insta' && on ? { igLink: false } : {}) }); touch(); if (!on) show(FX_ZONE[k]); }} style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 60, padding: '10px 14px', border: 'none', background: 'none', color: INK, textAlign: 'left', cursor: 'pointer' }}>
             <span style={{ width: 36, height: 36, borderRadius: 10, background: on ? INK : SOFT, color: on ? '#fff' : INK, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon d={d} size={19} /></span>
             <span style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}><span style={{ fontSize: 14, fontWeight: 600 }}>{label}</span><span style={{ fontSize: 12, color: MUTED, lineHeight: 1.35 }}>{desc}</span></span>
             <Switch on={on} w={40} />
@@ -818,7 +850,7 @@ export default function WebStudio({
                       <button
                         key={id}
                         type="button"
-                        onClick={() => { setFx({ ...fx, igLayout: id }); touch(); say(label); }}
+                        onClick={() => { setFx({ ...fx, igLayout: id }); touch(); show('instagram'); say(label); }}
                         style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
                           width: '100%', boxSizing: 'border-box',
@@ -849,7 +881,7 @@ export default function WebStudio({
               </div>
               <button
                 type="button"
-                onClick={() => { setFx({ ...fx, igLink: !fx.igLink }); touch(); }}
+                onClick={() => { setFx({ ...fx, igLink: !fx.igLink }); touch(); show('instagram'); }}
                 style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: 0, border: 'none', background: 'none', color: INK, textAlign: 'left', cursor: 'pointer' }}
               >
                 <span style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}>
@@ -866,6 +898,7 @@ export default function WebStudio({
               <input
                 value={giftAmountsText}
                 placeholder="30, 50, 100"
+                onFocus={() => show('regalo')}
                 onChange={(e) => { setGiftAmountsText(e.target.value); touch(); }}
                 style={{ ...input(mob), borderRadius: 10, padding: '0 12px' }}
               />
@@ -967,9 +1000,9 @@ export default function WebStudio({
           <input value={zone} placeholder="Barrio o ciudad" onChange={(e) => { setZone(e.target.value.slice(0, 30)); touch(); }} style={input(mob)} />
           <span style={{ fontSize: 12, color: MUTED }}>Marlén la usa en títulos y páginas: «Limpieza facial en {z}».</span>
         </label>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <label data-field="web-hours" style={{ display: 'flex', flexDirection: 'column', gap: 6, borderRadius: 12 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: '#4A4957' }}>Horario (Visítanos)</span>
-          <textarea value={hours} onChange={(e) => { setHours(e.target.value); touch(); }} rows={3} placeholder={'Lunes a viernes, 10:00 – 20:00\nSábados, 10:00 – 14:00'} style={{ ...input(mob), height: 'auto', padding: '12px 14px', lineHeight: 1.45, resize: 'vertical' }} />
+          <textarea value={hours} onFocus={() => show(hoursZone)} onChange={(e) => { setHours(e.target.value); touch(); }} rows={3} placeholder={'Lunes a viernes, 10:00 – 20:00\nSábados, 10:00 – 14:00'} style={{ ...input(mob), height: 'auto', padding: '12px 14px', lineHeight: 1.45, resize: 'vertical' }} />
         </label>
         {[['Schema.org BeautySalon', 'Se incluye en la web publicada', true], ['Datos de negocio', 'Dirección, teléfono y horario de tu cuenta', true], ['Mapa del sitio', published ? `/s/${sub}/sitemap.xml` : 'Se genera al publicar', published], ['Aviso legal y cookies', 'Páginas generadas con los datos del centro', true]].map(([l, d, ok]) => (
           <div key={String(l)} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -999,7 +1032,15 @@ export default function WebStudio({
             <span style={{ height: 26, maxWidth: 420, minWidth: 0, padding: '0 14px', borderRadius: 999, background: '#fff', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#4A4957' }}><Icon d={P_LOCK} size={12} stroke={2.2} /><span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{liveUrl.replace(/^https?:\/\//, '')}</span></span>
           </div>
           {/* La web se renderiza a su ancho real (1280 / 390) y se reduce con zoom para que la maqueta sea idéntica a la publicada. */}
-          <PreviewScroll narrow={narrowPreview}><WebSite {...siteProps} narrow={narrowPreview} /></PreviewScroll>
+          <PreviewScroll
+            narrow={narrowPreview}
+            focus={zoneFocus}
+            hover={!mob}
+            labelOf={(id) => zoneEdit(id)?.label ?? null}
+            onEdit={(id) => zoneEdit(id)?.go()}
+          >
+            <WebSite {...siteProps} narrow={narrowPreview} />
+          </PreviewScroll>
         </div>
       </div>
     </div>
@@ -1061,7 +1102,7 @@ export default function WebStudio({
       {preview}
       {tool ? <div style={{ height: sheet.height, flexShrink: 0 }} /> : (
         <div style={{ height: 96, flexShrink: 0, display: 'flex', gap: 2, padding: '8px 6px 26px', borderTop: `1px solid ${LINE}`, background: '#fff' }}>
-          {TABS.map(([id, label, d]) => <button key={id} type="button" onClick={() => { setTab(id); setTool(id); }} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, border: 'none', background: 'transparent', color: INK, fontSize: 11.5, fontWeight: 600, whiteSpace: 'nowrap', cursor: 'pointer' }}><span style={{ width: 44, height: 34, borderRadius: 12, background: SOFT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon d={d} size={22} /></span>{label}</button>)}
+          {TABS.map(([id, label, d]) => <button key={id} type="button" onClick={() => { goTab(id); setTool(id); }} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, border: 'none', background: 'transparent', color: INK, fontSize: 11.5, fontWeight: 600, whiteSpace: 'nowrap', cursor: 'pointer' }}><span style={{ width: 44, height: 34, borderRadius: 12, background: SOFT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon d={d} size={22} /></span>{label}</button>)}
         </div>
       )}
       {tool && (
@@ -1096,14 +1137,14 @@ export default function WebStudio({
       <aside style={{ display: 'flex', flexDirection: 'column', minHeight: 0, borderRight: `1px solid ${LINE}` }}>
         <div style={{ padding: '16px 24px 0' }}>
           <div style={{ display: 'flex', gap: 2, padding: 3, background: SOFT, borderRadius: 11 }}>
-            {TABS.map(([id, label]) => { const on = id === tab; return <button key={id} type="button" onClick={() => setTab(id)} style={{ flex: '1 1 auto', minWidth: 0, height: 38, padding: '0 4px', border: 'none', borderRadius: 8, background: on ? '#fff' : 'transparent', color: on ? INK : MUTED, boxShadow: on ? '0 1px 3px rgba(15,14,26,.12)' : 'none', fontSize: 11.5, fontWeight: 600, whiteSpace: 'nowrap', cursor: 'pointer' }}>{label}</button>; })}
+            {TABS.map(([id, label]) => { const on = id === tab; return <button key={id} type="button" onClick={() => goTab(id)} style={{ flex: '1 1 auto', minWidth: 0, height: 38, padding: '0 4px', border: 'none', borderRadius: 8, background: on ? '#fff' : 'transparent', color: on ? INK : MUTED, boxShadow: on ? '0 1px 3px rgba(15,14,26,.12)' : 'none', fontSize: 11.5, fontWeight: 600, whiteSpace: 'nowrap', cursor: 'pointer' }}>{label}</button>; })}
           </div>
         </div>
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '18px 24px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>{tip}{PANELS[tab]}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 24px', borderTop: `1px solid ${LINE}` }}>
-          {tabIdx > 0 && <button type="button" onClick={() => setTab(TABS[tabIdx - 1][0])} style={{ ...btn(), height: 40, border: 'none', color: '#4A4957', fontSize: 13 }}><Icon d={P_BACK} size={16} stroke={2} />{TABS[tabIdx - 1][1]}</button>}
+          {tabIdx > 0 && <button type="button" onClick={() => goTab(TABS[tabIdx - 1][0])} style={{ ...btn(), height: 40, border: 'none', color: '#4A4957', fontSize: 13 }}><Icon d={P_BACK} size={16} stroke={2} />{TABS[tabIdx - 1][1]}</button>}
           <span style={{ flex: 1 }} />
-          {tabIdx < TABS.length - 1 ? <button type="button" onClick={() => setTab(TABS[tabIdx + 1][0])} style={{ ...btn(), height: 40, border: `1.5px solid ${INK}`, fontSize: 13 }}>Siguiente: {TABS[tabIdx + 1][1]}<Icon d={P_NEXT} size={16} stroke={2} /></button>
+          {tabIdx < TABS.length - 1 ? <button type="button" onClick={() => goTab(TABS[tabIdx + 1][0])} style={{ ...btn(), height: 40, border: `1.5px solid ${INK}`, fontSize: 13 }}>Siguiente: {TABS[tabIdx + 1][1]}<Icon d={P_NEXT} size={16} stroke={2} /></button>
             : <button type="button" disabled={busy || !subOk} onClick={() => void publish()} style={{ ...btn(true), height: 40, fontSize: 13, opacity: busy ? 0.6 : 1 }}>Todo listo · Publicar</button>}
         </div>
       </aside>
@@ -1168,8 +1209,34 @@ export default function WebStudio({
 
 /** Scroll de la vista previa: escala la web a 1280 px (o 390 en móvil).
  *  transform y no zoom: el zoom deja el iframe de Instagram en blanco. */
-function PreviewScroll({ narrow, children }: { narrow: boolean; children: React.ReactNode }) {
+function PreviewScroll({ narrow, focus, hover, labelOf, onEdit, children }: {
+  narrow: boolean;
+  focus: ZoneFocus;
+  hover: boolean;
+  labelOf: (id: string) => string | null;
+  onEdit: (id: string) => void;
+  children: React.ReactNode;
+}) {
   const ref = useRef<HTMLDivElement>(null);
+  // Dos frames: el alto escalado se actualiza tras el ResizeObserver (secciones recién activadas).
+  useEffect(() => {
+    if (!focus) return;
+    let raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(() => {
+        const sc = ref.current;
+        const el = sc?.querySelector<HTMLElement>(zoneSelector(focus.id));
+        if (!sc || !el || el.closest('[data-site-sticky]')) return;
+        const top = sc.getBoundingClientRect().top;
+        const st = sc.querySelector('[data-site-sticky]')?.getBoundingClientRect();
+        const nav = st ? Math.max(0, Math.min(st.height, st.bottom - top)) : 0;
+        const r = el.getBoundingClientRect();
+        const view = sc.clientHeight - nav;
+        const want = r.height < view * 0.8 ? nav + (view - r.height) / 2 : nav + 12;
+        sc.scrollBy({ top: r.top - top - want, behavior: 'smooth' });
+      });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [focus]);
   const inner = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(0);
   const [h, setH] = useState(0);
@@ -1191,9 +1258,9 @@ function PreviewScroll({ narrow, children }: { narrow: boolean; children: React.
   const scale = w ? w / base : 0.75;
   return (
     <div ref={ref} data-site-scroll style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-      <div style={{ height: Math.max(1, h * scale), width: '100%', position: 'relative' }}>
+      <ZoneLayer focus={focus} hover={hover} labelOf={labelOf} onEdit={onEdit} style={{ height: Math.max(1, h * scale), width: '100%' }}>
         <div ref={inner} style={{ width: base, transform: `scale(${scale})`, transformOrigin: 'top left' }}>{children}</div>
-      </div>
+      </ZoneLayer>
     </div>
   );
 }

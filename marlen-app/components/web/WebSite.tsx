@@ -102,14 +102,14 @@ export default function WebSite(p: SiteProps) {
   };
 
   const Label = ({ children }: { children: React.ReactNode }) => <span style={{ fontSize: lbl, letterSpacing: lblTrack, textTransform: 'uppercase', color: accentText, fontWeight: 600 }}>{children}</span>;
-  const H2 = ({ children }: { children: React.ReactNode }) => <h2 style={{ margin: 0, fontFamily: head, fontWeight: headW, fontSize: h2, lineHeight: 1.05, letterSpacing: headTrack, ...balance }}>{children}</h2>;
-  const Btn = ({ children, style, href, onClick }: { children: React.ReactNode; style?: React.CSSProperties; href?: string; onClick?: () => void }) => {
+  const H2 = ({ children, zone }: { children: React.ReactNode; zone?: string }) => <h2 data-zone={zone} style={{ margin: 0, fontFamily: head, fontWeight: headW, fontSize: h2, lineHeight: 1.05, letterSpacing: headTrack, ...balance }}>{children}</h2>;
+  const Btn = ({ children, style, href, onClick, zone = 'cta' }: { children: React.ReactNode; style?: React.CSSProperties; href?: string; onClick?: () => void; zone?: string }) => {
     const css: React.CSSProperties = { height: btnH, padding: `0 ${btnPx}px`, borderRadius: L.br, background: P.accent, color: P.onAccent, fontSize: btnFs, fontWeight: 600, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', textDecoration: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', ...style };
-    if (href) return <a href={href} target="_blank" rel="noopener noreferrer" style={css}>{children}</a>;
+    if (href) return <a data-zone={zone} href={href} target="_blank" rel="noopener noreferrer" style={css}>{children}</a>;
     if (onClick || canBook) {
-      return <button type="button" onClick={onClick || openBook} style={css}>{children}</button>;
+      return <button data-zone={zone} type="button" onClick={onClick || openBook} style={css}>{children}</button>;
     }
-    return <span style={css}>{children}</span>;
+    return <span data-zone={zone} style={css}>{children}</span>;
   };
   const Caption = ({ text, style }: { text: string; style: React.CSSProperties }) => (text ? <span style={{ position: 'absolute', fontSize: 12, fontWeight: 600, color: '#FFFFFF', background: 'rgba(15,14,26,0.35)', padding: '6px 12px', borderRadius: 999, ...style }}>{text}</span> : null);
   const New = () => <span style={{ height: 22, padding: '0 9px', borderRadius: 999, background: P.accent, color: P.onAccent, fontFamily: "var(--font-sora), 'Sora', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>NUEVO</span>;
@@ -171,8 +171,8 @@ export default function WebSite(p: SiteProps) {
   return (
     <div style={{ position: 'relative', width: '100%', background: P.bg, color: P.ink, fontFamily: "var(--font-sora), 'Sora', system-ui, sans-serif", WebkitFontSmoothing: 'antialiased' }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
-      <div style={{ position: 'sticky', top: 0, zIndex: 30 }}>
-        {fx.bar && (fx.barText || '').trim() && <div style={{ background: P.accent, color: P.onAccent, textAlign: 'center', fontSize: W(14, 12), fontWeight: 600, padding: W('11px 24px', '9px 16px') }}>{fx.barText}</div>}
+      <div data-site-sticky style={{ position: 'sticky', top: 0, zIndex: 30 }}>
+        {fx.bar && (fx.barText || '').trim() && <div data-zone="bar" style={{ background: P.accent, color: P.onAccent, textAlign: 'center', fontSize: W(14, 12), fontWeight: 600, padding: W('11px 24px', '9px 16px') }}>{fx.barText}</div>}
         <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, padding: W(`20px ${px}px`, '14px 20px'), background: P.bg, borderBottom: `1px solid ${P.line}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -195,9 +195,9 @@ export default function WebSite(p: SiteProps) {
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {canBook ? (
-              <button type="button" onClick={openBook} style={{ height: W(44, 36), padding: `0 ${W(20, 14)}px`, borderRadius: L.br, background: P.accent, color: P.onAccent, fontSize: W(14, 13), fontWeight: 600, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{t.cta}</button>
+              <button data-zone="cta" type="button" onClick={openBook} style={{ height: W(44, 36), padding: `0 ${W(20, 14)}px`, borderRadius: L.br, background: P.accent, color: P.onAccent, fontSize: W(14, 13), fontWeight: 600, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{t.cta}</button>
             ) : (
-              <span style={{ height: W(44, 36), padding: `0 ${W(20, 14)}px`, borderRadius: L.br, background: P.accent, color: P.onAccent, fontSize: W(14, 13), fontWeight: 600, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>{t.cta}</span>
+              <span data-zone="cta" style={{ height: W(44, 36), padding: `0 ${W(20, 14)}px`, borderRadius: L.br, background: P.accent, color: P.onAccent, fontSize: W(14, 13), fontWeight: 600, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>{t.cta}</span>
             )}
             {n && (
               <button
@@ -293,40 +293,40 @@ export default function WebSite(p: SiteProps) {
         <section style={{ display: 'grid', gridTemplateColumns: W('1.05fr 0.95fr', '1fr'), gap: W(72, 32), alignItems: 'center', padding: W(`72px ${px}px 104px`, '32px 20px 52px') }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: heroGap }}>
             <span style={{ fontSize: lbl, letterSpacing: '0.2em', textTransform: 'uppercase', color: accentText, fontWeight: 600 }}>Centro de estética · Madrid</span>
-            <h1 style={{ margin: 0, fontFamily: head, fontWeight: headW, fontSize: h1, lineHeight: 1, letterSpacing: headTrack, ...balance }}>{t.heroTitle}</h1>
-            <p style={{ margin: 0, fontSize: lead, lineHeight: 1.55, color: P.muted, maxWidth: 480, ...pretty }}>{t.heroSub}</p>
+            <h1 data-zone="hero-title" style={{ margin: 0, fontFamily: head, fontWeight: headW, fontSize: h1, lineHeight: 1, letterSpacing: headTrack, ...balance }}>{t.heroTitle}</h1>
+            <p data-zone="hero-sub" style={{ margin: 0, fontSize: lead, lineHeight: 1.55, color: P.muted, maxWidth: 480, ...pretty }}>{t.heroSub}</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
               <Btn>{t.cta}</Btn>
               <button type="button" onClick={() => goTo('servicios')} style={{ fontSize: btnFs, fontWeight: 600, whiteSpace: 'nowrap', background: 'none', border: 'none', borderBottom: '1.5px solid currentColor', color: 'inherit', cursor: 'pointer', fontFamily: 'inherit', padding: '0 0 2px' }}>Ver servicios</button>
             </div>
           </div>
-          <div style={{ position: 'relative', height: W(640, 400), borderRadius: W('320px 320px 0 0', '170px 170px 0 0'), overflow: 'hidden', background: heroBg }}><Caption text={capHero} style={{ left: 16, bottom: 16 }} /></div>
+          <div data-zone="hero-photo" style={{ position: 'relative', height: W(640, 400), borderRadius: W('320px 320px 0 0', '170px 170px 0 0'), overflow: 'hidden', background: heroBg }}><Caption text={capHero} style={{ left: 16, bottom: 16 }} /></div>
         </section>
       )}
       {L.hero === 'full' && (
-        <section style={{ position: 'relative', height: W(780, 620), display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', overflow: 'hidden', background: heroBg }}>
+        <section data-zone="hero-photo" style={{ position: 'relative', height: W(780, 620), display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', overflow: 'hidden', background: heroBg }}>
           <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(180deg, ${rgba(P.bg, 0.55)} 0%, ${rgba(P.bg, 0.86)} 100%)` }} />
           <div style={{ position: 'absolute', inset: W(28, 12), border: `1px solid ${rgba(P.accent, 0.45)}` }} />
           <Caption text={capHero} style={{ left: W(48, 24), top: W(48, 24), background: 'rgba(0,0,0,0.35)' }} />
           <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: heroGap, padding: `0 ${px}px`, maxWidth: 1000 }}>
             <span style={{ fontSize: lbl, letterSpacing: '0.32em', textTransform: 'uppercase', color: P.accent, fontWeight: 500 }}>{salon} · Madrid</span>
-            <h1 style={{ margin: 0, fontFamily: head, fontWeight: headW, fontSize: h1, lineHeight: 1, letterSpacing: headTrack, ...balance }}>{t.heroTitle}</h1>
-            <p style={{ margin: 0, fontSize: lead, lineHeight: 1.55, color: P.muted, maxWidth: 560, ...pretty }}>{t.heroSub}</p>
-            <span style={{ height: btnH, padding: `0 ${btnPx}px`, borderRadius: L.br, border: `1.5px solid ${P.accent}`, color: P.accent, fontSize: btnFs, fontWeight: 600, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', marginTop: 8, whiteSpace: 'nowrap' }}>{t.cta}</span>
+            <h1 data-zone="hero-title" style={{ margin: 0, fontFamily: head, fontWeight: headW, fontSize: h1, lineHeight: 1, letterSpacing: headTrack, ...balance }}>{t.heroTitle}</h1>
+            <p data-zone="hero-sub" style={{ margin: 0, fontSize: lead, lineHeight: 1.55, color: P.muted, maxWidth: 560, ...pretty }}>{t.heroSub}</p>
+            <span data-zone="cta" style={{ height: btnH, padding: `0 ${btnPx}px`, borderRadius: L.br, border: `1.5px solid ${P.accent}`, color: P.accent, fontSize: btnFs, fontWeight: 600, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', marginTop: 8, whiteSpace: 'nowrap' }}>{t.cta}</span>
           </div>
         </section>
       )}
       {L.hero === 'card' && (
         <section style={{ padding: W(`16px ${px}px 0`, '8px 12px 0') }}>
-          <div style={{ position: 'relative', height: W(680, 560), borderRadius: W(32, 22), overflow: 'hidden', background: heroBg, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: W(48, 22) }}>
+          <div data-zone="hero-photo" style={{ position: 'relative', height: W(680, 560), borderRadius: W(32, 22), overflow: 'hidden', background: heroBg, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: W(48, 22) }}>
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(10,12,10,0.62) 100%)' }} />
             <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 12 }}>
               <span style={{ height: 34, padding: '0 14px', borderRadius: 999, background: 'rgba(255,255,255,0.85)', color: '#1E1E1E', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>Reserva online 24 h</span>
               {capHero && <span style={{ fontSize: 12, fontWeight: 600, color: '#FFFFFF', background: 'rgba(0,0,0,0.3)', padding: '6px 12px', borderRadius: 999, alignSelf: 'flex-start' }}>{capHero}</span>}
             </div>
             <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: heroGap, color: '#FFFFFF', maxWidth: 760 }}>
-              <h1 style={{ margin: 0, fontFamily: head, fontWeight: headW, fontSize: h1, lineHeight: 1.02, letterSpacing: headTrack, ...balance }}>{t.heroTitle}</h1>
-              <p style={{ margin: 0, fontSize: lead, lineHeight: 1.5, color: 'rgba(255,255,255,0.92)', maxWidth: 520, ...pretty }}>{t.heroSub}</p>
+              <h1 data-zone="hero-title" style={{ margin: 0, fontFamily: head, fontWeight: headW, fontSize: h1, lineHeight: 1.02, letterSpacing: headTrack, ...balance }}>{t.heroTitle}</h1>
+              <p data-zone="hero-sub" style={{ margin: 0, fontSize: lead, lineHeight: 1.5, color: 'rgba(255,255,255,0.92)', maxWidth: 520, ...pretty }}>{t.heroSub}</p>
               <Btn style={{ alignSelf: 'flex-start', background: '#FFFFFF', color: P.ink }}>{t.cta}</Btn>
             </div>
           </div>
@@ -335,21 +335,21 @@ export default function WebSite(p: SiteProps) {
       {L.hero === 'stack' && (
         <section style={{ padding: W(`64px ${px}px 0`, '28px 20px 0'), display: 'flex', flexDirection: 'column', gap: W(32, 20) }}>
           <span style={{ fontSize: lbl, fontWeight: 600, color: P.muted }}>{salon} — Centro de estética en Madrid</span>
-          <h1 style={{ margin: 0, fontFamily: head, fontWeight: headW, fontSize: h1, lineHeight: 0.98, letterSpacing: headTrack, maxWidth: 1080, ...balance }}>{t.heroTitle}</h1>
+          <h1 data-zone="hero-title" style={{ margin: 0, fontFamily: head, fontWeight: headW, fontSize: h1, lineHeight: 0.98, letterSpacing: headTrack, maxWidth: 1080, ...balance }}>{t.heroTitle}</h1>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap' }}>
-            <p style={{ margin: 0, fontSize: lead, lineHeight: 1.55, color: P.muted, maxWidth: 520, ...pretty }}>{t.heroSub}</p>
+            <p data-zone="hero-sub" style={{ margin: 0, fontSize: lead, lineHeight: 1.55, color: P.muted, maxWidth: 520, ...pretty }}>{t.heroSub}</p>
             <Btn style={{ gap: 10 }}>{t.cta}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}><path d="M5 12h14M13 6l6 6-6 6" /></svg></Btn>
           </div>
-          <div style={{ position: 'relative', height: W(560, 300), borderRadius: r, overflow: 'hidden', background: heroBg }}><Caption text={capHero} style={{ left: 16, bottom: 16 }} /></div>
+          <div data-zone="hero-photo" style={{ position: 'relative', height: W(560, 300), borderRadius: r, overflow: 'hidden', background: heroBg }}><Caption text={capHero} style={{ left: 16, bottom: 16 }} /></div>
         </section>
       )}
 
       {novs.length > 0 && (
-        <section style={{ padding: secPad, display: 'flex', flexDirection: 'column', gap: secGap }}>
+        <section data-zone="novedades" style={{ padding: secPad, display: 'flex', flexDirection: 'column', gap: secGap }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><Label>Novedades</Label><H2>Recién llegados al centro</H2></div>
           <div style={{ display: 'grid', gridTemplateColumns: W('repeat(2, minmax(0, 1fr))', '1fr'), gap: W(20, 10) }}>
             {novs.map((nv) => (
-              <div key={nv.id} style={{ display: 'grid', gridTemplateColumns: W('0.9fr 1fr', '1fr'), borderRadius: r, background: P.surface, overflow: 'hidden' }}>
+              <div key={nv.id} data-zone={`nov-${nv.id}`} style={{ display: 'grid', gridTemplateColumns: W('0.9fr 1fr', '1fr'), borderRadius: r, background: P.surface, overflow: 'hidden' }}>
                 <div style={{ position: 'relative', minHeight: W(280, 170), background: nv.img }}><span style={{ position: 'absolute', top: 14, left: 14 }}><New /></span></div>
                 <div style={{ padding: W('28px 28px 28px 8px', '16px 18px 20px'), display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center' }}>
                   <span style={{ fontFamily: head, fontWeight: headW, fontSize: sf ? W(30, 22) : W(21, 17), lineHeight: 1.1, letterSpacing: headTrack }}>{nv.name}</span>
@@ -364,7 +364,7 @@ export default function WebSite(p: SiteProps) {
       )}
 
       {sec.servicios && (
-        <section id="servicios" style={{ padding: secPad, background: menuLook ? P.surface : P.bg, display: 'flex', flexDirection: 'column', gap: secGap }}>
+        <section id="servicios" data-zone="servicios" style={{ padding: secPad, background: menuLook ? P.surface : P.bg, display: 'flex', flexDirection: 'column', gap: secGap }}>
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><Label>Servicios</Label><H2>Nuestros tratamientos</H2></div>
             {canBook ? (
@@ -376,7 +376,7 @@ export default function WebSite(p: SiteProps) {
           {L.svc === 'menu' && (
             <div style={{ display: 'grid', gridTemplateColumns: W('1fr 1fr', '1fr'), columnGap: 72 }}>
               {svcs.map((sv) => (
-                <div key={sv.id} style={{ display: 'flex', alignItems: 'center', gap: W(20, 14), padding: W('24px 0', '16px 0'), borderTop: `1px solid ${P.line}` }}>
+                <div key={sv.id} data-zone={`svc-${sv.id}`} style={{ display: 'flex', alignItems: 'center', gap: W(20, 14), padding: W('24px 0', '16px 0'), borderTop: `1px solid ${P.line}` }}>
                   {media === 'photo' && <div style={{ width: W(72, 52), height: W(72, 52), borderRadius: sf ? '50%' : Math.max(r, 8), background: sv.img, flexShrink: 0 }} />}
                   {media === 'icon' && <Icon d={sv.icon} />}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
@@ -393,7 +393,7 @@ export default function WebSite(p: SiteProps) {
           {L.svc === 'cards' && (
             <div style={{ display: 'grid', gridTemplateColumns: W('repeat(3, minmax(0, 1fr))', '1fr 1fr'), gap: W(20, 10) }}>
               {svcs.map((sv) => (
-                <div key={sv.id} style={{ borderRadius: r, background: P.surface, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <div key={sv.id} data-zone={`svc-${sv.id}`} style={{ borderRadius: r, background: P.surface, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                   {media === 'photo' && <div style={{ height: W(220, 110), background: sv.img }} />}
                   {media === 'icon' && <div style={{ padding: W('22px 22px 0', '12px 12px 0') }}><Icon d={sv.icon} /></div>}
                   <div style={{ padding: W('22px 22px 24px', '12px 12px 14px'), display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -409,7 +409,7 @@ export default function WebSite(p: SiteProps) {
           {L.svc === 'grid' && (
             <div style={{ display: 'grid', gridTemplateColumns: W('repeat(3, minmax(0, 1fr))', '1fr'), borderTop: `1px solid ${P.line}`, borderLeft: `1px solid ${P.line}` }}>
               {svcs.map((sv) => (
-                <div key={sv.id} style={{ padding: W('32px 28px', '20px 18px'), borderRight: `1px solid ${P.line}`, borderBottom: `1px solid ${P.line}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div key={sv.id} data-zone={`svc-${sv.id}`} style={{ padding: W('32px 28px', '20px 18px'), borderRight: `1px solid ${P.line}`, borderBottom: `1px solid ${P.line}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {media === 'photo' && <div style={{ height: W(170, 140), borderRadius: r, background: sv.img, marginBottom: 8 }} />}
                   {media === 'icon' && <div style={{ marginBottom: 6 }}><Icon d={sv.icon} /></div>}
                   <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}><span style={{ fontSize: 13, fontWeight: 600, color: accentText }}>{sv.num}</span>{sv.nov && <New />}</span>
@@ -424,7 +424,7 @@ export default function WebSite(p: SiteProps) {
       )}
 
       {(fx.book === 'embed' || fx.book === 'both') && (
-        <section id="reservar" style={{ padding: secPad, display: 'flex', flexDirection: 'column', gap: secGap }}>
+        <section id="reservar" data-zone="reservar" style={{ padding: secPad, display: 'flex', flexDirection: 'column', gap: secGap }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><Label>Reserva online</Label><H2>Elige día y hora</H2></div>
           {bookEmbed ? (
             <div style={{ borderRadius: r, overflow: 'hidden', border: `1px solid ${P.line}`, background: dark ? P.surface : '#FFFFFF', minHeight: W(720, 560) }}>
@@ -446,17 +446,17 @@ export default function WebSite(p: SiteProps) {
       )}
 
       {sec.nosotros && (
-        <section id="nosotros" style={{ padding: secPad, display: 'grid', gridTemplateColumns: W('1fr 1fr', '1fr'), gap: W(80, 28), alignItems: 'center' }}>
-          <div style={{ position: 'relative', height: W(580, 320), borderRadius: r, overflow: 'hidden', background: aboutBg }}><Caption text={capAbout} style={{ left: 16, bottom: 16 }} /></div>
+        <section id="nosotros" data-zone="nosotros" style={{ padding: secPad, display: 'grid', gridTemplateColumns: W('1fr 1fr', '1fr'), gap: W(80, 28), alignItems: 'center' }}>
+          <div data-zone="about-photo" style={{ position: 'relative', height: W(580, 320), borderRadius: r, overflow: 'hidden', background: aboutBg }}><Caption text={capAbout} style={{ left: 16, bottom: 16 }} /></div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <Label>Sobre nosotros</Label><H2>{t.aboutTitle}</H2>
-            <p style={{ margin: 0, fontSize: lead, lineHeight: 1.65, color: P.muted, maxWidth: 520, ...pretty }}>{t.aboutText}</p>
+            <Label>Sobre nosotros</Label><H2 zone="about-title">{t.aboutTitle}</H2>
+            <p data-zone="about-text" style={{ margin: 0, fontSize: lead, lineHeight: 1.65, color: P.muted, maxWidth: 520, ...pretty }}>{t.aboutText}</p>
           </div>
         </section>
       )}
 
       {showReviews && (
-        <section id="reseñas" style={{ padding: secPad, background: P.surface, display: 'flex', flexDirection: 'column', gap: secGap }}>
+        <section id="reseñas" data-zone="reviews" style={{ padding: secPad, background: P.surface, display: 'flex', flexDirection: 'column', gap: secGap }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><Label>Reseñas</Label><H2>Lo que dicen en Google</H2></div>
           {place?.reviews?.length ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: W(28, 18) }}>
@@ -504,11 +504,11 @@ export default function WebSite(p: SiteProps) {
       )}
 
       {sec.equipo && (
-        <section id="equipo" style={{ padding: secPad, background: menuLook ? P.bg : P.surface, display: 'flex', flexDirection: 'column', gap: secGap }}>
+        <section id="equipo" data-zone="equipo" style={{ padding: secPad, background: menuLook ? P.bg : P.surface, display: 'flex', flexDirection: 'column', gap: secGap }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><Label>Equipo</Label><H2>Quién te atiende</H2></div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: W(24, 10) }}>
             {(p.team?.length ? p.team : [['Equipo', 'Profesionales']] as [string, string][]).slice(0, 6).map(([name, role], i) => (
-              <div key={name + i} style={{ display: 'flex', flexDirection: 'column', gap: W(16, 8) }}>
+              <div key={name + i} data-zone={`team-${i}`} style={{ display: 'flex', flexDirection: 'column', gap: W(16, 8) }}>
                 <div style={{ aspectRatio: '4 / 5', borderRadius: r, background: PH.team[i] || img(i + 7) }} />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}><span style={{ fontFamily: head, fontWeight: headW, fontSize: sf ? W(28, 17) : W(19, 13) }}>{name}</span><span style={{ fontSize: W(15, 11), color: P.muted }}>{role}</span></div>
               </div>
@@ -518,7 +518,7 @@ export default function WebSite(p: SiteProps) {
       )}
 
       {fx.gift && (
-        <section id="regalo" style={{ padding: secPad, display: 'grid', gridTemplateColumns: W('1fr 1fr', '1fr'), gap: W(80, 28), alignItems: 'center' }}>
+        <section id="regalo" data-zone="regalo" style={{ padding: secPad, display: 'grid', gridTemplateColumns: W('1fr 1fr', '1fr'), gap: W(80, 28), alignItems: 'center' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <Label>Tarjeta regalo</Label><H2>Regala un rato para ti, o para quien tú quieras</H2>
             <p style={{ margin: 0, fontSize: lead, lineHeight: 1.6, color: P.muted, maxWidth: 480 }}>
@@ -540,7 +540,7 @@ export default function WebSite(p: SiteProps) {
                 btnFs={btnFs}
               />
             ) : (
-              <Btn style={{ alignSelf: 'flex-start' }}>Comprar tarjeta regalo</Btn>
+              <Btn zone="regalo" style={{ alignSelf: 'flex-start' }}>Comprar tarjeta regalo</Btn>
             )}
           </div>
           <div style={{ aspectRatio: '1.6', maxWidth: 520, width: '100%', justifySelf: 'center', borderRadius: Math.max(16, r), background: `linear-gradient(135deg, ${P.accent} 0%, ${mix(P.accent, '#1A1418', 0.7)} 100%)`, color: P.onAccent, padding: W(36, 22), display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 24px 60px rgba(0,0,0,0.18)' }}>
@@ -551,7 +551,7 @@ export default function WebSite(p: SiteProps) {
       )}
 
       {showInsta && (
-        <section id="instagram" style={{ padding: secPad, background: menuLook ? P.bg : P.surface, display: 'flex', flexDirection: 'column', gap: secGap }}>
+        <section id="instagram" data-zone="instagram" style={{ padding: secPad, background: menuLook ? P.bg : P.surface, display: 'flex', flexDirection: 'column', gap: secGap }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <Label>Instagram</Label>
@@ -595,7 +595,7 @@ export default function WebSite(p: SiteProps) {
             </p>
           )}
           {igShowLink && igHref && (
-            <Btn href={igHref} style={{ alignSelf: 'flex-start' }}>
+            <Btn zone="instagram" href={igHref} style={{ alignSelf: 'flex-start' }}>
               Abrir {igLabel || 'Instagram'}
             </Btn>
           )}
@@ -603,13 +603,13 @@ export default function WebSite(p: SiteProps) {
       )}
 
       {sec.visitanos && (
-        <section id="visitanos" style={{ padding: secPad, display: 'grid', gridTemplateColumns: W('1fr 1fr', '1fr'), gap: W(80, 28), alignItems: 'stretch' }}>
+        <section id="visitanos" data-zone="visitanos" style={{ padding: secPad, display: 'grid', gridTemplateColumns: W('1fr 1fr', '1fr'), gap: W(80, 28), alignItems: 'stretch' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><Label>Visítanos</Label><H2>Te esperamos</H2></div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18, fontSize: lead, lineHeight: 1.5 }}>
               {addressLbl && <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}><span style={{ fontSize: 13, color: P.muted }}>Dirección</span><span>{addressLbl}</span></div>}
               {hoursLbl && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div data-zone="hours" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <span style={{ fontSize: 13, color: P.muted }}>Horario</span>
                   {hoursLbl.split('\n').map((line, i) => <span key={i}>{line}</span>)}
                 </div>
@@ -661,6 +661,7 @@ export default function WebSite(p: SiteProps) {
         <div style={{ position: 'fixed', right: W(28, 16), bottom: W(28, 16), zIndex: 50, display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'auto' }}>
           {floatBook && (
             <button
+              data-zone="book-float"
               type="button"
               onClick={openBook}
               style={{ height: 48, padding: '0 18px', borderRadius: L.br === '0px' ? 0 : L.br === '4px' ? 6 : 999, background: P.accent, color: P.onAccent, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 10px 24px rgba(0,0,0,.22)' }}
@@ -669,7 +670,7 @@ export default function WebSite(p: SiteProps) {
             </button>
           )}
           {waHref && (
-            <a href={waHref} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" style={{ width: 48, height: 48, borderRadius: '50%', background: '#25D366', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', boxShadow: '0 10px 24px rgba(0,0,0,.22)' }}>
+            <a data-zone="wa" href={waHref} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" style={{ width: 48, height: 48, borderRadius: '50%', background: '#25D366', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', boxShadow: '0 10px 24px rgba(0,0,0,.22)' }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}><path d="M4 20l1.4-4.2A8 8 0 1 1 8.4 19zM9.5 9.5c.3 1.8 1.7 3.4 3.5 4l1-1 1.5.8" /></svg>
             </a>
           )}
