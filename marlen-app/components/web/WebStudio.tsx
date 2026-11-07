@@ -1077,12 +1077,13 @@ export default function WebStudio({
             style={{ touchAction: 'none', flexShrink: 0, cursor: 'ns-resize', userSelect: 'none' }}
           >
             <div className={sheetCss.handleRow}>
+              <span className={`${sheetCss.handleLabel} ${sheetCss.handleLabelStart}`}>Desliza arriba</span>
               <span className={`${sheetCss.handleStack}${sheet.hint ? ` ${sheetCss.handleHint}` : ''}`}>
                 <Icon d={PATH.chevronDown} size={14} stroke={2.6} style={{ transform: 'rotate(180deg)' }} />
                 <span className={sheetCss.handle} />
                 <Icon d={PATH.chevronDown} size={14} stroke={2.6} />
               </span>
-              <span className={sheetCss.handleLabel}>Desliza arriba o abajo</span>
+              <span className={sheetCss.handleLabel}>o abajo</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 12px 20px' }}><span style={{ fontSize: 19, fontWeight: 700 }}>{TABS[tabIdx][1]}</span><button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => setTool(null)} style={btn(true)}>Listo</button></div>
           </div>
