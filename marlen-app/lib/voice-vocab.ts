@@ -1,26 +1,19 @@
-import { listClientOptions, listProviders, listServices } from '@/lib/queries';
+import { listProviders, listServices } from '@/lib/queries';
+import { sttPrompt, type SttVocab } from '@/lib/voice-heard';
 
-/** Whisper acepta ~224 tokens de prompt. Pasarse no da error: recorta por detrás. */
-const MAX_CHARS = 700;
-
-const cache = new Map<string, { at: number; text: string }>();
+const cache = new Map<string, { at: number; vocab: SttVocab }>();
 const TTL = 10 * 60_000;
 
-/** Nombres de servicios, equipo y clientas para que el dictado los oiga bien.
- *  Whisper ignora un prompt que no parece transcripción: va la lista cruda. */
-export async function salonVocab(salonId: string) {
+/** Servicios y equipo para que el dictado los oiga bien. Sin clientas: inducen nombres. */
+export async function salonVocab(salonId: string): Promise<SttVocab> {
   const hit = cache.get(salonId);
-  if (hit && Date.now() - hit.at < TTL) return hit.text;
+  if (hit && Date.now() - hit.at < TTL) return hit.vocab;
 
-  const [services, team, clients] = await Promise.all([
-    listServices(), listProviders(), listClientOptions(),
-  ]);
-  const words = [
-    ...services.map(s => s.name),
-    ...team.map(p => p.full_name.split(' ')[0]),
-    ...clients.slice(0, 60).map(c => c.full_name.split(' ')[0]),
-  ];
-  const text = [...new Set(words)].join(', ').slice(0, MAX_CHARS);
-  cache.set(salonId, { at: Date.now(), text });
-  return text;
+  const [services, team] = await Promise.all([listServices(), listProviders()]);
+  const vocab = sttPrompt(
+    services.map(s => s.name),
+    team.map(p => p.full_name.split(' ')[0]),
+  );
+  cache.set(salonId, { at: Date.now(), vocab });
+  return vocab;
 }

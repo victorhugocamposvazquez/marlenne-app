@@ -95,19 +95,13 @@ function loadBuf(key: string, decode: () => Promise<AudioBuffer>) {
       return buf;
     } catch {
       return null;
+    } finally {
+      // Un fallo (red, 429) no se queda pegado: la próxima vez se reintenta.
+      loads.delete(key);
     }
   })();
   loads.set(key, p);
   return p;
-}
-
-function b64Bytes(b64: string) {
-  const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-  return bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength);
-}
-
-export function decodeB64(key: string, b64: string) {
-  return loadBuf(key, async () => audioCtx().decodeAudioData(b64Bytes(b64)));
 }
 
 export function decodeUrl(key: string, url: string) {
@@ -187,17 +181,6 @@ export function playBuffer(buf: AudioBuffer, opts?: { rate?: number; gain?: numb
       resolve(false);
     }
   });
-}
-
-export async function playB64(
-  key: string,
-  b64: string,
-  opts?: { rate?: number; gain?: number; mime?: 'audio/mpeg' | 'audio/wav' },
-) {
-  const buf = await decodeB64(key, b64);
-  if (buf) return playBuffer(buf, opts);
-  const mime = opts?.mime ?? 'audio/mpeg';
-  return playHtmlAudio(`data:${mime};base64,${b64}`);
 }
 
 export async function playUrl(key: string, url: string, opts?: { rate?: number; gain?: number }) {

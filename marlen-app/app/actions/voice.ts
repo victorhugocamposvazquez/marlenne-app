@@ -20,12 +20,6 @@ import { NEW_CLIENT_CHIP, resolveClient, resolveProvider, rowsByClient, shortNam
 import { reportVoiceEvent } from '@/lib/voice-events';
 import type { PendingBook, PreviewCtx } from '@/lib/voice-types';
 
-/** Desde el iPad: lo que no se entendió. No devuelve nada; no espera. */
-export async function voiceReport(said: string, outcome: string, detail?: string | null) {
-  await requireSession();
-  await reportVoiceEvent(said, outcome, detail);
-}
-
 export type { PendingBook, PreviewCtx } from '@/lib/voice-types';
 
 /** Hoy no ofrece una hora que ya pasó. */

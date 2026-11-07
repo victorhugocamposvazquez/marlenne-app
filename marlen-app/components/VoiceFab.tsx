@@ -8,10 +8,9 @@ import IconButton from '@/components/ui/IconButton';
 import {
   voiceAddWait, voiceApplyCancel, voiceApplyMove, voiceApplyStatus, voiceConfirmBook,
   voiceFind, voiceLate, voiceMatchClient, voiceNext, voicePreviewBook, voicePreviewCancel, voicePreviewMove,
-  voicePreviewStatus, voicePreviewWait, voiceReport, voiceSlots, voiceToday, voiceWaiting,
+  voicePreviewStatus, voicePreviewWait, voiceSlots, voiceToday, voiceWaiting,
 } from '@/app/actions/voice';
 import { voiceTalk } from '@/app/actions/voice-talk';
-import { voiceSpeakMp3, type VoiceSpeakResult } from '@/app/actions/voice-speak';
 import VoiceWaves from '@/components/VoiceWaves';
 import { forEar, parseVoice, splitWake, wakeRestIsCommand } from '@/lib/voice';
 import {
@@ -23,10 +22,12 @@ import { voiceClipUrl } from '@/lib/voice-clips';
 import { stitchVoice } from '@/lib/voice-stitch';
 import { VOICE_PREFS_EVENT, getVoicePrefs, setVoicePrefs, wakeWanted, type VoicePrefs } from '@/hooks/voice-prefs';
 import {
-  decodeB64, decodeUrl, isHot, playB64, playUrls, speakLocal, stopVoicePlay, warmVoiceAudio,
+  decodeUrl, isHot, playBuffer, playHtmlAudio, playUrls, speakLocal, stopVoicePlay, warmVoiceAudio,
 } from '@/hooks/voice-play';
 import { micBlockedSay, queryMicPerm, requestMic, watchMicPerm, type MicPerm } from '@/hooks/voice-mic';
 import { makeWebRec, pickEngine, pickEngineKind, type VoiceEngine } from '@/hooks/voice-engine';
+import { SttTimeout } from '@/hooks/voice-record';
+import { reportVoice } from '@/hooks/voice-report';
 
 /** Lo que se pinta. Lo que se decide vive en lib/voice-dialog. */
 type Panel =
@@ -34,7 +35,6 @@ type Panel =
   | { mode: 'listen'; draft: string }
   | PanelSpec;
 
-const ttsB64 = new Map<string, VoiceSpeakResult>();
 let speakGen = 0;
 let thinkGen = 0;
 let speaking = false;
@@ -49,15 +49,40 @@ function withTime<T>(p: Promise<T>, ms: number) {
   });
 }
 
-function prefetchSpeak(text: string, kind: 'ask' | 'say') {
-  if (stitchVoice(text)) return;
-  const key = `${kind}:${text}`;
-  if (ttsB64.has(key) || !getVoicePrefs().cloud) return;
-  void withTime(voiceSpeakMp3(text, kind), 6000).then(payload => {
-    if (!payload) return;
-    ttsB64.set(key, payload);
-    void decodeB64(key, payload.b64);
+/** Ruta y no server action: las actions van en cola y el audio frenaba el diálogo. */
+function cloudUrl(text: string) {
+  return `/api/voice/speak?t=${encodeURIComponent(forEar(text).slice(0, 400))}`;
+}
+
+class CallTimeout extends Error {
+  constructor() { super('call timeout'); }
+}
+
+/** Las que escriben tardan más y no conviene darlas por fallidas si al final se guardan. */
+const CALL_MS: Partial<Record<Call['action'], number>> = {
+  talk: 15000,
+  confirmBook: 20000,
+  applyMove: 20000,
+  applyCancel: 20000,
+  applyStatus: 20000,
+  addWait: 20000,
+};
+
+/** Como withTime, pero falla en vez de dar null: null es una respuesta válida de algunas acciones. */
+function timed<T>(p: Promise<T>, ms: number) {
+  return new Promise<T>((resolve, reject) => {
+    const t = window.setTimeout(() => reject(new CallTimeout()), ms);
+    p.then(
+      v => { window.clearTimeout(t); resolve(v); },
+      e => { window.clearTimeout(t); reject(e); },
+    );
   });
+}
+
+function prefetchSpeak(text: string) {
+  if (stitchVoice(text) || !getVoicePrefs().cloud) return;
+  const url = cloudUrl(text);
+  void decodeUrl(url, url);
 }
 
 function warmAudio() {
@@ -74,20 +99,13 @@ function stopSpeak() {
   stopVoicePlay();
 }
 
-async function playCloud(text: string, kind: 'ask' | 'say') {
+async function playCloud(text: string) {
   if (!getVoicePrefs().cloud) return false;
-  const key = `${kind}:${text}`;
-  let payload = ttsB64.get(key) ?? null;
-  if (!payload) {
-    payload = await withTime(voiceSpeakMp3(text, kind), 12000);
-    if (!payload) return false;
-    ttsB64.set(key, payload);
-    if (ttsB64.size > 40) {
-      const first = ttsB64.keys().next().value;
-      if (first) ttsB64.delete(first);
-    }
-  }
-  return playB64(key, payload.b64, { mime: payload.mime });
+  const url = cloudUrl(text);
+  const buf = await withTime(decodeUrl(url, url), 12000);
+  if (buf) return playBuffer(buf);
+  // Si Web Audio no traga el MP3 de respaldo, el elemento audio a veces sí (sale de la caché HTTP).
+  return !!(await withTime(playHtmlAudio(url), 8000));
 }
 
 function wait(ms: number) {
@@ -108,10 +126,10 @@ async function utter(text: string, ask: boolean) {
     if (ok) return true;
     voiceLog('tts_fail', { reason: 'clip_play' });
   }
-  const ok = await playCloud(ear, ask ? 'ask' : 'say');
+  const ok = await playCloud(ear);
   if (ok) return true;
   voiceLog('tts_fail', { reason: 'cloud' });
-  void voiceReport('(tts)', 'tts_fail', 'cloud');
+  reportVoice('(tts)', 'tts_fail', 'cloud');
   if (typeof window !== 'undefined' && window.speechSynthesis) {
     await speakLocal(ear, ask);
     return true;
@@ -200,6 +218,8 @@ export default function VoiceFab() {
   const draftRef = useRef('');
   const commitRef = useRef<() => void>(() => {});
   const [hearing, setHearing] = useState(false);
+  /** En iPhone el micro tarda en abrir: hasta entonces, «Espera». */
+  const [micReady, setMicReady] = useState(true);
   const [transcribing, setTranscribing] = useState(false);
   const [heardDraft, setHeardDraft] = useState('');
   const [editDraft, setEditDraft] = useState(false);
@@ -340,7 +360,7 @@ export default function VoiceFab() {
     void queryMicPerm().then(perm => {
       applyMic(perm);
       if (perm === 'granted' && wakeWanted(prefsRef.current)) {
-        prefetchSpeak('¿Dime?', 'ask');
+        prefetchSpeak('¿Dime?');
         arm();
         window.setTimeout(() => startWakeRef.current(), 400);
       }
@@ -502,7 +522,7 @@ export default function VoiceFab() {
         setOpen(true);
         if (fx.panel.mode === 'ask' || fx.panel.mode === 'confirm' || fx.panel.mode === 'msg') {
           lastSayRef.current = fx.panel.say;
-          prefetchSpeak(fx.panel.say, fx.panel.mode === 'msg' ? 'say' : 'ask');
+          prefetchSpeak(fx.panel.say);
         }
         setPanel(fx.panel);
         return;
@@ -533,13 +553,14 @@ export default function VoiceFab() {
         startTransition(async () => {
           let result: unknown;
           try {
-            result = await runCall(fx.call);
+            result = await timed(runCall(fx.call), CALL_MS[fx.call.action] ?? 12000);
           } catch (e) {
             thinkGen += 1;
             window.clearTimeout(timer);
             const offline = (typeof navigator !== 'undefined' && !navigator.onLine)
               || /fetch|network|load failed/i.test(String(e));
-            voiceLog('stt_error', { error: offline ? 'network' : 'action', action: fx.call.action });
+            const slow = e instanceof CallTimeout;
+            voiceLog('stt_error', { error: offline ? 'network' : slow ? 'timeout' : 'action', action: fx.call.action });
             dispatch({ kind: offline ? 'offline' : 'error', call: fx.call });
             return;
           }
@@ -550,7 +571,7 @@ export default function VoiceFab() {
         return;
       }
       case 'report':
-        void voiceReport(fx.said, fx.outcome, fx.detail ?? null);
+        reportVoice(fx.said, fx.outcome, fx.detail ?? null);
         return;
       case 'dismiss':
         dismiss();
@@ -566,11 +587,11 @@ export default function VoiceFab() {
   dispatchRef.current = dispatch;
 
   const runText = (text: string) => {
+    dispatch({ kind: 'heard', text });
     const cmd = parseVoice(text);
     if (cmd.kind !== 'chat' && cmd.kind !== 'unknown') {
-      void voiceReport(text.slice(0, 80), 'heard', cmd.kind);
+      reportVoice(text.slice(0, 80), 'heard', cmd.kind);
     }
-    dispatch({ kind: 'heard', text });
   };
 
   const takeHeard = (fromEngine: string) => {
@@ -637,19 +658,22 @@ export default function VoiceFab() {
   const commitListen = () => {
     const engine = engineRef.current;
     if (engine) {
+      const gen = genRef.current;
       if (engine.kind === 'push') {
         setTranscribing(true);
         setHearing(false);
       }
-      void engine.stop().catch(() => {
+      void engine.stop().catch(e => {
+        if (gen !== genRef.current) return;
         setTranscribing(false);
         if (!listenRef.current) return;
         listenRef.current = false;
         overlayRef.current = false;
         engineRef.current = null;
         setHearing(false);
-        const say = 'Sin red. Escríbelo abajo.';
-        voiceLog('stt_error', { error: 'network', wake: false });
+        const slow = e instanceof SttTimeout;
+        const say = slow ? 'No te he oído bien. Mantén el micro otra vez.' : 'Sin red. Escríbelo abajo.';
+        voiceLog('stt_error', { error: slow ? 'timeout' : 'network', wake: false });
         setOpen(true);
         setSayLoud(false);
         setPanel({ mode: 'msg', say });
@@ -661,7 +685,7 @@ export default function VoiceFab() {
   };
   commitRef.current = commitListen;
 
-  const abortPush = () => {
+  const abortPush = (say?: string) => {
     if (pickEngineKind() !== 'push') return;
     listenRef.current = false;
     overlayRef.current = false;
@@ -670,6 +694,10 @@ export default function VoiceFab() {
     engineRef.current = null;
     setHearing(false);
     setTranscribing(false);
+    if (say && !dialogOpen(dialogRef.current)) {
+      setOpen(true);
+      setPanel({ mode: 'msg', say });
+    }
   };
 
   const startWake = () => {
@@ -813,8 +841,14 @@ export default function VoiceFab() {
     killRec();
     const engine = pickEngine();
     engineRef.current = engine;
+    setMicReady(engine.kind !== 'push');
     engine.overlay = !!opts?.overlay;
     engine.dialogOpen = () => dialogOpen(dialogRef.current);
+    engine.onReady = () => {
+      if (gen !== genRef.current) return;
+      setMicReady(true);
+      navigator.vibrate?.(10);
+    };
     engine.onPartial = text => {
       if (gen !== genRef.current) return;
       draftRef.current = text;
@@ -843,7 +877,7 @@ export default function VoiceFab() {
     engine.onCaptureFail = err => {
       if (gen !== genRef.current) return;
       voiceLog('stt_error', { error: err, wake: false });
-      void voiceReport(draftRef.current || '(sin texto)', 'stt_error', err);
+      reportVoice(draftRef.current || '(sin texto)', 'stt_error', err);
       listenRef.current = false;
       overlayRef.current = false;
       killRec();
@@ -905,6 +939,8 @@ export default function VoiceFab() {
     });
   };
 
+  const waitMic = hearing && !micReady;
+
   if (marlenOff) return null;
   // Misma lógica que BottomNav: en Marketing el FAB tapa el editor.
   if (pathname.startsWith('/ajustes/marketing')) return null;
@@ -929,7 +965,7 @@ export default function VoiceFab() {
             </IconButton>
           </div>
           {panel.mode === 'listen' && (
-            <VoiceWaves label={transcribing || pending ? 'Un segundo' : hearing ? 'Escuchando' : 'Dime'} />
+            <VoiceWaves label={transcribing || pending ? 'Un segundo' : waitMic ? 'Espera…' : hearing ? 'Escuchando' : 'Dime'} />
           )}
           {hearing && pickEngineKind() !== 'push' && (
             <div className="mb-2">
@@ -972,7 +1008,7 @@ export default function VoiceFab() {
               </p>
               {(hearing || pending || transcribing) && (
                 <div className="mt-2">
-                  <VoiceWaves label={transcribing || pending ? 'Un segundo' : 'Escuchando'} />
+                  <VoiceWaves label={transcribing || pending ? 'Un segundo' : waitMic ? 'Espera…' : 'Escuchando'} />
                 </div>
               )}
             </div>
@@ -982,7 +1018,7 @@ export default function VoiceFab() {
               <p className="text-body font-semibold text-ink-2">{panel.say}</p>
               {hearing || pending || transcribing ? (
                 <div className="mt-2">
-                  <VoiceWaves label={transcribing || pending ? 'Un segundo' : dialogRef.current.pending?.need === 'time' ? 'Dilo o toca una hora' : 'Escuchando'} />
+                  <VoiceWaves label={transcribing || pending ? 'Un segundo' : waitMic ? 'Espera…' : dialogRef.current.pending?.need === 'time' ? 'Dilo o toca una hora' : 'Escuchando'} />
                 </div>
               ) : (
                 <p className="mt-1 text-label font-semibold text-v-d">
@@ -1019,7 +1055,7 @@ export default function VoiceFab() {
               <p className="text-body font-semibold text-ink-2">{panel.say}</p>
               {hearing || pending || transcribing ? (
                 <div className="mt-2">
-                  <VoiceWaves label={transcribing || pending ? 'Un segundo' : 'Di sí o no'} />
+                  <VoiceWaves label={transcribing || pending ? 'Un segundo' : waitMic ? 'Espera…' : 'Di sí o no'} />
                 </div>
               ) : (
                 <p className="mt-1 text-label font-semibold text-v-d">
@@ -1068,7 +1104,7 @@ export default function VoiceFab() {
               {pickEngineKind() === 'push' ? (
                 <>
                   <p className="font-bold text-ink">Mantén el micro y habla</p>
-                  <p className="mt-1">Suelta al terminar. En el iPhone no espera «Hola Marlén». Si no pilla, escribe abajo.</p>
+                  <p className="mt-1">Habla cuando vibre y ponga «Escuchando». Suelta al terminar. Si no pilla, escribe abajo.</p>
                 </>
               ) : (
                 <>
@@ -1116,9 +1152,10 @@ export default function VoiceFab() {
             if (e.button !== 0) return;
             e.preventDefault();
             try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* */ }
-            if (transcribing || listenRef.current) return;
+            // Volver a pulsar mientras transcribe: se tira esa y se graba otra.
+            if (transcribing) abortPush();
+            else if (listenRef.current) return;
             pushFromRef.current = { x: e.clientX, y: e.clientY };
-            navigator.vibrate?.(10);
             const overlay = open && (
               panel.mode === 'ask' || panel.mode === 'confirm' || panel.mode === 'msg'
               || dialogOpen(dialogRef.current)
@@ -1129,10 +1166,11 @@ export default function VoiceFab() {
             if (pickEngineKind() !== 'push') return;
             const from = pushFromRef.current;
             if (!from || !listenRef.current) return;
-            if (Math.abs(e.clientY - from.y) < 28 && Math.abs(e.clientX - from.x) < 28) return;
+            if (Math.hypot(e.clientX - from.x, e.clientY - from.y) < 80) return;
             pushFromRef.current = null;
             try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* */ }
-            abortPush();
+            navigator.vibrate?.([8, 40, 8]);
+            abortPush('Cancelado.');
           }}
           onPointerUp={() => {
             if (pickEngineKind() !== 'push') return;
@@ -1157,9 +1195,9 @@ export default function VoiceFab() {
             tapMic(overlay ? { overlay: true } : undefined);
           }}
           className={`pointer-events-auto grid h-14 w-14 place-items-center rounded-card text-white transition motion-safe:active:scale-[.96] ${
-            pickEngineKind() === 'push' ? 'touch-none select-none' : ''
+            pickEngineKind() === 'push' ? 'touch-none select-none [-webkit-touch-callout:none]' : ''
           } ${
-            hearing ? 'bg-danger' : 'bg-grad'
+            hearing ? (micReady ? 'bg-danger' : 'bg-danger opacity-60') : 'bg-grad'
           }`}
         >
           {hearing ? <Square size={20} strokeWidth={2.4} /> : <Mic size={22} strokeWidth={2.2} />}

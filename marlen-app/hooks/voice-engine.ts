@@ -42,6 +42,8 @@ export type VoiceEngine = {
   stop(): Promise<string>;
   /** Corta y tira lo que hubiera. */
   abort(): void;
+  /** El micro ya graba de verdad. 'push' tarda en abrirlo; antes de esto, lo dicho se pierde. */
+  onReady?: () => void;
   /** Dictado parcial, si el motor lo da. 'push' no lo da. */
   onPartial?: (text: string) => void;
   /** Frase cerrada. Un solo camino al diálogo, da igual el motor. */
