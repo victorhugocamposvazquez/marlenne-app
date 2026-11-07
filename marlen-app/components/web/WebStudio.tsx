@@ -204,6 +204,11 @@ export default function WebStudio({
   const [dirty, setDirty] = useState(false);
   const [showPub, setShowPub] = useState(false);
   const [carIdx, setCarIdx] = useState(0);
+  useEffect(() => {
+    if (view === 'intro' && !mob) setCarIdx(Math.max(0, TEMPLATES.findIndex((t) => t.id === tplId)));
+    // Solo al entrar en la portada: después manda lo que pulse.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, mob]);
   const [toast, setToast] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pubUrl, setPubUrl] = useState(initialSite ? publicSiteUrl(initialSite.slug) : '');
@@ -1062,8 +1067,8 @@ export default function WebStudio({
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <MarlenAvatar size={mob ? 36 : 48} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <h2 style={{ margin: 0, fontSize: mob ? 17 : 22, fontWeight: 700, letterSpacing: '-0.02em' }}>Te preparo tu página web</h2>
-              <p style={{ margin: 0, fontSize: mob ? 13 : 14, lineHeight: 1.45, color: '#4A4957' }}>{mob ? 'Elige un look. Lo monto con tu catálogo y tu reserva.' : 'Elige un look y lo monto con tu catálogo, tu equipo y tu botón de reserva. Después cambias colores, textos y dominio.'}</p>
+              <h2 style={{ margin: 0, fontSize: mob ? 17 : 24, fontWeight: 700, letterSpacing: '-0.02em' }}>{mob ? 'Te preparo tu página web' : 'Elige el look de tu web'}</h2>
+              <p style={{ margin: 0, fontSize: mob ? 13 : 14, lineHeight: 1.45, color: '#4A4957' }}>{mob ? 'Elige un look. Lo monto con tu catálogo y tu reserva.' : 'Pulsa el que más te guste y continúa. Lo monto con tu catálogo, tu equipo y tu botón de reserva; después cambias colores, textos y dominio.'}</p>
             </div>
           </div>
           {!mob && (
@@ -1074,11 +1079,12 @@ export default function WebStudio({
         </div>
         <div onScroll={(e) => { if (mob) setCarIdx(Math.max(0, Math.min(3, Math.round(e.currentTarget.scrollLeft / 264)))); }}
           style={mob ? { display: 'flex', gap: 14, overflowX: 'auto', scrollSnapType: 'x mandatory', padding: '6px 70px 10px', scrollbarWidth: 'none' } : { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 20, padding: '0 40px' }}>
-          {TEMPLATES.map((tp) => { const pp = palettesFor(tp, brandColor)[1], w = mob ? 250 : 318; return (
-            <button key={tp.id} type="button" onClick={() => pickTpl(tp.id, true)} style={{ flexShrink: 0, scrollSnapAlign: 'center', width: mob ? w : '100%', border: 'none', background: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12, color: INK }}>
-              <div style={{ position: 'relative', height: mob ? 400 : 430, borderRadius: 16, overflow: 'hidden', background: pp.bg, boxShadow: '0 18px 44px rgba(15,14,26,.14), 0 0 0 1px rgba(15,14,26,.06)' }}>
+          {TEMPLATES.map((tp, i) => { const pp = palettesFor(tp, brandColor)[1], w = mob ? 250 : 318, sel = !mob && i === carIdx; return (
+            <button key={tp.id} type="button" aria-pressed={mob ? undefined : sel} onClick={() => (mob ? pickTpl(tp.id, true) : setCarIdx(i))} onDoubleClick={() => { if (!mob) pickTpl(tp.id, true); }} style={{ flexShrink: 0, scrollSnapAlign: 'center', width: mob ? w : '100%', border: 'none', background: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12, color: INK }}>
+              <div style={{ position: 'relative', height: mob ? 400 : 430, borderRadius: 16, overflow: 'hidden', background: pp.bg, boxShadow: sel ? `0 18px 44px rgba(15,14,26,.18), 0 0 0 3px ${INK}` : '0 18px 44px rgba(15,14,26,.14), 0 0 0 1px rgba(15,14,26,.06)', transition: 'box-shadow .15s' }}>
                 <div style={{ zoom: mob ? w / 390 : w / 1280, width: mob ? 390 : 1280, pointerEvents: 'none' }}><WebSite look={lookOf(tp)} pal={pp} txt={txtManual ? txt : TEXTS[tp.tone][0]} narrow={mob} salon={salon} logo={logo} /></div>
                 {tp.id === 'atelier' && <span style={{ position: 'absolute', top: 12, left: 12, height: 28, padding: '0 12px', borderRadius: 999, background: MAGENTA, color: '#fff', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center' }}>Mi favorita</span>}
+                {sel && <span aria-hidden style={{ position: 'absolute', top: 12, right: 12, width: 30, height: 30, borderRadius: '50%', background: INK, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(15,14,26,.28)' }}><Icon d={P_CHECK} size={16} stroke={2.6} /></span>}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '0 2px' }}><span style={{ fontSize: 17, fontWeight: 700 }}>{tp.name}</span><span style={{ fontSize: 13, color: MUTED }}>{tp.desc}</span></div>
             </button>
@@ -1092,7 +1098,14 @@ export default function WebStudio({
           </div>
         )}
       </div>
-      {mob && <div style={{ flexShrink: 0, padding: '12px 16px 24px', borderTop: `1px solid ${LINE}` }}><button type="button" onClick={() => pickTpl(TEMPLATES[carIdx].id, true)} style={{ ...btn(true), width: '100%', height: 56, fontSize: 16 }}>Me quedo con {TEMPLATES[carIdx].name}</button></div>}
+      {mob ? (
+        <div style={{ flexShrink: 0, padding: '12px 16px 24px', borderTop: `1px solid ${LINE}` }}><button type="button" onClick={() => pickTpl(TEMPLATES[carIdx].id, true)} style={{ ...btn(true), width: '100%', height: 56, fontSize: 16 }}>Me quedo con {TEMPLATES[carIdx].name}</button></div>
+      ) : (
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '14px 40px', borderTop: `1px solid ${LINE}`, background: '#fff' }}>
+          <span style={{ fontSize: 14, color: '#4A4957' }}>Has elegido <b style={{ color: INK }}>{TEMPLATES[carIdx].name}</b> · {TEMPLATES[carIdx].desc}. Podrás cambiarlo después.</span>
+          <button type="button" onClick={() => pickTpl(TEMPLATES[carIdx].id, true)} style={{ ...btn(true), height: 48, padding: '0 24px', fontSize: 15 }}>Continuar con {TEMPLATES[carIdx].name}<Icon d={P_NEXT} size={18} stroke={2} /></button>
+        </div>
+      )}
     </>
   );
 
