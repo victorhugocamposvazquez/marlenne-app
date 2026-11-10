@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import Sheet, { Field, inputCls } from '@/components/Sheet';
+import Sheet, { Field, inputCls, LocalSheet } from '@/components/Sheet';
 import { useSheetShellClose } from '@/components/SheetShell';
 import Button from '@/components/ui/Button';
 import { syncClientRemindersAction } from '@/app/actions/reminder-sync';
@@ -11,11 +11,15 @@ import { createClient } from '@/lib/supabase/client';
 import type { ClientRow } from '@/lib/types';
 
 export default function EditClientSheet({
-  client, upcomingCount = 0, photoCount = 0,
+  client, upcomingCount = 0, photoCount = 0, contained = false, onDone, onSaved,
 }: {
   client: ClientRow;
   upcomingCount?: number;
   photoCount?: number;
+  /** Encima de otra hoja: cerrar esto no cierra la cita. */
+  contained?: boolean;
+  onDone?: () => void;
+  onSaved?: () => void;
 }) {
   const requestClose = useSheetShellClose();
   const router = useRouter();
@@ -48,7 +52,10 @@ export default function EditClientSheet({
       if (!r.ok) setError(r.error ?? 'No se ha podido guardar');
       else {
         void syncClientRemindersAction(client.id, client.phone);
-        requestClose(() => router.refresh());
+        if (contained) {
+          onSaved?.();
+          onDone?.();
+        } else requestClose(() => router.refresh());
       }
     });
   };
@@ -58,88 +65,105 @@ export default function EditClientSheet({
     startTransition(async () => {
       const r = await deleteClientRecord(createClient(), client.id);
       if (!r.ok) setError(r.error ?? 'No se ha podido borrar');
-      else router.replace('/clientas');
+      else if (contained) {
+        onSaved?.();
+        onDone?.();
+      } else router.replace('/clientas');
     });
   };
 
-  return (
-    <Sheet
-      title={askDelete ? 'Borrar ficha' : 'Editar ficha'}
-      subtitle={client.full_name}
-      footer={
-        askDelete ? (
-          <>
-            {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
-            <div className="flex gap-2">
-              <Button variant="secondary" className="flex-1 text-ink-2" onClick={() => setAskDelete(false)}>
-                Dejarla
-              </Button>
-              <Button variant="danger" className="flex-1" disabled={pending} onClick={remove}>
-                {pending ? 'Borrando…' : 'Borrar del todo'}
-              </Button>
-            </div>
-          </>
-        ) : (
-          <>
-            {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
-            <Button size="lg" full onClick={save} disabled={name.trim().length < 2 || pending}>
-              {pending ? 'Guardando…' : 'Guardar cambios'}
-            </Button>
-          </>
-        )
-      }
-    >
-      {askDelete ? (
-        <div className="mb-2">
-          <p className="text-body font-medium leading-snug text-ink-2">
-            Se borra la ficha, consentimientos, medidas y fotos. No hay marcha atrás.
-          </p>
-          {photoCount > 0 && (
-            <p className="mt-2 text-label font-semibold text-ink-2">
-              {photoCount === 1 ? '1 foto' : `${photoCount} fotos`} de tratamiento también se quitan.
-            </p>
-          )}
-          {upcomingCount > 0 && (
-            <p className="mt-2 text-label font-semibold text-ink-2">
-              {upcomingCount === 1 ? 'Hay 1 cita futura' : `Hay ${upcomingCount} citas futuras`}:
-              se quedan en la agenda con el nombre, sin ficha.
-            </p>
-          )}
-        </div>
-      ) : (
-        <>
-          <Field label="Nombre">
-            <input className={inputCls} value={name} onChange={e => setName(e.target.value)} />
-          </Field>
-          <Field label="Teléfono">
-            <input className={inputCls} type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
-          </Field>
-          <Field label="Email">
-            <input className={inputCls} type="email" value={email} onChange={e => setEmail(e.target.value)} />
-          </Field>
-          <Field label="Fecha de nacimiento">
-            <input className={inputCls} type="date" value={birth} onChange={e => setBirth(e.target.value)} />
-          </Field>
-          <Field label="Notas">
-            <textarea
-              className={`${inputCls} min-h-[88px] resize-none`}
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-            />
-          </Field>
-          <label className="mb-2 flex items-center gap-2.5 text-body font-bold">
-            <input type="checkbox" checked={vip} onChange={e => setVip(e.target.checked)} />
-            VIP
-          </label>
-          <label className="mb-4 flex items-center gap-2.5 text-body font-bold">
-            <input type="checkbox" checked={sms} onChange={e => setSms(e.target.checked)} />
-            Recibe recordatorios SMS
-          </label>
-          <Button variant="ghost" className="text-danger-fg" onClick={() => setAskDelete(true)}>
-            Borrar ficha
-          </Button>
-        </>
+  const title = askDelete ? 'Borrar ficha' : 'Editar ficha';
+  const footer = askDelete ? (
+    <>
+      {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
+      <div className="flex gap-2">
+        <Button variant="secondary" className="flex-1 text-ink-2" onClick={() => setAskDelete(false)}>
+          Dejarla
+        </Button>
+        <Button variant="danger" className="flex-1" disabled={pending} onClick={remove}>
+          {pending ? 'Borrando…' : 'Borrar del todo'}
+        </Button>
+      </div>
+    </>
+  ) : (
+    <>
+      {error && <p className="mb-2 text-label font-semibold text-danger-fg">{error}</p>}
+      <Button size="lg" full onClick={save} disabled={name.trim().length < 2 || pending}>
+        {pending ? 'Guardando…' : 'Guardar cambios'}
+      </Button>
+    </>
+  );
+  const fields = askDelete ? (
+    <div className="mb-2">
+      <p className="text-body font-medium leading-snug text-ink-2">
+        Se borra la ficha, consentimientos, medidas y fotos. No hay marcha atrás.
+      </p>
+      {photoCount > 0 && (
+        <p className="mt-2 text-label font-semibold text-ink-2">
+          {photoCount === 1 ? '1 foto' : `${photoCount} fotos`} de tratamiento también se quitan.
+        </p>
       )}
+      {upcomingCount > 0 && (
+        <p className="mt-2 text-label font-semibold text-ink-2">
+          {upcomingCount === 1 ? 'Hay 1 cita futura' : `Hay ${upcomingCount} citas futuras`}:
+          se quedan en la agenda con el nombre, sin ficha.
+        </p>
+      )}
+    </div>
+  ) : (
+    <>
+      <Field label="Nombre">
+        <input className={inputCls} value={name} onChange={e => setName(e.target.value)} />
+      </Field>
+      <Field label="Teléfono">
+        <input className={inputCls} type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
+      </Field>
+      <Field label="Email">
+        <input className={inputCls} type="email" value={email} onChange={e => setEmail(e.target.value)} />
+      </Field>
+      <Field label="Fecha de nacimiento">
+        <input className={inputCls} type="date" value={birth} onChange={e => setBirth(e.target.value)} />
+      </Field>
+      <Field label="Notas">
+        <textarea
+          className={`${inputCls} min-h-[88px] resize-none`}
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+        />
+      </Field>
+      <label className="mb-2 flex items-center gap-2.5 text-body font-bold">
+        <input type="checkbox" checked={vip} onChange={e => setVip(e.target.checked)} />
+        VIP
+      </label>
+      <label className="mb-4 flex items-center gap-2.5 text-body font-bold">
+        <input type="checkbox" checked={sms} onChange={e => setSms(e.target.checked)} />
+        Recibe recordatorios SMS
+      </label>
+      <Button variant="ghost" className="text-danger-fg" onClick={() => setAskDelete(true)}>
+        Borrar ficha
+      </Button>
+    </>
+  );
+
+  if (contained) {
+    return (
+      <LocalSheet
+        open
+        onClose={() => onDone?.()}
+        title={title}
+        subtitle={client.full_name}
+        footer={footer}
+        initialHeight="tall"
+        above
+      >
+        {fields}
+      </LocalSheet>
+    );
+  }
+
+  return (
+    <Sheet title={title} subtitle={client.full_name} footer={footer}>
+      {fields}
     </Sheet>
   );
 }

@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { CalendarClock, CalendarPlus, MessageCircle, Phone, Trash2, UserRound } from 'lucide-react';
+const ClientFichaSheet = dynamic(() => import('@/components/clienta/ClientFichaSheet'));
 import Sheet, { Chip, Field, inputCls } from '@/components/Sheet';
 import { useSheetShellClose } from '@/components/SheetShell';
 import Button from '@/components/ui/Button';
@@ -88,6 +89,7 @@ export default function AppointmentSheet({
 
   const [moving, setMoving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [fichaOpen, setFichaOpen] = useState(false);
   const [waiters, setWaiters] = useState<Waiter[] | null>(null);
   const [date, setDate] = useState(dayKey(appt.starts_at));
   const [providerId, setProviderId] = useState(appt.provider_id);
@@ -314,6 +316,7 @@ export default function AppointmentSheet({
   );
 
   return (
+    <>
     <Sheet
       title={appt.client_label}
       subtitle={`${appt.service_name} · ${appt.provider_name}`}
@@ -404,13 +407,14 @@ export default function AppointmentSheet({
           )}
 
           {appt.client_id && (
-            <Link
-              href={`/clientas/${appt.client_id}`}
+            <button
+              type="button"
+              onClick={() => setFichaOpen(true)}
               className="mb-3 flex w-full items-center justify-center gap-2 rounded-field border border-surface-line bg-surface-card py-3 text-body font-bold text-v-d shadow-card"
             >
               <UserRound size={17} strokeWidth={2.2} />
               Ver ficha
-            </Link>
+            </button>
           )}
           {appt.client_phone && (
             <a
@@ -505,5 +509,9 @@ export default function AppointmentSheet({
         </>
       )}
     </Sheet>
+    {fichaOpen && appt.client_id && (
+      <ClientFichaSheet clientId={appt.client_id} onClose={() => setFichaOpen(false)} />
+    )}
+    </>
   );
 }

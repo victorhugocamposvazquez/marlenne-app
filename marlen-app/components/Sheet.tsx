@@ -102,7 +102,7 @@ export default function Sheet({
 /** Sheet controlado por estado (ajustes, catálogo) sin parámetros en la URL. */
 export function LocalSheet({
   open, onClose, title, subtitle, children, footer,
-  initialHeight = 'mid', floorDetent,
+  initialHeight = 'mid', floorDetent, above = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -112,6 +112,8 @@ export function LocalSheet({
   footer?: React.ReactNode | ((requestClose: ReturnType<typeof useSheetShellClose>) => React.ReactNode);
   initialHeight?: 'peek' | 'mid' | 'tall';
   floorDetent?: 'peek' | 'mid' | 'tall';
+  /** Encima de otra hoja ya abierta, sin cerrarla. */
+  above?: boolean;
 }) {
   if (!open) return null;
 
@@ -121,7 +123,8 @@ export function LocalSheet({
       initialHeight={initialHeight}
       floorDetent={floorDetent}
       grabHeader
-      className="flex max-h-[92dvh] flex-col"
+      above={above}
+      className={above ? 'flex h-full max-h-full flex-col' : 'flex max-h-[92dvh] flex-col'}
     >
       <SheetBody title={title} subtitle={subtitle} footer={footer}>
         {children}

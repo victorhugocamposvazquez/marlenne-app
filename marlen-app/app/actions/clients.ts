@@ -1,6 +1,10 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { requireCompany } from '@/lib/require-session';
+import {
+  getClient, listClientAppointments, listConsents, listSalonPackTemplates, listServices,
+} from '@/lib/queries';
 import { createClient } from '@/lib/supabase/server';
 import { addToWaitlist as addWaitWrite, resolveWaitlist as resolveWaitWrite } from '@/lib/agenda-write';
 import { syncClientRemindersAction } from '@/app/actions/reminder-sync';
@@ -67,4 +71,19 @@ export async function resolveWaitlist(id: string) {
   revalidatePath('/agenda');
   revalidatePath('/hoy');
   return r;
+}
+
+/** Ficha completa para abrirla encima de la cita, sin salir de la agenda. */
+export async function loadClientFicha(id: string) {
+  const me = await requireCompany();
+  const canEdit = me.role === 'admin' || me.role === 'reception';
+  const { client, treatments, packs } = await getClient(id);
+  if (!client) return null;
+  const [appointments, consents, templates, services] = await Promise.all([
+    listClientAppointments(client.id),
+    listConsents(client.id),
+    canEdit ? listSalonPackTemplates() : Promise.resolve([]),
+    canEdit ? listServices() : Promise.resolve([]),
+  ]);
+  return { client, treatments, packs, appointments, consents, templates, services, canEdit };
 }

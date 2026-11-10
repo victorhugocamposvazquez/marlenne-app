@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import dynamic from 'next/dynamic';
 import { Calendar, Check, ChevronLeft, Plus, Search, Ticket, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { circleOutlineCls, pillOutlineCls } from '@/components/ui/IconButton';
@@ -28,6 +29,7 @@ import { confirmPageUrl, waConfirmMsg, waHref } from '@/lib/phone';
 import { goWhatsApp, reserveWhatsAppWindow } from '@/hooks/open-whatsapp';
 import { issueAppointmentLink } from '@/lib/confirm-link';
 import ApptPaymentBlock, { type ApptPaymentHandle } from '@/components/agenda/ApptPaymentBlock';
+const ClientFichaSheet = dynamic(() => import('@/components/clienta/ClientFichaSheet'));
 import type { AgendaAppt, ClientOption, ClientPack, PackTemplate, Provider, ServiceOption } from '@/lib/types';
 import type { PlacePick } from '@/components/agenda/PlaceContext';
 
@@ -114,6 +116,7 @@ export function NewAppointmentSheetBody({
   const [hours, setHours] = useState<number[] | null>(null);
   const [wa, setWa] = useState(false);
   const [askDelete, setAskDelete] = useState(false);
+  const [fichaOpen, setFichaOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const payRef = useRef<ApptPaymentHandle>(null);
   const [lastId, setLastId] = useState<string | null>(null);
@@ -910,7 +913,12 @@ export function NewAppointmentSheetBody({
           <>
             <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4">
               <div className="rounded-card bg-surface-soft px-[18px]">
-                <Row label="Clienta" value={who} onChange={() => changeField('client')} />
+                <Row
+                  label="Clienta"
+                  value={who}
+                  onOpen={client?.id ? () => setFichaOpen(true) : undefined}
+                  onChange={() => { setFichaOpen(false); changeField('client'); }}
+                />
                 <Row
                   label="Tratamientos/bonos"
                   value={
@@ -1015,26 +1023,38 @@ export function NewAppointmentSheetBody({
             </div>
           </>
         )}
+        {fichaOpen && client?.id && (
+          <ClientFichaSheet clientId={client.id} onClose={() => setFichaOpen(false)} />
+        )}
       </div>
   );
 }
 
 function Row({
-  label, value, hint, onChange, last,
+  label, value, hint, onChange, onOpen, last,
 }: {
   label: string;
   value: string;
   hint?: string;
   onChange: () => void;
+  onOpen?: () => void;
   last?: boolean;
 }) {
   return (
     <div className={`flex items-center gap-3 py-3.5 ${last ? '' : 'border-b border-[#E6E5EC]'}`}>
-      <div className="min-w-0 flex-1">
-        <p className="text-[14px] font-medium text-v">{label}</p>
-        <p className="text-body-lg font-semibold">{value}</p>
-        {hint && <p className="text-label text-ink-2">{hint}</p>}
-      </div>
+      {onOpen ? (
+        <button type="button" onClick={onOpen} aria-label={`Ver ficha de ${value}`} className="min-w-0 flex-1 text-left">
+          <p className="text-[14px] font-medium text-v">{label}</p>
+          <p className="text-body-lg font-semibold text-v-d">{value}</p>
+          <p className="text-label font-semibold text-ink-3">Ver ficha</p>
+        </button>
+      ) : (
+        <div className="min-w-0 flex-1">
+          <p className="text-[14px] font-medium text-v">{label}</p>
+          <p className="text-body-lg font-semibold">{value}</p>
+          {hint && <p className="text-label text-ink-2">{hint}</p>}
+        </div>
+      )}
       <button type="button" onClick={onChange} className="text-[14px] font-bold text-v-2">Cambiar</button>
     </div>
   );

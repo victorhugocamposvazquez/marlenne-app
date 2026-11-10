@@ -91,6 +91,7 @@ export default function SheetShell({
   floorDetent,
   className = '',
   grabHeader = false,
+  above = false,
 }: {
   onClose: () => void;
   children: ReactNode;
@@ -99,6 +100,8 @@ export default function SheetShell({
   floorDetent?: SheetDetent;
   className?: string;
   grabHeader?: boolean;
+  /** Segunda hoja encima de la que ya está abierta (ficha sobre la cita). */
+  above?: boolean;
 }) {
   const isClient = useSyncExternalStore(subscribeClient, getClientSnapshot, getServerSnapshot);
   const shellMode = useAppShellMode();
@@ -185,7 +188,7 @@ export default function SheetShell({
             ref={panelRef}
             role="dialog"
             aria-modal="true"
-            className={`flex h-full w-full flex-col overflow-hidden bg-white ${closing ? 'opacity-0' : 'opacity-100'} ${className}`}
+            className={`flex h-full w-full flex-col overflow-hidden bg-white ${above ? 'absolute inset-0 z-20' : ''} ${closing ? 'opacity-0' : 'opacity-100'} ${className}`}
           >
             <div className="flex min-h-0 flex-1 flex-col">
               {children}
@@ -200,7 +203,7 @@ export default function SheetShell({
   return createPortal(
     <SheetGrabContext.Provider value={grabCtx}>
       <SheetCloseContext.Provider value={requestClose}>
-        <div className="fixed inset-x-0 bottom-0 z-[60]" style={OVERLAY_STYLE}>
+        <div className={`fixed inset-x-0 bottom-0 ${above ? 'z-[70]' : 'z-[60]'}`} style={OVERLAY_STYLE}>
           <button
             type="button"
             aria-label="Cerrar"

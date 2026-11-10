@@ -6,19 +6,23 @@ import DarCitaLink from '@/components/ui/DarCitaLink';
 import { Empty } from './Tabs';
 
 export default function HistoryTab({
-  appointments, clientId,
+  appointments, clientId, linked = true,
 }: {
   appointments: AgendaAppt[];
   clientId: string;
+  /** En la agenda, la ficha va encima de la cita: el historial se lee, no cambia de cita. */
+  linked?: boolean;
 }) {
   if (!appointments.length) {
     return (
       <div className="flex flex-col items-center gap-3">
         <Empty>No hay citas registradas todavía.</Empty>
-        <DarCitaLink
-          href={`/agenda?new=1&client=${clientId}`}
-          ariaLabel="Dar cita a esta clienta"
-        />
+        {linked && (
+          <DarCitaLink
+            href={`/agenda?new=1&client=${clientId}`}
+            ariaLabel="Dar cita a esta clienta"
+          />
+        )}
       </div>
     );
   }
@@ -44,12 +48,9 @@ export default function HistoryTab({
         {appointments.map(a => {
           const cat = catStyle(a.category);
           const st = STATUS[a.status];
-          return (
-            <Link
-              key={a.id}
-              href={`/agenda?day=${offsetFromDay(a.starts_at)}&appt=${a.id}`}
-              className="flex items-center gap-3 rounded-row bg-surface-soft p-3.5"
-            >
+          const rowCls = 'flex items-center gap-3 rounded-row bg-surface-soft p-3.5';
+          const body = (
+            <>
               <span className="w-[62px] shrink-0 text-center">
                 <span className="block text-caption font-bold leading-tight tabular-nums text-ink-2">
                   {dateLbl(a.starts_at)}
@@ -70,6 +71,22 @@ export default function HistoryTab({
               >
                 {st.label}
               </span>
+            </>
+          );
+          if (!linked) {
+            return (
+              <div key={a.id} className={rowCls}>
+                {body}
+              </div>
+            );
+          }
+          return (
+            <Link
+              key={a.id}
+              href={`/agenda?day=${offsetFromDay(a.starts_at)}&appt=${a.id}`}
+              className={rowCls}
+            >
+              {body}
             </Link>
           );
         })}

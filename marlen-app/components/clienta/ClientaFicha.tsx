@@ -28,6 +28,7 @@ import type { AgendaAppt, ClientPack, ClientRow, Consent, PackTemplate, ServiceO
 
 export default function ClientaFicha({
   client, treatments, packs, templates, services, appointments, consents, canEdit, initialTab, initialEdit,
+  overlay = false, onUpdated,
 }: {
   client: ClientRow;
   treatments: TreatmentRow[];
@@ -39,9 +40,15 @@ export default function ClientaFicha({
   canEdit: boolean;
   initialTab?: string;
   initialEdit?: boolean;
+  /** Encima de la cita: pestañas locales y sin salir de la agenda. */
+  overlay?: boolean;
+  onUpdated?: () => void;
 }) {
-  const tab = parseTab(useShallowParam('tab', initialTab ?? null));
+  const urlTab = parseTab(useShallowParam('tab', initialTab ?? null));
   const editar = useShallowParam('editar', initialEdit ? '1' : null);
+  const [tabLocal, setTabLocal] = useState<TabId>(parseTab(initialTab));
+  const [editLocal, setEditLocal] = useState(false);
+  const tab = overlay ? tabLocal : urlTab;
   const router = useRouter();
   const [urls, setUrls] = useState<Record<string, string>>({});
 
@@ -65,47 +72,27 @@ export default function ClientaFicha({
     return () => { alive = false; };
   }, [tab, photoPaths.join('|')]);
 
-  const goTab = (id: TabId) => shallowSet({ tab: id === 'tratamientos' ? null : id });
+  const goTab = (id: TabId) => {
+    if (overlay) setTabLocal(id);
+    else shallowSet({ tab: id === 'tratamientos' ? null : id });
+  };
 
-  return (
-    <SubpageHeader
-      href={canEdit ? '/clientas' : '/hoy'}
-      back={canEdit ? 'Volver a Clientas' : 'Volver a Hoy'}
-      title={client.full_name}
-      leading={(
-        <span
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-icon text-caption font-bold text-white"
-          style={{ background: avatarColor(client.full_name) }}
-        >
-          {initials(client.full_name)}
-        </span>
-      )}
-      extra={(
-        <div className="flex shrink-0 gap-2">
-          {canEdit && (
-            <ExportFichaButton
-              client={client}
-              treatments={treatments}
-              packs={packs}
-              appointments={appointments}
-              consents={consents}
-            />
-          )}
-          {canEdit && (
-            <IconButton label="Editar ficha" onClick={() => shallowSet({ editar: '1' })}>
-              <Pencil size={17} strokeWidth={2.2} />
-            </IconButton>
-          )}
-          <Link
-            href={`/agenda?new=1&client=${client.id}`}
-            aria-label="Nueva cita para esta clienta"
-            className="grid h-11 w-11 place-items-center rounded-icon bg-grad text-white transition motion-safe:active:scale-[.96]"
-          >
-            <CalendarPlus size={19} strokeWidth={2.2} />
-          </Link>
+  const detail = (
+    <>
+      {overlay && canEdit && (
+        <div className="mb-2 flex justify-end gap-2">
+          <ExportFichaButton
+            client={client}
+            treatments={treatments}
+            packs={packs}
+            appointments={appointments}
+            consents={consents}
+          />
+          <IconButton label="Editar ficha" onClick={() => setEditLocal(true)}>
+            <Pencil size={17} strokeWidth={2.2} />
+          </IconButton>
         </div>
       )}
-    >
 
       {client.tags?.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
@@ -125,18 +112,27 @@ export default function ClientaFicha({
       )}
 
       {nextAppt && (
-        <Link
-          href={`/agenda?day=${offsetFromDay(nextAppt.starts_at)}&appt=${nextAppt.id}`}
-          className="mt-2.5 flex items-center justify-between gap-2 rounded-row bg-v-tint px-4 py-3.5"
-        >
-          <span className="min-w-0">
+        overlay ? (
+          <div className="mt-2.5 rounded-row bg-v-tint px-4 py-3.5">
             <span className="block text-micro font-bold uppercase tracking-[.03em] text-v-d">Próxima cita</span>
             <span className="block truncate text-label font-bold text-ink">
               {shortWhen(nextAppt.starts_at)} · {nextAppt.service_name}
             </span>
-          </span>
-          <span className="shrink-0 text-caption font-bold text-v-d">Ver</span>
-        </Link>
+          </div>
+        ) : (
+          <Link
+            href={`/agenda?day=${offsetFromDay(nextAppt.starts_at)}&appt=${nextAppt.id}`}
+            className="mt-2.5 flex items-center justify-between gap-2 rounded-row bg-v-tint px-4 py-3.5"
+          >
+            <span className="min-w-0">
+              <span className="block text-micro font-bold uppercase tracking-[.03em] text-v-d">Próxima cita</span>
+              <span className="block truncate text-label font-bold text-ink">
+                {shortWhen(nextAppt.starts_at)} · {nextAppt.service_name}
+              </span>
+            </span>
+            <span className="shrink-0 text-caption font-bold text-v-d">Ver</span>
+          </Link>
+        )
       )}
       {!nextAppt && lastAppt && (
         <p className="mt-2.5 text-label font-medium text-ink-2">
@@ -216,16 +212,64 @@ export default function ClientaFicha({
           />
         )}
         {tab === 'historial' && (
-          <HistoryTab appointments={appointments} clientId={client.id} />
+          <HistoryTab appointments={appointments} clientId={client.id} linked={!overlay} />
         )}
       </div>
-      {canEdit && editar === '1' && (
+      {canEdit && (overlay ? editLocal : editar === '1') && (
         <EditClientSheet
           client={client}
           upcomingCount={upcoming.length}
           photoCount={photoPaths.length}
+          contained={overlay}
+          onDone={overlay ? () => setEditLocal(false) : undefined}
+          onSaved={overlay ? onUpdated : undefined}
         />
       )}
+    </>
+  );
+
+  if (overlay) return detail;
+
+  return (
+    <SubpageHeader
+      href={canEdit ? '/clientas' : '/hoy'}
+      back={canEdit ? 'Volver a Clientas' : 'Volver a Hoy'}
+      title={client.full_name}
+      leading={(
+        <span
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-icon text-caption font-bold text-white"
+          style={{ background: avatarColor(client.full_name) }}
+        >
+          {initials(client.full_name)}
+        </span>
+      )}
+      extra={(
+        <div className="flex shrink-0 gap-2">
+          {canEdit && (
+            <ExportFichaButton
+              client={client}
+              treatments={treatments}
+              packs={packs}
+              appointments={appointments}
+              consents={consents}
+            />
+          )}
+          {canEdit && (
+            <IconButton label="Editar ficha" onClick={() => shallowSet({ editar: '1' })}>
+              <Pencil size={17} strokeWidth={2.2} />
+            </IconButton>
+          )}
+          <Link
+            href={`/agenda?new=1&client=${client.id}`}
+            aria-label="Nueva cita para esta clienta"
+            className="grid h-11 w-11 place-items-center rounded-icon bg-grad text-white transition motion-safe:active:scale-[.96]"
+          >
+            <CalendarPlus size={19} strokeWidth={2.2} />
+          </Link>
+        </div>
+      )}
+    >
+      {detail}
     </SubpageHeader>
   );
 }
