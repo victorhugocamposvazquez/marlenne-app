@@ -12,7 +12,7 @@ import DetailPanel from '@/components/shell/DetailPanel';
 import SideNav from '@/components/shell/SideNav';
 import type { OpsBanner, ShellSession } from '@/components/shell/PhoneShell';
 
-const VoiceFab = dynamic(() => import('@/components/VoiceFab'), { ssr: false });
+const ChatHost = dynamic(() => import('@/components/chat/ChatHost'), { ssr: false });
 
 /** Shell recepción: browser / PWA en tablet y escritorio. */
 export default function WideShell({
@@ -55,7 +55,7 @@ export default function WideShell({
         <TaskSheetHost staff={staff} />
       </Suspense>
       <Suspense fallback={null}>
-        <VoiceFab />
+        <ChatHost role={session.role} />
       </Suspense>
     </div>
   );

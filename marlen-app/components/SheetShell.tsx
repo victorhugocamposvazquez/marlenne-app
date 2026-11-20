@@ -212,12 +212,13 @@ export default function SheetShell({
             className="absolute inset-0 border-0 bg-[rgba(15,14,26,.18)] p-0"
           />
 
-          <div className="absolute inset-x-0 bottom-0 flex justify-center">
+          {/* inset-0: el 100% del maxHeight es el overlay (ya restado el teclado). */}
+          <div className="pointer-events-none absolute inset-0 flex items-end justify-center">
             <div
               ref={panelRef}
               role="presentation"
               onClick={e => e.stopPropagation()}
-              className={`relative z-10 flex w-full max-w-[440px] flex-col overflow-hidden rounded-t-sheet bg-white shadow-[0_-20px_60px_rgba(15,14,26,.18)] ${closing ? 'animate-sheetExit' : ''} ${className}`}
+              className={`pointer-events-auto relative z-10 flex w-full max-w-[440px] flex-col overflow-hidden rounded-t-sheet bg-white shadow-[0_-20px_60px_rgba(15,14,26,.18)] ${closing ? 'animate-sheetExit' : ''} ${className}`}
               style={{
                 height,
                 maxHeight: 'min(92dvh, 100%)',

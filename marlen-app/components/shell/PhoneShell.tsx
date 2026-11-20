@@ -12,7 +12,7 @@ import ProfileSheetHost from '@/components/ProfileSheetHost';
 import MoreSheetHost from '@/components/MoreSheetHost';
 import TaskSheetHost from '@/components/personal/TaskSheetHost';
 
-const VoiceFab = dynamic(() => import('@/components/VoiceFab'), { ssr: false });
+const ChatHost = dynamic(() => import('@/components/chat/ChatHost'), { ssr: false });
 
 export type ShellSession = {
   role: string;
@@ -65,7 +65,7 @@ export default function PhoneShell({
         <TaskSheetHost staff={staff} />
       </Suspense>
       <Suspense fallback={null}>
-        <VoiceFab />
+        <ChatHost role={session.role} />
       </Suspense>
       <BottomNav
         role={session.role}
