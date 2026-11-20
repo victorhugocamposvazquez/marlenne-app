@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { addDays, dayKey, minutesOfDay, toTimestamp, weekdayUtc } from '@/lib/time';
 import { moveAppointment } from '@/lib/move-appointment';
+import { refuseOffline } from '@/lib/offline';
 import type { Waiter } from '@/lib/types';
 
 export type WriteResult = { ok: boolean; error: string | null; id?: string; waiters?: Waiter[] };
@@ -65,6 +66,8 @@ export async function createAppointment(
     date: string; startMin: number; note?: string; clientPackId?: string;
   },
 ): Promise<WriteResult> {
+  const off = refuseOffline();
+  if (off) return off;
   const params: {
     p_client_id: string | null;
     p_client_name: string | null;
@@ -94,11 +97,15 @@ export async function createAppointment(
 }
 
 export async function updateStatus(sb: SupabaseClient, id: string, status: string): Promise<WriteResult> {
+  const off = refuseOffline();
+  if (off) return off;
   const { error } = await sb.from('appointments').update({ status }).eq('id', id);
   return { ok: !error, error: error?.message ?? null };
 }
 
 export async function cancelAppointment(sb: SupabaseClient, id: string): Promise<WriteResult> {
+  const off = refuseOffline();
+  if (off) return off;
   const { data: appt } = await sb
     .from('appointments')
     .select('id, salon_id, service_id')
@@ -125,6 +132,8 @@ export async function updateAppointment(
     startMin: number;
   },
 ): Promise<WriteResult> {
+  const off = refuseOffline();
+  if (off) return off;
   const { data: svc } = await sb
     .from('services')
     .select('duration_min, price_cents')
@@ -243,6 +252,8 @@ export async function addToWaitlist(
   sb: SupabaseClient,
   input: { clientId?: string; clientName?: string; serviceId?: string; preference?: string },
 ): Promise<WriteResult> {
+  const off = refuseOffline();
+  if (off) return off;
   if (!input.clientId && !input.clientName?.trim()) {
     return { ok: false, error: 'Indica quién espera' };
   }

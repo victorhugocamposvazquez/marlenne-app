@@ -1,4 +1,7 @@
-const CACHE = 'marlenne-shell-v28';
+const SHELL = 'marlenne-shell-v29';
+const PAGES = 'marlenne-pages-v1';
+const NET_WAIT_MS = 3000;
+
 const PRECACHE = [
   '/manifest.json',
   '/logo.png',
@@ -64,45 +67,31 @@ const PRECACHE = [
   '/voice/sin-nube.mp3',
 ];
 
-async function reloadOpenWindows() {
-  const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  await Promise.all(windows.map(client => {
-    if (typeof client.navigate !== 'function') return undefined;
-    try {
-      const url = new URL(client.url);
-      if (url.searchParams.has('_upd')) return undefined;
-      url.searchParams.set('_upd', String(Date.now()));
-      return client.navigate(url.href).catch(() => undefined);
-    } catch {
-      return undefined;
-    }
-  }));
-}
-
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     await self.skipWaiting();
-    await reloadOpenWindows();
-    const cache = await caches.open(CACHE);
+    const cache = await caches.open(SHELL);
     await Promise.all(PRECACHE.map(u => cache.add(u).catch(() => undefined)));
   })());
 });
 
 self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+  const type = event.data && event.data.type;
+  if (type === 'SKIP_WAITING') self.skipWaiting();
+  if (type === 'CLEAR_PAGES') event.waitUntil(caches.delete(PAGES));
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
+    const keep = new Set([SHELL, PAGES]);
     const keys = await caches.keys();
-    await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
+    await Promise.all(keys.filter(k => !keep.has(k)).map(k => caches.delete(k)));
     await self.clients.claim();
-    await reloadOpenWindows();
     try {
       const res = await fetch('/voice/manifest.json');
       if (!res.ok) return;
       const { clips } = await res.json();
-      const cache = await caches.open(CACHE);
+      const cache = await caches.open(SHELL);
       const have = new Set((await cache.keys()).map(r => new URL(r.url).pathname));
       const rest = (clips ?? []).filter(u => !have.has(u));
       for (let i = 0; i < rest.length; i += 20) {
@@ -132,32 +121,73 @@ function bypassServiceWorker(url) {
   return false;
 }
 
-async function networkOrCache(req) {
-  try {
-    const res = await fetch(req);
-    return res;
-  } catch {
-    const cached = await caches.match(req);
+function offlineResponse() {
+  return new Response('Sin conexión', {
+    status: 503,
+    statusText: 'Offline',
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  });
+}
+
+async function rememberPage(req, res) {
+  if (!res || !res.ok || res.redirected || res.type !== 'basic') return;
+  const cache = await caches.open(PAGES);
+  await cache.put(req, res.clone());
+}
+
+/** Red con tope. Si tarda o cae, la última copia de esa URL (Hoy, clientas, servicios, reserva). */
+async function pageWithTimeout(req) {
+  const cache = await caches.open(PAGES);
+  const cached = await cache.match(req);
+  let timer;
+  const timeout = new Promise(resolve => {
+    timer = setTimeout(() => resolve('slow'), NET_WAIT_MS);
+  });
+  const arrived = fetch(req).then(
+    res => ({ res }),
+    () => ({ res: null }),
+  );
+  const winner = await Promise.race([
+    arrived.then(r => (r.res ? 'net' : 'fail')),
+    timeout,
+  ]);
+  clearTimeout(timer);
+
+  if (winner === 'net') {
+    const { res } = await arrived;
+    if (res.ok) {
+      void rememberPage(req, res);
+      return res;
+    }
     if (cached) return cached;
-    return new Response('Sin conexión', {
-      status: 503,
-      statusText: 'Offline',
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-    });
+    return res;
   }
+
+  if (winner === 'slow') {
+    void arrived.then(r => { if (r.res) void rememberPage(req, r.res); });
+    if (cached) return cached;
+  }
+
+  const { res } = await arrived;
+  if (res && res.ok) {
+    void rememberPage(req, res);
+    return res;
+  }
+  if (cached) return cached;
+  return res || offlineResponse();
 }
 
 async function cacheFirstAsset(req) {
-  const cached = await caches.match(req);
+  const cache = await caches.open(SHELL);
+  const cached = await cache.match(req);
+  if (cached) return cached;
   try {
     const res = await fetch(req);
-    if (res.ok) {
-      const copy = res.clone();
-      caches.open(CACHE).then(c => c.put(req, copy));
+    if (res.ok && res.type === 'basic') {
+      void cache.put(req, res.clone());
     }
     return res;
   } catch {
-    if (cached) return cached;
     return new Response('', { status: 504, statusText: 'Gateway Timeout' });
   }
 }
@@ -189,7 +219,6 @@ self.addEventListener('notificationclick', event => {
     const client = all.find(c => {
       try { return new URL(c.url).origin === self.location.origin; } catch { return false; }
     });
-    // Un solo camino. Navegar y avisar a la vez recarga la agenda y la ficha se cierra en blanco.
     if (!client) {
       await self.clients.openWindow(target);
       return;
@@ -205,22 +234,17 @@ self.addEventListener('fetch', event => {
   if (isLocalDev()) return;
   const req = event.request;
   if (req.method !== 'GET') return;
+  if (req.headers.get('range')) return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/')) return;
-  if (url.searchParams.has('_rsc')) return;
   if (url.pathname === '/sw.js' || url.pathname === '/app-build.txt') return;
   if (bypassServiceWorker(url)) return;
-
-  if (req.mode === 'navigate') {
-    event.respondWith(networkOrCache(req));
-    return;
-  }
 
   if (isHashedAsset(url)) {
     event.respondWith(cacheFirstAsset(req));
     return;
   }
 
-  event.respondWith(networkOrCache(req));
+  event.respondWith(pageWithTimeout(req));
 });

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { refuseOffline } from '@/lib/offline';
 
 export type ClientWriteResult = { ok: boolean; error: string | null; id?: string | null };
 
@@ -13,6 +14,8 @@ export async function createClientRecord(
   sb: SupabaseClient,
   input: { full_name: string; phone?: string; email?: string; tags?: string[] },
 ): Promise<ClientWriteResult> {
+  const off = refuseOffline();
+  if (off) return { ...off, id: null };
   const name = input.full_name.trim();
   if (name.length < 2) return { ok: false, error: 'Pon al menos el nombre', id: null };
   const { salonId } = await salonOf(sb);
@@ -60,6 +63,8 @@ export async function updateClientRecord(
     birth_date?: string | null;
   },
 ): Promise<ClientWriteResult> {
+  const off = refuseOffline();
+  if (off) return off;
   const name = input.full_name.trim();
   if (name.length < 2) return { ok: false, error: 'Pon al menos el nombre' };
   const { salonId } = await salonOf(sb);

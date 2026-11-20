@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Building2, ListTodo, LogOut, Settings, User } from 'lucide-react';
-import { signOut } from '@/app/actions/auth';
+import SignOutForm from '@/components/auth/SignOutForm';
 import { LocalSheet } from '@/components/Sheet';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 
@@ -103,7 +103,7 @@ export default function ProfileSheetHost({
                 </>,
               )}
             </Link>
-            <form action={signOut}>
+            <SignOutForm>
               <button type="submit" className="w-full text-left">
                 {actionRow(
                   <>
@@ -114,7 +114,7 @@ export default function ProfileSheetHost({
                   </>,
                 )}
               </button>
-            </form>
+            </SignOutForm>
           </div>
         </div>
       </div>

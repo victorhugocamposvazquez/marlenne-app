@@ -53,7 +53,7 @@ export default function AjustesIndex({
     ...(admin ? [{
       href: '/ajustes/citas',
       title: 'Citas',
-      hint: 'Cobro y citas sin llegar',
+      hint: 'Cobro, citas sin llegar y texto de WhatsApp',
     }, {
       href: '/ajustes/servicios',
       title: 'Tratamientos',

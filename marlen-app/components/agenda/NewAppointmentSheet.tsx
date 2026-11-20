@@ -25,6 +25,7 @@ import { servicePickSections } from '@/lib/service-pick';
 import { readLastServiceId, writeLastServiceId } from '@/hooks/last-service';
 import { shallowSet } from '@/hooks/useShallowQuery';
 import { useToast } from '@/components/Toast';
+import { useWaConfirmTemplate } from '@/components/WaTemplateProvider';
 import { confirmPageUrl, waConfirmMsg, waHref } from '@/lib/phone';
 import { goWhatsApp, reserveWhatsAppWindow } from '@/hooks/open-whatsapp';
 import { issueAppointmentLink } from '@/lib/confirm-link';
@@ -73,6 +74,7 @@ export function NewAppointmentSheetBody({
 }: NewAppointmentSheetBodyProps) {
   const requestClose = useSheetShellClose();
   const toast = useToast();
+  const waTemplate = useWaConfirmTemplate();
   const { publish } = usePlace();
   const [pending, startTransition] = useTransition();
   const [payError, setPayError] = useState<string | null>(null);
@@ -436,7 +438,7 @@ export function NewAppointmentSheetBody({
           clientLabel: who,
           service: service.name,
           startsAt: toTimestamp(bookDay, startMin),
-        }))
+        }, waTemplate))
       : null;
     if (wa && !draftHref) {
       toast('Esta clienta no tiene un teléfono válido para WhatsApp', 'err');
@@ -506,7 +508,7 @@ export function NewAppointmentSheetBody({
           service: service.name,
           startsAt: toTimestamp(bookDay, startMin),
           confirmUrl: token ? confirmPageUrl(token) : null,
-        })) ?? draftHref;
+        }, waTemplate)) ?? draftHref;
         goWhatsApp(href, waWin);
       }
       toast('', {

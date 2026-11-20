@@ -2,7 +2,7 @@ import { headers } from 'next/headers';
 import { LogOut } from 'lucide-react';
 import { getStaffVoicePrefs } from '@/lib/queries';
 import { requireSession } from '@/lib/require-session';
-import { signOut } from '@/app/actions/auth';
+import SignOutForm from '@/components/auth/SignOutForm';
 import { listMyPasskeys } from '@/app/actions/webauthn';
 import { isAppleMobile } from '@/lib/webauthn';
 import AjustesHeader from '@/components/ajustes/AjustesHeader';
@@ -65,12 +65,12 @@ export default async function CuentaPage() {
           ))}
         </ul>
       </section>
-      <form action={signOut} className="mt-8">
+      <SignOutForm className="mt-8">
         <Button type="submit" variant="secondary" full className="text-danger-fg">
           <LogOut size={17} strokeWidth={2.2} />
           Cerrar sesión
         </Button>
-      </form>
+      </SignOutForm>
     </AjustesHeader>
   );
 }

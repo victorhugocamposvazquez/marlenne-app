@@ -41,11 +41,21 @@ export async function getSession() {
       .eq('id', user.id)
       .maybeSingle();
     if (!data) return null;
-    const { data: salon } = await sb
+    let salonName = 'Tu centro';
+    let waConfirmTemplate: string | null = null;
+    const salonFull = await sb
       .from('salons')
-      .select('name')
+      .select('name, wa_confirm_template')
       .eq('id', data.salon_id)
       .maybeSingle();
+    if (salonFull.error && /wa_confirm_template/i.test(salonFull.error.message)) {
+      const again = await sb.from('salons').select('name').eq('id', data.salon_id).maybeSingle();
+      salonName = (again.data?.name as string | undefined) ?? salonName;
+    } else if (salonFull.data) {
+      salonName = (salonFull.data.name as string | undefined) ?? salonName;
+      const raw = (salonFull.data as { wa_confirm_template?: string | null }).wa_confirm_template;
+      waConfirmTemplate = raw?.trim() ? raw : null;
+    }
     let hasPersonal = Boolean(personalSalonIdFromPrefs(data.app_prefs));
     if (!hasPersonal) {
       const { data: personalSalon } = await sb
@@ -65,7 +75,8 @@ export async function getSession() {
       color: (data.color as string | null) ?? null,
       job_title: (data.job_title as string | null) ?? null,
       email: user.email ?? '',
-      salon_name: (salon?.name as string | undefined) ?? 'Tu centro',
+      salon_name: salonName,
+      wa_confirm_template: waConfirmTemplate,
       workspace: workspaceFromPrefs(data.app_prefs),
       has_personal: hasPersonal,
     };

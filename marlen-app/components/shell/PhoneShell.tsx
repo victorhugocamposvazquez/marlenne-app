@@ -3,6 +3,7 @@
 import { Suspense, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import AccountMenu from '@/components/AccountMenu';
+import OfflineBanner from '@/components/OfflineBanner';
 import BottomNav from '@/components/BottomNav';
 import PullRefresh from '@/components/PullRefresh';
 import EmbedPanelHint from '@/components/EmbedPanelHint';
@@ -44,6 +45,7 @@ export default function PhoneShell({
 }) {
   return (
     <div className="@container relative mx-auto flex h-[100dvh] w-full max-w-[440px] flex-col overflow-hidden bg-surface-bg pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+      <OfflineBanner />
       <OpsSupportBanner serverOps={serverOps} />
       <EmbedPanelHint />
       <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">

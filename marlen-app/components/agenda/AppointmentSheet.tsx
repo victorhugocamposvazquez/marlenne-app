@@ -17,6 +17,7 @@ import { syncAppointmentReminderAction } from '@/app/actions/reminder-sync';
 import { moveAppointment } from '@/lib/move-appointment';
 import { createClient } from '@/lib/supabase/client';
 import { dayKey, durLbl, fmt, minutesOfDay, citaCambiada } from '@/lib/time';
+import { useWaConfirmTemplate } from '@/components/WaTemplateProvider';
 import { confirmPageUrl, waConfirmMsg, waHref, waWaiterMsg } from '@/lib/phone';
 import { goWhatsApp, reserveWhatsAppWindow } from '@/hooks/open-whatsapp';
 import { issueAppointmentLink } from '@/lib/confirm-link';
@@ -83,6 +84,7 @@ export default function AppointmentSheet({
 }) {
   const requestClose = useSheetShellClose();
   const toast = useToast();
+  const waTemplate = useWaConfirmTemplate();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [closing, setClosing] = useState(startClosing && needsClinicalClose(appt));
@@ -137,7 +139,7 @@ export default function AppointmentSheet({
       clientLabel: appt.client_label,
       service: appt.service_name,
       startsAt: appt.starts_at,
-    }));
+    }, waTemplate));
     const waWin = draft ? reserveWhatsAppWindow() : null;
     startTransition(async () => {
       const token = await issueAppointmentLink(createClient(), appt.id);
@@ -147,7 +149,7 @@ export default function AppointmentSheet({
         service: appt.service_name,
         startsAt: appt.starts_at,
         confirmUrl: url,
-      })) ?? draft;
+      }, waTemplate)) ?? draft;
       if (href) {
         goWhatsApp(href, waWin);
         return;

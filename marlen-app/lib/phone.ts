@@ -33,18 +33,41 @@ export function waAppHref(phone: string | null | undefined, text?: string): stri
     : `whatsapp://send?phone=${intl}`;
 }
 
-export function waConfirmMsg(input: {
-  clientLabel: string;
-  service: string;
-  startsAt: string;
-  confirmUrl?: string | null;
-}) {
+/** Texto de fábrica si el centro no ha guardado el suyo. */
+export const DEFAULT_WA_CONFIRM_TEMPLATE =
+  'Hola {{cliente}}, te confirmo tu cita el {{cuando}} para {{servicio}}. ¿Vienes?';
+
+const CONFIRM_LINK = 'Confirma aquí (sí o no):';
+
+export function waConfirmMsg(
+  input: {
+    clientLabel: string;
+    service: string;
+    startsAt: string;
+    confirmUrl?: string | null;
+  },
+  template?: string | null,
+) {
   const name = firstName(input.clientLabel);
   const when = shortWhen(input.startsAt);
-  const base = `Hola ${name}, te confirmo tu cita el ${when} para ${input.service}. ¿Vienes?`;
-  return input.confirmUrl
-    ? `${base}\n\nConfirma aquí (sí o no): ${input.confirmUrl}`
-    : `${base} Respóndeme sí o no, porfa.`;
+  const custom = template?.trim();
+  if (!custom) {
+    const base = `Hola ${name}, te confirmo tu cita el ${when} para ${input.service}. ¿Vienes?`;
+    return input.confirmUrl
+      ? `${base}\n\n${CONFIRM_LINK} ${input.confirmUrl}`
+      : `${base} Respóndeme sí o no, porfa.`;
+  }
+  const hasLink = custom.includes('{{enlace}}');
+  let text = custom
+    .replaceAll('{{cliente}}', name || 'cliente')
+    .replaceAll('{{cuando}}', when)
+    .replaceAll('{{servicio}}', input.service?.trim() || 'tu cita')
+    .replaceAll('{{enlace}}', input.confirmUrl?.trim() || '');
+  text = text.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  if (!hasLink && input.confirmUrl) {
+    text = `${text}\n\n${CONFIRM_LINK} ${input.confirmUrl}`;
+  }
+  return text;
 }
 
 export function waWaiterMsg(input: { name: string; service: string; startsAt: string }) {

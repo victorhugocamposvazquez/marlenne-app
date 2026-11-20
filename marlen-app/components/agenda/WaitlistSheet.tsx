@@ -1,25 +1,24 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { CalendarPlus, Check, Clock, MessageCircle } from 'lucide-react';
 import Sheet, { Field, inputCls } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
 import EmptyState from '@/components/ui/EmptyState';
 import IconButton from '@/components/ui/IconButton';
 import Skeleton from '@/components/ui/Skeleton';
+import { loadClientPickerSearch } from '@/app/actions/client-list';
 import { addToWaitlist, resolveWaitlist } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import { shallowSet } from '@/hooks/useShallowQuery';
 import { dateLbl } from '@/lib/time';
 import { firstName, waHref } from '@/lib/phone';
-import { fold } from '@/lib/voice';
 import type { ClientOption, ServiceOption, WaitItem } from '@/lib/types';
 
 export default function WaitlistSheet({
-  items, clients, services, loading,
+  items, services, loading,
 }: {
   items: WaitItem[];
-  clients: ClientOption[];
   services: ServiceOption[];
   loading?: boolean;
 }) {
@@ -27,18 +26,28 @@ export default function WaitlistSheet({
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState('');
   const [client, setClient] = useState<ClientOption | null>(null);
+  const [matches, setMatches] = useState<ClientOption[]>([]);
   const [serviceId, setServiceId] = useState('');
   const [preference, setPreference] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const matches = useMemo(() => {
-    const q = fold(query);
-    const digits = query.replace(/\D/g, '');
-    if ((!q && !digits) || client) return [];
-    return clients
-      .filter(c => (q && fold(c.full_name).includes(q)) || (digits.length >= 3 && (c.phone ?? '').includes(digits)))
-      .slice(0, 5);
-  }, [query, clients, client]);
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2 || client) {
+      setMatches([]);
+      return;
+    }
+    let alive = true;
+    const t = window.setTimeout(() => {
+      void loadClientPickerSearch(q).then(rows => {
+        if (alive) setMatches(rows.slice(0, 5));
+      });
+    }, 180);
+    return () => {
+      alive = false;
+      window.clearTimeout(t);
+    };
+  }, [query, client]);
 
   const who = client?.full_name ?? query.trim();
 

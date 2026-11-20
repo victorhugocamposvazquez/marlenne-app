@@ -3,31 +3,39 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import WaitlistSheet from '@/components/agenda/WaitlistSheet';
-import { loadClientOptions, loadServices, loadWaitlist } from '@/lib/agenda-catalog';
+import { loadWaitlist } from '@/lib/agenda-catalog';
 import { createClient } from '@/lib/supabase/client';
+import { readSheetCatalog, subscribeSheetCatalog, warmSheetCatalog } from '@/hooks/sheet-catalog';
 import { useShallowParam } from '@/hooks/useShallowQuery';
-import type { ClientOption, ServiceOption, WaitItem } from '@/lib/types';
+import type { ServiceOption, WaitItem } from '@/lib/types';
 
 export default function WaitlistSheetHost({ initialOpen }: { initialOpen?: boolean }) {
   const open = useShallowParam('wait', initialOpen ? '1' : null);
   const router = useRouter();
+  const snap = readSheetCatalog();
   const [items, setItems] = useState<WaitItem[]>([]);
-  const [clients, setClients] = useState<ClientOption[]>([]);
-  const [services, setServices] = useState<ServiceOption[]>([]);
+  const [services, setServices] = useState<ServiceOption[]>(snap?.services ?? []);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => subscribeSheetCatalog(cat => {
+    if (cat.services.length) setServices(cat.services);
+  }), []);
 
   useEffect(() => {
     if (open !== '1') return;
     let alive = true;
     const sb = createClient();
+    const known = readSheetCatalog();
+    if (known?.services.length) setServices(known.services);
     const load = async () => {
-      const [w, c, s] = await Promise.all([
-        loadWaitlist(sb), loadClientOptions(sb), loadServices(sb),
+      const [w] = await Promise.all([
+        loadWaitlist(sb),
+        warmSheetCatalog(sb),
       ]);
       if (!alive) return;
       setItems(w);
-      setClients(c);
-      setServices(s);
+      const latest = readSheetCatalog();
+      if (latest?.services.length) setServices(latest.services);
       setLoading(false);
     };
     setLoading(true);
@@ -49,9 +57,8 @@ export default function WaitlistSheetHost({ initialOpen }: { initialOpen?: boole
   return (
     <WaitlistSheet
       items={items}
-      clients={clients}
       services={services}
-      loading={loading && items.length === 0 && clients.length === 0}
+      loading={loading && items.length === 0}
     />
   );
 }

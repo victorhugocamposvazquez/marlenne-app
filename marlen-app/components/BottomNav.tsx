@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { Home, Calendar, Users, Settings, Plus, MoreVertical } from 'lucide-react';
+import { usePrefetchOk } from '@/hooks/net-client';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 
 export default function BottomNav({
@@ -14,6 +15,7 @@ export default function BottomNav({
   account?: ReactNode;
 }) {
   const path = usePathname();
+  const prefetchOk = usePrefetchOk();
   const creating = useShallowParam('new');
   const editing = useShallowParam('appt');
   const addingMember = useShallowParam('miembro');
@@ -32,6 +34,7 @@ export default function BottomNav({
     return (
       <Link
         href={href}
+        prefetch={prefetchOk ? undefined : false}
         className="flex min-h-[44px] flex-col items-center justify-center gap-px no-underline"
         style={{ color: active ? 'rgb(var(--c-ink))' : 'rgb(var(--c-ink-3))' }}
       >

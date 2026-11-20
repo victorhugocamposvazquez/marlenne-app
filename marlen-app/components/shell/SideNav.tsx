@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
 import { usePageRefresh } from '@/components/RefreshButton';
+import { usePrefetchOk } from '@/hooks/net-client';
 import { shallowSet } from '@/hooks/useShallowQuery';
 
 const EXPAND_KEY = 'marlen.sidenav.expanded';
@@ -36,6 +37,7 @@ export default function SideNav({
   account?: ReactNode;
 }) {
   const path = usePathname();
+  const prefetchOk = usePrefetchOk();
   const { refresh, hardReload, busy } = usePageRefresh();
   const showClientas = role !== 'provider';
 
@@ -71,6 +73,7 @@ export default function SideNav({
     return (
       <Link
         href={href}
+        prefetch={prefetchOk ? undefined : false}
         aria-label={label}
         title={expanded ? undefined : label}
         aria-current={active ? 'page' : undefined}

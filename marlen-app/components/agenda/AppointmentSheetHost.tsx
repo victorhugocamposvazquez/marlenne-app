@@ -7,9 +7,9 @@ import AppointmentSheet from '@/components/agenda/AppointmentSheet';
 import { PUSH_OPEN, armPushOpen } from '@/hooks/push-open';
 import { useCloseSheet } from '@/components/Sheet';
 import SheetShell from '@/components/SheetShell';
-import { loadClientPickerById, loadClientPickerInitial } from '@/app/actions/client-list';
-import { loadPackTemplates, loadSalonPacks, loadServiceCounts, loadServices } from '@/lib/agenda-catalog';
+import { loadClientPickerById } from '@/app/actions/client-list';
 import { createClient } from '@/lib/supabase/client';
+import { readSheetCatalog, subscribeSheetCatalog, warmSheetCatalog } from '@/hooks/sheet-catalog';
 import { APPT_SELECT, APPT_SELECT_CORE, APPT_SELECT_PAID, mapAppt } from '@/lib/agenda-appt';
 import { useShallowParam } from '@/hooks/useShallowQuery';
 import { dayKey, offsetFromDay } from '@/lib/time';
@@ -99,11 +99,12 @@ export default function AppointmentSheetHost({
     error_message: string | null;
   } | null>(null);
   const [loading, setLoading] = useState(false);
-  const [services, setServices] = useState<ServiceOption[]>([]);
-  const [clients, setClients] = useState<ClientOption[]>([]);
-  const [packs, setPacks] = useState<ClientPack[]>([]);
-  const [templates, setTemplates] = useState<PackTemplate[]>([]);
-  const [serviceCounts, setServiceCounts] = useState<Record<string, number>>({});
+  const snap = readSheetCatalog();
+  const [services, setServices] = useState<ServiceOption[]>(snap?.services ?? []);
+  const [clients, setClients] = useState<ClientOption[]>(snap?.clients ?? []);
+  const [packs, setPacks] = useState<ClientPack[]>(snap?.packs ?? []);
+  const [templates, setTemplates] = useState<PackTemplate[]>(snap?.templates ?? []);
+  const [serviceCounts, setServiceCounts] = useState<Record<string, number>>(snap?.counts ?? {});
   const [shield, setShield] = useState(Boolean(initialId));
   const armedFor = useRef<string | null>(null);
   const aligned = useRef('');
@@ -130,6 +131,17 @@ export default function AppointmentSheetHost({
     return () => window.clearTimeout(t);
   }, [shield]);
 
+  useEffect(() => subscribeSheetCatalog(cat => {
+    setServices(cat.services);
+    setPacks(cat.packs);
+    setTemplates(cat.templates);
+    setServiceCounts(cat.counts);
+    setClients(prev => {
+      const extra = prev.filter(c => !cat.clients.some(n => n.id === c.id));
+      return [...extra, ...cat.clients];
+    });
+  }), []);
+
   useEffect(() => {
     if (!id) {
       setFetched(null);
@@ -140,6 +152,13 @@ export default function AppointmentSheetHost({
     let alive = true;
     setLoading(!seed);
     if (seed) setFetched(null);
+    const known = readSheetCatalog();
+    if (known?.services.length) {
+      setServices(known.services);
+      setPacks(known.packs);
+      setTemplates(known.templates);
+      setServiceCounts(known.counts);
+    }
     const sb = createClient();
     void (async () => {
       const [row, smsRes, catalog] = await Promise.all([
@@ -147,26 +166,27 @@ export default function AppointmentSheetHost({
         sb.from('sms_log').select('status, sent_at, simulated, delivered_at, error_message')
           .eq('appointment_id', id)
           .order('created_at', { ascending: false }).limit(1).maybeSingle(),
-        Promise.all([
-          loadServices(sb), loadSalonPacks(sb), loadPackTemplates(sb), loadServiceCounts(sb),
-        ]),
+        warmSheetCatalog(sb, { full: true }),
       ]);
       if (!alive) return;
       const apptRow = seed ?? row;
-      const [initialClients, pickedClient] = await Promise.all([
-        loadClientPickerInitial(),
-        apptRow?.client_id ? loadClientPickerById(apptRow.client_id) : Promise.resolve(null),
-      ]);
+      const pickedClient = apptRow?.client_id ? await loadClientPickerById(apptRow.client_id) : null;
       if (!alive) return;
       if (!seed) setFetched(row);
       setSms(smsRes.data ?? null);
-      setServices(catalog[0]);
-      const pool = [...initialClients];
-      if (pickedClient && !pool.some(c => c.id === pickedClient.id)) pool.unshift(pickedClient);
-      setClients(pool);
-      setPacks(catalog[1]);
-      setTemplates(catalog[2]);
-      setServiceCounts(catalog[3]);
+      const latest = readSheetCatalog() ?? catalog;
+      setServices(latest.services);
+      setPacks(latest.packs);
+      setTemplates(latest.templates);
+      setServiceCounts(latest.counts);
+      setClients(prev => {
+        const pool = [...latest.clients];
+        for (const c of prev) {
+          if (!pool.some(n => n.id === c.id)) pool.unshift(c);
+        }
+        if (pickedClient && !pool.some(c => c.id === pickedClient.id)) pool.unshift(pickedClient);
+        return pool;
+      });
       setLoading(false);
     })();
     return () => { alive = false; };

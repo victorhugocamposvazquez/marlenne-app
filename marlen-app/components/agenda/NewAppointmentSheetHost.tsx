@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import { NewAppointmentSheetBody } from '@/components/agenda/NewAppointmentSheet';
 import SheetShell from '@/components/SheetShell';
 import { useCloseSheet } from '@/components/Sheet';
-import { loadClientPickerById, loadClientPickerInitial } from '@/app/actions/client-list';
-import { loadPackTemplates, loadSalonPacks, loadServiceCounts, loadServices } from '@/lib/agenda-catalog';
+import { loadClientPickerById } from '@/app/actions/client-list';
 import { createClient } from '@/lib/supabase/client';
+import { readSheetCatalog, subscribeSheetCatalog, warmSheetCatalog } from '@/hooks/sheet-catalog';
 import { useShallowParam } from '@/hooks/useShallowQuery';
 import type { ClientOption, ClientPack, PackTemplate, Provider, ServiceOption } from '@/lib/types';
 
@@ -31,35 +31,49 @@ export default function NewAppointmentSheetHost({
   const servicio = useShallowParam('servicio', initialServicio ?? null);
   const con = useShallowParam('con', initialCon ?? null);
 
-  const [services, setServices] = useState<ServiceOption[]>([]);
-  const [clients, setClients] = useState<ClientOption[]>([]);
-  const [packs, setPacks] = useState<ClientPack[]>([]);
-  const [templates, setTemplates] = useState<PackTemplate[]>([]);
-  const [serviceCounts, setServiceCounts] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(true);
+  const snap = readSheetCatalog();
+  const [services, setServices] = useState<ServiceOption[]>(snap?.services ?? []);
+  const [clients, setClients] = useState<ClientOption[]>(snap?.clients ?? []);
+  const [packs, setPacks] = useState<ClientPack[]>(snap?.packs ?? []);
+  const [templates, setTemplates] = useState<PackTemplate[]>(snap?.templates ?? []);
+  const [serviceCounts, setServiceCounts] = useState<Record<string, number>>(snap?.counts ?? {});
+  const [loading, setLoading] = useState(!snap?.services.length);
+
+  const apply = (cat: NonNullable<ReturnType<typeof readSheetCatalog>>) => {
+    setServices(cat.services);
+    setPacks(cat.packs);
+    setTemplates(cat.templates);
+    setServiceCounts(cat.counts);
+    setClients(prev => {
+      const extra = prev.filter(c => !cat.clients.some(n => n.id === c.id));
+      return [...extra, ...cat.clients];
+    });
+    if (cat.services.length) setLoading(false);
+  };
+
+  useEffect(() => subscribeSheetCatalog(apply), []);
 
   useEffect(() => {
     if (open !== '1') return;
     let alive = true;
-    setLoading(true);
-    setClients([]);
+    const known = readSheetCatalog();
+    if (known?.services.length) {
+      apply(known);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     const sb = createClient();
     void Promise.all([
-      loadServices(sb),
-      loadSalonPacks(sb),
-      loadPackTemplates(sb),
-      loadServiceCounts(sb),
-      loadClientPickerInitial(),
+      warmSheetCatalog(sb, { full: true }),
       clientId ? loadClientPickerById(clientId) : Promise.resolve(null),
-    ]).then(([s, p, t, counts, initial, picked]) => {
+    ]).then(([, picked]) => {
       if (!alive) return;
-      setServices(s);
-      setPacks(p);
-      setTemplates(t);
-      setServiceCounts(counts);
-      const pool = [...initial];
-      if (picked && !pool.some(c => c.id === picked.id)) pool.unshift(picked);
-      setClients(pool);
+      const latest = readSheetCatalog();
+      if (latest) apply(latest);
+      if (picked) {
+        setClients(prev => (prev.some(c => c.id === picked.id) ? prev : [picked, ...prev]));
+      }
       setLoading(false);
     });
     return () => { alive = false; };

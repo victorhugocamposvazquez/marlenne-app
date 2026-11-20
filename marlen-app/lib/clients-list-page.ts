@@ -53,9 +53,24 @@ async function enrichClientRows(rows: RawClientRow[]): Promise<ClientListRow[]> 
   }
 
   const idSet = new Set(ids);
-  const packsRes = await sb
-    .from('client_packs')
-    .select('name, sessions_done, sessions_total, expires_at, owner_client_id, friend_client_id');
+  const packRows: {
+    name: string;
+    sessions_done: number;
+    sessions_total: number;
+    expires_at: string | null;
+    owner_client_id: string | null;
+    friend_client_id: string | null;
+  }[] = [];
+  for (const chunk of chunkIds(ids, 80)) {
+    const list = chunk.join(',');
+    const { data, error } = await sb
+      .from('client_packs')
+      .select('name, sessions_done, sessions_total, expires_at, owner_client_id, friend_client_id')
+      .or(`owner_client_id.in.(${list}),friend_client_id.in.(${list})`);
+    if (error) break;
+    packRows.push(...(data ?? []));
+  }
+  const packsRes = { error: null, data: packRows };
 
   for (const a of upcoming) {
     if (a.client_id && !nextBy.has(a.client_id)) nextBy.set(a.client_id, a.starts_at);

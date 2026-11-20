@@ -1,4 +1,5 @@
 import AppShell from '@/components/shell/AppShell';
+import { WaTemplateProvider } from '@/components/WaTemplateProvider';
 import StaffReminderEngine from '@/components/StaffReminderEngine';
 import ToastProvider from '@/components/Toast';
 import StaffPrefsSync from '@/components/StaffPrefsSync';
@@ -27,20 +28,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <ToastProvider>
-      <StaffPrefsSync staffId={me.id} voice={staffVoice} />
-      <StaffReminderEngine />
-      <AppShell
-        session={{
-          role: me.role,
-          fullName: me.full_name,
-          email: me.email,
-          salonName: me.salon_name,
-        }}
-        staff={staff.map(s => ({ id: s.id, full_name: s.full_name }))}
-        serverOps={serverOps}
-      >
-        {children}
-      </AppShell>
+      <WaTemplateProvider template={me.wa_confirm_template}>
+        <StaffPrefsSync staffId={me.id} voice={staffVoice} />
+        <StaffReminderEngine />
+        <AppShell
+          session={{
+            role: me.role,
+            fullName: me.full_name,
+            email: me.email,
+            salonName: me.salon_name,
+          }}
+          staff={staff.map(s => ({ id: s.id, full_name: s.full_name }))}
+          serverOps={serverOps}
+        >
+          {children}
+        </AppShell>
+      </WaTemplateProvider>
     </ToastProvider>
   );
 }

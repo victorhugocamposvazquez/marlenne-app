@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { CalendarPlus, Users } from 'lucide-react';
@@ -8,7 +8,7 @@ import { Field, inputCls } from '@/components/Sheet';
 import Button from '@/components/ui/Button';
 import Chip from '@/components/ui/Chip';
 import EmptyState from '@/components/ui/EmptyState';
-import { loadClientOptions } from '@/lib/agenda-catalog';
+import { loadClientPickerSearch } from '@/app/actions/client-list';
 import PackPaymentBlock from '@/components/clienta/PackPaymentBlock';
 import { draftFromTemplate, packExpired, packIsOpen } from '@/lib/packs';
 import { addPackSessions, sellPack, setPackFriend } from '@/lib/pack-write';
@@ -23,7 +23,6 @@ import {
 } from '@/lib/payment';
 import { createClient } from '@/lib/supabase/client';
 import { dateLbl } from '@/lib/time';
-import { fold } from '@/lib/voice';
 import type { ClientOption, ClientPack, PackTemplate, ServiceOption } from '@/lib/types';
 
 
@@ -211,23 +210,31 @@ function FriendPicker({
 }: {
   ownerId: string;
   currentId: string | null;
-  onPick: (id: string | null) => Promise<void>;
+  onPick: (id: string | null, name?: string) => Promise<void>;
 }) {
   const [q, setQ] = useState('');
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
-    void loadClientOptions(createClient()).then(setClients);
-  }, []);
+    const text = q.trim();
+    if (text.length < 2) {
+      setClients([]);
+      return;
+    }
+    let alive = true;
+    const t = window.setTimeout(() => {
+      void loadClientPickerSearch(text).then(rows => {
+        if (alive) setClients(rows.filter(c => c.id !== ownerId).slice(0, 6));
+      });
+    }, 180);
+    return () => {
+      alive = false;
+      window.clearTimeout(t);
+    };
+  }, [q, ownerId]);
 
-  const matches = useMemo(() => {
-    const n = fold(q);
-    if (n.length < 2) return [];
-    return clients
-      .filter(c => c.id !== ownerId && fold(c.full_name).includes(n))
-      .slice(0, 6);
-  }, [clients, q, ownerId]);
+  const matches = clients;
 
   return (
     <div className="mt-2 rounded-field border border-surface-line bg-surface-bg/40 p-2.5">
@@ -243,7 +250,7 @@ function FriendPicker({
           key={c.id}
           type="button"
           disabled={pending}
-          onClick={() => startTransition(() => onPick(c.id))}
+          onClick={() => startTransition(() => onPick(c.id, c.full_name))}
           className="mt-1 flex w-full rounded-chip px-2 py-2 text-left text-body font-bold hover:bg-v-tint"
         >
           {c.full_name}
@@ -402,12 +409,10 @@ function SellForm({
           <FriendPicker
             ownerId={clientId}
             currentId={null}
-            onPick={async id => {
+            onPick={async (id, name) => {
               if (!id) return;
-              const list = await loadClientOptions(createClient());
-              const hit = list.find(c => c.id === id);
               setFriendId(id);
-              setFriendName(hit?.full_name ?? '');
+              setFriendName(name ?? '');
               setFriendOpen(false);
             }}
           />

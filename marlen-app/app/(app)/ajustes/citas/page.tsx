@@ -1,5 +1,6 @@
 import AjustesHeader from '@/components/ajustes/AjustesHeader';
 import CitasFeaturesCard from '@/components/ajustes/CitasFeaturesCard';
+import WaConfirmTemplateCard from '@/components/ajustes/WaConfirmTemplateCard';
 import { requireRole } from '@/lib/require-session';
 import { getSalonAgendaFeatures } from '@/lib/queries';
 
@@ -13,6 +14,7 @@ export default async function AjustesCitasPage() {
         Opciones de la agenda y de Hoy para este centro. Solo las cambia una administradora.
       </p>
       <CitasFeaturesCard initial={features} />
+      <WaConfirmTemplateCard initial={me.wa_confirm_template} />
     </AjustesHeader>
   );
 }

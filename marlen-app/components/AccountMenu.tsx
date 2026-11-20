@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect } from 'react';
 import { CalendarPlus, LogOut, User } from 'lucide-react';
-import { signOut } from '@/app/actions/auth';
+import SignOutForm from '@/components/auth/SignOutForm';
 import { initials } from '@/lib/categories';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 
@@ -105,7 +105,7 @@ export default function AccountMenu({
                 <User size={18} strokeWidth={2} className="shrink-0 text-ink" />
                 Tu cuenta
               </Link>
-              <form action={signOut}>
+              <SignOutForm>
                 <button
                   type="submit"
                   role="menuitem"
@@ -114,7 +114,7 @@ export default function AccountMenu({
                   <LogOut size={18} strokeWidth={2} className="shrink-0 text-ink" />
                   Cerrar sesión
                 </button>
-              </form>
+              </SignOutForm>
             </div>
           </>
         )}

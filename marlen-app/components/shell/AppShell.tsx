@@ -3,6 +3,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import PhoneShell, { type OpsBanner, type ShellSession } from '@/components/shell/PhoneShell';
 import WideShell from '@/components/shell/WideShell';
+import { isSlowNetwork } from '@/hooks/net-client';
+import { warmSheetCatalog } from '@/hooks/sheet-catalog';
+import { createClient } from '@/lib/supabase/client';
 
 const WIDE_MQ = '(min-width: 1024px)';
 
@@ -24,6 +27,18 @@ export default function AppShell({
   children: ReactNode;
 }) {
   const [wide, setWide] = useState(false);
+
+  useEffect(() => {
+    if (isSlowNetwork()) return;
+    const run = () => { void warmSheetCatalog(createClient()); };
+    const ric = window.requestIdleCallback;
+    if (typeof ric === 'function') {
+      const id = ric(run, { timeout: 2000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const t = window.setTimeout(run, 700);
+    return () => window.clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     const apply = () => setWide(readWide());

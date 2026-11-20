@@ -8,6 +8,7 @@ import { catStyle } from '@/lib/categories';
 import { durLbl, fmt, minutesOfDay } from '@/lib/time';
 import { updateStatus } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
+import { useWaConfirmTemplate } from '@/components/WaTemplateProvider';
 import { waConfirmMsg, waHref } from '@/lib/phone';
 import WhatsAppLink from '@/components/ui/WhatsAppLink';
 import ApptActionsMenu from '@/components/hoy/ApptActionsMenu';
@@ -21,6 +22,7 @@ export default function HoyApptRow({
   cabin?: boolean;
 }) {
   const cat = catStyle(appt.category);
+  const waTemplate = useWaConfirmTemplate();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const wa = waHref(
@@ -29,7 +31,7 @@ export default function HoyApptRow({
       clientLabel: appt.client_label,
       service: appt.service_name,
       startsAt: appt.starts_at,
-    }),
+    }, waTemplate),
   );
 
   const set = (status: string) => {
