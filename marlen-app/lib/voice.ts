@@ -42,7 +42,7 @@ const HOUR_WORDS: Record<string, number> = {
 };
 
 const HOUR_TOKEN = `\\d{1,2}|${Object.keys(HOUR_WORDS).join('|')}`;
-const DAY_RE = /(?:el |este |proximo |al |para (?:el )?|para )?((?:pasado )?manana|hoy|lunes|martes|miercoles|jueves|viernes|sabado|domingo)(?: que viene)?/;
+const DAY_RE = /(?:el |este |proximo |al |para (?:el )?|para )?((?:pasado )?manana|hoy|lunes|martes|miercoles|jueves|viernes|sabado|domingo)(?: que viene| siguiente)?/;
 const WEEK_NEXT_RE = /\b(?:de la |la |para la |en la )?(?:semana que viene|proxima semana|semana proxima|semana siguiente|otra semana)\b/;
 const TIME_RE = new RegExp(
   `(?:a las |a la |las )(${HOUR_TOKEN})(?:[:.h](\\d{2})| y media| media| y cuarto| menos cuarto| y (\\d{2}))?`,
@@ -818,7 +818,7 @@ function parseOpenNew(t: string): VoiceCmd | null {
     .trim();
   if (
     /^(crea(?:r|mos)?|hace(?:r|mos)?|abre|abrir|pon(?:me)?|apunta(?:mos)?|anota(?:mos)?|agenda(?:r|mos)?)( me)?( una)?( nueva)? cita$/.test(s)
-    || /^(nueva cita|una cita|apuntar|anotar|agendar|reservar|quiero cita|dame cita|pon cita)$/.test(s)
+    || /^(nueva cita|cita nueva|una cita|apuntar|anotar|agendar|reservar|quiero cita|dame cita|pon cita)$/.test(s)
   ) {
     return { kind: 'go', href: '/agenda?new=1', say: 'Nueva cita' };
   }

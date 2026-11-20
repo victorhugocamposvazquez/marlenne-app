@@ -1211,16 +1211,6 @@ export default function MarlenChat({ open, onClose, api, screen, voice, onGhost,
                 <button aria-label={`Soltar a ${fixed.name}`} onClick={() => setFixed(null)} style={{ width: 28, height: 28, border: "none", background: "transparent", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="x" size={12} color={T.mute} width={2.4} /></button>
               </span>
             )}
-            {(items.length > 0 || thinking || hearing) && (
-              <button
-                type="button"
-                aria-label="Empezar de nuevo"
-                onClick={restart}
-                style={{ minHeight: 36, borderRadius: 99, border: `1px solid ${T.line}`, background: T.surface2, padding: "0 12px", fontSize: 13, fontWeight: 600, color: T.ink }}
-              >
-                De nuevo
-              </button>
-            )}
             <button aria-label="Cerrar el chat" onClick={onClose} style={round44}><Icon name="x" size={18} width={2.2} /></button>
           </div>
         </header>
@@ -1287,7 +1277,17 @@ export default function MarlenChat({ open, onClose, api, screen, voice, onGhost,
           </div>
         </div>
 
-        <footer style={{ flex: "0 0 auto", padding: "14px 16px calc(16px + env(safe-area-inset-bottom))", display: "flex", alignItems: "center", gap: 10 }}>
+        <footer style={{ flex: "0 0 auto", padding: "8px 16px calc(16px + env(safe-area-inset-bottom))", display: "flex", flexDirection: "column", gap: 8 }}>
+          {items.length > 0 && !hearing && (
+            <button
+              type="button"
+              onClick={restart}
+              style={{ alignSelf: "flex-start", minHeight: 44, border: "none", background: "transparent", padding: "0 4px", fontSize: 15, fontWeight: 600, color: T.ink, textDecoration: "underline" }}
+            >
+              Empezar de nuevo
+            </button>
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {hearing ? (
             <>
               <button aria-label="Cancelar" onClick={toggleMic} style={{ ...round44, width: 52, height: 52 }}><Icon name="x" size={18} width={2.2} /></button>
@@ -1306,6 +1306,7 @@ export default function MarlenChat({ open, onClose, api, screen, voice, onGhost,
               )}
             </form>
           )}
+          </div>
         </footer>
       </section>
     </>

@@ -57,6 +57,14 @@ test('la semana que viene', () => {
     assert.equal(cmd.who, 'lucia');
   }
   assert.equal(saidDayOffset('el jueves que viene'), weekdayOffset('jueves'));
+  assert.equal(saidDayOffset('el lunes siguiente'), weekdayOffset('lunes'));
+  const hugo = parseVoice('cita para hugo campos el lunes siguiente a las 10:00');
+  assert.equal(hugo.kind, 'book');
+  if (hugo.kind === 'book') {
+    assert.equal(hugo.who, 'hugo campos');
+    assert.equal(hugo.dayOffset, weekdayOffset('lunes'));
+    assert.equal(hugo.startMin, 10 * 60);
+  }
 });
 
 test('sí, vale y pues sí confirman', () => {

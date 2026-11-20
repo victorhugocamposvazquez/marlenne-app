@@ -29,8 +29,8 @@ import type {
   StartRow,
   TurnResult,
 } from '@/components/chat/MarlenChat';
-import { parseVoice } from '@/lib/voice';
-import type { BookDraft, Choice, MoveDraft, VoiceTalkResult } from '@/lib/voice-types';
+import { fold, parseClock, parseVoice, takeTime } from '@/lib/voice';
+import type { BookDraft, Choice, MoveDraft, PendingBook, VoiceTalkResult } from '@/lib/voice-types';
 
 type Pending =
   | { kind: 'book'; draft: BookDraft }
@@ -39,6 +39,10 @@ type Pending =
   | { kind: 'status'; id: string; status: 'curso' | 'noshow' };
 
 const pending = new Map<string, Pending>();
+/** Cita a medias: la siguiente frase rellena el dato que falta, no empieza de cero. */
+let bookHold: PendingBook | null = null;
+/** La frase anterior pidió un nombre y aún no hay borrador. */
+let askNext: 'book' | 'find' | null = null;
 let previewSeq = 0;
 const nextPreviewId = () => `p${++previewSeq}-${Date.now()}`;
 
@@ -131,6 +135,7 @@ function fromTalk(
   hint?: { status?: 'curso' | 'noshow' },
   onNavigate?: (href: string) => void,
 ): TurnResult {
+  bookHold = r.pending ?? null;
   if (!r.ok && !r.say && !(r.matches && r.matches.length)) {
     return {
       blocks: [{
@@ -215,13 +220,124 @@ function fromTalk(
   return { blocks: blocks.length ? blocks : [text('Listo.')] };
 }
 
+function resetThread() {
+  pending.clear();
+  bookHold = null;
+  askNext = null;
+}
+
 /** Abrir ruta sin salir del chat. Alta/cita nueva se hace aquí dentro. */
 function handleGo(href: string, say?: string, onNavigate?: (href: string) => void): TurnResult {
-  if (/[?&]new=1\b/.test(href) || /[?&]alta=1\b/.test(href)) {
-    return { blocks: [text('¿Para quién? Dime el nombre.')] };
+  if (/[?&]new=1\b/.test(href)) {
+    bookHold = null;
+    askNext = 'book';
+    return { blocks: [text('¿Para quién es la cita?')] };
+  }
+  if (/[?&]alta=1\b/.test(href)) {
+    bookHold = null;
+    askNext = 'find';
+    return { blocks: [text('¿A quién busco?')] };
   }
   onNavigate?.(href);
   return { blocks: [text(say || 'Lo tienes debajo. Baja el panel si quieres verlo.')] };
+}
+
+function isYes(phrase: string) {
+  return /^(si|sí|vale|hazlo|dale|ok|okay|adelante|guardalo|guárdalo|apuntala|de acuerdo)$/i.test(phrase.trim());
+}
+
+function isNo(phrase: string) {
+  return /^(no|para|nada|olvidalo|olvídalo|déjalo|dejalo)$/i.test(phrase.trim());
+}
+
+async function resumeBook(held: PendingBook, phrase: string): Promise<VoiceTalkResult> {
+  let who = held.who;
+  let serviceQ = held.serviceQ;
+  let providerQ = held.providerQ;
+  let startMin = held.startMin;
+  let phone = held.phone ?? null;
+  let newClient = held.newClient ?? false;
+  const said = phrase.trim();
+  const folded = fold(said);
+  if (held.need === 'client') who = said;
+  else if (held.need === 'service') serviceQ = said;
+  else if (held.need === 'provider') providerQ = said;
+  else if (held.need === 'phone') phone = /sin telefono/.test(folded) ? '' : said;
+  else if (held.need === 'time') {
+    const clock = takeTime(said).startMin ?? parseClock(said);
+    if (clock != null) startMin = clock;
+    else if (held.slotMins?.length) {
+      const labels = held.choices ?? [];
+      const i = labels.findIndex(c => fold(c) === folded);
+      if (i >= 0 && held.slotMins[i] != null) startMin = held.slotMins[i];
+    }
+  }
+  if (/^ninguna/.test(folded) || /es nueva/.test(folded)) newClient = true;
+  return voicePreviewBook(who, startMin, serviceQ, held.dayOffset, providerQ, {
+    choices: held.choices ?? null,
+    prevNeed: held.need,
+    asks: held.asks,
+    newClient,
+    part: held.part ?? null,
+    phone,
+  });
+}
+
+async function settle(previewId: string): Promise<TurnResult> {
+  const p = pending.get(previewId);
+  if (!p) {
+    return {
+      blocks: [{
+        kind: 'error',
+        code: 'expired',
+        text: '¿El sí de qué?',
+        actions: [],
+      }],
+    };
+  }
+  pending.delete(previewId);
+  bookHold = null;
+  askNext = null;
+
+  if (p.kind === 'book') {
+    const r = await voiceConfirmBook(p.draft);
+    return {
+      blocks: [{
+        kind: 'saved',
+        title: r.ok ? 'Apuntada' : 'No se ha guardado',
+        summary: r.say,
+        next: r.ok && r.href
+          ? [{ id: 'open', label: 'Ver', send: { intent: 'go', args: { href: r.href } } }]
+          : [],
+      }],
+    };
+  }
+
+  if (p.kind === 'status') {
+    const r = await voiceApplyStatus(p.id, p.status);
+    return {
+      blocks: [{
+        kind: 'instant',
+        text: r.say,
+        undoId: `status-${p.id}`,
+        next: r.href
+          ? [{ id: 'hoy', label: 'Ver hoy', send: { intent: 'go', args: { href: r.href } } }]
+          : [],
+      }],
+    };
+  }
+
+  if (p.kind === 'cancel') {
+    const r = await voiceApplyCancel(p.id);
+    return { blocks: [{ kind: 'instant', text: r.say, undoId: `cancel-${p.id}` }] };
+  }
+
+  if (p.kind === 'move') {
+    const r = await voiceApplyMove(p.draft);
+    return { blocks: [{ kind: 'instant', text: r.say, undoId: `move-${p.draft.id}` }] };
+  }
+
+  return { blocks: [text('Listo.')] };
 }
 
 async function runAgendaPhrase(
@@ -231,15 +347,23 @@ async function runAgendaPhrase(
   const trimmed = phrase.trim();
   if (!trimmed) return { blocks: [text('Dime qué necesitas.')] };
 
-  if (/^(para|nada|olvidalo|olvídalo|déjalo|dejalo)$/i.test(trimmed)) {
-    pending.clear();
+  if (isNo(trimmed)) {
+    resetThread();
     return { blocks: [text('Vale, lo dejo.')] };
   }
 
-  const llm = await voiceTalk(trimmed);
-  if (llm.ok && !llm.fallback) return fromTalk(llm, undefined, onNavigate);
+  if (isYes(trimmed)) {
+    if (pending.size === 1) return settle([...pending.keys()][0]);
+    return { blocks: [text('¿El sí de qué?')] };
+  }
 
+  // Lo que el parser ya entiende no pasa por la nube (si no, «cita nueva» parece un nombre).
   const cmd = parseVoice(trimmed);
+  if (cmd.kind !== 'unknown' && cmd.kind !== 'chat') {
+    askNext = null;
+    bookHold = null;
+  }
+
   switch (cmd.kind) {
     case 'today':
       return fromTalk(await voiceToday(), undefined, onNavigate);
@@ -272,12 +396,26 @@ async function runAgendaPhrase(
     case 'chat':
       return { blocks: [text(cmd.say)] };
     case 'dismiss':
-      pending.clear();
+      resetThread();
       return { blocks: [text('Vale, lo dejo.')] };
     case 'same':
       return fromTalk(await voiceFind(cmd.who ?? ''), undefined, onNavigate);
-    default:
-      if (llm.say) return fromTalk(llm, undefined, onNavigate);
+    default: {
+      if (askNext === 'book') {
+        askNext = null;
+        return fromTalk(await voicePreviewBook(trimmed, null, null, 0, null), undefined, onNavigate);
+      }
+      if (askNext === 'find') {
+        askNext = null;
+        return fromTalk(await voiceFind(trimmed), undefined, onNavigate);
+      }
+      if (bookHold) {
+        return fromTalk(await resumeBook(bookHold, trimmed), undefined, onNavigate);
+      }
+      const llm = await voiceTalk(trimmed);
+      if (llm.ok && !llm.fallback && (llm.say || llm.pending || llm.ready || llm.matches?.length)) {
+        return fromTalk(llm, undefined, onNavigate);
+      }
       return {
         blocks: [{
           kind: 'error',
@@ -290,6 +428,7 @@ async function runAgendaPhrase(
           ],
         }],
       };
+    }
   }
 }
 
@@ -309,7 +448,7 @@ function startRows(ctx: ScreenContext, role: string): StartRow[] {
 export function createMarlenChatApi(role: string, onNavigate?: (href: string) => void): ChatApi {
   return {
     async start(ctx) {
-      pending.clear();
+      resetThread();
       return {
         rows: startRows(ctx, role),
         examples: [
@@ -328,7 +467,9 @@ export function createMarlenChatApi(role: string, onNavigate?: (href: string) =>
         if (input.intent === 'hoy') return fromTalk(await voiceToday(), undefined, onNavigate);
         if (input.intent === 'next') return fromTalk(await voiceNext(), undefined, onNavigate);
         if (input.intent === 'clienta_buscar') {
-          return { blocks: [text('¿A quién buscas? Dime el nombre.')] };
+          bookHold = null;
+          askNext = 'find';
+          return { blocks: [text('¿A quién buscas?')] };
         }
         if (input.intent === 'tareas') {
           // Por ahora la lista vive en la pantalla; el chat se queda encima.
@@ -349,58 +490,7 @@ export function createMarlenChatApi(role: string, onNavigate?: (href: string) =>
     },
 
     async confirm(previewId: string): Promise<TurnResult> {
-      const p = pending.get(previewId);
-      if (!p) {
-        return {
-          blocks: [{
-            kind: 'error',
-            code: 'expired',
-            text: '¿El sí de qué?',
-            actions: [],
-          }],
-        };
-      }
-      pending.delete(previewId);
-
-      if (p.kind === 'book') {
-        const r = await voiceConfirmBook(p.draft);
-        return {
-          blocks: [{
-            kind: 'saved',
-            title: r.ok ? 'Apuntada' : 'No se ha guardado',
-            summary: r.say,
-            next: r.ok && r.href
-              ? [{ id: 'open', label: 'Ver', send: { intent: 'go', args: { href: r.href } } }]
-              : [],
-          }],
-        };
-      }
-
-      if (p.kind === 'status') {
-        const r = await voiceApplyStatus(p.id, p.status);
-        return {
-          blocks: [{
-            kind: 'instant',
-            text: r.say,
-            undoId: `status-${p.id}`,
-            next: r.href
-              ? [{ id: 'hoy', label: 'Ver hoy', send: { intent: 'go', args: { href: r.href } } }]
-              : [],
-          }],
-        };
-      }
-
-      if (p.kind === 'cancel') {
-        const r = await voiceApplyCancel(p.id);
-        return { blocks: [{ kind: 'instant', text: r.say, undoId: `cancel-${p.id}` }] };
-      }
-
-      if (p.kind === 'move') {
-        const r = await voiceApplyMove(p.draft);
-        return { blocks: [{ kind: 'instant', text: r.say, undoId: `move-${p.draft.id}` }] };
-      }
-
-      return { blocks: [text('Listo.')] };
+      return settle(previewId);
     },
 
     async cancel(previewId: string) {
