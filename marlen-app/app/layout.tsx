@@ -105,7 +105,9 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
-  interactiveWidget: 'overlays-content',
+  // El teclado encoge la página y la lista queda encima. En Safari de iPhone
+  // esto llega con 27.3; hasta entonces el sistema sigue tapando.
+  interactiveWidget: 'resizes-content',
   themeColor: [
     // PWA instalada: title bar un pelín gris para no fundirse con el header blanco.
     { media: '(display-mode: standalone)', color: '#F7F7FA' },
