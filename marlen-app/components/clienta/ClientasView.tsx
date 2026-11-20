@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { Check, ChevronDown, Loader2, Plus, Search } from 'lucide-react';
+import { Check, ChevronDown, Loader2, Plus, Search, X } from 'lucide-react';
 import { loadClientsPage, countClientSearch } from '@/app/actions/client-list';
 import NewClientSheet from '@/components/clienta/NewClientSheet';
 import LineSearch from '@/components/LineSearch';
@@ -92,6 +92,9 @@ export default function ClientasView({
   const [loadingMore, startLoadMore] = useTransition();
   const sortRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLTextAreaElement>(null);
+  const blurSearch = useRef(0);
+  const [searching, setSearching] = useState(false);
   const searchGen = useRef(0);
   const prevSearch = useRef('');
 
@@ -99,6 +102,8 @@ export default function ClientasView({
     const t = window.setTimeout(() => setDebouncedQ(q.trim()), 280);
     return () => window.clearTimeout(t);
   }, [q]);
+
+  useEffect(() => () => window.clearTimeout(blurSearch.current), []);
 
   const resetAndFetch = useCallback((query: string) => {
     const gen = ++searchGen.current;
@@ -229,15 +234,40 @@ export default function ClientasView({
     ? 'Filtro sobre las fichas ya cargadas. Baja para traer más.'
     : null;
 
+  const closeSearch = () => {
+    window.clearTimeout(blurSearch.current);
+    setSearching(false);
+    setQ('');
+    setDebouncedQ('');
+    searchRef.current?.blur();
+  };
+
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
       <header className={screenHeaderCls}>
-        <div className="hide-when-keyboard">
-          <PageHeading title="Clientas" subtitle={titleCount}>
-            <HeaderIconButton label="Nueva Client@" onClick={() => shallowSet({ alta: '1' })}>
+        <div className="flex w-full items-start justify-between gap-3">
+          <div className={searching ? 'min-w-0 flex-1' : 'hide-when-keyboard min-w-0 flex-1'}>
+            <PageHeading title="Clientas" subtitle={titleCount} />
+          </div>
+          {searching ? (
+            <HeaderIconButton
+              label="Cerrar búsqueda"
+              className="ml-auto"
+              onPointerDown={e => e.preventDefault()}
+              onMouseDown={e => e.preventDefault()}
+              onClick={closeSearch}
+            >
+              <X size={22} strokeWidth={2.2} />
+            </HeaderIconButton>
+          ) : (
+            <HeaderIconButton
+              label="Nueva Client@"
+              className="hide-when-keyboard ml-auto"
+              onClick={() => shallowSet({ alta: '1' })}
+            >
               <Plus size={22} strokeWidth={2.2} />
             </HeaderIconButton>
-          </PageHeading>
+          )}
         </div>
         <div ref={sortRef} className="hide-when-keyboard relative mt-1.5">
           <div className="flex items-center gap-1.5">
@@ -282,15 +312,23 @@ export default function ClientasView({
             </ul>
           )}
         </div>
-        <form autoComplete="off" onSubmit={e => e.preventDefault()} className="mt-2">
+        <form role="search" autoComplete="off" onSubmit={e => e.preventDefault()} className="mt-2">
           <div className="flex h-[54px] items-center gap-2.5 rounded-field bg-surface-soft px-4">
             <Search size={18} className="text-ink-3" strokeWidth={2.2} />
             <LineSearch
+              ref={searchRef}
               value={q}
               onChange={setQ}
               placeholder="Buscar"
               ariaLabel="Buscar clientas"
               className="h-6 flex-1 border-0 bg-transparent py-0 text-[16px] leading-6 outline-none placeholder:text-ink-3"
+              onFocus={() => {
+                window.clearTimeout(blurSearch.current);
+                setSearching(true);
+              }}
+              onBlur={() => {
+                blurSearch.current = window.setTimeout(() => setSearching(false), 300);
+              }}
             />
           </div>
         </form>
