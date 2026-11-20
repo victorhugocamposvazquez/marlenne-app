@@ -349,15 +349,14 @@ export default function ClientasView({
             )}
           </div>
           {searching && (
-            <button
-              type="button"
+            <HeaderIconButton
+              label="Cerrar búsqueda"
               onPointerDown={e => e.preventDefault()}
               onMouseDown={e => e.preventDefault()}
               onClick={closeSearch}
-              className="shrink-0 py-2 text-body font-semibold text-v-d"
             >
-              Cancelar
-            </button>
+              <X size={22} strokeWidth={2.2} />
+            </HeaderIconButton>
           )}
         </div>
         <div className="hide-when-keyboard mt-2 flex gap-1.5 overflow-x-auto">
