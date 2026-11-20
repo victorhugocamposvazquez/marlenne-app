@@ -29,8 +29,9 @@ const SheetGrabContext = createContext<GrabCtx | null>(null);
 const SheetCloseContext = createContext<RequestClose>(() => {});
 
 const OVERLAY_STYLE = {
-  top: 'calc(-1 * env(safe-area-inset-top, 0px))',
-  minHeight: 'calc(100dvh + env(safe-area-inset-top, 0px))',
+  top: 'calc(-1 * env(safe-area-inset-top, 0px) + var(--keyboard-top, 0px))',
+  bottom: 'var(--keyboard-inset, 0px)',
+  minHeight: 'calc(100dvh - var(--keyboard-inset, 0px) - var(--keyboard-top, 0px) + env(safe-area-inset-top, 0px))',
 } as const;
 
 const noop = () => {};
@@ -219,7 +220,7 @@ export default function SheetShell({
               className={`relative z-10 flex w-full max-w-[440px] flex-col overflow-hidden rounded-t-sheet bg-white shadow-[0_-20px_60px_rgba(15,14,26,.18)] ${closing ? 'animate-sheetExit' : ''} ${className}`}
               style={{
                 height,
-                maxHeight: '92dvh',
+                maxHeight: 'min(92dvh, 100%)',
                 transform: closing ? undefined : entered ? 'translateY(0)' : 'translateY(100%)',
                 transition: dragging || closing
                   ? 'none'

@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { isSlowNetwork } from '@/hooks/net-client';
 
-const SCREENS = ['/hoy', '/agenda', '/clientas', '/ajustes/servicios', '/tareas', '/finanzas', '/ajustes'];
+const SCREENS = ['/hoy', '/agenda', '/ajustes/servicios', '/tareas', '/finanzas', '/ajustes'];
 
 /** Pide las pantallas del menú, una a una, para que queden guardadas sin recorrerlas. */
 export default function WarmScreens({ role }: { role: string }) {
@@ -13,7 +13,6 @@ export default function WarmScreens({ role }: { role: string }) {
   useEffect(() => {
     if (!navigator.onLine || isSlowNetwork()) return;
     const screens = SCREENS.filter(href => {
-      if (role === 'provider' && href === '/clientas') return false;
       if (role !== 'admin' && href === '/ajustes/servicios') return false;
       return true;
     });

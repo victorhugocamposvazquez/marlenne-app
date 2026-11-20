@@ -34,7 +34,7 @@ export default function BottomNav({
     return (
       <Link
         href={href}
-        prefetch={prefetchOk ? undefined : false}
+        prefetch={href === '/clientas' ? false : prefetchOk ? undefined : false}
         className="flex min-h-[44px] flex-col items-center justify-center gap-px no-underline"
         style={{ color: active ? 'rgb(var(--c-ink))' : 'rgb(var(--c-ink-3))' }}
       >

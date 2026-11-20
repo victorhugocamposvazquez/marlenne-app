@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Instrument_Serif, Sora } from 'next/font/google';
 import './globals.css';
 import RegisterSW from '@/components/RegisterSW';
+import KeyboardFrame from '@/components/KeyboardFrame';
 import SplashScreen from '@/components/SplashScreen';
 import UpdatePrompt from '@/components/UpdatePrompt';
 import { BRAND_NAME, BRAND_UI, SPLASH_SEEN_KEY } from '@/lib/brand';
@@ -105,8 +106,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
-  // El teclado encoge la página y la lista queda encima. En Safari de iPhone
-  // esto llega con 27.3; hasta entonces el sistema sigue tapando.
+  // Android encoge la página. En Safari de iPhone no, y lo compensa KeyboardFrame.
   interactiveWidget: 'resizes-content',
   themeColor: [
     // PWA instalada: title bar un pelín gris para no fundirse con el header blanco.
@@ -127,6 +127,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <script dangerouslySetInnerHTML={{ __html: SPLASH_BOOT_SCRIPT }} />
         <RegisterSW />
+        <KeyboardFrame />
         <UpdatePrompt />
         <SplashScreen />
         {children}

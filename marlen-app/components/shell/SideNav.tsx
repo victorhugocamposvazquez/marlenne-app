@@ -73,7 +73,7 @@ export default function SideNav({
     return (
       <Link
         href={href}
-        prefetch={prefetchOk ? undefined : false}
+        prefetch={href === '/clientas' ? false : prefetchOk ? undefined : false}
         aria-label={label}
         title={expanded ? undefined : label}
         aria-current={active ? 'page' : undefined}

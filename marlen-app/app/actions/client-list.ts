@@ -1,7 +1,8 @@
 'use server';
 
+import { CLIENT_LIST_PAGE } from '@/lib/client-list-size';
 import {
-  CLIENT_LIST_PAGE,
+  countClientsSearch,
   findSimilarClients,
   getClientPickerOption,
   listClientPickerInitial,
@@ -15,13 +16,20 @@ export async function loadClientsPage(
   offset: number,
   limit = CLIENT_LIST_PAGE,
   query?: string,
-): Promise<{ rows: ClientListRow[]; total: number; nextOffset: number }> {
+): Promise<{ rows: ClientListRow[]; total: number; exact: boolean; nextOffset: number }> {
   const q = query?.trim() ?? '';
-  const page = q.length >= 2
-    ? await searchClientsPage(q, offset, limit)
-    : await listClientsPage(offset, limit);
+  if (q.length >= 2) {
+    const page = await searchClientsPage(q, offset, limit);
+    const nextOffset = offset + page.rows.length;
+    return { rows: page.rows, total: nextOffset, exact: false, nextOffset };
+  }
+  const page = await listClientsPage(offset, limit);
   const nextOffset = offset + page.rows.length;
-  return { ...page, nextOffset };
+  return { rows: page.rows, total: page.total, exact: true, nextOffset };
+}
+
+export async function countClientSearch(query: string): Promise<number | null> {
+  return countClientsSearch(query);
 }
 
 export async function loadSimilarClients(name: string, phone: string): Promise<ClientOption[]> {

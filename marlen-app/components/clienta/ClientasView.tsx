@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Check, ChevronDown, Loader2, Plus, Search } from 'lucide-react';
-import { loadClientsPage } from '@/app/actions/client-list';
+import { loadClientsPage, countClientSearch } from '@/app/actions/client-list';
 import NewClientSheet from '@/components/clienta/NewClientSheet';
 import Chip from '@/components/ui/Chip';
 import EmptyState from '@/components/ui/EmptyState';
@@ -16,6 +16,7 @@ import { avatarColor, initials } from '@/lib/categories';
 import { phoneDigits } from '@/lib/phone';
 import { isRecallDue, shortWhen } from '@/lib/time';
 import { fold } from '@/lib/voice';
+import { CLIENT_LIST_PAGE } from '@/lib/client-list-size';
 import type { ClientListRow } from '@/lib/types';
 
 type Filter = 'todas' | 'vip' | 'proxima' | 'sin' | 'tratamiento' | 'volver' | 'bono';
@@ -83,6 +84,7 @@ export default function ClientasView({
   const [nextOffset, setNextOffset] = useState(initialClients.length);
   const [q, setQ] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
+  const [searchTotal, setSearchTotal] = useState<number | null>(null);
   const [filter, setFilter] = useState<Filter>('todas');
   const [sort, setSort] = useState<Sort>('az');
   const [sortOpen, setSortOpen] = useState(false);
@@ -99,6 +101,7 @@ export default function ClientasView({
 
   const resetAndFetch = useCallback((query: string) => {
     const gen = ++searchGen.current;
+    setSearchTotal(null);
     startLoadMore(async () => {
       const page = await loadClientsPage(0, undefined, query);
       if (gen !== searchGen.current) return;
@@ -119,7 +122,28 @@ export default function ClientasView({
     prevSearch.current = debouncedQ;
   }, [debouncedQ, resetAndFetch, initialClients, initialTotal]);
 
-  const hasMore = nextOffset < total;
+  useEffect(() => {
+    if (debouncedQ.length < 2) {
+      setSearchTotal(null);
+      return;
+    }
+    let stop = false;
+    const timer = window.setTimeout(() => {
+      void countClientSearch(debouncedQ).then(n => {
+        if (!stop) setSearchTotal(n);
+      });
+    }, 450);
+    return () => {
+      stop = true;
+      window.clearTimeout(timer);
+    };
+  }, [debouncedQ]);
+
+  const hasMore = debouncedQ.length >= 2
+    ? searchTotal != null
+      ? nextOffset < searchTotal
+      : nextOffset > 0 && nextOffset % CLIENT_LIST_PAGE === 0
+    : nextOffset < total;
 
   const loadMore = useCallback(() => {
     if (!hasMore || loadingMore) return;
@@ -193,7 +217,9 @@ export default function ClientasView({
   }, [clients, q, debouncedQ, filter, sort]);
 
   const titleCount = debouncedQ.length >= 2
-    ? `${shown.length} encontradas`
+    ? filter === 'todas' && searchTotal != null
+      ? `${searchTotal} encontradas`
+      : `${shown.length} encontradas`
     : clients.length < total
       ? `${clients.length} de ${total} fichas`
       : `${total} fichas`;
