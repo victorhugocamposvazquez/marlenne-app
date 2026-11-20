@@ -250,12 +250,6 @@ async function fromTalk(
 
   if (r.say) blocks.push(text(r.say));
 
-  // Pantalla debajo del panel: el chat no se cierra.
-  if (r.href && !r.ready) {
-    onNavigate?.(r.href);
-    blocks.push(text('Lo tienes debajo. Baja el panel si quieres verlo.'));
-  }
-
   return { blocks: blocks.length ? blocks : [text('Listo.')] };
 }
 
@@ -265,8 +259,8 @@ function resetThread() {
   askNext = null;
 }
 
-/** Abrir ruta sin salir del chat. Alta/cita nueva se hace aquí dentro. */
-function handleGo(href: string, say?: string, onNavigate?: (href: string) => void): TurnResult {
+/** La pantalla no se abre detrás del chat. La cita y la clienta siguen aquí. */
+function handleGo(href: string): TurnResult {
   if (/[?&]new=1\b/.test(href)) {
     bookHold = null;
     askNext = 'book';
@@ -277,8 +271,10 @@ function handleGo(href: string, say?: string, onNavigate?: (href: string) => voi
     askNext = 'find';
     return { blocks: [text('¿A quién busco?')] };
   }
-  onNavigate?.(href);
-  return { blocks: [text(say || 'Lo tienes debajo. Baja el panel si quieres verlo.')] };
+  if (href.startsWith('/tareas')) {
+    return { blocks: [text('Las tareas todavía no las llevo desde aquí.')] };
+  }
+  return { blocks: [text('Dime qué quieres hacer y lo hago aquí: una cita, el día o una clienta.')] };
 }
 
 function isYes(phrase: string) {
@@ -345,11 +341,9 @@ async function settle(previewId: string): Promise<TurnResult> {
     return {
       blocks: [{
         kind: 'saved',
-        title: r.ok ? 'Apuntada' : 'No se ha guardado',
-        summary: r.say,
-        next: r.ok && r.href
-          ? [{ id: 'open', label: 'Ver', send: { intent: 'go', args: { href: r.href } } }]
-          : [],
+            title: r.ok ? 'Apuntada' : 'No se ha guardado',
+            summary: r.say,
+            next: [],
       }],
     };
   }
@@ -359,11 +353,8 @@ async function settle(previewId: string): Promise<TurnResult> {
     return {
       blocks: [{
         kind: 'instant',
-        text: r.say,
-        undoId: `status-${p.id}`,
-        next: r.href
-          ? [{ id: 'hoy', label: 'Ver hoy', send: { intent: 'go', args: { href: r.href } } }]
-          : [],
+            text: r.say,
+            undoId: `status-${p.id}`,
       }],
     };
   }
@@ -432,7 +423,7 @@ async function runAgendaPhrase(
     case 'move':
       return fromTalk(await voicePreviewMove(cmd.who ?? '', cmd.startMin, cmd.dayOffset, cmd.providerQ), undefined, onNavigate);
     case 'go':
-      return handleGo(cmd.href, cmd.say, onNavigate);
+      return handleGo(cmd.href);
     case 'help':
       return {
         blocks: [text('Puedo decirte el día, los huecos, apuntar una cita, pasarla a cabina, marcar que no vino o mirar la espera. Prueba: «quién sigue» o «cita a Lucía mañana a las once».')],
@@ -506,7 +497,7 @@ export function createMarlenChatApi(role: string, onNavigate?: (href: string) =>
     async turn(input: ActionSend, _ctx: ScreenContext, _fixed: Fixed, uttered?: string): Promise<TurnResult> {
       if (typeof input !== 'string') {
         if (input.intent === 'go') {
-          return handleGo(String(input.args?.href ?? '/agenda'), undefined, onNavigate);
+          return handleGo(String(input.args?.href ?? '/agenda'));
         }
         if (input.intent === 'hoy') return fromTalk(await voiceToday(), undefined, onNavigate);
         if (input.intent === 'next') return fromTalk(await voiceNext(), undefined, onNavigate);
@@ -516,8 +507,7 @@ export function createMarlenChatApi(role: string, onNavigate?: (href: string) =>
           return { blocks: [text('¿A quién buscas?')] };
         }
         if (input.intent === 'tareas') {
-          // Por ahora la lista vive en la pantalla; el chat se queda encima.
-          return handleGo('/tareas', 'Las tareas están debajo.', onNavigate);
+          return handleGo('/tareas');
         }
         if (input.intent === 'answer') {
           const phrase = (uttered || String(input.args?.value ?? '')).trim();
