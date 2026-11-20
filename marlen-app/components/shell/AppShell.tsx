@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import PhoneShell, { type OpsBanner, type ShellSession } from '@/components/shell/PhoneShell';
 import WideShell from '@/components/shell/WideShell';
+import WarmScreens from '@/components/shell/WarmScreens';
 import { isSlowNetwork } from '@/hooks/net-client';
 import { warmSheetCatalog } from '@/hooks/sheet-catalog';
 import { createClient } from '@/lib/supabase/client';
@@ -52,17 +53,20 @@ export default function AppShell({
     };
   }, []);
 
-  if (!wide) {
-    return (
-      <PhoneShell session={session} serverOps={serverOps} staff={staff}>
-        {children}
-      </PhoneShell>
-    );
-  }
-
-  return (
+  const shell = wide ? (
     <WideShell session={session} serverOps={serverOps} staff={staff}>
       {children}
     </WideShell>
+  ) : (
+    <PhoneShell session={session} serverOps={serverOps} staff={staff}>
+      {children}
+    </PhoneShell>
+  );
+
+  return (
+    <>
+      <WarmScreens role={session.role} />
+      {shell}
+    </>
   );
 }

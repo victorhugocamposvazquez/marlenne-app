@@ -2,9 +2,27 @@ import { createClient } from '@/lib/supabase/server';
 import { chunkIds } from '@/lib/supabase/fetch-all';
 import { toTimestamp, dateFromOffset, dayKey } from '@/lib/time';
 import { packExpired, packRemaining } from '@/lib/packs';
+import { fold } from '@/lib/voice';
 import type { ClientListRow, ClientOption } from '@/lib/types';
 
 export const CLIENT_LIST_PAGE = 40;
+
+/** name_fold si la migración está; si no, el nombre tal cual. */
+function applyNameSearch<Q extends {
+  or: (filters: string) => Q;
+  ilike: (column: string, pattern: string) => Q;
+}>(query: Q, raw: string, useFold: boolean): Q {
+  const digits = raw.replace(/\D/g, '');
+  const name = (useFold ? fold(raw) : raw).replace(/[%_,]/g, ' ').replace(/\s+/g, ' ').trim();
+  const col = useFold ? 'name_fold' : 'full_name';
+  if (digits.length >= 3 && name) return query.or(`${col}.ilike.%${name}%,phone.ilike.%${digits}%`);
+  if (digits.length >= 3) return query.ilike('phone', `%${digits}%`);
+  return query.ilike(col, `%${name}%`);
+}
+
+function missingFold(message: string | undefined) {
+  return !!message && /name_fold/i.test(message);
+}
 
 type RawClientRow = {
   id: string;
@@ -135,15 +153,16 @@ export async function searchClientsPage(
   const q = query.trim();
   if (q.length < 2) return { rows: [], total: 0 };
   const sb = createClient();
-  const digits = q.replace(/\D/g, '');
-  const safe = q.replace(/[%_,]/g, ' ').trim();
-  let builder = sb.from('clients').select(CLIENT_SELECT, { count: 'exact' });
-  if (digits.length >= 3) {
-    builder = builder.or(`full_name.ilike.%${safe}%,phone.ilike.%${digits}%`);
-  } else {
-    builder = builder.ilike('full_name', `%${safe}%`);
-  }
-  const { data, count, error } = await builder.order('full_name').range(offset, offset + limit - 1);
+  const run = (useFold: boolean) => {
+    const builder = applyNameSearch(
+      sb.from('clients').select(CLIENT_SELECT, { count: 'exact' }),
+      q,
+      useFold,
+    );
+    return builder.order('full_name').range(offset, offset + limit - 1);
+  };
+  let { data, count, error } = await run(true);
+  if (missingFold(error?.message)) ({ data, count, error } = await run(false));
   if (error || !data?.length) return { rows: [], total: count ?? 0 };
   const rows = await enrichClientRows(data as unknown as RawClientRow[]);
   return { rows, total: count ?? rows.length };
@@ -176,15 +195,14 @@ export async function searchClientPicker(query: string, limit = 40): Promise<Cli
   const q = query.trim();
   if (q.length < 2) return [];
   const sb = createClient();
-  const digits = q.replace(/\D/g, '');
-  const safe = q.replace(/[%_,]/g, ' ').trim();
-  let builder = sb.from('clients').select(PICKER_SELECT).limit(limit);
-  if (digits.length >= 3) {
-    builder = builder.or(`full_name.ilike.%${safe}%,phone.ilike.%${digits}%`);
-  } else {
-    builder = builder.ilike('full_name', `%${safe}%`);
-  }
-  const { data } = await builder.order('full_name');
+  const run = (useFold: boolean) => applyNameSearch(
+    sb.from('clients').select(PICKER_SELECT).limit(limit),
+    q,
+    useFold,
+  ).order('full_name');
+  let { data, error } = await run(true);
+  if (missingFold(error?.message)) ({ data, error } = await run(false));
+  if (error || !data) return [];
   return (data ?? []).map(r => ({
     id: r.id as string,
     full_name: r.full_name as string,
@@ -205,19 +223,25 @@ export async function getClientPickerOption(id: string): Promise<ClientOption | 
 
 export async function findSimilarClients(name: string, phone: string): Promise<ClientOption[]> {
   const sb = createClient();
-  const folded = name.trim();
   const tel = phone.replace(/\D/g, '');
-  if (folded.length < 3 && tel.length < 6) return [];
+  if (fold(name).length < 3 && tel.length < 6) return [];
 
-  let builder = sb.from('clients').select('id, full_name, phone').limit(8);
-  if (folded.length >= 3 && tel.length >= 6) {
-    builder = builder.or(`full_name.ilike.%${folded.replace(/[%_,]/g, ' ')}%,phone.ilike.%${tel.slice(-9)}%`);
-  } else if (folded.length >= 3) {
-    builder = builder.ilike('full_name', `%${folded.replace(/[%_,]/g, ' ')}%`);
-  } else {
-    builder = builder.ilike('phone', `%${tel.slice(-9)}%`);
-  }
-  const { data } = await builder;
+  const run = (useFold: boolean) => {
+    let builder = sb.from('clients').select('id, full_name, phone').limit(8);
+    const folded = useFold ? fold(name) : name.trim();
+    const safe = folded.replace(/[%_,]/g, ' ').trim();
+    if (safe.length >= 3 && tel.length >= 6) {
+      const col = useFold ? 'name_fold' : 'full_name';
+      builder = builder.or(`${col}.ilike.%${safe}%,phone.ilike.%${tel.slice(-9)}%`);
+    } else if (safe.length >= 3) {
+      builder = builder.ilike(useFold ? 'name_fold' : 'full_name', `%${safe}%`);
+    } else {
+      builder = builder.ilike('phone', `%${tel.slice(-9)}%`);
+    }
+    return builder;
+  };
+  let { data, error } = await run(true);
+  if (missingFold(error?.message)) ({ data } = await run(false));
   return (data ?? []).map(r => ({
     id: r.id as string,
     full_name: r.full_name as string,

@@ -1,5 +1,5 @@
 const SHELL = 'marlenne-shell-v29';
-const PAGES = 'marlenne-pages-v1';
+const PAGES = 'marlenne-pages-v2';
 const NET_WAIT_MS = 3000;
 
 const PRECACHE = [
@@ -129,16 +129,34 @@ function offlineResponse() {
   });
 }
 
+function pageCacheUrl(req) {
+  const url = new URL(req.url);
+  url.searchParams.delete('_rsc');
+  url.searchParams.set('__cache', req.headers.get('RSC') === '1' ? 'rsc' : 'doc');
+  url.hash = '';
+  return url.href;
+}
+
+/** El prefetch automático de un enlace es parcial: no vale como pantalla completa. */
+function isPartialPrefetch(req) {
+  return req.headers.get('Next-Router-Prefetch') === '1';
+}
+
 async function rememberPage(req, res) {
+  if (isPartialPrefetch(req)) return;
   if (!res || !res.ok || res.redirected || res.type !== 'basic') return;
   const cache = await caches.open(PAGES);
-  await cache.put(req, res.clone());
+  await cache.put(pageCacheUrl(req), res.clone());
+}
+
+async function matchPage(req) {
+  const cache = await caches.open(PAGES);
+  return cache.match(pageCacheUrl(req));
 }
 
 /** Red con tope. Si tarda o cae, la última copia de esa URL (Hoy, clientas, servicios, reserva). */
 async function pageWithTimeout(req) {
-  const cache = await caches.open(PAGES);
-  const cached = await cache.match(req);
+  const cached = await matchPage(req);
   let timer;
   const timeout = new Promise(resolve => {
     timer = setTimeout(() => resolve('slow'), NET_WAIT_MS);
