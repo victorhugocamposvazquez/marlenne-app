@@ -113,13 +113,13 @@ export default function EditClientSheet({
   ) : (
     <>
       <Field label="Nombre">
-        <input className={inputCls} value={name} onChange={e => setName(e.target.value)} />
+        <input className={inputCls} name="client-full-name" autoComplete="off" value={name} onChange={e => setName(e.target.value)} />
       </Field>
       <Field label="Teléfono">
-        <input className={inputCls} type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
+        <input className={inputCls} name="client-phone" type="text" inputMode="tel" autoComplete="off" value={phone} onChange={e => setPhone(e.target.value)} />
       </Field>
       <Field label="Email">
-        <input className={inputCls} type="email" value={email} onChange={e => setEmail(e.target.value)} />
+        <input className={inputCls} name="client-email" type="text" inputMode="email" autoComplete="off" value={email} onChange={e => setEmail(e.target.value)} />
       </Field>
       <Field label="Fecha de nacimiento">
         <input className={inputCls} type="date" value={birth} onChange={e => setBirth(e.target.value)} />

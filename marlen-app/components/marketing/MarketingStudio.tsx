@@ -1603,6 +1603,7 @@ export default function MarketingStudio({
                 autoFocus={!mobile}
                 inputMode="search"
                 enterKeyHint="search"
+                autoComplete="off"
               />
             </div>
             <div className={css.listStack}>
@@ -1630,8 +1631,8 @@ export default function MarketingStudio({
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 14, borderRadius: 16, background: '#F6F6F9', maxHeight: '46dvh', overflowY: 'auto' }}>
                   <span style={{ fontSize: 15, fontWeight: 700 }}>Nueva clienta</span>
-                  <label className={css.field}><span className={css.label}>Nombre</span><input className={cx(css.input, css.inputMobile)} value={clientForm.fullName} onChange={e => setClientForm(f => ({ ...f, fullName: e.target.value }))} placeholder="María López" autoFocus /></label>
-                  <label className={css.field}><span className={css.label}>Teléfono (opcional)</span><input className={cx(css.input, css.inputMobile)} value={clientForm.phone} onChange={e => setClientForm(f => ({ ...f, phone: e.target.value }))} inputMode="tel" /></label>
+                  <label className={css.field}><span className={css.label}>Nombre</span><input className={cx(css.input, css.inputMobile)} name="client-full-name" autoComplete="off" value={clientForm.fullName} onChange={e => setClientForm(f => ({ ...f, fullName: e.target.value }))} placeholder="María López" autoFocus /></label>
+                  <label className={css.field}><span className={css.label}>Teléfono (opcional)</span><input className={cx(css.input, css.inputMobile)} name="client-phone" autoComplete="off" value={clientForm.phone} onChange={e => setClientForm(f => ({ ...f, phone: e.target.value }))} inputMode="tel" /></label>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button type="button" className={cx(css.btn, css.ghost, css.block)} onClick={() => setNewClientOpen(false)}>Cancelar</button>
                     <button type="button" className={cx(css.btn, css.primary, css.block)} style={{ opacity: formBusy ? 0.6 : 1 }} onClick={() => void createClient()}>{formBusy ? 'Creando…' : 'Crear y usar'}</button>

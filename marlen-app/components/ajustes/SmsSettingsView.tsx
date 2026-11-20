@@ -277,6 +277,7 @@ export default function SmsSettingsView({
                 value={testQ}
                 disabled={pending}
                 placeholder="Nombre"
+                autoComplete="off"
                 onChange={e => {
                   const q = e.target.value;
                   setTestQ(q);

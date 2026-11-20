@@ -244,6 +244,7 @@ function FriendPicker({
         value={q}
         onChange={e => setQ(e.target.value)}
         aria-label="Buscar clienta para pack amigo"
+        autoComplete="off"
       />
       {matches.map(c => (
         <button

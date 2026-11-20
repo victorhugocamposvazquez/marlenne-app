@@ -286,6 +286,7 @@ export default function ClientasView({
             onChange={e => setQ(e.target.value)}
             placeholder="Buscar por nombre o teléfono"
             aria-label="Buscar clientas"
+            autoComplete="off"
             className="flex-1 border-0 bg-transparent text-[16px] outline-none placeholder:text-ink-3"
           />
         </div>

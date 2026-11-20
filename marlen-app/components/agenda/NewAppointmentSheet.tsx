@@ -634,6 +634,7 @@ export function NewAppointmentSheetBody({
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder={query.trim() ? 'Nombre o teléfono' : `${clients.length} en la agenda`}
+                autoComplete="off"
                 className="min-w-0 flex-1 bg-transparent text-[17px] outline-none placeholder:text-ink-3"
               />
             </div>

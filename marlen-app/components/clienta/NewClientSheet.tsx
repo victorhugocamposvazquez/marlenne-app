@@ -102,6 +102,7 @@ function NewClientBody() {
   return (
     <>
       <form
+        autoComplete="off"
         onSubmit={e => {
           e.preventDefault();
           if (canSave) save(true);
@@ -110,21 +111,23 @@ function NewClientBody() {
         <Field label="Nombre">
           <input
             className={inputCls}
+            name="client-full-name"
             placeholder="Nombre y apellidos"
             value={name}
             onChange={e => setName(e.target.value)}
-            autoComplete="name"
+            autoComplete="off"
           />
         </Field>
         <Field label="Teléfono">
           <input
             className={inputCls}
-            type="tel"
+            name="client-phone"
+            type="text"
             inputMode="tel"
             placeholder="612 480 331"
             value={phone}
             onChange={e => setPhone(e.target.value)}
-            autoComplete="tel"
+            autoComplete="off"
           />
         </Field>
       </form>
@@ -145,7 +148,16 @@ function NewClientBody() {
           Datos y consentimientos
         </p>
         <Field label="Email">
-          <input className={inputCls} type="email" placeholder="opcional" value={email} onChange={e => setEmail(e.target.value)} />
+          <input
+            className={inputCls}
+            name="client-email"
+            type="text"
+            inputMode="email"
+            placeholder="opcional"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            autoComplete="off"
+          />
         </Field>
         <label className="mb-2 flex items-center gap-2 text-body font-bold">
           <input type="checkbox" checked={vip} onChange={e => setVip(e.target.checked)} className="h-5 w-5 accent-v" />

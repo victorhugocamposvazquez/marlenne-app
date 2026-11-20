@@ -604,7 +604,7 @@ export default function FinanzasView({
       {S.step === 1 && (
         <>
           <div style={{ flex: '0 0 auto', margin: '12px 16px 0' }}>
-            <input value={S.q} onChange={e => go({ q: e.target.value })} placeholder="Nombre o teléfono" autoFocus style={inp} />
+            <input value={S.q} onChange={e => go({ q: e.target.value })} placeholder="Nombre o teléfono" autoComplete="off" autoFocus style={inp} />
           </div>
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '6px 16px 14px', paddingBottom: mobileWizard ? 'calc(14px + env(safe-area-inset-bottom, 0px))' : 14 }}>
             {matches.map(c => (
