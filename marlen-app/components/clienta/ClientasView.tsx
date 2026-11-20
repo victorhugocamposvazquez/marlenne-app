@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import Link from 'next/link';
 import { Check, ChevronDown, Loader2, Plus, Search, X } from 'lucide-react';
 import { loadClientsPage, countClientSearch } from '@/app/actions/client-list';
-import NewClientSheet from '@/components/clienta/NewClientSheet';
 import LineSearch from '@/components/LineSearch';
 import Chip from '@/components/ui/Chip';
 import EmptyState from '@/components/ui/EmptyState';
@@ -12,7 +11,7 @@ import DarCitaLink from '@/components/ui/DarCitaLink';
 import Badge from '@/components/ui/Badge';
 import PageHeading from '@/components/ui/PageHeading';
 import { HeaderIconButton, screenHeaderCls } from '@/components/ui/ScreenHeader';
-import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
+import { shallowSet } from '@/hooks/useShallowQuery';
 import { avatarColor, initials } from '@/lib/categories';
 import { phoneDigits } from '@/lib/phone';
 import { isRecallDue, shortWhen } from '@/lib/time';
@@ -74,13 +73,11 @@ function mergeClients(prev: ClientListRow[], next: ClientListRow[]) {
 export default function ClientasView({
   initialClients,
   initialTotal,
-  initialAlta,
 }: {
   initialClients: ClientListRow[];
   initialTotal: number;
   initialAlta?: boolean;
 }) {
-  const alta = useShallowParam('alta', initialAlta ? '1' : null);
   const [clients, setClients] = useState(initialClients);
   const [total, setTotal] = useState(initialTotal);
   const [nextOffset, setNextOffset] = useState(initialClients.length);
@@ -429,7 +426,6 @@ export default function ClientasView({
           )}
         </div>
       </div>
-      {alta === '1' && <NewClientSheet />}
     </div>
   );
 }

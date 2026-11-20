@@ -3,6 +3,7 @@ import { chunkIds } from '@/lib/supabase/fetch-all';
 import { toTimestamp, dateFromOffset, dayKey } from '@/lib/time';
 import { packExpired, packRemaining } from '@/lib/packs';
 import { fold } from '@/lib/voice';
+import { scoreClient } from '@/lib/voice-clients';
 import type { ClientListRow, ClientOption } from '@/lib/types';
 
 import { CLIENT_LIST_PAGE } from '@/lib/client-list-size';
@@ -320,9 +321,13 @@ export async function findSimilarClients(name: string, phone: string): Promise<C
     builder = builder.ilike('phone', `%${tel.slice(-9)}%`);
   }
   const { data } = await builder;
-  return (data ?? []).map(r => ({
-    id: r.id as string,
-    full_name: r.full_name as string,
-    phone: (r.phone as string | null) ?? null,
-  }));
+  const tail = tel.length >= 9 ? tel.slice(-9) : '';
+  return (data ?? []).flatMap(r => {
+    const full_name = r.full_name as string;
+    const phone = (r.phone as string | null) ?? null;
+    const samePhone = tail.length >= 9 && (phone ?? '').replace(/\D/g, '').endsWith(tail);
+    // «Piti» no es «Pitita»: el aviso de «ya está» solo si el nombre encaja de verdad.
+    if (!samePhone && fold(name).length >= 2 && scoreClient(full_name, name) < 80) return [];
+    return [{ id: r.id as string, full_name, phone }];
+  });
 }

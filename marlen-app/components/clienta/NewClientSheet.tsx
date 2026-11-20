@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { useShallowParam } from '@/hooks/useShallowQuery';
 import { loadSimilarClients } from '@/app/actions/client-list';
 import { useRouter } from 'next/navigation';
 import Sheet, { Field, inputCls } from '@/components/Sheet';
@@ -39,6 +40,8 @@ function NewClientBody() {
   const router = useRouter();
   const toast = useToast();
   const requestClose = useSheetShellClose();
+  const preset = useShallowParam('nombre');
+  const filled = useRef(false);
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -49,6 +52,12 @@ function NewClientBody() {
   const [error, setError] = useState<string | null>(null);
   const [dupId, setDupId] = useState<string | null>(null);
   const [matches, setMatches] = useState<ClientOption[]>([]);
+
+  useEffect(() => {
+    if (filled.current || !preset) return;
+    filled.current = true;
+    setName(preset);
+  }, [preset]);
 
   const matchKey = useMemo(() => `${fold(name)}|${digits(phone)}`, [name, phone]);
 

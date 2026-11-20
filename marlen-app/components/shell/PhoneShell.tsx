@@ -11,6 +11,8 @@ import OpsSupportBanner from '@/components/OpsSupportBanner';
 import ProfileSheetHost from '@/components/ProfileSheetHost';
 import MoreSheetHost from '@/components/MoreSheetHost';
 import TaskSheetHost from '@/components/personal/TaskSheetHost';
+import NewClientSheet from '@/components/clienta/NewClientSheet';
+import { useShallowParam } from '@/hooks/useShallowQuery';
 
 const ChatHost = dynamic(() => import('@/components/chat/ChatHost'), { ssr: false });
 
@@ -43,6 +45,7 @@ export default function PhoneShell({
   staff?: { id: string; full_name: string }[];
   children: ReactNode;
 }) {
+  const alta = useShallowParam('alta');
   return (
     <div className="@container relative mx-auto mt-[var(--keyboard-top)] flex h-[calc(100dvh-var(--keyboard-inset)-var(--keyboard-top))] w-full max-w-[440px] flex-col overflow-hidden bg-surface-bg pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       <OfflineBanner />
@@ -67,6 +70,7 @@ export default function PhoneShell({
       <Suspense fallback={null}>
         <ChatHost role={session.role} />
       </Suspense>
+      {alta === '1' && <NewClientSheet />}
       <BottomNav
         role={session.role}
         account={<AccountMenu />}

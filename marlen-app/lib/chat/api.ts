@@ -136,6 +136,14 @@ function fromTalk(
   onNavigate?: (href: string) => void,
 ): TurnResult {
   bookHold = r.pending ?? null;
+  // Clienta nueva: el teléfono y el alta van en el modal, no en el chat.
+  if (r.need === 'phone' && r.pending?.newClient && r.pending.who) {
+    const name = r.pending.who.replace(/\S+/g, w => w.charAt(0).toUpperCase() + w.slice(1));
+    bookHold = null;
+    askNext = null;
+    onNavigate?.(`?alta=1&nombre=${encodeURIComponent(name)}`);
+    return { blocks: [text(`${name} no está en fichas. Te abro el alta: ahí va el teléfono y se guarda.`)] };
+  }
   if (!r.ok && !r.say && !(r.matches && r.matches.length)) {
     return {
       blocks: [{
@@ -255,14 +263,13 @@ async function resumeBook(held: PendingBook, phrase: string): Promise<VoiceTalkR
   let serviceQ = held.serviceQ;
   let providerQ = held.providerQ;
   let startMin = held.startMin;
-  let phone = held.phone ?? null;
   let newClient = held.newClient ?? false;
   const said = phrase.trim();
   const folded = fold(said);
-  if (held.need === 'client') who = said;
+  const saysNew = held.need === 'client' && (/^ninguna/.test(folded) || /es nueva/.test(folded) || folded === 'si' || folded === 'vale');
+  if (held.need === 'client' && !saysNew) who = said;
   else if (held.need === 'service') serviceQ = said;
   else if (held.need === 'provider') providerQ = said;
-  else if (held.need === 'phone') phone = /sin telefono/.test(folded) ? '' : said;
   else if (held.need === 'time') {
     const clock = takeTime(said).startMin ?? parseClock(said);
     if (clock != null) startMin = clock;
@@ -272,14 +279,17 @@ async function resumeBook(held: PendingBook, phrase: string): Promise<VoiceTalkR
       if (i >= 0 && held.slotMins[i] != null) startMin = held.slotMins[i];
     }
   }
-  if (/^ninguna/.test(folded) || /es nueva/.test(folded)) newClient = true;
+  if (saysNew) newClient = true;
   return voicePreviewBook(who, startMin, serviceQ, held.dayOffset, providerQ, {
     choices: held.choices ?? null,
     prevNeed: held.need,
     asks: held.asks,
     newClient,
     part: held.part ?? null,
-    phone,
+    // null no es «aún no lo ha dicho»: si no hay teléfono, se omite y el alta lo pide.
+    ...(held.need === 'phone' || (typeof held.phone === 'string' && held.phone.length > 0)
+      ? { phone: held.need === 'phone' ? (/sin telefono/.test(folded) ? '' : said) : held.phone }
+      : {}),
   });
 }
 
@@ -354,6 +364,9 @@ async function runAgendaPhrase(
 
   if (isYes(trimmed)) {
     if (pending.size === 1) return settle([...pending.keys()][0]);
+    if (bookHold?.need === 'client') {
+      return fromTalk(await resumeBook(bookHold, 'Es nueva'), undefined, onNavigate);
+    }
     return { blocks: [text('¿El sí de qué?')] };
   }
 

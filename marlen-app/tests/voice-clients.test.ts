@@ -36,6 +36,14 @@ test('dentro de las opciones vale solo el apellido', () => {
   assert.deepEqual(names(resolveClient(BOOK, 'Marta', lucias)), ['Marta Sanz']);
 });
 
+test('Piti no es Pitita: se puede dar de alta', () => {
+  const book = [...BOOK, C('Pitita Gómez')];
+  const r = resolveClient(book, 'Piti');
+  assert.equal(r.kind, 'similar');
+  assert.ok(names(r).includes('Pitita Gómez'));
+  assert.equal(resolveClient(book, 'Pitita').kind, 'one');
+});
+
 test('dictado sucio → parecida', () => {
   const r = resolveClient(BOOK, 'Lusía');
   assert.equal(r.kind, 'similar');

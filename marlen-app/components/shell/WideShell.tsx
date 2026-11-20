@@ -8,6 +8,8 @@ import PullRefresh from '@/components/PullRefresh';
 import EmbedPanelHint from '@/components/EmbedPanelHint';
 import OpsSupportBanner from '@/components/OpsSupportBanner';
 import TaskSheetHost from '@/components/personal/TaskSheetHost';
+import NewClientSheet from '@/components/clienta/NewClientSheet';
+import { useShallowParam } from '@/hooks/useShallowQuery';
 import DetailPanel from '@/components/shell/DetailPanel';
 import SideNav from '@/components/shell/SideNav';
 import type { OpsBanner, ShellSession } from '@/components/shell/PhoneShell';
@@ -26,6 +28,7 @@ export default function WideShell({
   staff?: { id: string; full_name: string }[];
   children: ReactNode;
 }) {
+  const alta = useShallowParam('alta');
   return (
     <div className="mt-[var(--keyboard-top)] flex h-[calc(100dvh-var(--keyboard-inset)-var(--keyboard-top))] w-full overflow-hidden border-surface-line bg-surface-bg pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] standalone:border-t">
       <SideNav
@@ -57,6 +60,7 @@ export default function WideShell({
       <Suspense fallback={null}>
         <ChatHost role={session.role} />
       </Suspense>
+      {alta === '1' && <NewClientSheet />}
     </div>
   );
 }

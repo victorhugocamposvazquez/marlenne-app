@@ -50,7 +50,10 @@ function tokenScore(said: string, name: string) {
   const nick = NICKS[said];
   if (said === name || (nick && nick === name)) return 3;
   if (said.length === 1 && name.startsWith(said)) return 2;
-  if (said.length >= 3 && name.startsWith(said)) return 2;
+  // «Piti» no es «Pitita»: si sobran 2 letras o más, solo se parece.
+  if (said.length >= 3 && name.startsWith(said)) {
+    return name.length - said.length <= 1 ? 2 : 1;
+  }
   if (nick && nick.length >= 3 && name.startsWith(nick)) return 2;
   if (said.length >= 4 && name.length >= 4) {
     const d = editDist(said, name);

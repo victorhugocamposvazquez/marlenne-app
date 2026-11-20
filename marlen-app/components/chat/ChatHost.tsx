@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { shallowSet } from '@/hooks/useShallowQuery';
 import MarlenChat, { GRAD } from '@/components/chat/MarlenChat';
 import { createMarlenChatApi } from '@/lib/chat/api';
 import { createVoiceAdapter } from '@/lib/chat/voice-adapter';
@@ -30,8 +31,14 @@ export default function ChatHost({ role }: { role: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
-  /** Abre la ruta debajo; el panel se queda encima (chat-marlen.md). */
+  /** Abre la ruta debajo; el panel se queda encima. `?alta=1` abre el modal sin cambiar de pantalla. */
   const onNavigate = useCallback((href: string) => {
+    if (href.startsWith('?')) {
+      const patch: Record<string, string | null> = {};
+      new URLSearchParams(href.slice(1)).forEach((v, k) => { patch[k] = v; });
+      shallowSet(patch);
+      return;
+    }
     router.push(href);
   }, [router]);
 
