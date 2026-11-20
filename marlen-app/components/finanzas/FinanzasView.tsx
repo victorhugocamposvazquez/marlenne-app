@@ -6,6 +6,7 @@ import { useToast } from '@/components/Toast';
 import { updateAppointmentPayment } from '@/lib/agenda-write';
 import { updatePackPayment } from '@/lib/pack-write';
 import { avatarColor } from '@/lib/categories';
+import LineSearch from '@/components/LineSearch';
 import {
   dayNumFromIso,
   dayNumFromYmd,
@@ -604,7 +605,7 @@ export default function FinanzasView({
       {S.step === 1 && (
         <>
           <div style={{ flex: '0 0 auto', margin: '12px 16px 0' }}>
-            <input value={S.q} onChange={e => go({ q: e.target.value })} placeholder="Buscar" type="search" name="q" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} autoFocus style={inp} />
+            <LineSearch value={S.q} onChange={q => go({ q })} placeholder="Buscar" autoFocus style={inp} />
           </div>
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '6px 16px 14px', paddingBottom: mobileWizard ? 'calc(14px + env(safe-area-inset-bottom, 0px))' : 14 }}>
             {matches.map(c => (

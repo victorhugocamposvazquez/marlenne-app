@@ -8,6 +8,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import IconButton from '@/components/ui/IconButton';
 import Skeleton from '@/components/ui/Skeleton';
 import { loadClientPickerSearch } from '@/app/actions/client-list';
+import LineSearch from '@/components/LineSearch';
 import { addToWaitlist, resolveWaitlist } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import { shallowSet } from '@/hooks/useShallowQuery';
@@ -187,7 +188,7 @@ export default function WaitlistSheet({
                   </button>
                 ) : (
                   <>
-                    <input className={inputCls} type="search" name="q" autoComplete="off" autoCorrect="off" spellCheck={false} placeholder="Buscar" value={query} onChange={e => setQuery(e.target.value)} />
+                    <LineSearch className={inputCls} placeholder="Buscar" value={query} onChange={setQuery} />
                     {matches.map(c => (
                       <button key={c.id} type="button" onClick={() => setClient(c)} className="mt-1 block w-full rounded-chip px-3 py-2 text-left text-body font-bold hover:bg-v-tint">
                         {c.full_name}

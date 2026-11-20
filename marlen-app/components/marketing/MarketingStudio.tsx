@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import css from './marketing.module.css';
 import Creative, { CreativeCanvas, DraggableCreative } from './Creative';
 import ScrollMore from './ScrollMore';
+import LineSearch from '@/components/LineSearch';
 import ZoneLayer, { jumpToField, type ZoneFocus } from '@/components/ZoneLayer';
 import { Icon, MarlenAvatar, PATH } from './Icons';
 import { searchStockByTheme } from '@/app/actions/marketing-stock';
@@ -1595,20 +1596,12 @@ export default function MarketingStudio({
             </button>
             <div className={css.searchWrap}>
               <span className={css.searchIcon}><Icon d={PATH.search} size={18} stroke={2} /></span>
-              <input
+              <LineSearch
                 className={css.input}
                 value={clientQ}
-                onChange={e => setClientQ(e.target.value)}
-                type="search"
-                name="q"
+                onChange={setClientQ}
                 placeholder="Buscar"
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck={false}
                 autoFocus={!mobile}
-                inputMode="search"
-                enterKeyHint="search"
               />
             </div>
             <div className={css.listStack}>
