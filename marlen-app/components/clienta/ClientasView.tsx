@@ -105,6 +105,13 @@ export default function ClientasView({
 
   useEffect(() => () => window.clearTimeout(blurSearch.current), []);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    if (searching) root.dataset.searching = '1';
+    else delete root.dataset.searching;
+    return () => { delete root.dataset.searching; };
+  }, [searching]);
+
   const resetAndFetch = useCallback((query: string) => {
     const gen = ++searchGen.current;
     setSearchTotal(null);
@@ -244,30 +251,13 @@ export default function ClientasView({
 
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
-      <header className={screenHeaderCls}>
-        <div className="flex w-full items-start justify-between gap-3">
-          <div className={searching ? 'min-w-0 flex-1' : 'hide-when-keyboard min-w-0 flex-1'}>
-            <PageHeading title="Clientas" subtitle={titleCount} />
-          </div>
-          {searching ? (
-            <HeaderIconButton
-              label="Cerrar búsqueda"
-              className="ml-auto"
-              onPointerDown={e => e.preventDefault()}
-              onMouseDown={e => e.preventDefault()}
-              onClick={closeSearch}
-            >
-              <X size={22} strokeWidth={2.2} />
-            </HeaderIconButton>
-          ) : (
-            <HeaderIconButton
-              label="Nueva Client@"
-              className="hide-when-keyboard ml-auto"
-              onClick={() => shallowSet({ alta: '1' })}
-            >
+      <header className={`${screenHeaderCls}${searching ? ' !pt-2' : ''}`}>
+        <div className="hide-when-keyboard">
+          <PageHeading title="Clientas" subtitle={titleCount}>
+            <HeaderIconButton label="Nueva Client@" onClick={() => shallowSet({ alta: '1' })}>
               <Plus size={22} strokeWidth={2.2} />
             </HeaderIconButton>
-          )}
+          </PageHeading>
         </div>
         <div ref={sortRef} className="hide-when-keyboard relative mt-1.5">
           <div className="flex items-center gap-1.5">
@@ -312,7 +302,7 @@ export default function ClientasView({
             </ul>
           )}
         </div>
-        <form role="search" autoComplete="off" onSubmit={e => e.preventDefault()} className="mt-2">
+        <form role="search" autoComplete="off" onSubmit={e => e.preventDefault()} className={searching ? '' : 'mt-2'}>
           <div className="flex h-[54px] items-center gap-2.5 rounded-field bg-surface-soft px-4">
             <Search size={18} className="text-ink-3" strokeWidth={2.2} />
             <LineSearch
@@ -330,6 +320,18 @@ export default function ClientasView({
                 blurSearch.current = window.setTimeout(() => setSearching(false), 300);
               }}
             />
+            {searching && (
+              <button
+                type="button"
+                aria-label="Cerrar búsqueda"
+                className="grid h-9 w-9 shrink-0 place-items-center text-ink"
+                onPointerDown={e => e.preventDefault()}
+                onMouseDown={e => e.preventDefault()}
+                onClick={closeSearch}
+              >
+                <X size={20} strokeWidth={2.2} />
+              </button>
+            )}
           </div>
         </form>
         <div className="hide-when-keyboard mt-2 flex gap-1.5 overflow-x-auto">

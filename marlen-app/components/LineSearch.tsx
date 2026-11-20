@@ -16,9 +16,9 @@ type Props = {
 };
 
 /**
- * Una línea, como el buscador de Google. En el iPhone un input de búsqueda
- * enseña la barra de subir, bajar y check. Google marca el campo como
- * combobox y esa barra no sale.
+ * Una línea. En el iPhone, Safari pone encima del teclado la barra de
+ * anterior, siguiente y check en cualquier campo editable. La página no
+ * puede quitarla (WebKit 319762, iOS 27). Se apaga en la cáscara nativa.
  */
 const LineSearch = forwardRef<HTMLTextAreaElement, Props>(function LineSearch({
   value,

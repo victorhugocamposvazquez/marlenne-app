@@ -180,8 +180,10 @@ html[data-booted] #marlenne-splash { display: none !important; }
   transition: opacity .38s ease;
 }
 
-/* Con el teclado abierto, el menú y la cabecera dejan sitio a la lista. */
+/* Al buscar, título, orden, filtros y menú dejan sitio a la lista. */
 html[data-keyboard='1'] .app-bottom-nav,
-html[data-keyboard='1'] .hide-when-keyboard {
+html[data-keyboard='1'] .hide-when-keyboard,
+html[data-searching='1'] .app-bottom-nav,
+html[data-searching='1'] .hide-when-keyboard {
   display: none !important;
 }
