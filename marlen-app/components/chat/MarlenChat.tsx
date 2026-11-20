@@ -185,7 +185,7 @@ export type MarlenChatProps = {
   voice?: VoiceAdapter;
   /** La propuesta viva lleva (o deja de llevar) una cita fantasma. La agenda la pinta. */
   onGhost?: (ghost: Ghost | null) => void;
-  /** Abrir una ruta de la app (el host cierra el panel). */
+  /** Abrir una ruta debajo; el panel no se cierra. */
   onNavigate?: (href: string) => void;
 };
 
@@ -928,11 +928,6 @@ export default function MarlenChat({ open, onClose, api, screen, voice, onGhost,
 
   const send = useCallback(async (input: ActionSend, said: string) => {
     if (thinking || saving) return;
-    // Ir a una pantalla: el host cierra el chat; no hace falta un turno.
-    if (typeof input !== "string" && input.intent === "go" && onNavigate) {
-      onNavigate(String(input.args?.href ?? "/agenda"));
-      return;
-    }
     const gen = ++turnGen.current;
     setItems((prev) => [...prev, { id: uid(), role: "user", text: said }]);
     setThinking(true);
@@ -953,7 +948,7 @@ export default function MarlenChat({ open, onClose, api, screen, voice, onGhost,
       if (gen === turnGen.current) setThinking(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, screen, fixed, append, thinking, saving, onNavigate]);
+  }, [api, screen, fixed, append, thinking, saving]);
 
   const submitText = () => {
     const t = text.trim();

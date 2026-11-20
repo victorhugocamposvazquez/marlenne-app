@@ -139,7 +139,7 @@ function fromTalk(
         text: 'No te he entendido. ¿Es una cita, una clienta o el día de hoy?',
         actions: [
           { id: 'hoy', label: 'Qué hay hoy', send: { intent: 'hoy' } },
-          { id: 'cita', label: 'Nueva cita', send: { intent: 'go', args: { href: '/agenda?new=1' } } },
+          { id: 'cita', label: 'Cita nueva', send: 'Cita nueva' },
         ],
       }],
     };
@@ -204,15 +204,24 @@ function fromTalk(
     return { blocks };
   }
 
-  // Abrir pantalla: navegar ya (el host cierra el chat). Sin botón inútil.
-  if (r.href && !r.ready) {
-    onNavigate?.(r.href);
-    return { blocks: [] };
-  }
-
   if (r.say) blocks.push(text(r.say));
 
+  // Pantalla debajo del panel: el chat no se cierra.
+  if (r.href && !r.ready) {
+    onNavigate?.(r.href);
+    blocks.push(text('Lo tienes debajo. Baja el panel si quieres verlo.'));
+  }
+
   return { blocks: blocks.length ? blocks : [text('Listo.')] };
+}
+
+/** Abrir ruta sin salir del chat. Alta/cita nueva se hace aquí dentro. */
+function handleGo(href: string, say?: string, onNavigate?: (href: string) => void): TurnResult {
+  if (/[?&]new=1\b/.test(href) || /[?&]alta=1\b/.test(href)) {
+    return { blocks: [text('¿Para quién? Dime el nombre.')] };
+  }
+  onNavigate?.(href);
+  return { blocks: [text(say || 'Lo tienes debajo. Baja el panel si quieres verlo.')] };
 }
 
 async function runAgendaPhrase(
@@ -255,8 +264,7 @@ async function runAgendaPhrase(
     case 'move':
       return fromTalk(await voicePreviewMove(cmd.who ?? '', cmd.startMin, cmd.dayOffset, cmd.providerQ), undefined, onNavigate);
     case 'go':
-      onNavigate?.(cmd.href);
-      return { blocks: [] };
+      return handleGo(cmd.href, cmd.say, onNavigate);
     case 'help':
       return {
         blocks: [text('Puedo decirte el día, los huecos, apuntar una cita, pasarla a cabina, marcar que no vino o mirar la espera. Prueba: «quién sigue» o «cita a Lucía mañana a las once».')],
@@ -274,11 +282,11 @@ async function runAgendaPhrase(
         blocks: [{
           kind: 'error',
           code: 'not_understood',
-          text: 'Eso aún no lo hago del todo aquí. ¿Abro la pantalla?',
+          text: 'No te he entendido. ¿Es una cita, el día de hoy o una clienta?',
           actions: [
-            { id: 'agenda', label: 'Agenda', send: { intent: 'go', args: { href: '/agenda' } } },
-            { id: 'clientas', label: 'Clientas', send: { intent: 'go', args: { href: '/clientas' } } },
-            { id: 'hoy', label: 'Hoy', send: { intent: 'hoy' } },
+            { id: 'cita', label: 'Cita nueva', send: 'Cita nueva' },
+            { id: 'hoy', label: 'Qué hay hoy', send: { intent: 'hoy' } },
+            { id: 'sigue', label: 'Quién sigue', send: { intent: 'next' } },
           ],
         }],
       };
@@ -289,12 +297,12 @@ function startRows(ctx: ScreenContext, role: string): StartRow[] {
   const rows: StartRow[] = [
     { id: 'hoy', label: 'Qué hay hoy', icon: 'hoy', send: { intent: 'hoy' }, now: ctx.route.startsWith('/hoy') },
     { id: 'sigue', label: 'Quién sigue', icon: 'cabina', send: { intent: 'next' } },
-    { id: 'cita', label: 'Nueva cita', icon: 'cita', send: { intent: 'go', args: { href: '/agenda?new=1' } } },
+    { id: 'cita', label: 'Cita nueva', icon: 'cita', send: 'Cita nueva' },
   ];
   if (role !== 'provider') {
-    rows.push({ id: 'clientas', label: 'Clientas', icon: 'espera', send: { intent: 'go', args: { href: '/clientas' } } });
+    rows.push({ id: 'clientas', label: 'Buscar clienta', icon: 'espera', send: { intent: 'clienta_buscar' } });
   }
-  rows.push({ id: 'tareas', label: 'Tareas', icon: 'tareas', send: { intent: 'go', args: { href: '/tareas' } } });
+  rows.push({ id: 'tareas', label: 'Tareas', icon: 'tareas', send: { intent: 'tareas' } });
   return rows;
 }
 
@@ -315,12 +323,17 @@ export function createMarlenChatApi(role: string, onNavigate?: (href: string) =>
     async turn(input: ActionSend, _ctx: ScreenContext, _fixed: Fixed, uttered?: string): Promise<TurnResult> {
       if (typeof input !== 'string') {
         if (input.intent === 'go') {
-          const href = String(input.args?.href ?? '/agenda');
-          onNavigate?.(href);
-          return { blocks: [] };
+          return handleGo(String(input.args?.href ?? '/agenda'), undefined, onNavigate);
         }
         if (input.intent === 'hoy') return fromTalk(await voiceToday(), undefined, onNavigate);
         if (input.intent === 'next') return fromTalk(await voiceNext(), undefined, onNavigate);
+        if (input.intent === 'clienta_buscar') {
+          return { blocks: [text('¿A quién buscas? Dime el nombre.')] };
+        }
+        if (input.intent === 'tareas') {
+          // Por ahora la lista vive en la pantalla; el chat se queda encima.
+          return handleGo('/tareas', 'Las tareas están debajo.', onNavigate);
+        }
         if (input.intent === 'answer') {
           const phrase = (uttered || String(input.args?.value ?? '')).trim();
           return runAgendaPhrase(phrase, onNavigate);
