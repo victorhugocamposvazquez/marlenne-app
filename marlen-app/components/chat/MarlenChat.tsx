@@ -162,7 +162,8 @@ export type PreviewPatch = { field: string; value: unknown };
 
 export interface ChatApi {
   start(ctx: ScreenContext): Promise<{ rows: StartRow[]; examples: string[] }>;
-  turn(input: ActionSend, ctx: ScreenContext, fixed: Fixed): Promise<TurnResult>;
+  /** `uttered` es lo que se muestra / dijo la persona (chips, mic, teclado). */
+  turn(input: ActionSend, ctx: ScreenContext, fixed: Fixed, uttered?: string): Promise<TurnResult>;
   /** Cambia un dato de la propuesta o de la tarjeta de salida. Devuelve el bloque entero, recomprobado. */
   patchPreview(previewId: string, patch: PreviewPatch): Promise<Block>;
   confirm(previewId: string): Promise<TurnResult>;
@@ -882,7 +883,7 @@ export default function MarlenChat({ open, onClose, api, screen, voice, onGhost,
   const send = useCallback(async (input: ActionSend, said: string) => {
     setItems((prev) => [...prev, { id: uid(), role: "user", text: said }]);
     setThinking(true);
-    try { append(await api.turn(input, screen, fixed)); }
+    try { append(await api.turn(input, screen, fixed, said)); }
     catch { append(offline); }
     finally { setThinking(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -927,7 +928,7 @@ export default function MarlenChat({ open, onClose, api, screen, voice, onGhost,
   const inlineRow = async (row: Row): Promise<string | null> => {
     if (!row.action) return null;
     try {
-      const res = await api.turn(row.action.send, screen, fixed);
+      const res = await api.turn(row.action.send, screen, fixed, row.action.label);
       const b = res.blocks[0];
       if (b?.kind === "instant" || b?.kind === "text") return b.text;
       append(res);
@@ -952,18 +953,31 @@ export default function MarlenChat({ open, onClose, api, screen, voice, onGhost,
   const renderBlock = (b: Block, live: boolean, key: number) => {
     switch (b.kind) {
       case "text":
-        return <p key={key} style={b.tone === "mute" ? { margin: 0, fontSize: 15, lineHeight: 1.4, color: T.mute } : { ...question, fontSize: b.size === "lg" ? 24 : 20 }}>{b.text}</p>;
+        return (
+          <p
+            key={key}
+            style={{
+              margin: 0,
+              fontSize: b.size === "lg" ? 17 : 15,
+              lineHeight: 1.45,
+              fontWeight: b.size === "lg" ? 600 : 400,
+              color: b.tone === "mute" ? T.mute : T.ink,
+            }}
+          >
+            {b.text}
+          </p>
+        );
 
       case "ask":
         if (!live) return <p key={key} style={{ margin: 0, fontSize: 15, color: T.mute }}>{b.question}</p>;
         return (
-          <div key={key} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div key={key} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {b.context?.length ? (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {b.context.map((c) => <span key={c} style={{ minHeight: 30, borderRadius: 99, border: `1px solid ${T.line}`, padding: "0 12px", display: "inline-flex", alignItems: "center", fontSize: 13, color: T.ink2 }}>{c}</span>)}
               </div>
             ) : null}
-            <p style={{ ...question, fontSize: 24 }}>{b.question}</p>
+            <p style={{ margin: 0, fontSize: 16, lineHeight: 1.4, fontWeight: 600, color: T.ink }}>{b.question}</p>
             <PickerView picker={b.picker} disabled={thinking} onPick={(value, said) => void send({ intent: "answer", args: { field: b.field, value } }, said)} />
           </div>
         );
@@ -1055,7 +1069,7 @@ export default function MarlenChat({ open, onClose, api, screen, voice, onGhost,
         if (!hard) {
           return (
             <div key={key} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <p style={{ ...question, fontSize: 20 }}>{b.text}</p>
+              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.45, color: T.ink }}>{b.text}</p>
               {live && b.actions.length > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {b.actions.map((a) => <button key={a.id} onClick={() => onAction(a)} style={{ ...chip, fontWeight: 600 }}>{a.label}</button>)}
@@ -1124,7 +1138,7 @@ export default function MarlenChat({ open, onClose, api, screen, voice, onGhost,
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             {items.length === 0 && !hearing && (
               <div className="mc-in" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                <h1 style={{ margin: 0, fontSize: 34, lineHeight: 1.15, fontWeight: 700, letterSpacing: "-0.02em" }}>¿Qué deseas?</h1>
+                <h1 style={{ margin: 0, fontSize: 26, lineHeight: 1.2, fontWeight: 700, letterSpacing: "-0.02em" }}>¿Qué deseas?</h1>
                 {start && (
                   <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
                     {start.rows.slice(0, 4).map((r) => (
