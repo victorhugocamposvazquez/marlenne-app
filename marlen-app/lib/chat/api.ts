@@ -1,5 +1,6 @@
 'use client';
 
+import { listChatServices } from '@/app/actions/services';
 import {
   voiceApplyCancel,
   voiceApplyMove,
@@ -130,11 +131,11 @@ function cancelProposal(id: string, label: string): Block {
   };
 }
 
-function fromTalk(
+async function fromTalk(
   r: VoiceTalkResult,
   hint?: { status?: 'curso' | 'noshow' },
   onNavigate?: (href: string) => void,
-): TurnResult {
+): Promise<TurnResult> {
   bookHold = r.pending ?? null;
   // Clienta nueva: el teléfono y el alta van en el modal, no en el chat.
   if (r.need === 'phone' && r.pending?.newClient && r.pending.who) {
@@ -208,11 +209,41 @@ function fromTalk(
     return { blocks };
   }
 
+  if (r.need === 'service' && r.options?.length && !r.pending?.choices?.length) {
+    const services = await listChatServices();
+    blocks.push({
+      kind: 'ask',
+      question: r.say || '¿Qué servicio?',
+      field: 'servicio',
+      picker: {
+        type: 'search',
+        placeholder: 'Busca el servicio',
+        options: services.length
+          ? services
+          : r.options.map((label, i) => ({ id: String(i), label })),
+      },
+    });
+    return { blocks };
+  }
+
   if (r.options && r.options.length > 0 && r.need) {
     const field = r.need === 'client' ? 'clienta'
       : r.need === 'service' ? 'servicio'
         : r.need === 'provider' ? 'profesional'
           : 'hora';
+    if (field === 'servicio' && r.options.length > 6) {
+      blocks.push({
+        kind: 'ask',
+        question: r.say || '¿Cuál?',
+        field: 'servicio',
+        picker: {
+          type: 'search',
+          placeholder: 'Busca el servicio',
+          options: r.options.map((label, i) => ({ id: String(i), label })),
+        },
+      });
+      return { blocks };
+    }
     blocks.push(chipsAsk(r.say || '¿Cuál?', r.options, field));
     return { blocks };
   }

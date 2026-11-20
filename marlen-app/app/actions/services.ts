@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getSession } from '@/lib/queries';
+import { getSession, listServices } from '@/lib/queries';
 import { categorySlug } from '@/lib/categories';
 import { createClient } from '@/lib/supabase/server';
 import { parseSiteConfig } from '@/lib/web/site-config';
@@ -227,6 +227,18 @@ export async function updateService(input: {
   if (!error) await syncSiteBookFlag(sb, me.salon_id, input.id, bookable);
   bump();
   return { ok: !error, error: error?.message ?? null };
+}
+
+/** Catálogo para el buscador del chat: servicios, no categorías. */
+export async function listChatServices(): Promise<{ id: string; label: string; hint?: string }[]> {
+  const rows = await listServices();
+  return rows
+    .filter(s => s.is_active !== false)
+    .map(s => ({
+      id: s.id,
+      label: s.name,
+      hint: s.duration_min ? `${s.duration_min} min` : undefined,
+    }));
 }
 
 export async function deleteService(id: string) {

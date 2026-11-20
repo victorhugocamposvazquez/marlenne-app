@@ -66,6 +66,7 @@ export type SlotsPicker = {
 
 export type Picker =
   | { type: "chips"; options: Option[] }
+  | { type: "search"; placeholder?: string; options: Option[] }
   | { type: "people"; options: PersonOption[]; allowNew: boolean }
   | SlotsPicker
   | { type: "amount"; value: number }
@@ -415,6 +416,56 @@ function SlotPickerView({ picker, onAnswer, disabled, footer = true }: { picker:
   );
 }
 
+function foldName(s: string) {
+  return s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+}
+
+/** Buscador corto: escribes y tocas. Sirve para el catálogo, no para tres opciones. */
+function SearchPicker({ picker, disabled, onPick }: {
+  picker: Extract<Picker, { type: "search" }>;
+  disabled?: boolean;
+  onPick: (value: unknown, said: string) => void;
+}) {
+  const [q, setQ] = useState("");
+  const folded = foldName(q.trim());
+  const hits = picker.options.filter((o) => !folded || foldName(`${o.label} ${o.hint ?? ""}`).includes(folded));
+  const shown = folded ? hits.slice(0, 12) : hits.slice(0, 8);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <input
+        aria-label={picker.placeholder ?? "Buscar"}
+        placeholder={picker.placeholder ?? "Buscar"}
+        value={q}
+        disabled={disabled}
+        onChange={(e) => setQ(e.target.value)}
+        autoComplete="off"
+        style={{ height: 48, boxSizing: "border-box", borderRadius: 14, border: `1px solid ${T.line}`, background: T.surface, padding: "0 14px", fontSize: 16, color: T.ink }}
+      />
+      <div style={{ maxHeight: 280, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+        {shown.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            disabled={disabled}
+            onClick={() => onPick(o.id, o.label)}
+            style={{ minHeight: 48, border: "none", borderTop: `1px solid ${T.line}`, background: "transparent", padding: "8px 2px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, color: T.ink, textAlign: "left" }}
+          >
+            <span style={{ fontSize: 16, fontWeight: 600 }}>{o.label}</span>
+            {o.hint && <span style={{ fontSize: 13, color: T.mute, whiteSpace: "nowrap" }}>{o.hint}</span>}
+          </button>
+        ))}
+        {shown.length === 0 && (
+          <p style={{ margin: "8px 0", fontSize: 15, color: T.mute }}>Ninguno con ese nombre.</p>
+        )}
+      </div>
+      {!folded && hits.length > shown.length && (
+        <span style={{ fontSize: 13, color: T.mute }}>Escribe para ver el resto.</span>
+      )}
+    </div>
+  );
+}
+
 /* ─────────────────────────── Selector genérico ─────────────────────────── */
 
 function PickerView({ picker, onPick, disabled, footer }: { picker: Picker; onPick: (value: unknown, said: string) => void; disabled?: boolean; footer?: boolean }) {
@@ -422,6 +473,9 @@ function PickerView({ picker, onPick, disabled, footer }: { picker: Picker; onPi
 
   if (picker.type === "slots") {
     return <SlotPickerView picker={picker} disabled={disabled} footer={footer} onAnswer={(a, said) => onPick(a, said)} />;
+  }
+  if (picker.type === "search") {
+    return <SearchPicker picker={picker} disabled={disabled} onPick={onPick} />;
   }
   if (picker.type === "chips") {
     return (
