@@ -17,6 +17,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
+- 2026-11-20 — **Clientas:** al buscar, X arriba para salir y bajar el teclado; el campo queda como el combobox de Google; PR #58 → `main`.
 - 2026-11-20 — **iPhone:** el buscador pasa a un área de una línea, como Google, para no enseñar la barra de subir/bajar/check; PR #57 → `main`.
 - 2026-11-07 — **Marketing + Web:** asidero centrado, «Desliza arriba» a la izquierda y «o abajo» a la derecha; PR #56 → `main` (sustituye a #55).
 - 2026-11-07 — **Marketing + Web:** degradado y «Más abajo» cuando la hoja tiene más opciones debajo; PR #54 → `main`.
@@ -64,4 +65,4 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 | **MacBook / Cursor local** | Al abrir el repo: **leer este archivo primero**. Si hay rama o PR en «Pendiente», continuar ahí antes de otra cosa. |
 | **Hugo** | Cuando algo esté en prod, borrar de «Pendiente» o pasarlo a «Hecho». |
 
-**Última actualización cloud:** 2026-11-20 — Buscador sin barra iOS PR #57 → `main`.
+**Última actualización cloud:** 2026-11-20 — Cerrar búsqueda de clientas PR #58 → `main`.
