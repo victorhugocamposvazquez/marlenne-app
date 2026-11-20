@@ -240,11 +240,15 @@ function FriendPicker({
     <div className="mt-2 rounded-field border border-surface-line bg-surface-bg/40 p-2.5">
       <input
         className={inputCls}
-        placeholder="Nombre de la otra clienta"
+        placeholder="Buscar"
+        type="search"
+        name="q"
+        autoComplete="off"
+        autoCorrect="off"
+        spellCheck={false}
         value={q}
         onChange={e => setQ(e.target.value)}
         aria-label="Buscar clienta para pack amigo"
-        autoComplete="off"
       />
       {matches.map(c => (
         <button

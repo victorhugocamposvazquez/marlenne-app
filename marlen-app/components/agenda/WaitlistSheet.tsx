@@ -187,7 +187,7 @@ export default function WaitlistSheet({
                   </button>
                 ) : (
                   <>
-                    <input className={inputCls} autoComplete="off" placeholder="Nombre o buscar" value={query} onChange={e => setQuery(e.target.value)} />
+                    <input className={inputCls} type="search" name="q" autoComplete="off" autoCorrect="off" spellCheck={false} placeholder="Buscar" value={query} onChange={e => setQuery(e.target.value)} />
                     {matches.map(c => (
                       <button key={c.id} type="button" onClick={() => setClient(c)} className="mt-1 block w-full rounded-chip px-3 py-2 text-left text-body font-bold hover:bg-v-tint">
                         {c.full_name}

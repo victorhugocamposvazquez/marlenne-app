@@ -633,8 +633,15 @@ export function NewAppointmentSheetBody({
               <input
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder={query.trim() ? 'Nombre o teléfono' : `${clients.length} en la agenda`}
+                type="search"
+                name="q"
+                inputMode="search"
+                enterKeyHint="search"
                 autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                placeholder={query.trim() ? 'Buscar' : `${clients.length} en la agenda`}
                 className="min-w-0 flex-1 bg-transparent text-[17px] outline-none placeholder:text-ink-3"
               />
             </div>

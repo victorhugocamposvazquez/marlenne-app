@@ -231,12 +231,14 @@ export default function ClientasView({
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
       <header className={screenHeaderCls}>
-        <PageHeading title="Clientas" subtitle={titleCount}>
-          <HeaderIconButton label="Nueva Client@" onClick={() => shallowSet({ alta: '1' })}>
-            <Plus size={22} strokeWidth={2.2} />
-          </HeaderIconButton>
-        </PageHeading>
-        <div ref={sortRef} className="relative mt-1.5">
+        <div className="hide-when-keyboard">
+          <PageHeading title="Clientas" subtitle={titleCount}>
+            <HeaderIconButton label="Nueva Client@" onClick={() => shallowSet({ alta: '1' })}>
+              <Plus size={22} strokeWidth={2.2} />
+            </HeaderIconButton>
+          </PageHeading>
+        </div>
+        <div ref={sortRef} className="hide-when-keyboard relative mt-1.5">
           <div className="flex items-center gap-1.5">
             <span className="text-body font-bold text-ink">Ordenar por:</span>
             <button
@@ -279,18 +281,27 @@ export default function ClientasView({
             </ul>
           )}
         </div>
-        <div className="mt-2 flex h-[54px] items-center gap-2.5 rounded-field bg-surface-soft px-4">
-          <Search size={18} className="text-ink-3" strokeWidth={2.2} />
-          <input
-            value={q}
-            onChange={e => setQ(e.target.value)}
-            placeholder="Buscar por nombre o teléfono"
-            aria-label="Buscar clientas"
-            autoComplete="off"
-            className="flex-1 border-0 bg-transparent text-[16px] outline-none placeholder:text-ink-3"
-          />
-        </div>
-        <div className="mt-2 flex gap-1.5 overflow-x-auto">
+        <form autoComplete="off" onSubmit={e => e.preventDefault()} className="mt-2">
+          <div className="flex h-[54px] items-center gap-2.5 rounded-field bg-surface-soft px-4">
+            <Search size={18} className="text-ink-3" strokeWidth={2.2} />
+            <input
+              type="search"
+              name="q"
+              inputMode="search"
+              enterKeyHint="search"
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              placeholder="Buscar"
+              aria-label="Buscar clientas"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              className="flex-1 border-0 bg-transparent text-[16px] outline-none placeholder:text-ink-3"
+            />
+          </div>
+        </form>
+        <div className="hide-when-keyboard mt-2 flex gap-1.5 overflow-x-auto">
           {FILTERS.map(f => (
             <Chip
               key={f.id}

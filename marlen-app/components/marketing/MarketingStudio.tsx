@@ -1599,11 +1599,16 @@ export default function MarketingStudio({
                 className={css.input}
                 value={clientQ}
                 onChange={e => setClientQ(e.target.value)}
-                placeholder="Buscar por nombre o teléfono"
+                type="search"
+                name="q"
+                placeholder="Buscar"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 autoFocus={!mobile}
                 inputMode="search"
                 enterKeyHint="search"
-                autoComplete="off"
               />
             </div>
             <div className={css.listStack}>

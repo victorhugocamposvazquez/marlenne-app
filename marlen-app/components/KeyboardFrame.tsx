@@ -24,6 +24,8 @@ export default function KeyboardFrame() {
       );
       root.style.setProperty('--keyboard-inset', `${box.inset}px`);
       root.style.setProperty('--keyboard-top', `${box.top}px`);
+      if (box.inset > 0) root.dataset.keyboard = '1';
+      else delete root.dataset.keyboard;
     };
 
     const onFocus = () => {
@@ -43,6 +45,7 @@ export default function KeyboardFrame() {
       window.visualViewport?.removeEventListener('scroll', paint);
       root.style.removeProperty('--keyboard-inset');
       root.style.removeProperty('--keyboard-top');
+      delete root.dataset.keyboard;
     };
   }, []);
 

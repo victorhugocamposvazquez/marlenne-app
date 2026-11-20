@@ -179,3 +179,9 @@ html[data-booted] #marlenne-splash { display: none !important; }
   opacity: 0;
   transition: opacity .38s ease;
 }
+
+/* Con el teclado abierto, el menú y la cabecera dejan sitio a la lista. */
+html[data-keyboard='1'] .app-bottom-nav,
+html[data-keyboard='1'] .hide-when-keyboard {
+  display: none !important;
+}

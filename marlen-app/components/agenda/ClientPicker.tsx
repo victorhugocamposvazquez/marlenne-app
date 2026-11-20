@@ -36,9 +36,16 @@ export default function ClientPicker({
             ref={inputRef}
             autoFocus
             className={`${inputCls} pl-9 py-2`}
-            placeholder={query.trim() ? 'Nombre o teléfono' : 'Busca por nombre o teléfono'}
-            aria-label="Buscar clienta o cliente"
+            type="search"
+            name="q"
+            inputMode="search"
+            enterKeyHint="search"
             autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            placeholder={query.trim() ? 'Buscar' : 'Busca una clienta'}
+            aria-label="Buscar clienta o cliente"
             value={query}
             onChange={e => onQuery(e.target.value)}
           />
