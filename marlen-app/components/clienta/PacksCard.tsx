@@ -9,6 +9,7 @@ import Button from '@/components/ui/Button';
 import Chip from '@/components/ui/Chip';
 import EmptyState from '@/components/ui/EmptyState';
 import { loadClientPickerSearch } from '@/app/actions/client-list';
+import LineSearch from '@/components/LineSearch';
 import PackPaymentBlock from '@/components/clienta/PackPaymentBlock';
 import { draftFromTemplate, packExpired, packIsOpen } from '@/lib/packs';
 import { addPackSessions, sellPack, setPackFriend } from '@/lib/pack-write';
@@ -238,17 +239,12 @@ function FriendPicker({
 
   return (
     <div className="mt-2 rounded-field border border-surface-line bg-surface-bg/40 p-2.5">
-      <input
+      <LineSearch
         className={inputCls}
         placeholder="Buscar"
-        type="search"
-        name="q"
-        autoComplete="off"
-        autoCorrect="off"
-        spellCheck={false}
         value={q}
-        onChange={e => setQ(e.target.value)}
-        aria-label="Buscar clienta para pack amigo"
+        onChange={setQ}
+        ariaLabel="Buscar clienta para pack amigo"
       />
       {matches.map(c => (
         <button

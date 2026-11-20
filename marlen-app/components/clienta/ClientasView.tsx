@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Check, ChevronDown, Loader2, Plus, Search } from 'lucide-react';
 import { loadClientsPage, countClientSearch } from '@/app/actions/client-list';
 import NewClientSheet from '@/components/clienta/NewClientSheet';
+import LineSearch from '@/components/LineSearch';
 import Chip from '@/components/ui/Chip';
 import EmptyState from '@/components/ui/EmptyState';
 import DarCitaLink from '@/components/ui/DarCitaLink';
@@ -284,20 +285,12 @@ export default function ClientasView({
         <form autoComplete="off" onSubmit={e => e.preventDefault()} className="mt-2">
           <div className="flex h-[54px] items-center gap-2.5 rounded-field bg-surface-soft px-4">
             <Search size={18} className="text-ink-3" strokeWidth={2.2} />
-            <input
-              type="search"
-              name="q"
-              inputMode="search"
-              enterKeyHint="search"
+            <LineSearch
               value={q}
-              onChange={e => setQ(e.target.value)}
+              onChange={setQ}
               placeholder="Buscar"
-              aria-label="Buscar clientas"
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              spellCheck={false}
-              className="flex-1 border-0 bg-transparent text-[16px] outline-none placeholder:text-ink-3"
+              ariaLabel="Buscar clientas"
+              className="h-6 flex-1 border-0 bg-transparent py-0 text-[16px] leading-6 outline-none placeholder:text-ink-3"
             />
           </div>
         </form>

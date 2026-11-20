@@ -13,6 +13,7 @@ import { useCloseSheet } from '@/components/Sheet';
 import SheetShell, { SheetGrab, SheetHandle, useSheetShellClose } from '@/components/SheetShell';
 import { avatarColor, catStyle, initials } from '@/lib/categories';
 import { loadClientPickerSearch } from '@/app/actions/client-list';
+import LineSearch from '@/components/LineSearch';
 import { syncAppointmentReminderAction } from '@/app/actions/reminder-sync';
 import { cancelAppointment, createAppointment, updateAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
@@ -630,19 +631,11 @@ export function NewAppointmentSheetBody({
           <>
             <div className="mx-6 mt-3.5 flex h-12 shrink-0 items-center gap-2.5 rounded-field bg-surface-soft px-4">
               <Search size={18} className="text-ink-3" strokeWidth={2.2} />
-              <input
+              <LineSearch
                 value={query}
-                onChange={e => setQuery(e.target.value)}
-                type="search"
-                name="q"
-                inputMode="search"
-                enterKeyHint="search"
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck={false}
+                onChange={setQuery}
                 placeholder={query.trim() ? 'Buscar' : `${clients.length} en la agenda`}
-                className="min-w-0 flex-1 bg-transparent text-[17px] outline-none placeholder:text-ink-3"
+                className="min-w-0 flex-1 bg-transparent py-0 text-[17px] leading-6 outline-none placeholder:text-ink-3"
               />
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-3">

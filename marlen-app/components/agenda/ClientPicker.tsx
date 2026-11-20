@@ -1,6 +1,7 @@
 'use client';
 
 import { type Ref } from 'react';
+import LineSearch from '@/components/LineSearch';
 import { Search, UserPlus } from 'lucide-react';
 import { inputCls } from '@/components/Sheet';
 import { avatarColor, initials } from '@/lib/categories';
@@ -14,7 +15,7 @@ export default function ClientPicker({
   query: string;
   onQuery: (q: string) => void;
   onPick: (c: ClientOption) => void;
-  inputRef?: Ref<HTMLInputElement>;
+  inputRef?: Ref<HTMLTextAreaElement>;
   nudge?: boolean;
   fill?: boolean;
 }) {
@@ -32,22 +33,14 @@ export default function ClientPicker({
       <div className="shrink-0 border-b border-surface-line p-1.5">
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" strokeWidth={2.2} />
-          <input
+          <LineSearch
             ref={inputRef}
             autoFocus
-            className={`${inputCls} pl-9 py-2`}
-            type="search"
-            name="q"
-            inputMode="search"
-            enterKeyHint="search"
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
+            className={`${inputCls} resize-none py-2 pl-9`}
             placeholder={query.trim() ? 'Buscar' : 'Busca una clienta'}
-            aria-label="Buscar clienta o cliente"
+            ariaLabel="Buscar clienta o cliente"
             value={query}
-            onChange={e => onQuery(e.target.value)}
+            onChange={onQuery}
           />
         </div>
       </div>
