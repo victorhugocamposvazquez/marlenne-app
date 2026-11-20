@@ -185,7 +185,7 @@ export type MarlenChatProps = {
   voice?: VoiceAdapter;
   /** La propuesta viva lleva (o deja de llevar) una cita fantasma. La agenda la pinta. */
   onGhost?: (ghost: Ghost | null) => void;
-  /** Abrir una ruta de la app sin cerrar el panel. */
+  /** Abrir una ruta de la app (el host cierra el panel). */
   onNavigate?: (href: string) => void;
 };
 
@@ -828,6 +828,8 @@ export default function MarlenChat({ open, onClose, api, screen, voice, onGhost,
   const stopVoice = useRef<(() => void) | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  /** Sube al reiniciar/cerrar para ignorar respuestas tardías. */
+  const turnGen = useRef(0);
 
   const last = items[items.length - 1];
   const liveBlocks = last?.role === "marlen" ? last.blocks : [];
@@ -840,6 +842,25 @@ export default function MarlenChat({ open, onClose, api, screen, voice, onGhost,
     return null;
   }, [liveBlocks]);
 
+  const stopMic = useCallback(() => {
+    stopVoice.current?.();
+    stopVoice.current = null;
+    setHearing(null);
+  }, []);
+
+  const restart = useCallback(() => {
+    turnGen.current += 1;
+    stopMic();
+    setThinking(false);
+    setSaving(false);
+    setPatching(null);
+    setItems([]);
+    setFixed(null);
+    setText("");
+    setStart(null);
+    setTall(true);
+  }, [stopMic]);
+
   // Inicio según el momento (mejora 3).
   useEffect(() => {
     if (!open || items.length) return;
@@ -847,6 +868,23 @@ export default function MarlenChat({ open, onClose, api, screen, voice, onGhost,
     api.start(screen).then((s) => { if (alive) setStart(s); }).catch(() => undefined);
     return () => { alive = false; };
   }, [open, items.length, api, screen]);
+
+  // Al cerrar: invalidar turnos en vuelo y parar mic.
+  useEffect(() => {
+    if (open) return;
+    turnGen.current += 1;
+    stopMic();
+    setThinking(false);
+    setSaving(false);
+    setPatching(null);
+  }, [open, stopMic]);
+
+  // Mic pillado: cortar a los 45 s.
+  useEffect(() => {
+    if (!hearing) return;
+    const t = window.setTimeout(() => stopMic(), 45_000);
+    return () => window.clearTimeout(t);
+  }, [hearing, stopMic]);
 
   // Cita fantasma (mejora 5): la agenda la pinta; en móvil el panel baja para que se vea.
   const ghost = livePreview?.ghost ?? null;
@@ -879,15 +917,43 @@ export default function MarlenChat({ open, onClose, api, screen, voice, onGhost,
   }, []);
 
   const offline: TurnResult = { blocks: [{ kind: "error", code: "offline", text: "Sin conexión. No se ha guardado.", actions: [] }] };
+  const stuck: TurnResult = {
+    blocks: [{
+      kind: "error",
+      code: "offline",
+      text: "Tarda demasiado. Prueba otra vez o empieza de nuevo.",
+      actions: [{ id: "retry", label: "Empezar de nuevo", send: "para" }],
+    }],
+  };
 
   const send = useCallback(async (input: ActionSend, said: string) => {
+    if (thinking || saving) return;
+    // Ir a una pantalla: el host cierra el chat; no hace falta un turno.
+    if (typeof input !== "string" && input.intent === "go" && onNavigate) {
+      onNavigate(String(input.args?.href ?? "/agenda"));
+      return;
+    }
+    const gen = ++turnGen.current;
     setItems((prev) => [...prev, { id: uid(), role: "user", text: said }]);
     setThinking(true);
-    try { append(await api.turn(input, screen, fixed, said)); }
-    catch { append(offline); }
-    finally { setThinking(false); }
+    const TURN_MS = 20_000;
+    try {
+      const res = await Promise.race([
+        api.turn(input, screen, fixed, said),
+        new Promise<TurnResult>((_, reject) => {
+          window.setTimeout(() => reject(new Error("timeout")), TURN_MS);
+        }),
+      ]);
+      if (gen !== turnGen.current) return;
+      append(res);
+    } catch (err) {
+      if (gen !== turnGen.current) return;
+      append(err instanceof Error && err.message === "timeout" ? stuck : offline);
+    } finally {
+      if (gen === turnGen.current) setThinking(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, screen, fixed, append]);
+  }, [api, screen, fixed, append, thinking, saving, onNavigate]);
 
   const submitText = () => {
     const t = text.trim();
@@ -908,10 +974,24 @@ export default function MarlenChat({ open, onClose, api, screen, voice, onGhost,
   };
 
   const confirm = async (previewId: string) => {
+    const gen = turnGen.current;
     setSaving(true);
-    try { append(await api.confirm(previewId)); }
-    catch { append({ blocks: [{ ...offline.blocks[0], actions: [{ id: "retry", label: "Otra vez", send: { intent: "retry", args: { previewId } } }, { id: "drop", label: "Dejarlo", send: "para" }] } as Block] }); }
-    finally { setSaving(false); }
+    try {
+      const res = await Promise.race([
+        api.confirm(previewId),
+        new Promise<TurnResult>((_, reject) => {
+          window.setTimeout(() => reject(new Error("timeout")), 20_000);
+        }),
+      ]);
+      if (gen !== turnGen.current) return;
+      append(res);
+    } catch (err) {
+      if (gen !== turnGen.current) return;
+      if (err instanceof Error && err.message === "timeout") append(stuck);
+      else append({ blocks: [{ ...offline.blocks[0], actions: [{ id: "retry", label: "Otra vez", send: { intent: "retry", args: { previewId } } }, { id: "drop", label: "Dejarlo", send: "para" }] } as Block] });
+    } finally {
+      if (gen === turnGen.current) setSaving(false);
+    }
   };
 
   const cancel = async (previewId: string) => {
@@ -922,8 +1002,6 @@ export default function MarlenChat({ open, onClose, api, screen, voice, onGhost,
   const undo = async (undoId: string) => {
     try { append(await api.undo(undoId)); } catch { append(offline); }
   };
-
-  const onAction = (a: Action) => void send(a.send, a.label);
 
   const inlineRow = async (row: Row): Promise<string | null> => {
     if (!row.action) return null;
@@ -937,13 +1015,22 @@ export default function MarlenChat({ open, onClose, api, screen, voice, onGhost,
   };
 
   const toggleMic = () => {
-    if (hearing) { stopVoice.current?.(); stopVoice.current = null; setHearing(null); return; }
+    if (hearing) { stopMic(); return; }
     if (!voice) { inputRef.current?.focus(); return; }
+    if (thinking || saving) return;
     setHearing({ text: "", understood: [] });
     stopVoice.current = voice.start(
       (p) => setHearing(p),
       (finalText) => { stopVoice.current = null; setHearing(null); if (finalText.trim()) void send(finalText, finalText); },
     );
+  };
+
+  const onAction = (a: Action) => {
+    if (typeof a.send === "string" && /^(para|nada)$/i.test(a.send) && a.id === "retry") {
+      restart();
+      return;
+    }
+    void send(a.send, a.label);
   };
 
   if (!open) return null;
@@ -1128,6 +1215,16 @@ export default function MarlenChat({ open, onClose, api, screen, voice, onGhost,
                 {fixed.name}
                 <button aria-label={`Soltar a ${fixed.name}`} onClick={() => setFixed(null)} style={{ width: 28, height: 28, border: "none", background: "transparent", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="x" size={12} color={T.mute} width={2.4} /></button>
               </span>
+            )}
+            {(items.length > 0 || thinking || hearing) && (
+              <button
+                type="button"
+                aria-label="Empezar de nuevo"
+                onClick={restart}
+                style={{ minHeight: 36, borderRadius: 99, border: `1px solid ${T.line}`, background: T.surface2, padding: "0 12px", fontSize: 13, fontWeight: 600, color: T.ink }}
+              >
+                De nuevo
+              </button>
             )}
             <button aria-label="Cerrar el chat" onClick={onClose} style={round44}><Icon name="x" size={18} width={2.2} /></button>
           </div>

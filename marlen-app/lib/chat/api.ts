@@ -126,7 +126,11 @@ function cancelProposal(id: string, label: string): Block {
   };
 }
 
-function fromTalk(r: VoiceTalkResult, hint?: { status?: 'curso' | 'noshow' }): TurnResult {
+function fromTalk(
+  r: VoiceTalkResult,
+  hint?: { status?: 'curso' | 'noshow' },
+  onNavigate?: (href: string) => void,
+): TurnResult {
   if (!r.ok && !r.say && !(r.matches && r.matches.length)) {
     return {
       blocks: [{
@@ -187,7 +191,6 @@ function fromTalk(r: VoiceTalkResult, hint?: { status?: 'curso' | 'noshow' }): T
   }
 
   if (r.matches && r.matches.length === 1 && !r.ready) {
-    // Una sola coincidencia informativa (p. ej. find)
     blocks.push(text(r.say || r.matches[0].label));
     return { blocks };
   }
@@ -201,15 +204,13 @@ function fromTalk(r: VoiceTalkResult, hint?: { status?: 'curso' | 'noshow' }): T
     return { blocks };
   }
 
-  if (r.say) blocks.push(text(r.say));
-
+  // Abrir pantalla: navegar ya (el host cierra el chat). Sin botón inútil.
   if (r.href && !r.ready) {
-    blocks.push({
-      kind: 'alert',
-      text: 'Puedo abrir la pantalla.',
-      action: { id: 'open', label: 'Abrir', send: { intent: 'go', args: { href: r.href } } },
-    });
+    onNavigate?.(r.href);
+    return { blocks: [] };
   }
+
+  if (r.say) blocks.push(text(r.say));
 
   return { blocks: blocks.length ? blocks : [text('Listo.')] };
 }
@@ -227,35 +228,35 @@ async function runAgendaPhrase(
   }
 
   const llm = await voiceTalk(trimmed);
-  if (llm.ok && !llm.fallback) return fromTalk(llm);
+  if (llm.ok && !llm.fallback) return fromTalk(llm, undefined, onNavigate);
 
   const cmd = parseVoice(trimmed);
   switch (cmd.kind) {
     case 'today':
-      return fromTalk(await voiceToday());
+      return fromTalk(await voiceToday(), undefined, onNavigate);
     case 'next':
-      return fromTalk(await voiceNext());
+      return fromTalk(await voiceNext(), undefined, onNavigate);
     case 'slots':
-      return fromTalk(await voiceSlots(cmd.dayOffset, cmd.startMin, cmd.providerQ, cmd.part ?? null, cmd.durationMin ?? null));
+      return fromTalk(await voiceSlots(cmd.dayOffset, cmd.startMin, cmd.providerQ, cmd.part ?? null, cmd.durationMin ?? null), undefined, onNavigate);
     case 'find':
-      return fromTalk(await voiceFind(cmd.who ?? ''));
+      return fromTalk(await voiceFind(cmd.who ?? ''), undefined, onNavigate);
     case 'waiting':
-      return fromTalk(await voiceWaiting(cmd.who ?? ''));
+      return fromTalk(await voiceWaiting(cmd.who ?? ''), undefined, onNavigate);
     case 'wait':
-      return fromTalk(await voicePreviewWait(cmd.who ?? ''));
+      return fromTalk(await voicePreviewWait(cmd.who ?? ''), undefined, onNavigate);
     case 'status':
-      return fromTalk(await voicePreviewStatus(cmd.who ?? '', cmd.status), { status: cmd.status });
+      return fromTalk(await voicePreviewStatus(cmd.who ?? '', cmd.status), { status: cmd.status }, onNavigate);
     case 'late':
-      return fromTalk(await voiceLate(cmd.who ?? '', cmd.mins ?? null));
+      return fromTalk(await voiceLate(cmd.who ?? '', cmd.mins ?? null), undefined, onNavigate);
     case 'book':
-      return fromTalk(await voicePreviewBook(cmd.who, cmd.startMin, cmd.serviceQ, cmd.dayOffset, cmd.providerQ));
+      return fromTalk(await voicePreviewBook(cmd.who, cmd.startMin, cmd.serviceQ, cmd.dayOffset, cmd.providerQ), undefined, onNavigate);
     case 'cancel':
-      return fromTalk(await voicePreviewCancel(cmd.who ?? '', cmd.dayOffset));
+      return fromTalk(await voicePreviewCancel(cmd.who ?? '', cmd.dayOffset), undefined, onNavigate);
     case 'move':
-      return fromTalk(await voicePreviewMove(cmd.who ?? '', cmd.startMin, cmd.dayOffset, cmd.providerQ));
+      return fromTalk(await voicePreviewMove(cmd.who ?? '', cmd.startMin, cmd.dayOffset, cmd.providerQ), undefined, onNavigate);
     case 'go':
       onNavigate?.(cmd.href);
-      return { blocks: [text(cmd.say || 'Ahí lo tienes.')] };
+      return { blocks: [] };
     case 'help':
       return {
         blocks: [text('Puedo decirte el día, los huecos, apuntar una cita, pasarla a cabina, marcar que no vino o mirar la espera. Prueba: «quién sigue» o «cita a Lucía mañana a las once».')],
@@ -266,9 +267,9 @@ async function runAgendaPhrase(
       pending.clear();
       return { blocks: [text('Vale, lo dejo.')] };
     case 'same':
-      return fromTalk(await voiceFind(cmd.who ?? ''));
+      return fromTalk(await voiceFind(cmd.who ?? ''), undefined, onNavigate);
     default:
-      if (llm.say) return fromTalk(llm);
+      if (llm.say) return fromTalk(llm, undefined, onNavigate);
       return {
         blocks: [{
           kind: 'error',
@@ -300,6 +301,7 @@ function startRows(ctx: ScreenContext, role: string): StartRow[] {
 export function createMarlenChatApi(role: string, onNavigate?: (href: string) => void): ChatApi {
   return {
     async start(ctx) {
+      pending.clear();
       return {
         rows: startRows(ctx, role),
         examples: [
@@ -315,10 +317,10 @@ export function createMarlenChatApi(role: string, onNavigate?: (href: string) =>
         if (input.intent === 'go') {
           const href = String(input.args?.href ?? '/agenda');
           onNavigate?.(href);
-          return { blocks: [text('Ahí lo tienes.')] };
+          return { blocks: [] };
         }
-        if (input.intent === 'hoy') return fromTalk(await voiceToday());
-        if (input.intent === 'next') return fromTalk(await voiceNext());
+        if (input.intent === 'hoy') return fromTalk(await voiceToday(), undefined, onNavigate);
+        if (input.intent === 'next') return fromTalk(await voiceNext(), undefined, onNavigate);
         if (input.intent === 'answer') {
           const phrase = (uttered || String(input.args?.value ?? '')).trim();
           return runAgendaPhrase(phrase, onNavigate);

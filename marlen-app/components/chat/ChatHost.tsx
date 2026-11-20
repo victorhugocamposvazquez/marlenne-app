@@ -29,8 +29,17 @@ export default function ChatHost({ role }: { role: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  /** Remonta el panel al cerrar o al ir a una pantalla: limpia estados pillados. */
+  const [chatKey, setChatKey] = useState(0);
+
+  const closeChat = useCallback(() => {
+    setOpen(false);
+    setChatKey(k => k + 1);
+  }, []);
 
   const onNavigate = useCallback((href: string) => {
+    setOpen(false);
+    setChatKey(k => k + 1);
     router.push(href);
   }, [router]);
 
@@ -69,8 +78,9 @@ export default function ChatHost({ role }: { role: string }) {
         </div>
       )}
       <MarlenChat
+        key={chatKey}
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={closeChat}
         api={api}
         screen={screen}
         voice={voice}
