@@ -184,6 +184,7 @@ html[data-booted] #marlenne-splash { display: none !important; }
 html[data-keyboard='1'] .app-bottom-nav,
 html[data-keyboard='1'] .hide-when-keyboard,
 html[data-searching='1'] .app-bottom-nav,
-html[data-searching='1'] .hide-when-keyboard {
+html[data-searching='1'] .hide-when-keyboard,
+html[data-searching='1'] .voice-fab-host {
   display: none !important;
 }

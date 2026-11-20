@@ -18,6 +18,7 @@ import { phoneDigits } from '@/lib/phone';
 import { isRecallDue, shortWhen } from '@/lib/time';
 import { fold } from '@/lib/voice';
 import { CLIENT_LIST_PAGE } from '@/lib/client-list-size';
+import { setSearchFocusIsolate } from '@/lib/search-focus-isolate';
 import type { ClientListRow } from '@/lib/types';
 
 type Filter = 'todas' | 'vip' | 'proxima' | 'sin' | 'tratamiento' | 'volver' | 'bono';
@@ -109,7 +110,11 @@ export default function ClientasView({
     const root = document.documentElement;
     if (searching) root.dataset.searching = '1';
     else delete root.dataset.searching;
-    return () => { delete root.dataset.searching; };
+    setSearchFocusIsolate(searching);
+    return () => {
+      delete root.dataset.searching;
+      setSearchFocusIsolate(false);
+    };
   }, [searching]);
 
   const resetAndFetch = useCallback((query: string) => {
@@ -241,6 +246,12 @@ export default function ClientasView({
     ? 'Filtro sobre las fichas ya cargadas. Baja para traer más.'
     : null;
 
+  const clearQuery = () => {
+    setQ('');
+    setDebouncedQ('');
+    searchRef.current?.focus();
+  };
+
   const closeSearch = () => {
     window.clearTimeout(blurSearch.current);
     setSearching(false);
@@ -251,7 +262,9 @@ export default function ClientasView({
 
   return (
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
-      <header className={`${screenHeaderCls}${searching ? ' !pt-2' : ''}`}>
+      <header
+        className={`${screenHeaderCls}${searching ? ' sticky top-0 z-30 !pt-2 !pb-1 bg-surface-bg' : ''}`}
+      >
         <div className="hide-when-keyboard">
           <PageHeading title="Clientas" subtitle={titleCount}>
             <HeaderIconButton label="Nueva Client@" onClick={() => shallowSet({ alta: '1' })}>
@@ -302,16 +315,18 @@ export default function ClientasView({
             </ul>
           )}
         </div>
-        <form role="search" autoComplete="off" onSubmit={e => e.preventDefault()} className={searching ? '' : 'mt-2'}>
-          <div className="flex h-[54px] items-center gap-2.5 rounded-field bg-surface-soft px-4">
-            <Search size={18} className="text-ink-3" strokeWidth={2.2} />
+        <div role="search" className={`flex items-center gap-2 ${searching ? '' : 'mt-2'}`}>
+          <div className="flex h-[54px] min-w-0 flex-1 items-center gap-2.5 rounded-field bg-surface-soft px-4">
+            <Search size={18} className="shrink-0 text-ink-3" strokeWidth={2.2} />
             <LineSearch
               ref={searchRef}
               value={q}
               onChange={setQ}
+              variant="plain"
+              name="clientas-q"
               placeholder="Buscar"
               ariaLabel="Buscar clientas"
-              className="h-6 flex-1 border-0 bg-transparent py-0 text-[16px] leading-6 outline-none placeholder:text-ink-3"
+              className="h-6 min-w-0 flex-1 border-0 bg-transparent py-0 text-[16px] leading-6 outline-none placeholder:text-ink-3"
               onFocus={() => {
                 window.clearTimeout(blurSearch.current);
                 setSearching(true);
@@ -320,20 +335,31 @@ export default function ClientasView({
                 blurSearch.current = window.setTimeout(() => setSearching(false), 300);
               }}
             />
-            {searching && (
+            {q.length > 0 && (
               <button
                 type="button"
-                aria-label="Cerrar búsqueda"
-                className="grid h-9 w-9 shrink-0 place-items-center text-ink"
+                aria-label="Borrar lo escrito"
+                className="grid h-8 w-8 shrink-0 place-items-center text-ink-3"
                 onPointerDown={e => e.preventDefault()}
                 onMouseDown={e => e.preventDefault()}
-                onClick={closeSearch}
+                onClick={clearQuery}
               >
-                <X size={20} strokeWidth={2.2} />
+                <X size={18} strokeWidth={2.2} />
               </button>
             )}
           </div>
-        </form>
+          {searching && (
+            <button
+              type="button"
+              onPointerDown={e => e.preventDefault()}
+              onMouseDown={e => e.preventDefault()}
+              onClick={closeSearch}
+              className="shrink-0 py-2 text-body font-semibold text-v-d"
+            >
+              Cancelar
+            </button>
+          )}
+        </div>
         <div className="hide-when-keyboard mt-2 flex gap-1.5 overflow-x-auto">
           {FILTERS.map(f => (
             <Chip

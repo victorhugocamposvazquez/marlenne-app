@@ -13,6 +13,8 @@ type Props = {
   style?: React.CSSProperties;
   onFocus?: () => void;
   onBlur?: () => void;
+  /** En listas (Clientas) va en plano; en pickers, combobox. */
+  variant?: 'combobox' | 'plain';
 };
 
 /**
@@ -31,7 +33,9 @@ const LineSearch = forwardRef<HTMLTextAreaElement, Props>(function LineSearch({
   style,
   onFocus,
   onBlur,
+  variant = 'combobox',
 }, ref) {
+  const combo = variant === 'combobox';
   return (
     <textarea
       ref={ref}
@@ -41,10 +45,15 @@ const LineSearch = forwardRef<HTMLTextAreaElement, Props>(function LineSearch({
       autoFocus={autoFocus}
       placeholder={placeholder}
       aria-label={ariaLabel}
-      role="combobox"
-      aria-autocomplete="list"
-      aria-expanded={false}
-      aria-haspopup="listbox"
+      {...(combo
+        ? {
+            role: 'combobox' as const,
+            'aria-autocomplete': 'list' as const,
+            'aria-expanded': false,
+            'aria-haspopup': 'listbox' as const,
+          }
+        : { role: 'searchbox' as const })}
+      inputMode="search"
       enterKeyHint="search"
       autoComplete="off"
       autoCorrect="off"

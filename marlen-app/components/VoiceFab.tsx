@@ -948,7 +948,7 @@ export default function VoiceFab() {
   return (
     <div
       ref={rootRef}
-      className={`pointer-events-none absolute inset-x-0 z-30 flex flex-col items-end px-3 ${
+      className={`voice-fab-host pointer-events-none absolute inset-x-0 z-30 flex flex-col items-end px-3 ${
         pathname.startsWith('/agenda') || pathname.startsWith('/clientas')
           ? 'bottom-[calc(9.25rem+env(safe-area-inset-bottom))] standalone:bottom-[calc(8.75rem+max(6px,calc(env(safe-area-inset-bottom)-12px)))]'
           : 'bottom-[calc(5.75rem+env(safe-area-inset-bottom))] standalone:bottom-[calc(5.25rem+max(6px,calc(env(safe-area-inset-bottom)-12px)))]'
