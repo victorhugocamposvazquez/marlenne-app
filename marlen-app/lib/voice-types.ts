@@ -5,7 +5,7 @@
 
 import type { DayPart } from '@/lib/voice';
 
-export type PendingNeed = 'client' | 'service' | 'time' | 'provider' | 'phone';
+export type PendingNeed = 'client' | 'service' | 'time' | 'provider' | 'phone' | 'day';
 
 export type PendingBook = {
   who: string;

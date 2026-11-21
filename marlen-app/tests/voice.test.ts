@@ -284,3 +284,35 @@ test('cancela y mueve a medias no se pierden', () => {
   assert.equal(same.who, 'marta');
   assert.equal(same.serviceQ, 'same');
 });
+
+test('cabina no se traga el nombre ni el pronombre', () => {
+  const lucia = parseVoice('pasa a Lucía a cabina');
+  assert.equal(lucia.kind, 'status');
+  if (lucia.kind === 'status') assert.equal(lucia.who, 'lucia');
+
+  const ella = parseVoice('pásala a cabina');
+  assert.equal(ella.kind, 'status');
+  if (ella.kind === 'status') assert.equal(ella.who, null);
+
+  const sola = parseVoice('pasa a cabina');
+  assert.equal(sola.kind, 'status');
+  if (sola.kind === 'status') assert.equal(sola.who, null);
+});
+
+test('mejor a las seis no es una cita nueva', () => {
+  const mejor = parseVoice('mejor a las seis');
+  assert.notEqual(mejor.kind, 'book');
+  const cita = parseVoice('cita a Lucía a las seis');
+  assert.equal(cita.kind, 'book');
+});
+
+test('retraso con minutos', () => {
+  const diez = parseVoice('Lucía llega diez minutos tarde');
+  assert.equal(diez.kind, 'late');
+  if (diez.kind === 'late') {
+    assert.equal(diez.who, 'lucia');
+    assert.equal(diez.mins, 10);
+  }
+  const n = parseVoice('Lucía llega 15 minutos tarde');
+  if (n.kind === 'late') assert.equal(n.mins, 15);
+});

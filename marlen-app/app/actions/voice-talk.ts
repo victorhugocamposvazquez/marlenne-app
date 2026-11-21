@@ -5,7 +5,7 @@ import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { parseClock, weekdayOffset } from '@/lib/voice';
 import {
-  voiceAddWait, voiceFind, voiceLate, voiceNext, voicePreviewBook, voicePreviewCancel, voicePreviewMove,
+  voiceAddWait, voiceFind, voiceNext, voicePreviewBook, voicePreviewCancel, voicePreviewLate, voicePreviewMove,
   voicePreviewStatus, voicePreviewWait, voiceSlots, voiceToday,
 } from '@/app/actions/voice';
 import { requireSession } from '@/lib/require-session';
@@ -61,9 +61,10 @@ export async function voiceTalk(text: string, history: VoiceTurn[] = []): Promis
 Cercana, clara, sin teatro ni emojis. No repitas lo que acaba de oír si sonaba mal: responde a la intención.
 Solo agenda: citas, huecos, cabina, no-show, espera, si está apuntada, aviso de retraso. Nunca fotos, medidas ni salud.
 Usa las herramientas. No inventes huecos ni nombres.
-Si falta el servicio, llama a preview_cita igual (sin servicio) y pregunta cuál es. No mandes a abrir el alta.
+Si falta el servicio, llama a preview_cita igual (sin servicio) y pregunta cuál es.
 Si el equipo responde solo con el nombre del servicio, vuelve a llamar a preview_cita con ese servicio.
-Las herramientas de escribir solo PREVISUALIZAN: tú preguntas si lo hacemos. El equipo confirma en pantalla.`,
+No prometas abrir pantallas: citas, fichas y avisos se resuelven en este chat.
+Las herramientas solo PREVISUALIZAN: tú preguntas si lo hacemos. El equipo confirma en pantalla. El aviso de retraso tampoco se escribe hasta el sí.`,
     messages: [
       ...aligned.map(m => ({ role: m.role, content: m.content })),
       { role: 'user' as const, content: text },
@@ -163,13 +164,13 @@ Las herramientas de escribir solo PREVISUALIZAN: tú preguntas si lo hacemos. El
         },
       }),
       aviso_retraso: tool({
-        description: 'Avisa a cabina de que una clienta llega tarde. Apunta una nota en la cita de hoy.',
+        description: 'Previsualiza el aviso de que una clienta llega tarde. No escribe la nota.',
         parameters: z.object({
           clienta: z.string(),
           minutos: z.number().optional().describe('minutos de retraso, si los ha dicho'),
         }),
         execute: async ({ clienta, minutos }) => {
-          last = await voiceLate(clienta, minutos ?? null);
+          last = await voicePreviewLate(clienta, minutos ?? null);
           return last;
         },
       }),

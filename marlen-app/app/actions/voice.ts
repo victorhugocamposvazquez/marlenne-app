@@ -9,7 +9,8 @@ import {
   freeSlots, getDayAgenda, lastAppointmentOf, listClientOptions, listProviders, listServices,
 } from '@/lib/queries';
 import { CATEGORIES } from '@/lib/categories';
-import { dateFromOffset, dayKey, dayTitle, fmt, minutesOfDay, nowMinutes, offsetFromDay } from '@/lib/time';
+import { APPT_SELECT, mapAppt } from '@/lib/agenda-appt';
+import { dateFromOffset, dayKey, dayTitle, fmt, minutesOfDay, nowMinutes, offsetFromDay, toTimestamp } from '@/lib/time';
 import {
   dayPartRange, durationSaid, earAskSave, earAskTime, earAskTimeHoles, earHoraOcupada,
   earHueco, earHuecos, earMove, earNadie, earSaved, earTodayCount,
@@ -113,7 +114,8 @@ export async function voicePreviewStatus(who: string, status: 'curso' | 'noshow'
   const pool = appointments.filter(a => status === 'curso'
     ? a.status === 'prog'
     : a.status === 'prog' || a.status === 'curso');
-  const matches = rowsByClient(pool, who, a => a.client_label).map(a => ({
+  const hits = rowsByClient(pool, who, a => a.client_label);
+  const matches = hits.map(a => ({
     id: a.id,
     label: `${a.client_label} · ${fmt(minutesOfDay(a.starts_at))} · ${a.service_name}`,
   }));
@@ -126,10 +128,11 @@ export async function voicePreviewStatus(who: string, status: 'curso' | 'noshow'
     };
   }
   const verb = status === 'curso' ? 'Pasa a cabina' : 'No vino';
+  const clientName = hits.length === 1 ? hits[0].client_label : undefined;
   if (matches.length === 1) {
-    return { ok: true as const, say: `${verb}: ${matches[0].label}. ¿Lo marco?`, ear: '¿Lo marco?', matches };
+    return { ok: true as const, say: `${verb}: ${matches[0].label}. ¿Lo marco?`, ear: '¿Lo marco?', matches, clientName };
   }
-  return { ok: true as const, say: `Hay varias. ¿Cuál es?`, matches };
+  return { ok: true as const, say: `Hay varias. ¿Cuál es?`, matches, clientName };
 }
 
 export async function voiceApplyStatus(id: string, status: 'curso' | 'noshow') {
@@ -447,7 +450,13 @@ export async function voicePreviewBook(
         ok: false as const,
         ready: false as const,
         href,
-        say: `Por la ${part === 'manana' ? 'mañana' : 'tarde'} no queda nada. Abro el alta.`,
+        say: `Por la ${part === 'manana' ? 'mañana' : 'tarde'} no queda nada. ¿Otro día?`,
+        need: 'day' as const,
+        pending: {
+          who: whoLabel, startMin: null, dayOffset, providerQ, serviceQ: picked.name, part, phone, need: 'time' as const,
+          slotMins: [],
+          newClient: !client,
+        },
         ear: 'No quedan huecos.',
       };
     }
@@ -494,7 +503,18 @@ export async function voicePreviewBook(
         ear: earHoraOcupada(holes),
       };
     }
-    return { ok: false as const, ready: false as const, href, say: 'No queda hueco ese día. Abro el alta.' };
+    return {
+      ok: false as const,
+      ready: false as const,
+      href,
+      say: 'No queda hueco ese día. ¿Otro día?',
+      need: 'day' as const,
+      pending: {
+        who: whoLabel, startMin: null, dayOffset, providerQ, serviceQ: service.name, part, phone, need: 'time' as const,
+        slotMins: [],
+        newClient: !client,
+      },
+    };
   }
   if (free.length > 1 && !providerQ) {
     const names = free.map(p => p.full_name);
@@ -562,7 +582,14 @@ export async function voiceConfirmBook(draft: {
       full_name: titleName(draft.clientName),
       phone: draft.phone || undefined,
     });
-    if (created.ok && created.id) clientId = created.id;
+    if (!created.ok || !created.id) {
+      return {
+        ok: false,
+        say: created.error ?? 'No he podido crear la ficha. La cita no se ha guardado.',
+        href: '/clientas',
+      };
+    }
+    clientId = created.id;
   }
   const r = await createAppointment({ ...draft, clientId });
   return {
@@ -575,25 +602,45 @@ export async function voiceConfirmBook(draft: {
 
 export async function voicePreviewCancel(who: string, dayOffset = 0) {
   const { providers } = await scope();
-  const { appointments } = await getDayAgenda(dateFromOffset(dayOffset), providers.map(p => p.id));
-  const pool = appointments.filter(a => a.status === 'prog' || a.status === 'curso');
-  const matches = rowsByClient(pool, who, a => a.client_label).map(a => ({
+  const ids = providers.map(p => p.id);
+  // Sin día concreto, «cancela la de Lucía» mira de hoy en adelante, no solo hoy.
+  const from = dateFromOffset(dayOffset);
+  const until = dateFromOffset(dayOffset === 0 ? 21 : dayOffset + 1);
+  const sb = createClient();
+  const { data, error } = ids.length
+    ? await sb.from('appointments').select(APPT_SELECT)
+      .gte('starts_at', toTimestamp(from, 0))
+      .lt('starts_at', toTimestamp(until, 0))
+      .in('provider_id', ids)
+      .in('status', ['prog', 'curso'])
+      .order('starts_at')
+      .limit(40)
+    : { data: [], error: null };
+  const pool = error || !data
+    ? (await getDayAgenda(from, ids)).appointments.filter(a => a.status === 'prog' || a.status === 'curso')
+    : data.map(mapAppt).filter(a => a.status === 'prog' || a.status === 'curso');
+  const hits = rowsByClient(pool, who, a => a.client_label);
+  const matches = hits.map(a => ({
     id: a.id,
-    label: `${a.client_label} · ${fmt(minutesOfDay(a.starts_at))} · ${a.service_name}`,
+    label: `${a.client_label} · ${dayTitle(offsetFromDay(a.starts_at))} · ${fmt(minutesOfDay(a.starts_at))} · ${a.service_name}`,
   }));
   if (!matches.length) {
     return {
       ok: false as const,
-      say: `No hay cita de ${who} ${dayTitle(dayOffset)}.`,
-      ear: 'No hay cita de esa clienta hoy.',
+      say: dayOffset === 0
+        ? `No hay cita de ${who} de hoy en adelante.`
+        : `No hay cita de ${who} ${dayTitle(dayOffset)}.`,
+      ear: 'No hay cita de esa clienta.',
       matches: [],
     };
   }
+  const clientName = hits.length === 1 ? hits[0].client_label : undefined;
   return {
     ok: true as const,
     say: matches.length === 1 ? `Cancelo ${matches[0].label}. ¿De acuerdo?` : 'Hay varias. ¿Cuál cancelo?',
     ear: matches.length === 1 ? '¿Lo cancelamos?' : undefined,
     matches,
+    clientName,
   };
 }
 
@@ -666,6 +713,7 @@ export async function voicePreviewMove(
     say: `Paso a ${appt.client_label} ${dayTitle(dayOffset).toLowerCase()} a las ${fmt(startMin)} con ${provider.full_name.split(' ')[0]}. ¿De acuerdo?`,
     ear: earMove(dayOffset, startMin),
     draft: { id: appt.id, date: dayKey(when), startMin, providerId: provider.id },
+    moveAsk: { who: appt.client_label, dayOffset, providerQ },
   };
 }
 
@@ -687,6 +735,7 @@ export async function voiceFind(who: string) {
       ok: true as const,
       say: `${a.client_label} está apuntada a las ${fmt(minutesOfDay(a.starts_at))}, ${a.service_name} con ${a.provider_name.split(' ')[0]}.${cabina}`,
       href: '/hoy',
+      client: a.client_id ? { id: a.client_id, name: a.client_label } : undefined,
     };
   }
   if (hits.length > 1) {
@@ -702,7 +751,8 @@ export async function voiceFind(who: string) {
     return {
       ok: true as const,
       say: `${r.client.full_name} está en fichas, pero no tiene cita hoy.`,
-      href: `/clientas?q=${encodeURIComponent(r.client.full_name)}`,
+      href: `/clientas/${r.client.id}`,
+      client: { id: r.client.id, name: r.client.full_name },
     };
   }
   if (r.kind === 'several' || r.kind === 'similar') {
@@ -716,6 +766,29 @@ export async function voiceFind(who: string) {
     ok: false as const,
     say: `No encuentro a ${who} ni en la agenda de hoy ni en fichas.`,
     href: '/clientas',
+  };
+}
+
+/** «Llega tarde», sin escribir todavía. El sí del chat llama a `voiceLate`. */
+export async function voicePreviewLate(who: string, mins: number | null = null) {
+  const { providers } = await scope();
+  const { appointments } = await getDayAgenda(new Date(), providers.map(p => p.id));
+  const pool = appointments.filter(a => a.status === 'prog' || a.status === 'curso');
+  const hits = rowsByClient(pool, who, a => a.client_label);
+  if (!hits.length) {
+    return { ok: false as const, say: `No hay cita de ${who} hoy.`, href: '/hoy' };
+  }
+  const next = hits
+    .filter(a => a.status === 'prog')
+    .sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at))[0]
+    ?? hits[0];
+  const extra = mins != null ? `Llega ${mins} min tarde.` : 'Llega tarde.';
+  return {
+    ok: true as const,
+    late: true as const,
+    say: `Aviso a cabina: ${next.client_label} a las ${fmt(minutesOfDay(next.starts_at))}. ${extra} ¿Lo apunto?`,
+    draft: { who: next.client_label, mins },
+    client: next.client_id ? { id: next.client_id, name: next.client_label } : undefined,
   };
 }
 

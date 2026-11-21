@@ -49,7 +49,7 @@ export default function ChatHost({ role }: { role: string }) {
     route: pathname,
     title: screenTitle(pathname),
     citaId: searchParams.get('cita') ?? searchParams.get('id') ?? undefined,
-    clientaId: searchParams.get('client') ?? undefined,
+    clientaId: pathname.match(/^\/clientas\/([^/]+)/)?.[1] ?? searchParams.get('client') ?? undefined,
   }), [pathname, searchParams]);
 
   if (pathname.startsWith('/ajustes/marketing')) return null;

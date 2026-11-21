@@ -222,6 +222,13 @@ function tidyWho(s: string) {
     .trim();
 }
 
+/** «Pasa a Lucía a cabina» → Lucía. «Pásala a cabina» → nadie: el pronombre no es un nombre. */
+function cabinaWho(raw: string): string | null {
+  const who = tidyWho(raw.replace(/\s+(?:a|en) cabina$/, '')).replace(/^(?:a|en) cabina$/, '');
+  if (!who || /^(cabina|pasala|pasalo|ella|esa|esta|la|lo|le)$/.test(who)) return null;
+  return who;
+}
+
 function clockFromMatch(m: RegExpMatchArray): number | null {
   if (m[0].includes('menos cuarto')) {
     const h = hourOf(m[1]);
@@ -474,6 +481,16 @@ function parseSame(t: string): VoiceCmd | null {
   return who.length >= 2 ? { kind: 'same', who } : { kind: 'same', who: null };
 }
 
+const LATE_MINS: Record<string, number> = {
+  cinco: 5, diez: 10, quince: 15, veinte: 20, treinta: 30, cuarenta: 40, 'cuarenta y cinco': 45,
+};
+
+function lateMinutes(raw: string): number | null {
+  const t = raw.trim();
+  if (/^\d+$/.test(t)) return Number(t);
+  return LATE_MINS[t] ?? null;
+}
+
 function parseLate(t: string): VoiceCmd | null {
   if (/^(aviso a cabina|avisa a cabina)$/.test(t)) return { kind: 'late', who: null, mins: null };
   if (/^(llega tarde|avisa que se retrasa|se retrasa|viene tarde|llega en cinco)$/.test(t)) {
@@ -482,7 +499,16 @@ function parseLate(t: string): VoiceCmd | null {
   if (/^(diez minutos|en diez|se retrasa diez|diez min)$/.test(t)) {
     return { kind: 'late', who: null, mins: 10 };
   }
-  const m = t.match(/^(.+?) (?:llega tarde|se retrasa|viene tarde|avisa que se retrasa)$/)
+  const minsWord = String.raw`(?:\d+|cinco|diez|quince|veinte|treinta|cuarenta(?: y cinco)?)`;
+  let m = t.match(new RegExp(`^(.+?) llega (${minsWord}) minutos? tarde$`));
+  if (m) {
+    const who = tidyWho(m[1]);
+    const mins = lateMinutes(m[2]);
+    return who.length >= 2 ? { kind: 'late', who, mins } : { kind: 'late', who: null, mins };
+  }
+  m = t.match(new RegExp(`^llega (${minsWord}) minutos? tarde$`));
+  if (m) return { kind: 'late', who: null, mins: lateMinutes(m[1]) };
+  m = t.match(/^(.+?) (?:llega tarde|se retrasa|viene tarde|avisa que se retrasa)$/)
     || t.match(/^(?:llega tarde|se retrasa|avisa que se retrasa)(?: de| a)? (.+)$/);
   if (!m) return null;
   const who = tidyWho(m[1]);
@@ -575,6 +601,10 @@ function parseBook(t: string): VoiceCmd | null {
   const split = same.hit ? { who: same.who, serviceQ: 'same' } : takeServiceTail(rest);
   if (split.who.length < 2) return null;
   if (!saidBook && time.startMin === null) return null;
+  // «mejor a las seis» lleva hora, pero no es una cita: el resto es una muletilla.
+  if (!saidBook && /^(mejor|pero|perdon|al final|que sea|ponla|ponlo|cambiala|cambia|pasala|vale|ok|hoy|manana|a las|sobre las)$/.test(split.who)) {
+    return null;
+  }
   return {
     kind: 'book',
     who: split.who,
@@ -896,11 +926,11 @@ export function parseVoice(text: string): VoiceCmd {
   if (m) return { kind: 'status', status: 'noshow', who: tidyWho(m[1]) };
 
   m = t.match(/^pasa(?: a cabina)?(?: a| de)? (.+)$/);
-  if (m) return { kind: 'status', status: 'curso', who: tidyWho(m[1]) };
+  if (m) return { kind: 'status', status: 'curso', who: cabinaWho(m[1]) };
   m = t.match(/^(?:entra|empieza|atiende|recibe)(?: a cabina)?(?: a)? (.+)$/);
   if (m) return { kind: 'status', status: 'curso', who: tidyWho(m[1]) };
   m = t.match(/^(.+) (?:a |en )cabina$/);
-  if (m) return { kind: 'status', status: 'curso', who: tidyWho(m[1]) };
+  if (m) return { kind: 'status', status: 'curso', who: cabinaWho(m[1]) };
   m = t.match(/^(?:ha llegado|llego)(?: ya)? (.+)$/);
   if (m) return { kind: 'status', status: 'curso', who: tidyWho(m[1]) };
 
