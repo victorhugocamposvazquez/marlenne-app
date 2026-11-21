@@ -184,7 +184,7 @@ export async function lastAppointmentOf(clientId: string) {
     .from('appointments')
     .select('provider_id, service:services(name), provider:staff!appointments_provider_id_fkey(full_name)')
     .eq('client_id', clientId)
-    .neq('status', 'cancel')
+    .neq('status', 'cancelled')
     .order('starts_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -257,7 +257,7 @@ export async function getDayAgenda(date: Date, providerIds: string[]) {
   }
 
   return {
-    appointments: (rows ?? []).map(mapAppt),
+    appointments: (rows ?? []).map(mapAppt).filter(a => a.status !== 'cancelled'),
     blocks: (blocks.data ?? []) as AgendaBlock[],
   };
 }
@@ -300,7 +300,8 @@ export async function getWeekCounts(providerIds: string[], dayOffset = 0): Promi
         provider_name: a.provider?.full_name ?? '',
         status: a.status,
         price_cents: a.price_cents ?? null,
-      })),
+      }))
+      .filter(a => a.status !== 'cancelled'),
   }));
 }
 
@@ -327,12 +328,13 @@ export async function getBusyOffsets(providerIds: string[], startOffset: number,
   }
 
   const { data } = await sb.from('appointments')
-    .select('starts_at')
+    .select('starts_at, status')
     .gte('starts_at', fromTs)
     .lte('starts_at', toTs)
     .in('provider_id', providerIds);
   const busy = new Set<number>();
   for (const row of data ?? []) {
+    if (row.status === 'cancelled') continue;
     const off = offsetFromDay(row.starts_at);
     if (off >= startOffset && off < startOffset + n) busy.add(off);
   }

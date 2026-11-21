@@ -471,15 +471,15 @@ export function previewAppointments(csv: string, cat: Catalog): PreviewAppointme
     const starts_at = toTimestamp(date, startMin);
     const ends_at = addMinutesIso(starts_at, duration_min);
 
-    const busy = status !== 'noshow' && (
+    const busy = status !== 'noshow' && status !== 'cancelled' && (
       cat.appointments.some(a =>
-        a.provider_id === provider.id && a.status !== 'noshow' && overlap(starts_at, ends_at, a.starts_at, a.ends_at),
+        a.provider_id === provider.id && a.status !== 'noshow' && a.status !== 'cancelled' && overlap(starts_at, ends_at, a.starts_at, a.ends_at),
       )
       || cat.blocks.some(b =>
         b.provider_id === provider.id && overlap(starts_at, ends_at, b.starts_at, blockEnd(b)),
       )
       || accepted.some(a =>
-        a.action === 'create' && a.providerId === provider.id && a.status !== 'noshow'
+        a.action === 'create' && a.providerId === provider.id && a.status !== 'noshow' && a.status !== 'cancelled'
         && a.starts_at && a.ends_at && overlap(starts_at, ends_at, a.starts_at, a.ends_at),
       )
     );

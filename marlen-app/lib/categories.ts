@@ -75,13 +75,14 @@ export function categorySlug(name: string) {
   return s || 'categoria';
 }
 
-export type StatusId = 'prog' | 'curso' | 'done' | 'noshow';
+export type StatusId = 'prog' | 'curso' | 'done' | 'noshow' | 'cancelled';
 
 export const STATUS: Record<StatusId, { label: string; bg: string; border: string; edge: string }> = {
-  prog:   { label: 'Agendada',  bg: 'var(--st-prog-bg)',   border: 'var(--st-prog-line)',   edge: 'var(--st-prog-edge)' },
-  curso:  { label: 'En cabina', bg: 'var(--st-curso-bg)',  border: 'var(--st-curso-line)',  edge: 'var(--st-curso-edge)' },
-  done:   { label: 'Hecha',     bg: 'var(--st-done-bg)',   border: 'var(--st-done-line)',   edge: 'var(--st-done-edge)' },
-  noshow: { label: 'No vino',   bg: 'var(--st-noshow-bg)', border: 'var(--st-noshow-line)', edge: 'var(--st-noshow-edge)' },
+  prog:      { label: 'Agendada',  bg: 'var(--st-prog-bg)',   border: 'var(--st-prog-line)',   edge: 'var(--st-prog-edge)' },
+  curso:     { label: 'En cabina', bg: 'var(--st-curso-bg)',  border: 'var(--st-curso-line)',  edge: 'var(--st-curso-edge)' },
+  done:      { label: 'Hecha',     bg: 'var(--st-done-bg)',   border: 'var(--st-done-line)',   edge: 'var(--st-done-edge)' },
+  noshow:    { label: 'No vino',   bg: 'var(--st-noshow-bg)', border: 'var(--st-noshow-line)', edge: 'var(--st-noshow-edge)' },
+  cancelled: { label: 'Cancelada', bg: '#F4F4F5',            border: '#E4E4E7',               edge: '#71717A' },
 };
 
 const PALETTE = ['#8B5CF6', '#6366F1', '#EC4899', '#0EA5E9', '#F59E0B', '#10B981', '#A855F7'];

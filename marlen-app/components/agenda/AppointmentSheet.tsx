@@ -373,7 +373,7 @@ export default function AppointmentSheet({
         <>
           <Field label="Estado">
             <div className="flex flex-wrap gap-2">
-              {(Object.keys(STATUS) as StatusId[]).map(id => (
+              {(Object.keys(STATUS) as StatusId[]).filter(id => id !== 'cancelled').map(id => (
                 <Chip
                   key={id}
                   active={appt.status === id}

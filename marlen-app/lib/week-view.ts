@@ -10,7 +10,7 @@ const ALMOST_FULL = 85;
 export type WeekAppt = WeekDay['appointments'][number];
 
 export function activeAppts(appts: WeekAppt[]) {
-  return appts.filter(a => a.status !== 'noshow');
+  return appts.filter(a => a.status !== 'noshow' && a.status !== 'cancelled');
 }
 
 export function isClosedDay(day: Pick<WeekDay, 'dow' | 'appointments'>) {

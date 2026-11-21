@@ -114,7 +114,14 @@ export async function cancelAppointment(sb: SupabaseClient, id: string): Promise
   const waiters = appt
     ? await matchingWaiters(sb, appt.salon_id, appt.service_id)
     : [];
-  const { error } = await sb.from('appointments').delete().eq('id', id);
+  const { data: { user } } = await sb.auth.getUser();
+  let { error } = await sb.from('appointments').update({
+    status: 'cancelled',
+    cancelled_by: user?.id ?? null,
+  }).eq('id', id);
+  if (error && /cancelled_by|cancelled_at|cancel_reason/i.test(error.message)) {
+    ({ error } = await sb.from('appointments').update({ status: 'cancelled' }).eq('id', id));
+  }
   if (error) return { ok: false, error: error.message };
   return { ok: true, error: null, waiters };
 }

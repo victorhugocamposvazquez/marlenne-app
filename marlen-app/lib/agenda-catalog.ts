@@ -51,7 +51,7 @@ export async function loadServiceCounts(sb: SupabaseClient): Promise<Record<stri
   const { data } = await sb
     .from('appointments')
     .select('service_id')
-    .neq('status', 'cancel')
+    .neq('status', 'cancelled')
     .order('starts_at', { ascending: false })
     .limit(1000);
   const counts: Record<string, number> = {};

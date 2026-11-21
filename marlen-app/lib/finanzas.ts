@@ -187,6 +187,7 @@ export async function loadFinanzasMovements(
   for (const row of appt.rows) {
     try {
       const a = mapAppt(row);
+      if (a.status === 'cancelled') continue;
       const who = a.provider_name?.split(' ')[0];
       const svc = a.service_name || 'Cita';
       movs.push({
@@ -201,6 +202,7 @@ export async function loadFinanzasMovements(
         at: a.starts_at,
       });
     } catch {
+      if (row.status === 'cancelled') continue;
       movs.push({
         id: `cita:${String(row.id)}`,
         kind: 'cita',
