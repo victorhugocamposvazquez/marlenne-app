@@ -36,6 +36,7 @@ export async function GET(req: Request) {
     appId,
     redirectUri: metaRedirectUri(originOf(req)),
     state,
+    configId: process.env.META_LOGIN_CONFIG_ID,
   }));
   res.cookies.set(STATE_COOKIE, state, {
     httpOnly: true,

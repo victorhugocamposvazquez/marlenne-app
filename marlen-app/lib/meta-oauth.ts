@@ -40,13 +40,24 @@ export function metaOrigin(input: {
   return `${proto}://${host}`;
 }
 
-export function metaAuthUrl(input: { appId: string; redirectUri: string; state: string }) {
+export function metaAuthUrl(input: {
+  appId: string;
+  redirectUri: string;
+  state: string;
+  configId?: string | null;
+}) {
   const url = new URL('https://www.facebook.com/v21.0/dialog/oauth');
   url.searchParams.set('client_id', input.appId);
   url.searchParams.set('redirect_uri', input.redirectUri);
   url.searchParams.set('state', input.state);
-  url.searchParams.set('scope', META_OAUTH_SCOPES.join(','));
   url.searchParams.set('response_type', 'code');
+  const configId = input.configId?.trim();
+  if (configId) {
+    // La configuración ya lista permisos y activos. Meta rechaza el diálogo si además va scope.
+    url.searchParams.set('config_id', configId);
+  } else {
+    url.searchParams.set('scope', META_OAUTH_SCOPES.join(','));
+  }
   return url.toString();
 }
 

@@ -8,7 +8,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Pendiente (hazlo en el MacBook o mergea la rama cloud)
 
-- **Leads / Meta, al existir `app.marlenapp.com`:** hoy el webhook de la app de Meta apunta a `https://marlenne-app.vercel.app/api/meta/leadgen` (token `META_WEBHOOK_VERIFY_TOKEN` ya en Vercel Production). Cambiar esa URL a `https://app.marlenapp.com/api/meta/leadgen`, verificar otra vez y suscribir `leadgen`. En URI de OAuth válidas, dejar `https://app.marlenapp.com/api/meta/oauth/callback` (se puede conservar la de `marlenne-app.vercel.app`). `APP_URL` ya es `https://app.marlenapp.com`: al resolver el DNS, «Conectar página» vuelve ahí. Siguen pendientes los CNAME de `app` y `panel` en Nominalia, las migraciones de Leads y `META_APP_ID` / `META_APP_SECRET` si aún no están en Vercel.
+- **Leads / Meta, conectar Arlett:** `META_LOGIN_CONFIG_ID` ya está en Vercel y el diálogo de OAuth usa la configuración de Inicio de sesión para empresas. Falta que Hugo pulse Conectar en `https://app.marlenapp.com/ajustes/leads` con el perfil que administra la página de Arlett. Si Meta dice que la URI no es válida, en Configuración de ese producto tiene que estar `https://app.marlenapp.com/api/meta/oauth/callback`. El webhook sigue en `https://marlenne-app.vercel.app/api/meta/leadgen` hasta pasarlo a `https://app.marlenapp.com/api/meta/leadgen` y volver a verificar.
 - **Supabase Auth:** Site URL + Redirect URLs → `https://app.marlenapp.com` (y `/**`). Mantener `marlenne-app.vercel.app` un tiempo.
 - **Vercel `marlen-website`:** conectar GitHub del monorepo (falló por Login Connection) para deploys automáticos; Root `main-website`.
 - Equipo: reinstalar PWA desde `https://app.marlenapp.com`.
@@ -68,4 +68,4 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 | **MacBook / Cursor local** | Al abrir el repo: **leer este archivo primero**. Si hay rama o PR en «Pendiente», continuar ahí antes de otra cosa. |
 | **Hugo** | Cuando algo esté en prod, borrar de «Pendiente» o pasarlo a «Hecho». |
 
-**Última actualización:** 2026-11-26 — Leads: webhook de Meta en `marlenne-app.vercel.app` hasta que resuelva `app.marlenapp.com`.
+**Última actualización:** 2026-11-26 — OAuth de Leads usa la configuración de Facebook Login for Business. Falta conectar Arlett y pasar el webhook a `app.marlenapp.com`.
