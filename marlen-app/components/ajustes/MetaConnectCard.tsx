@@ -75,6 +75,10 @@ export default function MetaConnectCard({
       {status.configured && (
         <a
           href="/api/meta/oauth/start"
+          onClick={event => {
+            event.preventDefault();
+            window.location.assign(`/api/meta/oauth/start?fresh=${Date.now()}`);
+          }}
           className="inline-flex min-h-[48px] items-center justify-center rounded-pill bg-ink px-4 text-body font-bold text-white no-underline"
         >
           {status.pageId ? 'Conectar otra página' : 'Conectar página de Facebook'}

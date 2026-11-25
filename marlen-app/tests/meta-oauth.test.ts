@@ -60,6 +60,8 @@ test('con configuración de empresa no manda la lista de permisos', () => {
   assert.equal(url.searchParams.get('config_id'), '999');
   assert.equal(url.searchParams.has('scope'), false);
   assert.equal(url.searchParams.get('response_type'), 'code');
+  assert.equal(url.searchParams.get('override_default_response_type'), 'true');
+  assert.equal(url.searchParams.get('auth_type'), 'rerequest');
 });
 
 test('de las páginas solo entran las que traen token', () => {

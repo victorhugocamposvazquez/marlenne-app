@@ -55,6 +55,8 @@ export function metaAuthUrl(input: {
   if (configId) {
     // La configuración ya lista permisos y activos. Meta rechaza el diálogo si además va scope.
     url.searchParams.set('config_id', configId);
+    url.searchParams.set('override_default_response_type', 'true');
+    url.searchParams.set('auth_type', 'rerequest');
   } else {
     url.searchParams.set('scope', META_OAUTH_SCOPES.join(','));
   }

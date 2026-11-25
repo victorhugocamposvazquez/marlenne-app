@@ -32,12 +32,20 @@ export async function GET(req: Request) {
     return NextResponse.redirect(back);
   }
   const state = randomBytes(16).toString('hex');
-  const res = NextResponse.redirect(metaAuthUrl({
+  const target = metaAuthUrl({
     appId,
     redirectUri: metaRedirectUri(originOf(req)),
     state,
     configId: process.env.META_LOGIN_CONFIG_ID,
-  }));
+  });
+  // Página intermedia, sin caché: el navegador no reabre el error anterior de Facebook.
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Conectar Facebook</title></head><body><p>Abriendo Facebook…</p><script>location.replace(${JSON.stringify(target)})</script></body></html>`;
+  const res = new NextResponse(html, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store, max-age=0',
+    },
+  });
   res.cookies.set(STATE_COOKIE, state, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
