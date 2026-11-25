@@ -18,7 +18,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
-- 2026-11-25 — **Leads:** OPS enciende la bandeja por centro; cada lead nuevo avisa con un push que abre esa ficha. Rama `cursor/leads-meta-5156`.
+- 2026-11-25 — **Leads:** OPS enciende la bandeja por centro; cada lead nuevo avisa con un push que abre esa ficha; PR #59 → `main`.
 - 2026-11-20 — **Clientas:** al buscar, X arriba para salir y bajar el teclado; el campo queda como el combobox de Google; PR #58 → `main`.
 - 2026-11-20 — **iPhone:** el buscador pasa a un área de una línea, como Google, para no enseñar la barra de subir/bajar/check; PR #57 → `main`.
 - 2026-11-07 — **Marketing + Web:** asidero centrado, «Desliza arriba» a la izquierda y «o abajo» a la derecha; PR #56 → `main` (sustituye a #55).
