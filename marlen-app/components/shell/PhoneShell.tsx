@@ -21,6 +21,8 @@ export type ShellSession = {
   fullName: string;
   email: string;
   salonName: string;
+  /** OPS ha encendido la bandeja de leads. */
+  leads?: boolean;
   /** legacy opcionales */
   workspace?: string;
   hasPersonal?: boolean;
@@ -62,7 +64,7 @@ export default function PhoneShell({
         />
       </Suspense>
       <Suspense fallback={null}>
-        <MoreSheetHost />
+        <MoreSheetHost leads={session.leads === true} />
       </Suspense>
       <Suspense fallback={null}>
         <TaskSheetHost staff={staff} />

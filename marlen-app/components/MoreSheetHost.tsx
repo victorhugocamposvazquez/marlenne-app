@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Clock, ListTodo, Receipt } from 'lucide-react';
+import { Clock, ListTodo, Receipt, UserRound } from 'lucide-react';
 import { LocalSheet } from '@/components/Sheet';
 import { shallowSet, useShallowParam } from '@/hooks/useShallowQuery';
 
@@ -33,7 +33,7 @@ const ROWS = [
   },
 ] as const;
 
-export default function MoreSheetHost() {
+export default function MoreSheetHost({ leads = false }: { leads?: boolean }) {
   const mas = useShallowParam('mas');
   const open = mas === '1';
   if (!open) return null;
@@ -41,7 +41,16 @@ export default function MoreSheetHost() {
   return (
     <LocalSheet open onClose={close} title="Más" initialHeight="mid">
       <div className="flex flex-col gap-2.5 pb-2">
-        {ROWS.map(row => {
+        {(leads ? [
+          {
+            href: '/leads' as string | null,
+            label: 'Leads',
+            hint: 'De los anuncios',
+            Icon: UserRound,
+            ready: true,
+          },
+          ...ROWS,
+        ] : ROWS).map(row => {
           const inner = (
             <div
               className={`flex w-full items-center gap-4 rounded-row px-5 py-4 text-left ${

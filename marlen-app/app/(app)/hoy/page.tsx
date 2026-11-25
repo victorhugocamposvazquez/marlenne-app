@@ -4,6 +4,7 @@ import { requireSession } from '@/lib/require-session';
 import { listProviders, getDayAgenda, countWaitlist, listRecalls, getSalonAgendaFeatures } from '@/lib/queries';
 import { countMyPasskeys } from '@/app/actions/webauthn';
 import { listUnifiedTasks } from '@/app/actions/tasks';
+import { countUntouchedLeads } from '@/app/actions/leads';
 import { fmt, minutesOfDay, madridNow, DAY_START, DAY_END, dayKey } from '@/lib/time';
 import { owedCents } from '@/lib/payment';
 import { tasksDueTodayOrOverdue } from '@/lib/tasks';
@@ -24,13 +25,14 @@ export default async function HoyPage() {
   const me = await requireSession();
   const cabin = me.role === 'provider';
   const todayKey = dayKey(new Date());
-  const [all, waiting, recalls, passkeyCount, allTasks, features] = await Promise.all([
+  const [all, waiting, recalls, passkeyCount, allTasks, features, untouchedLeads] = await Promise.all([
     listProviders(),
     cabin ? Promise.resolve(0) : countWaitlist(),
     cabin ? Promise.resolve([]) : listRecalls(6),
     countMyPasskeys(),
     listUnifiedTasks('todas'),
     getSalonAgendaFeatures(me.salon_id),
+    cabin ? Promise.resolve(0) : countUntouchedLeads(),
   ]);
   const todayTasks = tasksDueTodayOrOverdue(allTasks, todayKey);
   const ua = headers().get('user-agent') ?? '';
@@ -156,6 +158,21 @@ export default async function HoyPage() {
             </div>
           </div>
         </>
+      )}
+
+      {!cabin && untouchedLeads > 0 && (
+        <Link
+          href="/leads"
+          className="mb-4 flex items-center justify-between rounded-row bg-[#F2F2F7] px-4 py-3.5 no-underline"
+        >
+          <span>
+            <span className="block text-body font-bold text-ink">
+              {untouchedLeads === 1 ? '1 lead sin tocar' : `${untouchedLeads} leads sin tocar`}
+            </span>
+            <span className="mt-0.5 block text-label text-ink-2">De los anuncios. Ábrelos en Leads.</span>
+          </span>
+          <ChevronRight size={18} strokeWidth={2.2} className="text-ink-3" />
+        </Link>
       )}
 
       <PasskeySetupBanner ua={ua} hasPasskeys={passkeyCount > 0} />
