@@ -8,7 +8,7 @@ import {
 } from 'react';
 import {
   Calendar, ChevronLeft, ChevronRight, Clock, Home, ListTodo, Plus,
-  Receipt, RefreshCw, Settings, Sparkles, Users,
+  Receipt, RefreshCw, Settings, Sparkles, UserRound, Users,
 } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
 import { usePageRefresh } from '@/components/RefreshButton';
@@ -32,9 +32,11 @@ function isNavActive(path: string, href: string) {
 export default function SideNav({
   role,
   account,
+  leads = false,
 }: {
   role: string;
   account?: ReactNode;
+  leads?: boolean;
 }) {
   const path = usePathname();
   const prefetchOk = usePrefetchOk();
@@ -165,6 +167,7 @@ export default function SideNav({
         <Item href="/ajustes/servicios" icon={Sparkles} label="Tratamientos" />
         <Item href="/tareas" icon={ListTodo} label="Tareas" />
         <Item href="/finanzas" icon={Receipt} label="Finanzas" />
+        {leads && role !== 'provider' && <Item href="/leads" icon={UserRound} label="Leads" />}
         <Soon icon={Clock} label="Fichar" />
         <Item href="/ajustes" icon={Settings} label="Ajustes" />
       </nav>

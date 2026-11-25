@@ -33,6 +33,7 @@ export default function WideShell({
     <div className="mt-[var(--keyboard-top)] flex h-[calc(100dvh-var(--keyboard-inset)-var(--keyboard-top))] w-full overflow-hidden border-surface-line bg-surface-bg pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] standalone:border-t">
       <SideNav
         role={session.role}
+        leads={session.leads === true}
         account={
           <AccountMenu
             variant="rail"

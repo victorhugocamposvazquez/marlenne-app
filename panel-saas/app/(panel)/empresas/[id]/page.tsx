@@ -5,6 +5,7 @@ import { getCompany } from '@/lib/mock/companies';
 import { loadLiveCenter, loadLiveStaff } from '@/lib/live-center';
 import { loadLiveBookingLinks } from '@/lib/live-booking';
 import { loadOpsSupportAudit } from '@/lib/ops-support-audit';
+import { loadCompanyLeadsFlags } from '@/lib/leads-ops';
 
 export default async function EmpresaPage({ params }: { params: { id: string } }) {
   const company = getCompany(Number(params.id));
@@ -13,6 +14,13 @@ export default async function EmpresaPage({ params }: { params: { id: string } }
   const liveStaff = live ? await loadLiveStaff(live.salonId) : [];
   const opsAudit = live ? await loadOpsSupportAudit(live.salonId) : [];
   const booking = live ? await loadLiveBookingLinks() : null;
+  const leads = company.live ? await loadCompanyLeadsFlags() : null;
+  const leadsForCompany = leads
+    ? {
+      ...leads,
+      rows: live ? leads.rows.filter(row => row.id === live.salonId) : leads.rows,
+    }
+    : null;
 
   return (
     <PanelShell
@@ -28,6 +36,7 @@ export default async function EmpresaPage({ params }: { params: { id: string } }
         liveStaff={liveStaff}
         opsAudit={opsAudit}
         booking={booking}
+        leads={leadsForCompany}
       />
     </PanelShell>
   );

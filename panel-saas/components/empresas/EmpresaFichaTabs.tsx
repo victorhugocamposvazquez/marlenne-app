@@ -10,6 +10,8 @@ import { eur, initials } from '@/lib/format';
 import LiveCenterCard from '@/components/sms/LiveCenterCard';
 import BookingLinksOpsCard from '@/components/empresas/BookingLinksOpsCard';
 import OpsSupportAuditList from '@/components/empresas/OpsSupportAuditList';
+import LeadsOpsCard from '@/components/empresas/LeadsOpsCard';
+import type { OpsLeadFlags } from '@/lib/leads-ops';
 import type { LiveCenter } from '@/lib/live-center';
 import type { LiveBookingLinks } from '@/lib/live-booking';
 import type { OpsAuditRow } from '@/lib/ops-support-audit';
@@ -24,12 +26,14 @@ export default function EmpresaFichaTabs({
   liveStaff = [],
   opsAudit = [],
   booking = null,
+  leads = null,
 }: {
   company: Company;
   live?: LiveCenter | null;
   liveStaff?: LiveStaff[];
   opsAudit?: OpsAuditRow[];
   booking?: LiveBookingLinks | null;
+  leads?: OpsLeadFlags | null;
 }) {
   const { startImpersonation, toast } = usePanelUI();
   const [tab, setTab] = useState<(typeof TABS)[number]>('Resumen');
@@ -84,6 +88,7 @@ export default function EmpresaFichaTabs({
 
       {tab === 'Resumen' && (
         <div className="grid gap-3 lg:grid-cols-2">
+          {leads && <LeadsOpsCard flags={leads} />}
           {company.live && liveStaff.length > 0 && (
             <div className="space-y-2 rounded-card border border-[#BBF7D0] bg-[#F0FDF4] p-5 lg:col-span-2">
               <h2 className="text-[16px] font-bold">App en producción</h2>
