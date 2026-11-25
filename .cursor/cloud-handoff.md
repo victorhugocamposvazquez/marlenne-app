@@ -8,7 +8,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Pendiente (hazlo en el MacBook o mergea la rama cloud)
 
-- **Leads:** aplicar `supabase/migrations/20261125220000_leads.sql` en Terminal.app (pide la contraseña de Postgres). Luego en OPS → Empresas, encender Leads en el centro y guardar el id y el token de su página de Facebook. En Vercel de la app: `META_APP_SECRET` y `META_WEBHOOK_VERIFY_TOKEN`. El webhook es `https://app.marlenapp.com/api/meta/leadgen`. El push usa las `VAPID_*` que ya están.
+- **Leads:** aplicar en Terminal.app, en este orden, `supabase/migrations/20261125220000_leads.sql` y `supabase/migrations/20261125233000_leads_ads.sql` (pide la contraseña de Postgres). Luego en OPS → Empresas, encender Leads en el centro. En Ajustes → Leads, la admin conecta la página de Facebook. En Vercel: `META_APP_ID`, `META_APP_SECRET` y `META_WEBHOOK_VERIFY_TOKEN`. Redirect de Facebook: `https://app.marlenapp.com/api/meta/oauth/callback`. Webhook: `https://app.marlenapp.com/api/meta/leadgen`. El push usa las `VAPID_*` que ya están.
 - **Supabase Auth:** Site URL + Redirect URLs → `https://app.marlenapp.com` (y `/**`). Mantener `marlenne-app.vercel.app` un tiempo.
 - **Vercel `marlen-website`:** conectar GitHub del monorepo (falló por Login Connection) para deploys automáticos; Root `main-website`.
 - Equipo: reinstalar PWA desde `https://app.marlenapp.com`.
@@ -18,6 +18,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
+- 2026-11-25 — **Leads:** bandeja con filtro por campaña, ficha con deshacer y etiquetas del centro, y en Ajustes la admin conecta la página de Facebook; PR #60 → `main`.
 - 2026-11-25 — **Leads:** OPS enciende la bandeja por centro; cada lead nuevo avisa con un push que abre esa ficha; PR #59 → `main`.
 - 2026-11-20 — **Clientas:** al buscar, X arriba para salir y bajar el teclado; el campo queda como el combobox de Google; PR #58 → `main`.
 - 2026-11-20 — **iPhone:** el buscador pasa a un área de una línea, como Google, para no enseñar la barra de subir/bajar/check; PR #57 → `main`.

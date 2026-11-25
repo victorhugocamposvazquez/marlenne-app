@@ -29,7 +29,7 @@ export type LeadRow = {
 
 export type LeadEventRow = {
   id: string;
-  kind: 'call' | 'whatsapp' | 'note' | 'tag' | 'convert';
+  kind: 'call' | 'whatsapp' | 'note' | 'tag' | 'convert' | 'undo';
   body: string | null;
   created_at: string;
   staff_name: string | null;
@@ -157,6 +157,15 @@ export async function createManualLead(input: { fullName: string; phone?: string
   return { ok: true as const, id: data.id as string };
 }
 
+export async function listLeadTagWords(): Promise<string[]> {
+  const rows = await listLeads();
+  const words = new Set<string>();
+  for (const lead of rows) {
+    for (const tag of lead.tags) words.add(tag);
+  }
+  return [...words].sort((a, b) => a.localeCompare(b, 'es'));
+}
+
 export async function markLeadChannel(leadId: string, channel: LeadChannel) {
   const { me, on } = await desk();
   if (!on) return { ok: false as const, error: 'Leads no está activado' };
@@ -169,6 +178,23 @@ export async function markLeadChannel(leadId: string, channel: LeadChannel) {
     staff_id: me.id,
     kind: channel,
     body: channel === 'call' ? 'Llamada' : 'WhatsApp',
+  });
+  refresh(leadId);
+  return { ok: true as const };
+}
+
+export async function clearLeadChannel(leadId: string) {
+  const { me, on } = await desk();
+  if (!on) return { ok: false as const, error: 'Leads no está activado' };
+  const sb = createClient();
+  const { error } = await sb.from('leads').update({ last_channel: null }).eq('id', leadId);
+  if (error) return { ok: false as const, error: error.message };
+  await sb.from('lead_events').insert({
+    salon_id: me.salon_id,
+    lead_id: leadId,
+    staff_id: me.id,
+    kind: 'undo',
+    body: 'Se quitó el color del último contacto',
   });
   refresh(leadId);
   return { ok: true as const };

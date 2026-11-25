@@ -33,12 +33,13 @@ function Group({ title, rows }: { title: string; rows: Destino[] }) {
 }
 
 export default function AjustesIndex({
-  me, ready, personal = false, embedded = false,
+  me, ready, personal = false, embedded = false, leads = null,
 }: {
   me: { full_name: string; job_title: string | null; role: StaffRole };
   ready: ReadyItem[];
   personal?: boolean;
   embedded?: boolean;
+  leads?: { hint: string } | null;
 }) {
   const admin = me.role === 'admin';
   const desk = admin || me.role === 'reception';
@@ -84,6 +85,11 @@ export default function AjustesIndex({
       href: '/ajustes/voz',
       title: 'Voz',
       hint: 'Lo que no entendió, últimos 30 días',
+    }] : []),
+    ...(admin && leads ? [{
+      href: '/ajustes/leads',
+      title: 'Leads',
+      hint: leads.hint,
     }] : []),
   ];
 
