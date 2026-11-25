@@ -1,15 +1,16 @@
 import { notFound } from 'next/navigation';
 import LeadFicha from '@/components/leads/LeadFicha';
-import { getLead, leadTemplates, listLeadEvents } from '@/app/actions/leads';
+import { getLead, leadTemplates, listLeadEvents, listLeadTagWords } from '@/app/actions/leads';
 import { requireRole } from '@/lib/require-session';
 
 export default async function LeadPage({ params }: { params: { id: string } }) {
   const me = await requireRole('admin', 'reception');
   const lead = await getLead(params.id);
   if (!lead) notFound();
-  const [events, templates] = await Promise.all([
+  const [events, templates, knownTags] = await Promise.all([
     listLeadEvents(lead.id),
     leadTemplates({ campaignId: lead.campaign_id, adId: lead.ad_id }),
+    listLeadTagWords(),
   ]);
   return (
     <LeadFicha
@@ -17,6 +18,7 @@ export default async function LeadPage({ params }: { params: { id: string } }) {
       events={events}
       templates={templates}
       salonName={me.salon_name}
+      knownTags={knownTags}
     />
   );
 }

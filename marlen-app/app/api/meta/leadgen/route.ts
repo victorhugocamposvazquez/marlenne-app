@@ -114,6 +114,16 @@ async function ingest(
     thumbnail = ad?.creative?.image_url || ad?.creative?.thumbnail_url || null;
     headline = ad?.creative?.title || null;
     adBody = ad?.creative?.body || null;
+    await saveAd(sb, {
+      salonId,
+      campaignId: lead.campaign_id ?? null,
+      campaignName: lead.campaign_name ?? null,
+      adId,
+      adName: lead.ad_name ?? ad?.name ?? null,
+      thumbnail,
+      headline,
+      body: adBody,
+    });
   }
 
   const { data: inserted, error } = await sb.from('leads').insert({
@@ -139,4 +149,41 @@ async function ingest(
     campaign: lead.campaign_name,
     ad: lead.ad_name,
   }).catch(() => undefined);
+}
+
+async function saveAd(
+  sb: ReturnType<typeof createAdminClient>,
+  ad: {
+    salonId: string;
+    campaignId: string | null;
+    campaignName: string | null;
+    adId: string;
+    adName: string | null;
+    thumbnail: string | null;
+    headline: string | null;
+    body: string | null;
+  },
+) {
+  const row = {
+    salon_id: ad.salonId,
+    campaign_id: ad.campaignId,
+    campaign_name: ad.campaignName,
+    ad_id: ad.adId,
+    ad_name: ad.adName,
+    thumbnail_url: ad.thumbnail,
+    headline: ad.headline,
+    body: ad.body,
+  };
+  const { data: existing, error: readError } = await sb
+    .from('meta_ads')
+    .select('id')
+    .eq('salon_id', ad.salonId)
+    .eq('ad_id', ad.adId)
+    .maybeSingle();
+  if (readError) return;
+  if (existing?.id) {
+    await sb.from('meta_ads').update(row).eq('id', existing.id);
+    return;
+  }
+  await sb.from('meta_ads').insert(row);
 }

@@ -33,6 +33,7 @@ export default function LeadsView({
 }) {
   const router = useRouter();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]['id']>('todas');
+  const [campaignFilter, setCampaignFilter] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
@@ -42,17 +43,26 @@ export default function LeadsView({
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
+  const campaigns = useMemo(() => {
+    const names = new Set<string>();
+    for (const lead of leads) {
+      const name = lead.campaign_name?.trim();
+      if (name) names.add(name);
+    }
+    return [...names].sort((a, b) => a.localeCompare(b, 'es'));
+  }, [leads]);
+
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return leads.filter(lead => {
       const tone = leadTone(lead.last_channel);
       if (filter !== 'todas' && tone !== filter) return false;
+      if (campaignFilter && lead.campaign_name?.trim() !== campaignFilter) return false;
       if (!needle) return true;
-      return `${lead.full_name} ${lead.phone ?? ''} ${lead.campaign_name ?? ''} ${lead.ad_name ?? ''}`
-        .toLowerCase()
-        .includes(needle);
+      const hay = `${lead.full_name} ${lead.phone ?? ''}`.toLowerCase();
+      return hay.includes(needle);
     });
-  }, [leads, filter, q]);
+  }, [leads, filter, campaignFilter, q]);
 
   const saveNew = () => {
     setError(null);
@@ -132,6 +142,18 @@ export default function LeadsView({
             </Chip>
           ))}
         </div>
+        {campaigns.length > 0 && (
+          <div className="mt-2 flex gap-1.5 overflow-x-auto">
+            <Chip className="shrink-0" active={campaignFilter == null} onClick={() => setCampaignFilter(null)}>
+              Campañas
+            </Chip>
+            {campaigns.map(name => (
+              <Chip key={name} className="shrink-0" active={campaignFilter === name} onClick={() => setCampaignFilter(name)}>
+                {name}
+              </Chip>
+            ))}
+          </div>
+        )}
       </header>
 
       <div className="min-h-0 flex-1 overflow-auto px-6 pb-fab pt-1">

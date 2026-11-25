@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronLeft, MessageCircle, Phone } from 'lucide-react';
 import {
   addLeadNote,
+  clearLeadChannel,
   convertLeadToClient,
   markLeadChannel,
   saveLeadTemplate,
@@ -23,6 +24,7 @@ const KIND: Record<LeadEventRow['kind'], string> = {
   note: 'Nota',
   tag: 'Etiquetas',
   convert: 'Clienta',
+  undo: 'Color',
 };
 
 export default function LeadFicha({
@@ -30,11 +32,13 @@ export default function LeadFicha({
   events,
   templates,
   salonName,
+  knownTags = [],
 }: {
   lead: LeadRow;
   events: LeadEventRow[];
   templates: { ad: string | null; campaign: string | null; salon: string | null };
   salonName: string;
+  knownTags?: string[];
 }) {
   const router = useRouter();
   const [note, setNote] = useState('');
@@ -71,16 +75,27 @@ export default function LeadFicha({
       </Link>
       <h1 className="text-h1 font-bold tracking-[-.03em]">{lead.full_name}</h1>
       <p className="mt-1 text-body text-ink-2">{lead.phone || 'Sin teléfono'}{lead.email ? ` · ${lead.email}` : ''}</p>
+      <p className="mt-1 text-label text-ink-3">
+        Entró {new Date(lead.created_at).toLocaleString('es-ES', {
+          timeZone: 'Europe/Madrid',
+          day: 'numeric',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        })}
+      </p>
       {from && <p className="mt-1 text-label font-semibold text-ink-2">{from}</p>}
 
-      {(lead.thumbnail_url || lead.ad_headline || lead.ad_body) && (
+      {(lead.thumbnail_url || lead.ad_headline || lead.ad_body || from) && (
         <div className="mt-4 overflow-hidden rounded-row bg-surface-soft">
           {lead.thumbnail_url && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={lead.thumbnail_url} alt="" className="aspect-[1.91/1] w-full object-cover" />
           )}
           <div className="px-4 py-3">
-            {lead.ad_headline && <p className="text-body font-bold">{lead.ad_headline}</p>}
+            {lead.ad_headline
+              ? <p className="text-body font-bold">{lead.ad_headline}</p>
+              : from && <p className="text-body font-bold">{from}</p>}
             {lead.ad_body && <p className="mt-1 text-label text-ink-2">{lead.ad_body}</p>}
           </div>
         </div>
@@ -119,6 +134,16 @@ export default function LeadFicha({
         >
           He escrito
         </button>
+        {lead.last_channel && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => run(() => clearLeadChannel(lead.id))}
+            className="inline-flex min-h-[44px] items-center rounded-pill bg-surface-soft px-4 text-label font-bold text-ink-2"
+          >
+            Deshacer
+          </button>
+        )}
       </div>
       <p className="mt-2 text-label text-ink-3">
         El color del listado cambia al marcar el contacto, no al abrir la llamada.
@@ -158,6 +183,20 @@ export default function LeadFicha({
         />
         <button type="submit" className="rounded-pill bg-ink px-4 text-label font-bold text-white">Añadir</button>
       </form>
+      {knownTags.filter(item => !lead.tags.includes(item)).length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {knownTags.filter(item => !lead.tags.includes(item)).map(item => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => run(() => setLeadTags(lead.id, [...lead.tags, item]))}
+              className="rounded-pill border border-surface-line px-3 py-1.5 text-label font-bold text-ink-2"
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      )}
 
       <form
         className="mt-4"
