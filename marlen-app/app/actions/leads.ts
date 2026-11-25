@@ -47,20 +47,30 @@ async function desk() {
   return { me, on };
 }
 
-export async function listLeads(): Promise<LeadRow[]> {
+const PAGE = 40;
+
+export async function listLeadsPage(before?: string | null): Promise<{ rows: LeadRow[]; hasMore: boolean }> {
   const { on } = await desk();
-  if (!on) return [];
+  if (!on) return { rows: [], hasMore: false };
   const sb = createClient();
-  const { data, error } = await sb
+  let query = sb
     .from('leads')
     .select(LEAD_SELECT)
     .order('created_at', { ascending: false })
-    .limit(200);
+    .limit(PAGE + 1);
+  if (before) query = query.lt('created_at', before);
+  const { data, error } = await query;
   if (error) {
-    if (missingTable(error.message)) return [];
+    if (missingTable(error.message)) return { rows: [], hasMore: false };
     throw new Error(error.message);
   }
-  return (data ?? []) as LeadRow[];
+  const rows = (data ?? []) as LeadRow[];
+  return { rows: rows.slice(0, PAGE), hasMore: rows.length > PAGE };
+}
+
+export async function listLeads(): Promise<LeadRow[]> {
+  const page = await listLeadsPage();
+  return page.rows;
 }
 
 export async function countUntouchedLeads(): Promise<number> {

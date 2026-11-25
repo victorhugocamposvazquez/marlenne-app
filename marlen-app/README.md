@@ -65,12 +65,20 @@ En **Más** (dirección) hay un semáforo. A mano queda:
    - Redirect URLs: `https://app.marlenapp.com/recuperar`,
      `https://app.marlenapp.com/**`, `http://localhost:3000/**`
      (mantener también `https://marlenne-app.vercel.app/**` mientras haya instalaciones viejas)
-2. **Auth → Settings**: desactivar altas públicas (*Allow new users to sign up*).
+2. **Leads (Meta).** Mientras `app.marlenapp.com` no resuelva, el webhook de la
+   app de Meta es `https://marlenne-app.vercel.app/api/meta/leadgen`. Cuando el
+   DNS exista: en el panel de Meta, objeto Página, cambiar la URL a
+   `https://app.marlenapp.com/api/meta/leadgen`, verificar con el mismo
+   `META_WEBHOOK_VERIFY_TOKEN` y dejar suscrito `leadgen`. En las URI de OAuth
+   válidas tiene que estar `https://app.marlenapp.com/api/meta/oauth/callback`
+   (la de `marlenne-app.vercel.app` puede quedarse). `APP_URL` ya apunta a
+   `https://app.marlenapp.com`.
+3. **Auth → Settings**: desactivar altas públicas (*Allow new users to sign up*).
    El equipo se da de alta desde Más, no desde `/login`.
-3. Crear el equipo con emails reales y desactivar `*@marlenne.test`. Cada
+4. Crear el equipo con emails reales y desactivar `*@marlenne.test`. Cada
    persona cambia su contraseña en Más o con «Olvidé la contraseña».
-4. Borrar las clientas de siembra (`*@demo.test`).
-5. `DEMO_PASSWORD` no va en Vercel.
+5. Borrar las clientas de siembra (`*@demo.test`).
+6. `DEMO_PASSWORD` no va en Vercel.
 
 Los recordatorios SMS quedan para más adelante (Labs Mobile). El cron no
 manda nada si no hay proveedor.

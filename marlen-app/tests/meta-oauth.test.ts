@@ -4,6 +4,7 @@ import {
   adAccountsFromGraph,
   metaAppConfigured,
   metaAuthUrl,
+  metaOrigin,
   metaRedirectUri,
   pagesFromGraph,
 } from '../lib/meta-oauth';
@@ -11,6 +12,21 @@ import {
 test('la conexión pide id y secreto', () => {
   assert.equal(metaAppConfigured({ appId: '1', appSecret: 's' }), true);
   assert.equal(metaAppConfigured({ appId: '1', appSecret: '  ' }), false);
+});
+
+test('la vuelta usa el host que abrió el admin', () => {
+  assert.equal(
+    metaOrigin({
+      origin: 'https://marlenne-xxx.vercel.app',
+      forwardedHost: 'marlenne-app.vercel.app',
+      forwardedProto: 'https',
+    }),
+    'https://marlenne-app.vercel.app',
+  );
+  assert.equal(
+    metaOrigin({ origin: 'https://app.marlenapp.com', forwardedHost: null, forwardedProto: null }),
+    'https://app.marlenapp.com',
+  );
 });
 
 test('la vuelta del inicio de sesión es fija', () => {

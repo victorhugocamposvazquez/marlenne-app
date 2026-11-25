@@ -28,6 +28,18 @@ export function metaRedirectUri(origin: string) {
   return `${base}/api/meta/oauth/callback`;
 }
 
+/** El host con el que el admin abrió la app. Así Vercel y app.marlenapp.com vuelven cada uno a sí mismo. */
+export function metaOrigin(input: {
+  origin: string;
+  forwardedHost?: string | null;
+  forwardedProto?: string | null;
+}) {
+  const host = input.forwardedHost?.split(',')[0]?.trim();
+  if (!host) return input.origin.replace(/\/$/, '');
+  const proto = input.forwardedProto?.split(',')[0]?.trim() || 'https';
+  return `${proto}://${host}`;
+}
+
 export function metaAuthUrl(input: { appId: string; redirectUri: string; state: string }) {
   const url = new URL('https://www.facebook.com/v21.0/dialog/oauth');
   url.searchParams.set('client_id', input.appId);

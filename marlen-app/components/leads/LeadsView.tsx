@@ -1,10 +1,12 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MessageCircle, Phone, Plus, Search, UserRound } from 'lucide-react';
-import { createManualLead, saveLeadTemplate, type LeadRow } from '@/app/actions/leads';
+import { createManualLead, listLeadsPage, saveLeadTemplate, type LeadRow } from '@/app/actions/leads';
+import { createTestLead, importMetaLeadsPage, type MetaSyncResult } from '@/app/actions/leads-sync';
+import type { MetaSyncCursor } from '@/lib/meta-leads-sync';
 import Chip from '@/components/ui/Chip';
 import EmptyState from '@/components/ui/EmptyState';
 import PageHeading from '@/components/ui/PageHeading';
@@ -24,11 +26,20 @@ const FILTERS = [
   { id: 'whatsapp', label: 'WhatsApp' },
 ] as const;
 
+function syncSummary(res: MetaSyncResult) {
+  if (!res.ok) return res.error;
+  const entered = res.imported === 1 ? 'Entró 1 nuevo' : `Entraron ${res.imported} nuevos`;
+  const already = res.skipped > 0 ? `. ${res.skipped} ya estaban` : '';
+  return res.done ? `${entered}${already}. No quedan más en Facebook.` : `${entered}${already}. Hay más.`;
+}
+
 export default function LeadsView({
-  leads,
+  leads: initialLeads,
+  hasMore: initialHasMore,
   salonTemplate,
 }: {
   leads: LeadRow[];
+  hasMore: boolean;
   salonTemplate: string | null;
 }) {
   const router = useRouter();
@@ -41,7 +52,18 @@ export default function LeadsView({
   const [campaign, setCampaign] = useState('');
   const [template, setTemplate] = useState(salonTemplate ?? '');
   const [error, setError] = useState<string | null>(null);
+  const [rows, setRows] = useState(initialLeads);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [syncCursor, setSyncCursor] = useState<MetaSyncCursor | null>(null);
+  const [syncNote, setSyncNote] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [syncing, startSync] = useTransition();
+  const leads = rows;
+
+  useEffect(() => {
+    setRows(initialLeads);
+    setHasMore(initialHasMore);
+  }, [initialLeads, initialHasMore]);
 
   const campaigns = useMemo(() => {
     const names = new Set<string>();
@@ -157,11 +179,45 @@ export default function LeadsView({
       </header>
 
       <div className="min-h-0 flex-1 overflow-auto px-6 pb-fab pt-1">
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={syncing}
+            onClick={() => startSync(async () => {
+              const res = await importMetaLeadsPage(syncCursor);
+              setSyncNote(syncSummary(res));
+              if (!res.ok) return;
+              setSyncCursor(res.done ? null : res.cursor);
+              if (res.imported > 0) router.refresh();
+            })}
+            className="min-h-[44px] rounded-pill bg-ink px-4 text-label font-bold text-white disabled:opacity-50"
+          >
+            {syncing ? 'Trayendo…' : syncCursor ? 'Siguiente página' : 'Traer los de Facebook'}
+          </button>
+          <button
+            type="button"
+            disabled={syncing}
+            onClick={() => startSync(async () => {
+              const res = await createTestLead();
+              if (!res.ok) {
+                setSyncNote(res.error);
+                return;
+              }
+              setSyncNote(res.via === 'meta' ? 'Lead de prueba creado en Facebook.' : 'Lead de prueba creado en la bandeja.');
+              router.push(`/leads/${res.id}`);
+            })}
+            className="min-h-[44px] rounded-pill bg-surface-soft px-4 text-label font-bold text-ink disabled:opacity-50"
+          >
+            Lead de prueba
+          </button>
+        </div>
+        {syncNote && <p className="mt-2 text-label font-semibold text-ink-2">{syncNote}</p>}
+
         {shown.length === 0 && (
           <EmptyState
             icon={UserRound}
             title={leads.length === 0 ? 'Todavía no hay leads.' : 'Ningún lead con ese filtro.'}
-            hint={leads.length === 0 ? 'Cuando Meta mande uno, llegará aquí y al teléfono.' : undefined}
+            hint={leads.length === 0 ? 'Trae los que ya están en Facebook o crea uno de prueba.' : undefined}
           />
         )}
         {shown.map(lead => {
@@ -190,6 +246,26 @@ export default function LeadsView({
             </Link>
           );
         })}
+
+        {hasMore && (
+          <button
+            type="button"
+            disabled={syncing}
+            onClick={() => startSync(async () => {
+              const last = rows[rows.length - 1]?.created_at;
+              if (!last) return;
+              const page = await listLeadsPage(last);
+              setRows(current => {
+                const seen = new Set(current.map(lead => lead.id));
+                return [...current, ...page.rows.filter(lead => !seen.has(lead.id))];
+              });
+              setHasMore(page.hasMore);
+            })}
+            className="mt-3 min-h-[44px] w-full rounded-pill bg-surface-soft text-label font-bold text-ink disabled:opacity-50"
+          >
+            Ver más
+          </button>
+        )}
 
         <form
           className="mt-6"

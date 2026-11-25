@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { leadsEnabled } from '@/lib/leads-enabled';
 import {
   adAccountsFromGraph,
+  metaOrigin,
   metaRedirectUri,
   pagesFromGraph,
 } from '@/lib/meta-oauth';
@@ -15,7 +16,12 @@ export const dynamic = 'force-dynamic';
 const STATE_COOKIE = 'meta_oauth_state';
 
 function originOf(req: Request) {
-  return process.env.APP_URL?.trim() || new URL(req.url).origin;
+  const url = new URL(req.url);
+  return metaOrigin({
+    origin: url.origin,
+    forwardedHost: req.headers.get('x-forwarded-host'),
+    forwardedProto: req.headers.get('x-forwarded-proto'),
+  });
 }
 
 function sameState(cookie: string | undefined, query: string | null) {

@@ -1,5 +1,5 @@
 import LeadsView from '@/components/leads/LeadsView';
-import { leadTemplates, listLeads } from '@/app/actions/leads';
+import { leadTemplates, listLeadsPage } from '@/app/actions/leads';
 import { leadsEnabled } from '@/lib/leads-enabled';
 import { requireRole } from '@/lib/require-session';
 
@@ -16,9 +16,15 @@ export default async function LeadsPage() {
       </div>
     );
   }
-  const [leads, templates] = await Promise.all([
-    listLeads(),
+  const [page, templates] = await Promise.all([
+    listLeadsPage(),
     leadTemplates({}),
   ]);
-  return <LeadsView leads={leads} salonTemplate={templates.salon} />;
+  return (
+    <LeadsView
+      leads={page.rows}
+      hasMore={page.hasMore}
+      salonTemplate={templates.salon}
+    />
+  );
 }

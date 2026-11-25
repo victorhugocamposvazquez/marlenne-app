@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/queries';
 import { leadsEnabled } from '@/lib/leads-enabled';
-import { metaAppConfigured, metaAuthUrl, metaRedirectUri } from '@/lib/meta-oauth';
+import { metaAppConfigured, metaAuthUrl, metaOrigin, metaRedirectUri } from '@/lib/meta-oauth';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +10,11 @@ const STATE_COOKIE = 'meta_oauth_state';
 
 function originOf(req: Request) {
   const url = new URL(req.url);
-  return process.env.APP_URL?.trim() || url.origin;
+  return metaOrigin({
+    origin: url.origin,
+    forwardedHost: req.headers.get('x-forwarded-host'),
+    forwardedProto: req.headers.get('x-forwarded-proto'),
+  });
 }
 
 export async function GET(req: Request) {
