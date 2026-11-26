@@ -1,5 +1,5 @@
 import LeadsView from '@/components/leads/LeadsView';
-import { listLeadGroupNames, listLeadsPage } from '@/app/actions/leads';
+import { listLeadGroupNames, listLeadsPage, listTrashedLeads } from '@/app/actions/leads';
 import { leadsDesk } from '@/lib/leads-desk';
 
 export default async function LeadsPage() {
@@ -14,13 +14,19 @@ export default async function LeadsPage() {
       </div>
     );
   }
-  const [page, groupNames] = await Promise.all([listLeadsPage(), listLeadGroupNames(listGroup)]);
+  const [page, groupNames, trash] = await Promise.all([
+    listLeadsPage(),
+    listLeadGroupNames(listGroup),
+    listTrashedLeads(),
+  ]);
   return (
     <LeadsView
       leads={page.rows}
       hasMore={page.hasMore}
       listGroup={listGroup}
       groupNames={groupNames}
+      trashLeads={trash.rows}
+      trashHasMore={trash.hasMore}
     />
   );
 }

@@ -3,11 +3,20 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { MessageCircle, Phone, Plus, Search, UserRound } from 'lucide-react';
-import { createManualLead, listLeadsPage, type LeadRow } from '@/app/actions/leads';
+import { ChevronDown, MessageCircle, Phone, Plus, Search, Trash2, UserRound } from 'lucide-react';
+import {
+  createManualLead,
+  listLeadsPage,
+  listTrashedLeads,
+  purgeLead,
+  restoreLead,
+  type LeadRow,
+  type LeadTrashRow,
+} from '@/app/actions/leads';
 import type { LeadsListGroup } from '@/lib/leads-list-group';
 import type { LeadsListFilter } from '@/lib/leads-list-query';
 import EmptyState from '@/components/ui/EmptyState';
+import FilterDropdown from '@/components/ui/FilterDropdown';
 import PageHeading from '@/components/ui/PageHeading';
 import { HeaderIconButton, screenHeaderCls } from '@/components/ui/ScreenHeader';
 import { leadTone } from '@/lib/leads';
@@ -25,16 +34,31 @@ const FILTERS = [
   { id: 'whatsapp', label: 'WhatsApp' },
 ] as const;
 
+function leadDateTime(iso: string) {
+  return new Date(iso).toLocaleString('es-ES', {
+    timeZone: 'Europe/Madrid',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export default function LeadsView({
   leads: initialLeads,
   hasMore: initialHasMore,
   listGroup,
   groupNames,
+  trashLeads: initialTrash,
+  trashHasMore: initialTrashHasMore,
 }: {
   leads: LeadRow[];
   hasMore: boolean;
   listGroup: LeadsListGroup;
   groupNames: string[];
+  trashLeads: LeadTrashRow[];
+  trashHasMore: boolean;
 }) {
   const router = useRouter();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]['id']>('todas');
@@ -49,6 +73,12 @@ export default function LeadsView({
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [pending, start] = useTransition();
   const [listPending, startList] = useTransition();
+  const [trashOpen, setTrashOpen] = useState(initialTrash.length > 0);
+  const [trashRows, setTrashRows] = useState(initialTrash);
+  const [trashHasMore, setTrashHasMore] = useState(initialTrashHasMore);
+  const [purgeId, setPurgeId] = useState<string | null>(null);
+  const [trashError, setTrashError] = useState<string | null>(null);
+  const [trashPending, startTrash] = useTransition();
   const leads = rows;
   const filtersReady = useRef(false);
 
@@ -87,6 +117,12 @@ export default function LeadsView({
   }, [initialLeads, initialHasMore]);
 
   useEffect(() => {
+    setTrashRows(initialTrash);
+    setTrashHasMore(initialTrashHasMore);
+    if (initialTrash.length > 0) setTrashOpen(true);
+  }, [initialTrash, initialTrashHasMore]);
+
+  useEffect(() => {
     setCampaignFilter(null);
   }, [listGroup]);
 
@@ -103,6 +139,35 @@ export default function LeadsView({
     const t = window.setTimeout(() => fetchList(), 320);
     return () => window.clearTimeout(t);
   }, [q, fetchList]);
+
+  const refreshTrash = useCallback((before?: string | null) => {
+    startTrash(async () => {
+      const page = await listTrashedLeads(before);
+      if (before) {
+        setTrashRows(current => {
+          const seen = new Set(current.map(row => row.id));
+          return [...current, ...page.rows.filter(row => !seen.has(row.id))];
+        });
+      } else {
+        setTrashRows(page.rows);
+      }
+      setTrashHasMore(page.hasMore);
+    });
+  }, []);
+
+  const runTrash = (fn: () => Promise<{ ok: boolean; error?: string }>, onOk?: () => void) => {
+    setTrashError(null);
+    startTrash(async () => {
+      const res = await fn();
+      if (!res.ok) {
+        setTrashError(res.error ?? 'No se ha podido');
+        return;
+      }
+      onOk?.();
+      refreshTrash();
+      router.refresh();
+    });
+  };
 
   const saveNew = () => {
     setError(null);
@@ -176,32 +241,24 @@ export default function LeadsView({
           />
         </div>
         <div className="mt-1.5 flex gap-2">
-          <label className="min-w-0 flex-1">
-            <span className="sr-only">Estado</span>
-            <select
-              value={filter}
-              onChange={e => setFilter(e.target.value as (typeof FILTERS)[number]['id'])}
-              className="h-10 w-full min-w-0 rounded-field bg-surface-soft px-2.5 text-label font-semibold text-ink outline-none"
-            >
-              {FILTERS.map(f => (
-                <option key={f.id} value={f.id}>{f.label}</option>
-              ))}
-            </select>
-          </label>
+          <FilterDropdown
+            className="min-w-0 flex-1"
+            ariaLabel="Estado del lead"
+            value={filter}
+            onChange={v => setFilter(v as (typeof FILTERS)[number]['id'])}
+            options={FILTERS.map(f => ({ value: f.id, label: f.label }))}
+          />
           {groupNames.length > 0 && (
-            <label className="min-w-0 flex-1">
-              <span className="sr-only">{listGroup === 'ad' ? 'Anuncio' : 'Campaña'}</span>
-              <select
-                value={campaignFilter ?? ''}
-                onChange={e => setCampaignFilter(e.target.value || null)}
-                className="h-10 w-full min-w-0 truncate rounded-field bg-surface-soft px-2.5 text-label font-semibold text-ink outline-none"
-              >
-                <option value="">{listGroup === 'ad' ? 'Anuncios' : 'Campañas'}</option>
-                {groupNames.map(name => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </select>
-            </label>
+            <FilterDropdown
+              className="min-w-0 flex-1"
+              ariaLabel={listGroup === 'ad' ? 'Filtrar por anuncio' : 'Filtrar por campaña'}
+              value={campaignFilter ?? ''}
+              onChange={v => setCampaignFilter(v || null)}
+              options={[
+                { value: '', label: listGroup === 'ad' ? 'Anuncios' : 'Campañas' },
+                ...groupNames.map(name => ({ value: name, label: name })),
+              ]}
+            />
           )}
         </div>
       </header>
@@ -242,8 +299,9 @@ export default function LeadsView({
                   {lead.phone || 'Sin teléfono'}
                   {from ? ` · ${from}` : ''}
                 </span>
+                <span className="mt-0.5 block truncate text-label text-ink-3">{leadDateTime(lead.created_at)}</span>
                 {lead.tags.length > 0 && (
-                  <span className="mt-1 block truncate text-label text-ink-3">{lead.tags.join(' · ')}</span>
+                  <span className="mt-0.5 block truncate text-label text-ink-3">{lead.tags.join(' · ')}</span>
                 )}
               </span>
               {tone === 'call' && <Phone size={20} strokeWidth={2.2} style={{ color: paint.ink }} aria-label="Llamado" />}
@@ -265,6 +323,100 @@ export default function LeadsView({
             Ver más
           </button>
         )}
+
+        <div className="mt-8 border-t border-surface-line pt-4">
+          <button
+            type="button"
+            onClick={() => setTrashOpen(v => !v)}
+            className="flex w-full min-h-[44px] items-center justify-between gap-2 text-left"
+            aria-expanded={trashOpen}
+          >
+            <span className="inline-flex items-center gap-2 text-body font-bold text-ink">
+              <Trash2 size={18} strokeWidth={2.2} className="text-ink-3" aria-hidden />
+              Papelera
+              {trashRows.length > 0 && (
+                <span className="text-label font-semibold text-ink-3">({trashRows.length}{trashHasMore ? '+' : ''})</span>
+              )}
+            </span>
+            <ChevronDown
+              size={18}
+              strokeWidth={2.4}
+              className={`shrink-0 text-ink-3 transition-transform ${trashOpen ? 'rotate-180' : ''}`}
+              aria-hidden
+            />
+          </button>
+          {trashOpen && (
+            <div className="mt-2">
+              {trashRows.length === 0 && !trashPending && (
+                <p className="text-label text-ink-3">Vacía. Al borrar un lead desde su ficha, aparece aquí.</p>
+              )}
+              {trashRows.map(row => (
+                <div key={row.id} className="mt-2 rounded-row bg-surface-soft px-3.5 py-3">
+                  <p className="truncate text-body font-semibold text-ink">{row.full_name}</p>
+                  <p className="mt-0.5 truncate text-label text-ink-2">
+                    {row.phone || 'Sin teléfono'}
+                    {' · '}
+                    Borrado {leadDateTime(row.deleted_at)}
+                  </p>
+                  {purgeId === row.id ? (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <p className="w-full text-label font-semibold text-danger-fg">¿Borrar para siempre? No se puede deshacer.</p>
+                      <button
+                        type="button"
+                        disabled={trashPending}
+                        onClick={() => runTrash(() => purgeLead(row.id), () => setPurgeId(null))}
+                        className="min-h-[40px] rounded-pill bg-danger-fg px-4 text-label font-bold text-white disabled:opacity-50"
+                      >
+                        Sí, borrar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={trashPending}
+                        onClick={() => setPurgeId(null)}
+                        className="min-h-[40px] rounded-pill bg-surface-card px-4 text-label font-bold text-ink"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={trashPending}
+                        onClick={() => runTrash(() => restoreLead(row.id))}
+                        className="min-h-[40px] rounded-pill bg-surface-card px-4 text-label font-bold text-ink disabled:opacity-50"
+                      >
+                        Recuperar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={trashPending}
+                        onClick={() => setPurgeId(row.id)}
+                        className="min-h-[40px] rounded-pill px-4 text-label font-bold text-danger-fg disabled:opacity-50"
+                      >
+                        Borrar definitivo
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {trashHasMore && (
+                <button
+                  type="button"
+                  disabled={trashPending}
+                  onClick={() => {
+                    const last = trashRows[trashRows.length - 1]?.deleted_at;
+                    if (last) refreshTrash(last);
+                  }}
+                  className="mt-2 min-h-[44px] w-full rounded-pill bg-surface-soft text-label font-bold text-ink disabled:opacity-50"
+                >
+                  Ver más en papelera
+                </button>
+              )}
+              {trashError && <p className="mt-2 text-label font-semibold text-danger-fg">{trashError}</p>}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

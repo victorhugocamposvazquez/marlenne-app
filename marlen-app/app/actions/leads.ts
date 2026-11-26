@@ -28,8 +28,16 @@ export type LeadRow = {
   last_channel: LeadChannel | null;
   client_id: string | null;
   created_at: string;
+  deleted_at: string | null;
   form_fields: LeadFormField[];
   meta_lead_id: string | null;
+};
+
+export type LeadTrashRow = {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  deleted_at: string;
 };
 
 export type LeadEventRow = {
@@ -40,7 +48,7 @@ export type LeadEventRow = {
   staff_name: string | null;
 };
 
-const LEAD_SELECT = 'id, full_name, phone, email, campaign_id, campaign_name, ad_id, ad_name, thumbnail_url, ad_headline, ad_body, tags, last_channel, client_id, created_at, form_fields, meta_lead_id';
+const LEAD_SELECT = 'id, full_name, phone, email, campaign_id, campaign_name, ad_id, ad_name, thumbnail_url, ad_headline, ad_body, tags, last_channel, client_id, created_at, deleted_at, form_fields, meta_lead_id';
 
 const LEAD_LIST_SELECT = 'id, full_name, phone, campaign_name, ad_name, tags, last_channel, created_at';
 
@@ -65,6 +73,7 @@ export async function listLeadsPage(
     .from('leads')
     .select(LEAD_LIST_SELECT)
     .eq('salon_id', me.salon_id)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(PAGE + 1);
   if (filters.before) query = query.lt('created_at', filters.before);
@@ -87,6 +96,7 @@ export async function listLeadsPage(
   }
   const rows = (data ?? []).map(row => ({
     ...(row as LeadRow),
+    deleted_at: null,
     form_fields: [] as LeadFormField[],
     meta_lead_id: null,
   }));
@@ -107,6 +117,7 @@ export async function countUntouchedLeads(): Promise<number> {
   const { count, error } = await sb
     .from('leads')
     .select('id', { count: 'exact', head: true })
+    .is('deleted_at', null)
     .is('last_channel', null);
   if (error) return 0;
   return count ?? 0;
@@ -116,8 +127,32 @@ function mapLeadRow(raw: Record<string, unknown> | null): LeadRow | null {
   if (!raw) return null;
   return {
     ...(raw as LeadRow),
+    deleted_at: (raw.deleted_at as string | null) ?? null,
     form_fields: parseLeadFormFields(raw.form_fields),
   };
+}
+
+const TRASH_PAGE = 30;
+
+export async function listTrashedLeads(before?: string | null): Promise<{ rows: LeadTrashRow[]; hasMore: boolean }> {
+  const { on, me } = await leadsDesk();
+  if (!on) return { rows: [], hasMore: false };
+  const sb = createClient();
+  let query = sb
+    .from('leads')
+    .select('id, full_name, phone, deleted_at')
+    .eq('salon_id', me.salon_id)
+    .not('deleted_at', 'is', null)
+    .order('deleted_at', { ascending: false })
+    .limit(TRASH_PAGE + 1);
+  if (before) query = query.lt('deleted_at', before);
+  const { data, error } = await query;
+  if (error) {
+    if (missingTable(error.message) || /deleted_at/i.test(error.message)) return { rows: [], hasMore: false };
+    throw new Error(error.message);
+  }
+  const rows = (data ?? []) as LeadTrashRow[];
+  return { rows: rows.slice(0, TRASH_PAGE), hasMore: rows.length > TRASH_PAGE };
 }
 
 export async function getLead(id: string): Promise<LeadRow | null> {
@@ -249,6 +284,7 @@ export async function listLeadGroupNames(kind: LeadsListGroup): Promise<string[]
     .from('leads')
     .select(col)
     .eq('salon_id', me.salon_id)
+    .is('deleted_at', null)
     .not(col, 'is', null)
     .limit(500);
   if (rowErr) return [];
@@ -270,7 +306,12 @@ export async function listLeadTagWords(): Promise<string[]> {
     if (typeof rows[0] === 'string') return rows as string[];
     return (rows as { tag: string }[]).map(row => row.tag).filter(Boolean);
   }
-  const { data: rows, error: rowErr } = await sb.from('leads').select('tags').eq('salon_id', me.salon_id).limit(200);
+  const { data: rows, error: rowErr } = await sb
+    .from('leads')
+    .select('tags')
+    .eq('salon_id', me.salon_id)
+    .is('deleted_at', null)
+    .limit(200);
   if (rowErr) return [];
   const words = new Set<string>();
   for (const row of rows ?? []) {
@@ -410,4 +451,80 @@ export async function convertLeadToClient(leadId: string) {
   refresh(leadId);
   revalidatePath('/clientas');
   return { ok: true as const, id: created.id };
+}
+
+async function assertLeadSalon(sb: ReturnType<typeof createClient>, salonId: string, leadId: string) {
+  const { data, error } = await sb.from('leads').select('id').eq('id', leadId).eq('salon_id', salonId).maybeSingle();
+  if (error || !data) return false;
+  return true;
+}
+
+export async function trashLead(leadId: string) {
+  const { me, on } = await leadsDesk();
+  if (!on) return { ok: false as const, error: 'Leads no está activado' };
+  const sb = createClient();
+  if (!(await assertLeadSalon(sb, me.salon_id, leadId))) {
+    return { ok: false as const, error: 'No está el lead' };
+  }
+  const { error } = await sb
+    .from('leads')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', leadId)
+    .eq('salon_id', me.salon_id)
+    .is('deleted_at', null);
+  if (error) {
+    return {
+      ok: false as const,
+      error: /deleted_at/i.test(error.message) ? 'Falta aplicar la migración de papelera' : error.message,
+    };
+  }
+  refresh(leadId);
+  return { ok: true as const };
+}
+
+export async function restoreLead(leadId: string) {
+  const { me, on } = await leadsDesk();
+  if (!on) return { ok: false as const, error: 'Leads no está activado' };
+  const sb = createClient();
+  if (!(await assertLeadSalon(sb, me.salon_id, leadId))) {
+    return { ok: false as const, error: 'No está el lead' };
+  }
+  const { error } = await sb
+    .from('leads')
+    .update({ deleted_at: null })
+    .eq('id', leadId)
+    .eq('salon_id', me.salon_id)
+    .not('deleted_at', 'is', null);
+  if (error) {
+    return {
+      ok: false as const,
+      error: /deleted_at/i.test(error.message) ? 'Falta aplicar la migración de papelera' : error.message,
+    };
+  }
+  refresh(leadId);
+  return { ok: true as const };
+}
+
+export async function purgeLead(leadId: string) {
+  const { me, on } = await leadsDesk();
+  if (!on) return { ok: false as const, error: 'Leads no está activado' };
+  const sb = createClient();
+  if (!(await assertLeadSalon(sb, me.salon_id, leadId))) {
+    return { ok: false as const, error: 'No está el lead' };
+  }
+  await sb.from('lead_events').delete().eq('lead_id', leadId);
+  const { error } = await sb
+    .from('leads')
+    .delete()
+    .eq('id', leadId)
+    .eq('salon_id', me.salon_id)
+    .not('deleted_at', 'is', null);
+  if (error) {
+    return {
+      ok: false as const,
+      error: /deleted_at/i.test(error.message) ? 'Falta aplicar la migración de papelera' : error.message,
+    };
+  }
+  refresh(leadId);
+  return { ok: true as const };
 }

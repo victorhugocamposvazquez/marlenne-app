@@ -3,14 +3,17 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, MessageCircle, Phone } from 'lucide-react';
+import { ChevronLeft, MessageCircle, Phone, Trash2 } from 'lucide-react';
 import {
   addLeadNote,
   clearLeadChannel,
   convertLeadToClient,
   markLeadChannel,
+  purgeLead,
+  restoreLead,
   saveLeadTemplate,
   setLeadTags,
+  trashLead,
   type LeadEventRow,
   type LeadRow,
 } from '@/app/actions/leads';
@@ -48,7 +51,10 @@ export default function LeadFicha({
   const [campaignTemplate, setCampaignTemplate] = useState(templates.campaign ?? '');
   const [error, setError] = useState<string | null>(null);
   const [adLightbox, setAdLightbox] = useState(false);
+  const [trashAsk, setTrashAsk] = useState(false);
+  const [purgeAsk, setPurgeAsk] = useState(false);
   const [pending, start] = useTransition();
+  const trashed = Boolean(lead.deleted_at);
 
   const resolved = resolveLeadTemplate(templates);
   const message = renderLeadTemplate(resolved.body, {
@@ -83,6 +89,11 @@ export default function LeadFicha({
         <span>Leads</span>
         {fromMeta && <MetaLogo size={20} />}
       </Link>
+      {trashed && (
+        <p className="mb-2 rounded-field bg-surface-soft px-3 py-2 text-label font-semibold text-ink-2">
+          En la papelera. Recupéralo abajo o bórralo definitivo.
+        </p>
+      )}
       <h1 className="text-title font-bold tracking-[-.03em] text-ink">{lead.full_name}</h1>
       <p className="mt-1 text-body text-ink-2">{lead.phone || 'Sin teléfono'}{lead.email ? ` · ${lead.email}` : ''}</p>
       <p className="mt-1 text-label text-ink-3">
@@ -309,6 +320,97 @@ export default function LeadFicha({
       )}
 
       {error && <p className="mt-3 text-label font-semibold text-danger-fg">{error}</p>}
+
+      {!trashed && (
+        <div className="mt-6 border-t border-surface-line pt-4">
+          {trashAsk ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-label font-semibold text-ink-2">¿Mover a la papelera? Podrás recuperarlo desde la lista de leads.</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => run(async () => {
+                    const res = await trashLead(lead.id);
+                    if (res.ok) router.push('/leads');
+                    return res;
+                  })}
+                  className="min-h-[44px] rounded-pill bg-danger-fg px-4 text-label font-bold text-white disabled:opacity-50"
+                >
+                  Sí, mover
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrashAsk(false)}
+                  className="min-h-[44px] rounded-pill bg-surface-soft px-4 text-label font-bold text-ink"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setTrashAsk(true)}
+              className="inline-flex min-h-[44px] items-center gap-2 text-label font-bold text-danger-fg"
+            >
+              <Trash2 size={17} strokeWidth={2.2} aria-hidden />
+              Mover a la papelera
+            </button>
+          )}
+        </div>
+      )}
+
+      {trashed && (
+        <div className="mt-6 flex flex-col gap-2 border-t border-surface-line pt-4">
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => run(async () => {
+              const res = await restoreLead(lead.id);
+              if (res.ok) router.push('/leads');
+              return res;
+            })}
+            className="min-h-[48px] w-full rounded-pill bg-grad text-[16px] font-bold text-white disabled:opacity-50"
+          >
+            Recuperar lead
+          </button>
+          {purgeAsk ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-label font-semibold text-danger-fg">¿Borrar para siempre? Se pierde el histórico.</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => run(async () => {
+                    const res = await purgeLead(lead.id);
+                    if (res.ok) router.push('/leads');
+                    return res;
+                  })}
+                  className="min-h-[44px] rounded-pill bg-danger-fg px-4 text-label font-bold text-white disabled:opacity-50"
+                >
+                  Sí, borrar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPurgeAsk(false)}
+                  className="min-h-[44px] rounded-pill bg-surface-soft px-4 text-label font-bold text-ink"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setPurgeAsk(true)}
+              className="min-h-[44px] text-label font-bold text-danger-fg"
+            >
+              Borrar definitivamente
+            </button>
+          )}
+        </div>
+      )}
 
       <h2 className="mb-2 mt-6 text-body font-bold">Histórico</h2>
       {events.length === 0 && <p className="text-label text-ink-3">Todavía no hay acciones.</p>}
