@@ -10,7 +10,6 @@ import {
   markLeadChannel,
   purgeLead,
   restoreLead,
-  saveLeadTemplate,
   setLeadTags,
   trashLead,
   type LeadEventRow,
@@ -46,8 +45,6 @@ export default function LeadFicha({
   const router = useRouter();
   const [note, setNote] = useState('');
   const [tag, setTag] = useState('');
-  const [adTemplate, setAdTemplate] = useState(templates.ad ?? '');
-  const [campaignTemplate, setCampaignTemplate] = useState(templates.campaign ?? '');
   const [error, setError] = useState<string | null>(null);
   const [adLightbox, setAdLightbox] = useState(false);
   const [waSheetOpen, setWaSheetOpen] = useState(false);
@@ -329,23 +326,6 @@ export default function LeadFicha({
         </button>
       </form>
 
-      {lead.ad_id && (
-        <TemplateField
-          label="WhatsApp de este anuncio"
-          value={adTemplate}
-          onChange={setAdTemplate}
-          onSave={() => run(() => saveLeadTemplate({ scope: 'ad', adId: lead.ad_id, body: adTemplate }))}
-        />
-      )}
-      {lead.campaign_id && (
-        <TemplateField
-          label="WhatsApp de esta campaña"
-          value={campaignTemplate}
-          onChange={setCampaignTemplate}
-          onSave={() => run(() => saveLeadTemplate({ scope: 'campaign', campaignId: lead.campaign_id, body: campaignTemplate }))}
-        />
-      )}
-
       {error && <p className="mt-3 text-label font-semibold text-danger-fg">{error}</p>}
 
       {!trashed && (
@@ -454,29 +434,5 @@ export default function LeadFicha({
         ))}
       </ul>
     </div>
-  );
-}
-
-function TemplateField({
-  label, value, onChange, onSave,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  onSave: () => void;
-}) {
-  return (
-    <form className="mt-4" onSubmit={e => { e.preventDefault(); onSave(); }}>
-      <label className="text-label font-bold text-ink-2">{label}</label>
-      <textarea
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        rows={3}
-        className="mt-1 w-full rounded-field bg-surface-soft px-4 py-3 text-[16px] outline-none"
-      />
-      <button type="submit" className="mt-2 min-h-[44px] rounded-pill bg-ink px-4 text-label font-bold text-white">
-        Guardar plantilla
-      </button>
-    </form>
   );
 }

@@ -147,11 +147,11 @@ export default function LeadsSetupCard({
       >
         <h2 className="text-body font-bold text-ink">WhatsApp del centro</h2>
         <p className="mt-1 text-label leading-snug text-ink-2">
-          Texto por defecto al abrir WhatsApp desde un lead. Si el anuncio o la campaña tienen el suyo, mandan ellos.
+          Texto por defecto al abrir WhatsApp desde un lead. Si el anuncio o la campaña tienen plantilla propia, mandan ellos.
           Comodines: {'{{nombre}}'} {'{{campaña}}'} {'{{anuncio}}'} {'{{centro}}'}.
         </p>
         <p className="mt-1 text-label text-ink-3">
-          Plantillas solo de una campaña o anuncio se guardan en la ficha de un lead de esa campaña.
+          Solo se edita aquí. En la ficha del lead eliges plantilla, la ajustas y abres WhatsApp.
         </p>
         <textarea
           value={template}
