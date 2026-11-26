@@ -18,6 +18,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
+- 2026-11-27 — **Leads:** la creatividad del anuncio (p. ej. HIFU) pide la imagen grande a Meta si solo había miniatura. PR #72 → `main`.
 - 2026-11-27 — **Leads:** la bandeja ya no se queda en «Actualizando…», abre el detalle y sigue refrescando cada 45 s. PR #71 → `main`.
 - 2026-11-27 — **Leads:** al entrar y cada 30 s en la bandeja se refresca la lista. Abrir una ficha no vuelve atrás. PR #70 → `main`.
 - 2026-11-27 — **Leads:** abrir una ficha ya no vuelve a la lista. El refresco al entrar sigue, sin pisar la navegación. PR #69 → `main`.
