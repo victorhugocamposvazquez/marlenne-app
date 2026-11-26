@@ -269,7 +269,7 @@ export default function LeadFicha({
         phone={lead.phone ?? ''}
         fullName={lead.full_name}
         campaignName={lead.campaign_name}
-        adName={lead.ad_name || lead.ad_headline}
+        adName={lead.ad_headline || lead.ad_name}
         salonName={salonName}
         templates={templates}
         onOpenWhatsApp={() => markContact('whatsapp')}
