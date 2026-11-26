@@ -18,6 +18,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
+- 2026-11-27 — **Leads:** la ficha abre al momento. La foto grande se pide después de pintar, y Facebook espera 2,5 s al entrar en la bandeja para no frenar el toque. PR #74 → `main`.
 - 2026-11-27 — **Leads:** la foto del anuncio se pide a 1080 y, al abrir la ficha, se cambia la miniatura por `full_picture` si Meta la da. PR #73 → `main`.
 
 - 2026-11-27 — **Leads:** la creatividad del anuncio (p. ej. HIFU) pide la imagen grande a Meta si solo había miniatura. PR #72 → `main`.
