@@ -2,15 +2,34 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   LEAD_PUSH_TITLE,
+  formatLeadDay,
   leadFieldsFromMeta,
   leadFormRowsFromMeta,
   leadPushCopy,
   leadPushUrl,
+  leadTagLabel,
+  leadTagsSummary,
   leadTone,
   leadAdTitle,
+  normalizeLeadDay,
   renderLeadTemplate,
   resolveLeadTemplate,
 } from '../lib/leads';
+
+test('las etiquetas tienen nombre y la de volver a llamar puede llevar día', () => {
+  assert.equal(leadTagLabel('volver'), 'Volver a llamar');
+  assert.equal(leadTagLabel('no_responde'), 'No responde');
+  assert.equal(leadTagLabel('Prueba'), 'Prueba');
+  assert.equal(formatLeadDay('2026-11-28'), '28 nov');
+  assert.equal(formatLeadDay('ayer'), '');
+  assert.equal(normalizeLeadDay('2026-11-28T10:00'), '2026-11-28');
+  assert.equal(normalizeLeadDay(''), null);
+  assert.equal(
+    leadTagsSummary(['volver', 'quiere_cita'], '2026-12-02'),
+    'Volver a llamar · 2 dic · Quiere cita',
+  );
+  assert.equal(leadTagsSummary(['volver'], null), 'Volver a llamar');
+});
 
 test('el color sigue al último contacto', () => {
   assert.equal(leadTone(null), 'none');

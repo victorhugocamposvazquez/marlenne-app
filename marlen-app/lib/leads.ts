@@ -80,6 +80,53 @@ export function leadPushTag(leadId: string, fromMeta?: boolean) {
   return fromMeta ? `lead-meta-${leadId}` : `lead-${leadId}`;
 }
 
+/** Etiquetas fijas de la ficha. `volver` puede llevar un día. */
+export const LEAD_TAGS = [
+  { id: 'volver', label: 'Volver a llamar' },
+  { id: 'no_responde', label: 'No responde' },
+  { id: 'no_interesado', label: 'No interesado' },
+  { id: 'quiere_cita', label: 'Quiere cita' },
+  { id: 'pensando', label: 'Pensándoselo' },
+  { id: 'numero_erroneo', label: 'Número erróneo' },
+] as const;
+
+export const LEAD_CALLBACK_TAG = 'volver';
+
+const LEAD_TAG_LABEL = new Map<string, string>(LEAD_TAGS.map(tag => [tag.id, tag.label]));
+
+export function leadTagLabel(id: string) {
+  return LEAD_TAG_LABEL.get(id) ?? id;
+}
+
+export function isLeadTagId(id: string) {
+  return LEAD_TAG_LABEL.has(id);
+}
+
+const LEAD_MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+/** Día de calendario `YYYY-MM-DD` → `28 nov`. Vacío si no es un día. */
+export function formatLeadDay(ymd: string | null | undefined) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd?.trim() ?? '');
+  if (!match) return '';
+  const month = LEAD_MONTHS[Number(match[2]) - 1];
+  const day = Number(match[3]);
+  if (!month || day < 1 || day > 31) return '';
+  return `${day} ${month}`;
+}
+
+export function normalizeLeadDay(value: string | null | undefined) {
+  const day = value?.trim().slice(0, 10) ?? '';
+  return formatLeadDay(day) ? day : null;
+}
+
+export function leadTagsSummary(tags: string[], callbackOn?: string | null) {
+  const day = formatLeadDay(callbackOn);
+  return tags.map(id => {
+    if (id === LEAD_CALLBACK_TAG && day) return `Volver a llamar · ${day}`;
+    return leadTagLabel(id);
+  }).join(' · ');
+}
+
 export type LeadFormField = { key: string; label: string; value: string };
 
 const FORM_LABELS: Record<string, string> = {

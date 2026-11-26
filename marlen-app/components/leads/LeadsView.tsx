@@ -19,7 +19,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import FilterDropdown from '@/components/ui/FilterDropdown';
 import PageHeading from '@/components/ui/PageHeading';
 import { HeaderIconButton, screenHeaderCls } from '@/components/ui/ScreenHeader';
-import { leadTone } from '@/lib/leads';
+import { leadTagsSummary, leadTone } from '@/lib/leads';
 
 const TONE = {
   none: { bg: '#F2F2F7', ink: '#6E6B7B' },
@@ -315,7 +315,7 @@ export default function LeadsView({
                 </span>
                 <span className="mt-0.5 block truncate text-label text-ink-3">{leadDateTime(lead.created_at)}</span>
                 {lead.tags.length > 0 && (
-                  <span className="mt-0.5 block truncate text-label text-ink-3">{lead.tags.join(' · ')}</span>
+                  <span className="mt-0.5 block truncate text-label text-ink-3">{leadTagsSummary(lead.tags, lead.callback_at)}</span>
                 )}
               </span>
               {tone === 'call' && <Phone size={20} strokeWidth={2.2} style={{ color: paint.ink }} aria-label="Llamado" />}
