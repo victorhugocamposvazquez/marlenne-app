@@ -400,13 +400,6 @@ export async function clearLeadChannel(leadId: string) {
     .maybeSingle();
   if (error) return { ok: false as const, error: error.message };
   if (!data?.id) return { ok: false as const, error: 'No se ha podido actualizar el lead' };
-  await sb.from('lead_events').insert({
-    salon_id: me.salon_id,
-    lead_id: leadId,
-    staff_id: me.id,
-    kind: 'undo',
-    body: 'Se quitó el color del último contacto',
-  });
   refresh(leadId);
   return { ok: true as const };
 }

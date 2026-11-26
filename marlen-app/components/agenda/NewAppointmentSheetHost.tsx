@@ -38,6 +38,7 @@ export default function NewAppointmentSheetHost({
   const [templates, setTemplates] = useState<PackTemplate[]>(snap?.templates ?? []);
   const [serviceCounts, setServiceCounts] = useState<Record<string, number>>(snap?.counts ?? {});
   const [loading, setLoading] = useState(!snap?.services.length);
+  const [pickedClient, setPickedClient] = useState<ClientOption | null>(null);
 
   const apply = (cat: NonNullable<ReturnType<typeof readSheetCatalog>>) => {
     setServices(cat.services);
@@ -52,6 +53,10 @@ export default function NewAppointmentSheetHost({
   };
 
   useEffect(() => subscribeSheetCatalog(apply), []);
+
+  useEffect(() => {
+    if (!clientId) setPickedClient(null);
+  }, [clientId]);
 
   useEffect(() => {
     if (open !== '1') return;
@@ -72,6 +77,7 @@ export default function NewAppointmentSheetHost({
       const latest = readSheetCatalog();
       if (latest) apply(latest);
       if (picked) {
+        setPickedClient(picked);
         setClients(prev => (prev.some(c => c.id === picked.id) ? prev : [picked, ...prev]));
       }
       setLoading(false);
@@ -81,7 +87,9 @@ export default function NewAppointmentSheetHost({
 
   if (open !== '1') return null;
 
-  const preselected = clientId ? (clients.find(c => c.id === clientId) ?? null) : null;
+  const preselected = clientId
+    ? (clients.find(c => c.id === clientId) ?? pickedClient)
+    : null;
 
   return (
     <SheetShell onClose={close} initialHeight="tall" grabHeader>

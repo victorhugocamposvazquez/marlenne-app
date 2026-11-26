@@ -141,6 +141,11 @@ export function NewAppointmentSheetBody({
     if (preselected) setClient(prev => (prev?.id === preselected.id ? prev : preselected));
   }, [editing?.client_id, editing?.client_label, editing?.client_phone, preselected, clients]);
 
+  useEffect(() => {
+    if (editing || !preselected) return;
+    setStep(prev => (prev === 'client' ? 'service' : prev));
+  }, [editing, preselected?.id]);
+
   const [clientPacks, setClientPacks] = useState<ClientPack[]>([]);
   useEffect(() => {
     if (!client?.id) {

@@ -128,12 +128,11 @@ function NewClientBody() {
       if (salud) await addConsent(sb, { clientId: r.id, kind: 'datos_salud' });
       toast(fromLead ? 'Lead pasado a clienta' : 'Ficha creada');
       requestClose(() => {
-        if (fromLead) {
-          router.refresh();
+        if (book) {
+          router.push(`/agenda?new=1&client=${r.id}`);
           return;
         }
-        if (book) router.push(`/agenda?new=1&client=${r.id}`);
-        else router.refresh();
+        router.refresh();
       });
     });
   };

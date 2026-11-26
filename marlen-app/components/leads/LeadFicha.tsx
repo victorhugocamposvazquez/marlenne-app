@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -29,6 +29,8 @@ import { shallowSet } from '@/hooks/useShallowQuery';
 import LeadAdLightbox from '@/components/leads/LeadAdLightbox';
 import LeadWaTemplateSheet from '@/components/leads/LeadWaTemplateSheet';
 import MetaLogo from '@/components/leads/MetaLogo';
+import DarCitaLink from '@/components/ui/DarCitaLink';
+import { leadTone, type LeadTone } from '@/lib/leads';
 
 const HISTORY_TITLE: Record<LeadEventRow['kind'], string> = {
   call: 'He llamado',
@@ -36,8 +38,14 @@ const HISTORY_TITLE: Record<LeadEventRow['kind'], string> = {
   note: 'Nota',
   tag: 'Etiquetas',
   convert: 'Pasada a clienta',
-  undo: 'Color quitado',
+  undo: 'Dejada sin tocar',
 };
+
+const LIST_TONE = {
+  none: { bg: '#F2F2F7', ink: '#6E6B7B', label: 'Sin tocar' },
+  call: { bg: '#E8F2FF', ink: '#0879FF', label: 'Llamada' },
+  whatsapp: { bg: '#E7F8EE', ink: '#15803D', label: 'WhatsApp' },
+} as const;
 
 const TZ = 'Europe/Madrid';
 
@@ -103,6 +111,11 @@ export default function LeadFicha({
     || Boolean(lead.ad_id?.trim() && lead.form_fields.length > 0);
   const adTitle = lead.ad_headline || lead.ad_name || from || 'Anuncio';
   const showAdPreview = Boolean(lead.thumbnail_url || lead.ad_headline || lead.ad_name || from);
+  const [listToneLocal, setListToneLocal] = useState<LeadTone>(() => leadTone(lead.last_channel));
+
+  useEffect(() => {
+    setListToneLocal(leadTone(lead.last_channel));
+  }, [lead.last_channel]);
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>) => {
     setError(null);
@@ -113,11 +126,35 @@ export default function LeadFicha({
     });
   };
 
+  const setListTone = (tone: LeadTone) => {
+    if (trashed) return;
+    const prev = listToneLocal;
+    setListToneLocal(tone);
+    start(async () => {
+      const res = tone === 'none'
+        ? await clearLeadChannel(lead.id)
+        : await markLeadChannel(lead.id, tone);
+      if (!res.ok) {
+        setListToneLocal(prev);
+        setError(res.error ?? 'No se ha podido actualizar');
+        return;
+      }
+      router.refresh();
+    });
+  };
+
+  const history = events.filter(e => e.kind !== 'undo');
+
   const markContact = (channel: 'call' | 'whatsapp') => {
     if (trashed) return;
+    setListToneLocal(channel);
     void markLeadChannel(lead.id, channel).then(res => {
-      if (!res.ok) setError(res.error ?? 'No se ha podido marcar');
-      else router.refresh();
+      if (!res.ok) {
+        setListToneLocal(leadTone(lead.last_channel));
+        setError(res.error ?? 'No se ha podido marcar');
+        return;
+      }
+      router.refresh();
     });
   };
 
@@ -153,7 +190,7 @@ export default function LeadFicha({
           <a
             href={`tel:${lead.phone}`}
             onClick={() => markContact('call')}
-            className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-1.5 rounded-pill bg-[#E8F2FF] text-label font-bold text-[#0879FF] no-underline"
+            className={`inline-flex min-h-[48px] flex-1 items-center justify-center gap-1.5 rounded-pill bg-[#E8F2FF] text-label font-bold text-[#0879FF] no-underline ${listToneLocal === 'call' ? 'ring-2 ring-[#0879FF]/35' : ''}`}
           >
             <Phone size={18} strokeWidth={2.4} aria-hidden />
             Llamar
@@ -161,12 +198,69 @@ export default function LeadFicha({
           <button
             type="button"
             onClick={() => setWaSheetOpen(true)}
-            className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-1.5 rounded-pill bg-[#E7F8EE] text-label font-bold text-[#15803D]"
+            className={`inline-flex min-h-[48px] flex-1 items-center justify-center gap-1.5 rounded-pill bg-[#E7F8EE] text-label font-bold text-[#15803D] ${listToneLocal === 'whatsapp' ? 'ring-2 ring-[#15803D]/35' : ''}`}
           >
             <MessageCircle size={18} strokeWidth={2.4} aria-hidden />
             WhatsApp
           </button>
         </div>
+      )}
+
+      {!trashed && (
+        <section className="mt-3" aria-labelledby="lead-list-tone-heading">
+          <h2 id="lead-list-tone-heading" className="text-label font-bold text-ink-2">
+            En la bandeja de Leads
+          </h2>
+          <div
+            className="mt-2 flex min-h-[44px] items-center justify-between gap-3 rounded-field px-3.5"
+            style={{ background: LIST_TONE[listToneLocal].bg }}
+          >
+            <span className="inline-flex items-center gap-2 text-label font-bold" style={{ color: LIST_TONE[listToneLocal].ink }}>
+              {listToneLocal === 'call' && <Phone size={16} strokeWidth={2.3} aria-hidden />}
+              {listToneLocal === 'whatsapp' && <MessageCircle size={16} strokeWidth={2.3} aria-hidden />}
+              {LIST_TONE[listToneLocal].label}
+            </span>
+            {listToneLocal !== 'none' && (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => setListTone('none')}
+                className="shrink-0 text-label font-bold text-ink-2 underline decoration-ink-3 underline-offset-2 disabled:opacity-50"
+              >
+                Dejar sin tocar
+              </button>
+            )}
+          </div>
+          <p className="mt-2 text-[12px] leading-snug text-ink-3">
+            Llamar o WhatsApp lo cambian al momento. Toca otro estado si hace falta.
+          </p>
+          <div className="mt-2 flex gap-1.5">
+            {(['none', 'call', 'whatsapp'] as LeadTone[]).map(tone => {
+              const paint = LIST_TONE[tone];
+              const on = listToneLocal === tone;
+              return (
+                <button
+                  key={tone}
+                  type="button"
+                  disabled={pending}
+                  onClick={() => { if (!on) setListTone(tone); }}
+                  className="inline-flex min-h-[40px] flex-1 items-center justify-center gap-1 rounded-pill px-2 text-label font-bold disabled:opacity-50"
+                  style={{
+                    background: on ? paint.bg : '#F2F2F7',
+                    color: on ? paint.ink : '#6E6B7B',
+                    boxShadow: on ? `inset 0 0 0 2px ${paint.ink}` : undefined,
+                    opacity: on ? 1 : 0.92,
+                  }}
+                  aria-pressed={on}
+                >
+                  {tone === 'call' && <Phone size={14} strokeWidth={2.3} aria-hidden />}
+                  {tone === 'whatsapp' && <MessageCircle size={14} strokeWidth={2.3} aria-hidden />}
+                  <span className="truncate">{paint.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
       )}
 
       <LeadWaTemplateSheet
@@ -258,45 +352,20 @@ export default function LeadFicha({
         </button>
       )}
       {lead.client_id && (
-        <Link
-          href={`/clientas/${lead.client_id}`}
-          className="mt-4 flex min-h-[44px] items-center justify-center rounded-pill bg-surface-soft text-label font-bold text-ink no-underline"
-        >
-          Ver ficha de clienta
-        </Link>
-      )}
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => run(() => markLeadChannel(lead.id, 'call'))}
-          className="inline-flex min-h-[44px] items-center rounded-pill bg-surface-soft px-4 text-label font-bold"
-        >
-          He llamado
-        </button>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => run(() => markLeadChannel(lead.id, 'whatsapp'))}
-          className="inline-flex min-h-[44px] items-center rounded-pill bg-surface-soft px-4 text-label font-bold"
-        >
-          He escrito
-        </button>
-        {lead.last_channel && (
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => run(() => clearLeadChannel(lead.id))}
-            className="inline-flex min-h-[44px] items-center rounded-pill bg-surface-soft px-4 text-label font-bold text-ink-2"
+        <div className="mt-4 flex gap-2">
+          <DarCitaLink
+            href={`/agenda?new=1&client=${lead.client_id}`}
+            ariaLabel={`Dar cita a ${lead.full_name}`}
+            className="min-h-[48px] flex-1 justify-center"
+          />
+          <Link
+            href={`/clientas/${lead.client_id}`}
+            className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-pill bg-surface-soft text-label font-bold text-ink no-underline"
           >
-            Deshacer
-          </button>
-        )}
-      </div>
-      <p className="mt-2 text-label text-ink-3">
-        Al llamar o abrir WhatsApp el listado pone el color e icono; al volver a Leads se actualiza solo.
-      </p>
+            Ver ficha
+          </Link>
+        </div>
+      )}
 
       <div className="mt-5 flex flex-wrap gap-1.5">
         {lead.tags.map(item => (
@@ -465,9 +534,9 @@ export default function LeadFicha({
       )}
 
       <h2 className="mb-1 mt-6 text-body font-bold">Histórico</h2>
-      {events.length === 0 && <p className="text-label text-ink-3">Todavía no hay acciones.</p>}
+      {history.length === 0 && <p className="text-label text-ink-3">Todavía no hay acciones.</p>}
       <ul className="divide-y divide-surface-line border-b border-surface-line">
-        {events.map(event => {
+        {history.map(event => {
           const visual = historyVisual(event.kind);
           const Icon = visual.icon;
           const meta = [
