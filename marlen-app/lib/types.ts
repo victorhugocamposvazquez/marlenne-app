@@ -155,6 +155,7 @@ export type TreatmentPhoto = {
 
 export type TreatmentRow = {
   id: string;
+  service_id?: string | null;
   zone: string | null;
   sessions_done: number;
   sessions_total: number;

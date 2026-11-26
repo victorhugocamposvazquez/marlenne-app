@@ -18,7 +18,7 @@ export default async function ClientaPage({
     listClientAppointments(client.id),
     listConsents(client.id),
     canEdit ? listSalonPackTemplates() : Promise.resolve([]),
-    canEdit ? listServices() : Promise.resolve([]),
+    listServices(),
   ]);
 
   return (

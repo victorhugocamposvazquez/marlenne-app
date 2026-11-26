@@ -22,7 +22,7 @@ export default function TreatmentsTab({
   if (!treatments.length) {
     return (
       <div className="flex flex-col items-center gap-3">
-        <Empty>Esta clienta todavía no tiene tratamientos. Se abren al marcar una cita como hecha.</Empty>
+        <Empty>Esta clienta todavía no tiene tratamientos. Desde Fotos se elige el servicio y se abre ahí.</Empty>
         <DarCitaLink
           href={`/agenda?new=1&client=${clientId}`}
           ariaLabel="Dar cita a esta clienta"

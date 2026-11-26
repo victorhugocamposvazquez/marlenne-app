@@ -219,6 +219,7 @@ export default function ClientaFicha({
           <PhotosTab
             clientId={client.id}
             treatments={treatments}
+            services={services}
             clientPhotos={clientPhotos}
             urls={urls}
             urlsReady={urlsReady}

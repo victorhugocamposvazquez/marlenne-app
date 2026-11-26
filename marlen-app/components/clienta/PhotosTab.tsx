@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/Toast';
 import { useTreatmentPhoto } from '@/hooks/useTreatmentPhoto';
 import { photoBusyKey, type PhotoKind, type PhotoTarget } from '@/lib/photos';
-import type { TreatmentPhoto, TreatmentRow } from '@/lib/types';
+import type { ServiceOption, TreatmentPhoto, TreatmentRow } from '@/lib/types';
 import Skeleton from '@/components/ui/Skeleton';
 import { Empty } from './Tabs';
 import PhotoPick from './PhotoPick';
@@ -105,10 +105,11 @@ function Frame({
 }
 
 export default function PhotosTab({
-  clientId, treatments, clientPhotos = [], urls, urlsReady = true, photoConsent, onUploaded,
+  clientId, treatments, services = [], clientPhotos = [], urls, urlsReady = true, photoConsent, onUploaded,
 }: {
   clientId: string;
   treatments: TreatmentRow[];
+  services?: ServiceOption[];
   clientPhotos?: TreatmentPhoto[];
   urls: Record<string, string>;
   urlsReady?: boolean;
@@ -194,6 +195,7 @@ export default function PhotosTab({
       <PhotoUpload
         clientId={clientId}
         treatments={treatments}
+        services={services}
         pending={photo.pending}
         busy={photo.busy}
         error={photo.error}
