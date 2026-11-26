@@ -5,6 +5,7 @@ import { requireRole } from '@/lib/require-session';
 import { getSession } from '@/lib/queries';
 import { createClient } from '@/lib/supabase/server';
 import { createClientRecord } from '@/lib/client-write';
+import { leadsDesk } from '@/lib/leads-desk';
 import { leadsEnabled } from '@/lib/leads-enabled';
 import { notifyNewLead } from '@/lib/lead-push';
 import type { LeadChannel } from '@/lib/leads';
@@ -37,25 +38,21 @@ export type LeadEventRow = {
 
 const LEAD_SELECT = 'id, full_name, phone, email, campaign_id, campaign_name, ad_id, ad_name, thumbnail_url, ad_headline, ad_body, tags, last_channel, client_id, created_at';
 
+const LEAD_LIST_SELECT = 'id, full_name, phone, campaign_name, ad_name, tags, last_channel, created_at';
+
 function missingTable(message: string) {
   return /feature_leads|relation .*leads|lead_events|lead_wa_templates/i.test(message);
-}
-
-async function desk() {
-  const me = await requireRole('admin', 'reception');
-  const on = await leadsEnabled(me.salon_id);
-  return { me, on };
 }
 
 const PAGE = 40;
 
 export async function listLeadsPage(before?: string | null): Promise<{ rows: LeadRow[]; hasMore: boolean }> {
-  const { on } = await desk();
+  const { on } = await leadsDesk();
   if (!on) return { rows: [], hasMore: false };
   const sb = createClient();
   let query = sb
     .from('leads')
-    .select(LEAD_SELECT)
+    .select(LEAD_LIST_SELECT)
     .order('created_at', { ascending: false })
     .limit(PAGE + 1);
   if (before) query = query.lt('created_at', before);
@@ -88,7 +85,7 @@ export async function countUntouchedLeads(): Promise<number> {
 }
 
 export async function getLead(id: string): Promise<LeadRow | null> {
-  const { on } = await desk();
+  const { on } = await leadsDesk();
   if (!on) return null;
   const sb = createClient();
   const { data, error } = await sb.from('leads').select(LEAD_SELECT).eq('id', id).maybeSingle();
@@ -97,7 +94,7 @@ export async function getLead(id: string): Promise<LeadRow | null> {
 }
 
 export async function listLeadEvents(leadId: string): Promise<LeadEventRow[]> {
-  const { on } = await desk();
+  const { on } = await leadsDesk();
   if (!on) return [];
   const sb = createClient();
   const { data, error } = await sb
@@ -120,8 +117,22 @@ export async function listLeadEvents(leadId: string): Promise<LeadEventRow[]> {
   });
 }
 
+export async function salonLeadWaTemplate(): Promise<string | null> {
+  const { on, me } = await leadsDesk();
+  if (!on) return null;
+  const sb = createClient();
+  const { data, error } = await sb
+    .from('lead_wa_templates')
+    .select('body')
+    .eq('salon_id', me.salon_id)
+    .eq('scope', 'salon')
+    .maybeSingle();
+  if (error || !data) return null;
+  return (data.body as string | null) ?? null;
+}
+
 export async function leadTemplates(input: { campaignId?: string | null; adId?: string | null }) {
-  const { on } = await desk();
+  const { on } = await leadsDesk();
   if (!on) return { ad: null as string | null, campaign: null as string | null, salon: null as string | null };
   const sb = createClient();
   const { data, error } = await sb.from('lead_wa_templates').select('scope, campaign_id, ad_id, body');
@@ -141,7 +152,7 @@ function refresh(id?: string) {
 }
 
 export async function createManualLead(input: { fullName: string; phone?: string; campaignName?: string; adName?: string }) {
-  const { me, on } = await desk();
+  const { me, on } = await leadsDesk();
   if (!on) return { ok: false as const, error: 'Leads no está activado para este centro' };
   const name = input.fullName.trim();
   if (name.length < 2) return { ok: false as const, error: 'Pon al menos el nombre' };
@@ -168,16 +179,23 @@ export async function createManualLead(input: { fullName: string; phone?: string
 }
 
 export async function listLeadTagWords(): Promise<string[]> {
-  const rows = await listLeads();
+  const { on, me } = await leadsDesk();
+  if (!on) return [];
+  const sb = createClient();
+  const { data, error } = await sb.from('leads').select('tags').eq('salon_id', me.salon_id);
+  if (error) return [];
   const words = new Set<string>();
-  for (const lead of rows) {
-    for (const tag of lead.tags) words.add(tag);
+  for (const row of data ?? []) {
+    for (const tag of (row as { tags?: string[] }).tags ?? []) {
+      const trimmed = tag.trim();
+      if (trimmed) words.add(trimmed);
+    }
   }
   return [...words].sort((a, b) => a.localeCompare(b, 'es'));
 }
 
 export async function markLeadChannel(leadId: string, channel: LeadChannel) {
-  const { me, on } = await desk();
+  const { me, on } = await leadsDesk();
   if (!on) return { ok: false as const, error: 'Leads no está activado' };
   const sb = createClient();
   const { error } = await sb.from('leads').update({ last_channel: channel }).eq('id', leadId);
@@ -194,7 +212,7 @@ export async function markLeadChannel(leadId: string, channel: LeadChannel) {
 }
 
 export async function clearLeadChannel(leadId: string) {
-  const { me, on } = await desk();
+  const { me, on } = await leadsDesk();
   if (!on) return { ok: false as const, error: 'Leads no está activado' };
   const sb = createClient();
   const { error } = await sb.from('leads').update({ last_channel: null }).eq('id', leadId);
@@ -211,7 +229,7 @@ export async function clearLeadChannel(leadId: string) {
 }
 
 export async function addLeadNote(leadId: string, body: string) {
-  const { me, on } = await desk();
+  const { me, on } = await leadsDesk();
   if (!on) return { ok: false as const, error: 'Leads no está activado' };
   const text = body.trim();
   if (text.length < 2) return { ok: false as const, error: 'Escribe la nota' };
@@ -229,7 +247,7 @@ export async function addLeadNote(leadId: string, body: string) {
 }
 
 export async function setLeadTags(leadId: string, tags: string[]) {
-  const { me, on } = await desk();
+  const { me, on } = await leadsDesk();
   if (!on) return { ok: false as const, error: 'Leads no está activado' };
   const clean = [...new Set(tags.map(t => t.trim()).filter(Boolean))].slice(0, 12);
   const sb = createClient();
@@ -252,7 +270,7 @@ export async function saveLeadTemplate(input: {
   adId?: string | null;
   body: string;
 }) {
-  const { me, on } = await desk();
+  const { me, on } = await leadsDesk();
   if (!on) return { ok: false as const, error: 'Leads no está activado' };
   const text = input.body.trim();
   if (text.length < 2) return { ok: false as const, error: 'Escribe la plantilla' };
@@ -280,7 +298,7 @@ export async function saveLeadTemplate(input: {
 }
 
 export async function convertLeadToClient(leadId: string) {
-  const { me, on } = await desk();
+  const { me, on } = await leadsDesk();
   if (!on) return { ok: false as const, error: 'Leads no está activado' };
   const sb = createClient();
   const { data: lead, error } = await sb.from('leads').select('id, full_name, phone, email, client_id').eq('id', leadId).maybeSingle();

@@ -1,7 +1,7 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 
-/** Lo enciende OPS. Si la columna aún no existe, la función está apagada. */
-export async function leadsEnabled(salonId: string): Promise<boolean> {
+async function leadsEnabledLookup(salonId: string): Promise<boolean> {
   try {
     const sb = createClient();
     const { data, error } = await sb
@@ -15,3 +15,6 @@ export async function leadsEnabled(salonId: string): Promise<boolean> {
     return false;
   }
 }
+
+/** Lo enciende OPS. Si la columna aún no existe, la función está apagada. */
+export const leadsEnabled = cache(leadsEnabledLookup);

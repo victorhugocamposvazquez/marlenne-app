@@ -1,10 +1,10 @@
 import { notFound } from 'next/navigation';
 import LeadFicha from '@/components/leads/LeadFicha';
 import { getLead, leadTemplates, listLeadEvents, listLeadTagWords } from '@/app/actions/leads';
-import { requireRole } from '@/lib/require-session';
+import { leadsDesk } from '@/lib/leads-desk';
 
 export default async function LeadPage({ params }: { params: { id: string } }) {
-  const me = await requireRole('admin', 'reception');
+  const { me } = await leadsDesk();
   const lead = await getLead(params.id);
   if (!lead) notFound();
   const [events, templates, knownTags] = await Promise.all([

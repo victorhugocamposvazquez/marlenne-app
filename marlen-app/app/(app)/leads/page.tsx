@@ -1,11 +1,9 @@
 import LeadsView from '@/components/leads/LeadsView';
-import { leadTemplates, listLeadsPage } from '@/app/actions/leads';
-import { leadsEnabled } from '@/lib/leads-enabled';
-import { requireRole } from '@/lib/require-session';
+import { listLeadsPage, salonLeadWaTemplate } from '@/app/actions/leads';
+import { leadsDesk } from '@/lib/leads-desk';
 
 export default async function LeadsPage() {
-  const me = await requireRole('admin', 'reception');
-  const on = await leadsEnabled(me.salon_id);
+  const { on } = await leadsDesk();
   if (!on) {
     return (
       <div className="flex flex-1 flex-col justify-center px-6">
@@ -16,15 +14,15 @@ export default async function LeadsPage() {
       </div>
     );
   }
-  const [page, templates] = await Promise.all([
+  const [page, salonTemplate] = await Promise.all([
     listLeadsPage(),
-    leadTemplates({}),
+    salonLeadWaTemplate(),
   ]);
   return (
     <LeadsView
       leads={page.rows}
       hasMore={page.hasMore}
-      salonTemplate={templates.salon}
+      salonTemplate={salonTemplate}
     />
   );
 }
