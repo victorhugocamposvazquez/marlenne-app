@@ -18,7 +18,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
-- 2026-11-26 — **Leads:** el fondo de llamado y de WhatsApp en el listado se ve más marcado. Rama `cursor/leads-fondos-estado-5156`.
+- 2026-11-26 — **Leads:** el fondo de llamado y de WhatsApp en el listado se ve más marcado; PR #61 → `main`.
 - 2026-11-25 — **Leads:** bandeja con filtro por campaña, ficha con deshacer y etiquetas del centro, y en Ajustes la admin conecta la página de Facebook; PR #60 → `main`.
 - 2026-11-25 — **Leads:** OPS enciende la bandeja por centro; cada lead nuevo avisa con un push que abre esa ficha; PR #59 → `main`.
 - 2026-11-20 — **Clientas:** al buscar, X arriba para salir y bajar el teclado; el campo queda como el combobox de Google; PR #58 → `main`.
