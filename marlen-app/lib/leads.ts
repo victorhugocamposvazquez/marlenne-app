@@ -58,10 +58,9 @@ export function leadPushCopy(input: {
   if (from) parts.push(from);
   const phone = input.phone?.trim();
   if (phone) parts.push(phone);
-  return {
-    title,
-    body: parts.join(' · '),
-  };
+  let body = parts.join(' · ');
+  if (input.fromMeta) body = `Meta · ${body}`;
+  return { title, body };
 }
 
 export function leadPushUrl(leadId: string) {

@@ -43,7 +43,7 @@ test('el push nombra al lead y abre su ficha', () => {
     fromMeta: true,
   }), {
     title: 'Lead de Meta',
-    body: 'Lucía · Láser · +34600111222',
+    body: 'Meta · Lucía · Láser · +34600111222',
   });
   assert.equal(leadPushUrl('abc'), '/leads/abc');
 });

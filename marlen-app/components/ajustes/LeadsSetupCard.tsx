@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveLeadsListGroup } from '@/app/actions/leads-settings';
 import { saveLeadTemplate } from '@/app/actions/leads';
+import { testLeadPushNotification } from '@/app/actions/lead-push-test';
 import { createTestLead, importMetaLeadsPage } from '@/app/actions/leads-sync';
 import { DEFAULT_LEAD_WA } from '@/lib/leads';
 import type { LeadsListGroup } from '@/lib/leads-list-group';
@@ -89,6 +90,28 @@ export default function LeadsSetupCard({
           className="min-h-[44px] rounded-pill bg-ink px-4 text-label font-bold text-white disabled:opacity-50"
         >
           {syncing ? 'Trayendo…' : syncCursor ? 'Siguiente página' : 'Traer los de Facebook'}
+        </button>
+        <button
+          type="button"
+          disabled={syncing}
+          onClick={() => startSync(async () => {
+            const res = await testLeadPushNotification('meta');
+            setSyncNote(res.ok ? `Aviso Meta enviado a ${res.sent} móvil${res.sent === 1 ? '' : 'es'}.` : res.error);
+          })}
+          className="min-h-[44px] rounded-pill bg-surface-soft px-4 text-label font-bold text-ink disabled:opacity-50"
+        >
+          Probar aviso Meta
+        </button>
+        <button
+          type="button"
+          disabled={syncing}
+          onClick={() => startSync(async () => {
+            const res = await testLeadPushNotification('manual');
+            setSyncNote(res.ok ? `Aviso manual enviado a ${res.sent} móvil${res.sent === 1 ? '' : 'es'}.` : res.error);
+          })}
+          className="min-h-[44px] rounded-pill bg-surface-soft px-4 text-label font-bold text-ink disabled:opacity-50"
+        >
+          Probar aviso manual
         </button>
         <button
           type="button"
