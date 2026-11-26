@@ -107,31 +107,49 @@ export default function LeadFicha({
       </p>
       {from && <p className="mt-1 text-label font-semibold text-ink-2">{from}</p>}
 
-      {showAdPreview && (
-        <div className="mt-4 overflow-hidden rounded-row bg-surface-soft p-2">
-          <div className="flex min-h-[100px] gap-2">
-            {lead.thumbnail_url ? (
-              <button
-                type="button"
-                onClick={() => setAdLightbox(true)}
-                className="w-[70%] shrink-0 overflow-hidden rounded-field text-left"
-                aria-label="Ver creatividad en grande"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={lead.thumbnail_url}
-                  alt=""
-                  className="aspect-[4/5] w-full object-cover"
-                />
-              </button>
-            ) : null}
-            <div
-              className={`flex min-w-0 flex-col justify-center py-1 pr-1 ${lead.thumbnail_url ? 'w-[30%]' : 'w-full'}`}
+      {(lead.phone || wa) && (
+        <div className="mt-4 flex gap-2">
+          {lead.phone && (
+            <a
+              href={`tel:${lead.phone}`}
+              className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-1.5 rounded-pill bg-[#E8F2FF] text-label font-bold text-[#0879FF] no-underline"
             >
-              <p className="text-[10px] font-bold uppercase tracking-wide text-ink-3">Anuncio</p>
-              <p className="mt-1 line-clamp-6 text-label font-bold leading-snug text-ink">{adTitle}</p>
-            </div>
-          </div>
+              <Phone size={18} strokeWidth={2.4} aria-hidden />
+              Llamar
+            </a>
+          )}
+          {wa && (
+            <button
+              type="button"
+              onClick={() => goWhatsApp(wa)}
+              className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-1.5 rounded-pill bg-[#E7F8EE] text-label font-bold text-[#15803D]"
+            >
+              <MessageCircle size={18} strokeWidth={2.4} aria-hidden />
+              WhatsApp
+            </button>
+          )}
+        </div>
+      )}
+
+      {showAdPreview && (
+        <div className="mt-4 overflow-hidden rounded-row bg-surface-soft p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-ink-3">Anuncio</p>
+          <p className="mt-1 text-body font-bold leading-snug text-ink">{adTitle}</p>
+          {lead.thumbnail_url ? (
+            <button
+              type="button"
+              onClick={() => setAdLightbox(true)}
+              className="mt-2 block w-full overflow-hidden rounded-field text-left"
+              aria-label="Ver creatividad en grande"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={lead.thumbnail_url}
+                alt=""
+                className="aspect-[4/5] w-full object-cover"
+              />
+            </button>
+          ) : null}
         </div>
       )}
 
@@ -167,22 +185,6 @@ export default function LeadFicha({
       )}
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {lead.phone && (
-          <a href={`tel:${lead.phone}`} className="inline-flex min-h-[44px] items-center gap-1.5 rounded-pill bg-[#E8F2FF] px-4 text-label font-bold text-[#0879FF] no-underline">
-            <Phone size={16} strokeWidth={2.4} />
-            Llamar
-          </a>
-        )}
-        {wa && (
-          <button
-            type="button"
-            onClick={() => goWhatsApp(wa)}
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-pill bg-[#E7F8EE] px-4 text-label font-bold text-[#15803D]"
-          >
-            <MessageCircle size={16} strokeWidth={2.4} />
-            WhatsApp
-          </button>
-        )}
         <button
           type="button"
           disabled={pending}
