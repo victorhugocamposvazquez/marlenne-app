@@ -90,7 +90,7 @@ function Frame({
           No se ha podido abrir
         </p>
       ) : (
-        <div className="flex aspect-[3/4] w-full flex-col justify-center rounded-icon border border-dashed border-handle bg-surface-bg/50 p-2.5">
+        <div className="flex aspect-[3/4] w-full flex-col justify-center rounded-row border border-dashed border-handle bg-surface-bg/50 p-2.5">
           {uploading ? (
             <p className="text-center text-caption font-semibold text-ink-2">Subiendo…</p>
           ) : onAdd ? (

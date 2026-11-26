@@ -99,7 +99,7 @@ function Slot({
   return (
     <div className="min-w-0 flex-1">
       <div className="mb-1 text-caption font-bold uppercase tracking-[.03em] text-ink-2">{label}</div>
-      <div className="rounded-icon border border-dashed border-handle bg-surface-bg/50 p-2.5">
+      <div className="rounded-row border border-dashed border-handle bg-surface-bg/50 p-2.5">
         {busy ? (
           <p className="py-3 text-center text-caption font-semibold text-ink-2">Subiendo…</p>
         ) : (
