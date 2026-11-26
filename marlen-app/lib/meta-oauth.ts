@@ -5,7 +5,6 @@ import { appOriginFromEnv } from '@/lib/app-origin';
 export const META_OAUTH_SCOPES = [
   'pages_show_list',
   'pages_read_engagement',
-  'pages_manage_metadata',
   'leads_retrieval',
   'ads_read',
   'business_management',
