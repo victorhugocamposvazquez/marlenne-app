@@ -109,9 +109,9 @@ export default function LeadsView({
 
   const fetchList = useCallback(
     (before?: string | null) => {
-      startList(() => {
-        void listLeadsPage(buildFilters(before)).then(page => applyPage(page, before));
-      });
+      const run = listLeadsPage(buildFilters(before)).then(page => applyPage(page, before));
+      if (before) startList(() => { void run; });
+      else void run;
     },
     [applyPage, buildFilters],
   );
@@ -134,10 +134,11 @@ export default function LeadsView({
       }
     };
 
-    void syncInbox();
+    const first = window.setTimeout(() => { void syncInbox(); }, 2500);
     const id = window.setInterval(() => { void syncInbox(); }, 45_000);
     return () => {
       alive = false;
+      window.clearTimeout(first);
       window.clearInterval(id);
     };
   }, []);
@@ -176,10 +177,8 @@ export default function LeadsView({
       if (document.visibilityState === 'visible') fetchList();
     };
     document.addEventListener('visibilitychange', resync);
-    window.addEventListener('focus', resync);
     return () => {
       document.removeEventListener('visibilitychange', resync);
-      window.removeEventListener('focus', resync);
     };
   }, [fetchList]);
 
@@ -333,7 +332,6 @@ export default function LeadsView({
             <Link
               key={lead.id}
               href={`/leads/${lead.id}`}
-              prefetch
               className="mt-2 flex items-center gap-3 rounded-row px-3.5 py-3 no-underline"
               style={{ background: paint.bg }}
             >
