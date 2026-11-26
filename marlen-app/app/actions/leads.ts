@@ -8,6 +8,8 @@ import { createClientRecord } from '@/lib/client-write';
 import { leadsDesk } from '@/lib/leads-desk';
 import { leadsEnabled } from '@/lib/leads-enabled';
 import { notifyNewLead } from '@/lib/lead-push';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { isLikelyLowResAdImage, refreshLeadAdImage } from '@/lib/meta-lead-creative';
 import { leadTagsSummary, normalizeLeadDay, parseLeadFormFields, LEAD_CALLBACK_TAG, type LeadChannel, type LeadFormField } from '@/lib/leads';
 import type { LeadsListGroup } from '@/lib/leads-list-group';
 import { normalizeLeadsListFilter, type LeadsListFilter } from '@/lib/leads-list-query';
@@ -206,12 +208,13 @@ export async function getLead(id: string): Promise<LeadRow | null> {
   if (error) return null;
   let lead = mapLeadRow(data as Record<string, unknown> | null);
   if (!lead) return null;
-  if (lead.ad_id && !lead.thumbnail_url) {
+  const adId = lead.ad_id?.trim() || null;
+  if (adId) {
     const { data: ad } = await sb
       .from('meta_ads')
       .select('thumbnail_url, headline, body')
       .eq('salon_id', me.salon_id)
-      .eq('ad_id', lead.ad_id)
+      .eq('ad_id', adId)
       .maybeSingle();
     if (ad) {
       lead = {
@@ -220,6 +223,24 @@ export async function getLead(id: string): Promise<LeadRow | null> {
         ad_headline: lead.ad_headline || ((ad.headline as string | null) ?? null),
         ad_body: lead.ad_body || ((ad.body as string | null) ?? null),
       };
+    }
+    if (isLikelyLowResAdImage(lead.thumbnail_url)) {
+      try {
+        const admin = createAdminClient();
+        const upgraded = await refreshLeadAdImage(admin, me.salon_id, {
+          leadId: lead.id,
+          adId,
+          thumbnailUrl: lead.thumbnail_url,
+          campaignId: lead.campaign_id,
+          campaignName: lead.campaign_name,
+          adName: lead.ad_name,
+        });
+        if (upgraded && upgraded !== lead.thumbnail_url) {
+          lead = { ...lead, thumbnail_url: upgraded };
+        }
+      } catch {
+        /* Sin token de página o Graph caído: se queda la miniatura. */
+      }
     }
   }
   return lead;
