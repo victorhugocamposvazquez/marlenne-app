@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  LEAD_PUSH_TITLE,
   leadFieldsFromMeta,
   leadFormRowsFromMeta,
   leadPushCopy,
@@ -33,7 +34,7 @@ test('el mensaje rellena nombre, campaña y anuncio', () => {
 
 test('el push nombra al lead y abre su ficha', () => {
   assert.deepEqual(leadPushCopy({ name: 'Lucía', campaign: 'Noviembre', ad: 'Láser' }), {
-    title: '🔥Nuevo lead 💪',
+    title: LEAD_PUSH_TITLE,
     body: 'Lucía · Láser',
   });
   assert.deepEqual(leadPushCopy({
@@ -42,7 +43,7 @@ test('el push nombra al lead y abre su ficha', () => {
     phone: '+34600111222',
     fromMeta: true,
   }), {
-    title: '🔥Nuevo lead 💪',
+    title: LEAD_PUSH_TITLE,
     body: 'Meta · Lucía · Láser · +34600111222',
   });
   assert.equal(leadPushUrl('abc'), '/leads/abc');

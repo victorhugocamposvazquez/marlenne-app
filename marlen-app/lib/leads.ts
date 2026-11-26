@@ -44,6 +44,9 @@ export function renderLeadTemplate(
 export const META_PUSH_ICON = '/meta-push-192.png';
 export const META_PUSH_BADGE = '/meta-push-badge.png';
 
+/** Título único del push de leads (Meta, manual y pruebas). */
+export const LEAD_PUSH_TITLE = 'Marlén - 🔥Nuevo lead 💪';
+
 export function leadPushCopy(input: {
   name: string;
   campaign?: string | null;
@@ -53,7 +56,7 @@ export function leadPushCopy(input: {
 }) {
   const name = input.name.trim() || 'Nuevo lead';
   const from = input.ad?.trim() || input.campaign?.trim();
-  const title = '🔥Nuevo lead 💪';
+  const title = LEAD_PUSH_TITLE;
   const parts = [name];
   if (from) parts.push(from);
   const phone = input.phone?.trim();
