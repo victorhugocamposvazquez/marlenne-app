@@ -3,11 +3,10 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, MessageCircle, Phone, Trash2 } from 'lucide-react';
+import { ChevronLeft, Expand, MessageCircle, Phone, Trash2 } from 'lucide-react';
 import {
   addLeadNote,
   clearLeadChannel,
-  convertLeadToClient,
   markLeadChannel,
   purgeLead,
   restoreLead,
@@ -18,6 +17,7 @@ import {
   type LeadRow,
 } from '@/app/actions/leads';
 import { goWhatsApp } from '@/hooks/open-whatsapp';
+import { shallowSet } from '@/hooks/useShallowQuery';
 import { renderLeadTemplate, resolveLeadTemplate } from '@/lib/leads';
 import { waHref } from '@/lib/phone';
 import MetaLogo from '@/components/leads/MetaLogo';
@@ -147,19 +147,22 @@ export default function LeadFicha({
           <p className="text-[10px] font-bold uppercase tracking-wide text-ink-3">Anuncio</p>
           <p className="mt-1 text-body font-bold leading-snug text-ink">{adTitle}</p>
           {lead.thumbnail_url ? (
-            <button
-              type="button"
-              onClick={() => setAdLightbox(true)}
-              className="mt-2 block w-full overflow-hidden rounded-field text-left"
-              aria-label="Ver creatividad en grande"
-            >
+            <div className="relative mt-2 overflow-hidden rounded-field">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={lead.thumbnail_url}
                 alt=""
                 className="aspect-[4/5] w-full object-cover"
               />
-            </button>
+              <button
+                type="button"
+                onClick={() => setAdLightbox(true)}
+                className="absolute bottom-2 left-2 flex h-9 min-w-[2.25rem] items-center justify-center rounded-pill bg-ink px-2.5 text-white shadow-md"
+                aria-label="Ampliar creatividad"
+              >
+                <Expand size={17} strokeWidth={2.4} aria-hidden />
+              </button>
+            </div>
           ) : null}
           {from && (
             <p className="mt-2 text-label font-semibold leading-snug text-ink-2">{from}</p>
@@ -200,6 +203,33 @@ export default function LeadFicha({
             ))}
           </dl>
         </section>
+      )}
+
+      {!lead.client_id && !trashed && (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            shallowSet({
+              alta: '1',
+              nombre: lead.full_name,
+              tel: lead.phone?.trim() || null,
+              email: lead.email?.trim() || null,
+              fromLead: lead.id,
+            });
+          }}
+          className="mt-4 flex min-h-[44px] w-full items-center justify-center rounded-pill bg-ink text-label font-bold text-white disabled:opacity-50"
+        >
+          Pasar a clienta
+        </button>
+      )}
+      {lead.client_id && (
+        <Link
+          href={`/clientas/${lead.client_id}`}
+          className="mt-4 flex min-h-[44px] items-center justify-center rounded-pill bg-surface-soft text-label font-bold text-ink no-underline"
+        >
+          Ver ficha de clienta
+        </Link>
       )}
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -322,21 +352,6 @@ export default function LeadFicha({
           onChange={setCampaignTemplate}
           onSave={() => run(() => saveLeadTemplate({ scope: 'campaign', campaignId: lead.campaign_id, body: campaignTemplate }))}
         />
-      )}
-
-      {!lead.client_id ? (
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => run(() => convertLeadToClient(lead.id))}
-          className="mt-5 min-h-[48px] w-full rounded-pill bg-grad text-[16px] font-bold text-white"
-        >
-          Pasar a clienta
-        </button>
-      ) : (
-        <Link href={`/clientas/${lead.client_id}`} className="mt-5 flex min-h-[48px] items-center justify-center rounded-pill bg-surface-soft text-body font-bold text-ink no-underline">
-          Ver ficha de clienta
-        </Link>
       )}
 
       {error && <p className="mt-3 text-label font-semibold text-danger-fg">{error}</p>}

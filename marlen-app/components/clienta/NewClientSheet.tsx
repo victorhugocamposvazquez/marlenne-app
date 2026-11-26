@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useShallowParam } from '@/hooks/useShallowQuery';
+import { linkLeadToClient } from '@/app/actions/leads';
 import { loadSimilarClients } from '@/app/actions/client-list';
 import { useRouter } from 'next/navigation';
 import Sheet, { Field, inputCls } from '@/components/Sheet';
@@ -41,7 +42,12 @@ function NewClientBody() {
   const toast = useToast();
   const requestClose = useSheetShellClose();
   const preset = useShallowParam('nombre');
+  const presetTel = useShallowParam('tel');
+  const presetEmail = useShallowParam('email');
+  const fromLead = useShallowParam('fromLead');
   const filled = useRef(false);
+  const filledTel = useRef(false);
+  const filledEmail = useRef(false);
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -58,6 +64,18 @@ function NewClientBody() {
     filled.current = true;
     setName(preset);
   }, [preset]);
+
+  useEffect(() => {
+    if (filledTel.current || !presetTel) return;
+    filledTel.current = true;
+    setPhone(presetTel);
+  }, [presetTel]);
+
+  useEffect(() => {
+    if (filledEmail.current || !presetEmail) return;
+    filledEmail.current = true;
+    setEmail(presetEmail);
+  }, [presetEmail]);
 
   const matchKey = useMemo(() => `${fold(name)}|${digits(phone)}`, [name, phone]);
 
@@ -87,21 +105,33 @@ function NewClientBody() {
     setDupId(null);
     startTransition(async () => {
       const sb = createClient();
+      const tags = [...(vip ? ['VIP'] : []), ...(fromLead ? ['Lead'] : [])];
       const r = await createClientRecord(sb, {
         full_name: name,
         phone: phone || undefined,
         email: email || undefined,
-        tags: vip ? ['VIP'] : [],
+        tags,
       });
       if (!r.ok || !r.id) {
         setError(r.error ?? 'No se ha podido guardar');
         setDupId(r.id ?? null);
         return;
       }
+      if (fromLead) {
+        const link = await linkLeadToClient(fromLead, r.id);
+        if (!link.ok) {
+          setError(link.error ?? 'Ficha creada pero no se enlazó el lead');
+          return;
+        }
+      }
       if (foto) await addConsent(sb, { clientId: r.id, kind: 'fotografia' });
       if (salud) await addConsent(sb, { clientId: r.id, kind: 'datos_salud' });
-      toast('Ficha creada');
+      toast(fromLead ? 'Lead pasado a clienta' : 'Ficha creada');
       requestClose(() => {
+        if (fromLead) {
+          router.refresh();
+          return;
+        }
         if (book) router.push(`/agenda?new=1&client=${r.id}`);
         else router.refresh();
       });
@@ -114,7 +144,7 @@ function NewClientBody() {
         autoComplete="off"
         onSubmit={e => {
           e.preventDefault();
-          if (canSave) save(true);
+          if (canSave) save(fromLead ? false : true);
         }}
       >
         <Field label="Nombre">
@@ -203,17 +233,33 @@ function NewClientBody() {
           </Button>
         ) : (
           <>
-            <Button full onClick={() => save(true)} disabled={!canSave}>
-              {pending ? 'Guardando…' : 'Crear y dar cita'}
+            <Button full onClick={() => save(fromLead ? false : true)} disabled={!canSave}>
+              {pending
+                ? 'Guardando…'
+                : fromLead
+                  ? 'Guardar como clienta'
+                  : 'Crear y dar cita'}
             </Button>
-            <button
-              type="button"
-              onClick={() => save(false)}
-              disabled={!canSave}
-              className="mt-2 flex min-h-[44px] w-full items-center justify-center text-body font-semibold text-ink-2 disabled:opacity-40"
-            >
-              Solo la ficha
-            </button>
+            {!fromLead && (
+              <button
+                type="button"
+                onClick={() => save(false)}
+                disabled={!canSave}
+                className="mt-2 flex min-h-[44px] w-full items-center justify-center text-body font-semibold text-ink-2 disabled:opacity-40"
+              >
+                Solo la ficha
+              </button>
+            )}
+            {fromLead && (
+              <button
+                type="button"
+                onClick={() => save(true)}
+                disabled={!canSave}
+                className="mt-2 flex min-h-[44px] w-full items-center justify-center text-body font-semibold text-ink-2 disabled:opacity-40"
+              >
+                Guardar y dar cita
+              </button>
+            )}
           </>
         )}
       </div>
@@ -221,15 +267,20 @@ function NewClientBody() {
   );
 }
 
-export default function NewClientSheet() {
+function NewClientSheetFrame() {
+  const fromLead = useShallowParam('fromLead');
   return (
     <Sheet
-      title="Nueva Client@"
-      subtitle="Nombre y teléfono bastan. Luego das la cita."
+      title={fromLead ? 'Pasar a clienta' : 'Nueva Client@'}
+      subtitle={fromLead ? 'Revisa nombre y teléfono antes de guardar.' : 'Nombre y teléfono bastan. Luego das la cita.'}
       initialHeight="tall"
       floorDetent="tall"
     >
       <NewClientBody />
     </Sheet>
   );
+}
+
+export default function NewClientSheet() {
+  return <NewClientSheetFrame />;
 }

@@ -480,6 +480,42 @@ export async function saveLeadTemplate(input: {
   return { ok: true as const };
 }
 
+export async function linkLeadToClient(leadId: string, clientId: string) {
+  const { me, on } = await leadsDesk();
+  if (!on) return { ok: false as const, error: 'Leads no está activado' };
+  const sb = createClient();
+  const { data: lead, error } = await sb
+    .from('leads')
+    .select('id, client_id')
+    .eq('id', leadId)
+    .eq('salon_id', me.salon_id)
+    .maybeSingle();
+  if (error || !lead) return { ok: false as const, error: 'No está el lead' };
+  const linked = (lead.client_id as string | null) ?? null;
+  if (linked && linked !== clientId) {
+    return { ok: false as const, error: 'Este lead ya tiene otra ficha de clienta' };
+  }
+  if (linked === clientId) return { ok: true as const, id: clientId };
+  const { data: updated, error: upErr } = await sb
+    .from('leads')
+    .update({ client_id: clientId })
+    .eq('id', leadId)
+    .eq('salon_id', me.salon_id)
+    .select('id')
+    .maybeSingle();
+  if (upErr || !updated?.id) return { ok: false as const, error: upErr?.message ?? 'No se ha podido enlazar' };
+  await sb.from('lead_events').insert({
+    salon_id: me.salon_id,
+    lead_id: leadId,
+    staff_id: me.id,
+    kind: 'convert',
+    body: 'Pasada a clienta',
+  });
+  refresh(leadId);
+  revalidatePath('/clientas');
+  return { ok: true as const, id: clientId };
+}
+
 export async function convertLeadToClient(leadId: string) {
   const { me, on } = await leadsDesk();
   if (!on) return { ok: false as const, error: 'Leads no está activado' };
