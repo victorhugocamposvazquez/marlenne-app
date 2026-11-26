@@ -24,14 +24,15 @@ import { avatarColor, initials } from '@/lib/categories';
 import { consentExpired, latestConsents } from '@/lib/consents';
 import { waHref } from '@/lib/phone';
 import { dateLbl, offsetFromDay, shortWhen } from '@/lib/time';
-import type { AgendaAppt, ClientPack, ClientRow, Consent, PackTemplate, ServiceOption, TreatmentRow } from '@/lib/types';
+import type { AgendaAppt, ClientPack, ClientRow, Consent, PackTemplate, ServiceOption, TreatmentPhoto, TreatmentRow } from '@/lib/types';
 
 export default function ClientaFicha({
-  client, treatments, packs, templates, services, appointments, consents, canEdit, initialTab, initialEdit,
+  client, treatments, clientPhotos = [], packs, templates, services, appointments, consents, canEdit, initialTab, initialEdit,
   overlay = false, onUpdated,
 }: {
   client: ClientRow;
   treatments: TreatmentRow[];
+  clientPhotos?: TreatmentPhoto[];
   packs: ClientPack[];
   templates: PackTemplate[];
   services: ServiceOption[];
@@ -53,7 +54,10 @@ export default function ClientaFicha({
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [urlsReady, setUrlsReady] = useState(false);
 
-  const photoPaths = treatments.flatMap(t => (t.treatment_photos ?? []).map(p => p.storage_path));
+  const photoPaths = [
+    ...treatments.flatMap(t => (t.treatment_photos ?? []).map(p => p.storage_path)),
+    ...clientPhotos.map(p => p.storage_path),
+  ];
   const metrics = new Set(treatments.flatMap(t => (t.measurements ?? []).map(m => m.metric)));
   const upcoming = appointments
     .filter(a => (a.status === 'prog' || a.status === 'curso') && +new Date(a.starts_at) >= Date.now())
@@ -91,6 +95,7 @@ export default function ClientaFicha({
           <ExportFichaButton
             client={client}
             treatments={treatments}
+            clientPhotos={clientPhotos}
             packs={packs}
             appointments={appointments}
             consents={consents}
@@ -212,7 +217,9 @@ export default function ClientaFicha({
         {tab === 'medidas' && <MeasurementsTab treatments={treatments} />}
         {tab === 'fotos' && (
           <PhotosTab
+            clientId={client.id}
             treatments={treatments}
+            clientPhotos={clientPhotos}
             urls={urls}
             urlsReady={urlsReady}
             photoConsent={consents.some(c => c.kind === 'fotografia')}
@@ -257,6 +264,7 @@ export default function ClientaFicha({
             <ExportFichaButton
               client={client}
               treatments={treatments}
+              clientPhotos={clientPhotos}
               packs={packs}
               appointments={appointments}
               consents={consents}

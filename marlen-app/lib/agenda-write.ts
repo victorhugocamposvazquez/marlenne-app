@@ -340,15 +340,20 @@ export async function closeSession(
 export async function addTreatmentPhoto(
   sb: SupabaseClient,
   input: {
-    treatmentId: string;
+    treatmentId?: string;
+    clientId?: string;
     kind: 'before' | 'after';
     zone?: string;
     sessionNo?: number;
     storagePath: string;
   },
 ): Promise<WriteResult> {
+  if (!input.treatmentId && !input.clientId) {
+    return { ok: false, error: 'Falta la clienta de la foto' };
+  }
   const { error } = await sb.from('treatment_photos').insert({
-    treatment_id: input.treatmentId,
+    treatment_id: input.treatmentId ?? null,
+    client_id: input.treatmentId ? null : input.clientId,
     kind: input.kind,
     zone: input.zone?.trim() || null,
     session_no: input.sessionNo ?? null,

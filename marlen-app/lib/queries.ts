@@ -10,6 +10,7 @@ import { voiceFromStaffPrefs } from '@/lib/staff-app-prefs';
 import { salonAgendaFeaturesFromRow, type SalonAgendaFeatures } from '@/lib/salon-features';
 import type {
   AgendaAppt, AgendaBlock, ClientListRow, ClientOption, ClientPack, ClientRow, Consent, PackTemplate, Provider,
+  TreatmentPhoto,
   RecallRow, ServiceCategory, ServiceOption, TreatmentRow, WaitItem, WeekDay,
 } from '@/lib/types';
 
@@ -428,7 +429,7 @@ export async function listClients(): Promise<ClientListRow[]> {
 
 export async function getClient(id: string) {
   const sb = createClient();
-  const [client, treatments, packs] = await Promise.all([
+  const [client, treatments, packs, loose] = await Promise.all([
     sb.from('clients').select('*').eq('id', id).maybeSingle(),
     sb.from('treatments')
       .select(`
@@ -441,11 +442,17 @@ export async function getClient(id: string) {
       .eq('client_id', id)
       .order('opened_at', { ascending: false }),
     listClientPacks(sb, id),
+    sb.from('treatment_photos')
+      .select('id, kind, zone, session_no, storage_path, taken_at')
+      .eq('client_id', id)
+      .is('treatment_id', null)
+      .order('taken_at', { ascending: false }),
   ]);
   return {
     client: (client.data ?? null) as ClientRow | null,
     treatments: (treatments.data ?? []) as unknown as TreatmentRow[],
     packs,
+    clientPhotos: (loose.error ? [] : loose.data ?? []) as TreatmentPhoto[],
   };
 }
 

@@ -7,9 +7,12 @@ import PhotoPick from '@/components/clienta/PhotoPick';
 import { photoBusyKey, type PhotoKind, type PhotoTarget } from '@/lib/photos';
 import type { TreatmentRow } from '@/lib/types';
 
+const LOOSE = '';
+
 export default function PhotoUpload({
-  treatments, pending, busy, error, onPick,
+  clientId, treatments, pending, busy, error, onPick,
 }: {
+  clientId: string;
   treatments: TreatmentRow[];
   pending: boolean;
   busy: string | null;
@@ -17,24 +20,21 @@ export default function PhotoUpload({
   onPick: (file: File, target: PhotoTarget) => void;
 }) {
   const open = treatments.filter(t => !t.closed_at);
-  const options = open.length ? open : treatments.slice(0, 3);
-  const [treatmentId, setTreatmentId] = useState(options[0]?.id ?? '');
+  const closed = treatments.filter(t => t.closed_at).slice(0, 3);
+  const options = [...open, ...closed];
+  const [treatmentId, setTreatmentId] = useState(open[0]?.id ?? LOOSE);
 
-  if (!options.length) {
-    return (
-      <p className="mb-3 rounded-row bg-surface-soft p-4 text-label font-semibold leading-snug text-ink-2">
-        Para guardar fotos, esta clienta necesita un tratamiento. Se abre al marcar una cita como hecha.
-      </p>
-    );
-  }
-
-  const chosen = treatments.find(t => t.id === treatmentId) ?? options[0];
-  const target = (kind: PhotoKind): PhotoTarget => ({
-    treatmentId: chosen.id,
-    kind,
-    zone: chosen.zone,
-    sessionNo: chosen.sessions_done || undefined,
-  });
+  const chosen = options.find(t => t.id === treatmentId);
+  const target = (kind: PhotoKind): PhotoTarget => (
+    chosen
+      ? {
+          treatmentId: chosen.id,
+          kind,
+          zone: chosen.zone,
+          sessionNo: chosen.sessions_done || undefined,
+        }
+      : { clientId, kind }
+  );
   const pick = (kind: PhotoKind) => (file: File) => onPick(file, target(kind));
 
   return (
@@ -43,18 +43,21 @@ export default function PhotoUpload({
         <Camera size={16} strokeWidth={2.2} className="text-v" />
         Añadir foto
       </div>
-      <select
-        className={`${inputCls} mb-2.5`}
-        aria-label="Tratamiento"
-        value={chosen.id}
-        onChange={e => setTreatmentId(e.target.value)}
-      >
-        {options.map(t => (
-          <option key={t.id} value={t.id}>
-            {t.service?.name ?? 'Tratamiento'}{t.zone ? ` · ${t.zone}` : ''}
-          </option>
-        ))}
-      </select>
+      {options.length > 0 && (
+        <select
+          className={`${inputCls} mb-2.5`}
+          aria-label="Tratamiento"
+          value={chosen?.id ?? LOOSE}
+          onChange={e => setTreatmentId(e.target.value)}
+        >
+          <option value={LOOSE}>Sin tratamiento</option>
+          {options.map(t => (
+            <option key={t.id} value={t.id}>
+              {t.service?.name ?? 'Tratamiento'}{t.zone ? ` · ${t.zone}` : ''}
+            </option>
+          ))}
+        </select>
+      )}
       <p className="mb-2 text-caption font-medium leading-snug text-ink-2">
         Un lado es el antes, el otro el después. Cámara o el rollo.
       </p>
