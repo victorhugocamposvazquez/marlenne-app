@@ -231,8 +231,10 @@ export async function importMetaLeadsPage(cursor?: MetaSyncCursor | null): Promi
 }
 
 const RECENT_FORMS = 40;
+/** Con la app abierta: basta con los formularios más recientes. */
+const RECENT_FORMS_INBOX = 8;
 
-async function pullSalonRecent(salonId: string) {
+async function pullSalonRecent(salonId: string, maxForms = RECENT_FORMS) {
   const admin = createAdminClient();
   const { data: conn, error } = await admin
     .from('meta_connections')
@@ -244,7 +246,7 @@ async function pullSalonRecent(salonId: string) {
   const token = (conn?.page_access_token as string | undefined)?.trim();
   if (!pageId || !token) return { imported: 0, newest: null as string | null };
   await subscribePageToLeadgen(pageId, token).catch(() => undefined);
-  const forms = (await listFormIds(pageId, token)).slice(0, RECENT_FORMS);
+  const forms = (await listFormIds(pageId, token)).slice(0, maxForms);
   let imported = 0;
   const times: (string | null | undefined)[] = [];
   for (const formId of forms) {
@@ -270,7 +272,7 @@ export async function pullMyRecentMetaLeads(): Promise<
   const me = await requireRole('admin', 'reception');
   if (!await leadsEnabled(me.salon_id)) return { ok: true, imported: 0, newest: null };
   try {
-    const pulled = await pullSalonRecent(me.salon_id);
+    const pulled = await pullSalonRecent(me.salon_id, RECENT_FORMS_INBOX);
     return { ok: true, imported: pulled.imported, newest: pulled.newest };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'No se han podido traer los leads' };

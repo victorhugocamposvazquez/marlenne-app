@@ -95,45 +95,52 @@ export default function LeadsView({
     [filter, listGroup, campaignFilter, q],
   );
 
+  const applyPage = useCallback((page: { rows: LeadRow[]; hasMore: boolean }, before?: string | null) => {
+    if (before) {
+      setRows(current => {
+        const seen = new Set(current.map(lead => lead.id));
+        return [...current, ...page.rows.filter(lead => !seen.has(lead.id))];
+      });
+    } else {
+      setRows(page.rows);
+    }
+    setHasMore(page.hasMore);
+  }, []);
+
   const fetchList = useCallback(
     (before?: string | null) => {
-      startList(async () => {
-        const page = await listLeadsPage(buildFilters(before));
-        if (before) {
-          setRows(current => {
-            const seen = new Set(current.map(lead => lead.id));
-            return [...current, ...page.rows.filter(lead => !seen.has(lead.id))];
-          });
-        } else {
-          setRows(page.rows);
-        }
-        setHasMore(page.hasMore);
+      startList(() => {
+        void listLeadsPage(buildFilters(before)).then(page => applyPage(page, before));
       });
     },
-    [buildFilters],
+    [applyPage, buildFilters],
   );
 
   fetchListRef.current = fetchList;
 
   useEffect(() => {
     let alive = true;
-    const paint = () => {
-      if (!alive || window.location.pathname !== '/leads') return;
-      fetchListRef.current();
-      router.refresh();
+    let busy = false;
+    const onInbox = () => alive && window.location.pathname === '/leads';
+
+    const syncInbox = async () => {
+      if (!onInbox() || busy) return;
+      busy = true;
+      try {
+        await pullMyRecentMetaLeads().catch(() => undefined);
+        if (onInbox()) fetchListRef.current();
+      } finally {
+        busy = false;
+      }
     };
-    const sync = async () => {
-      await pullMyRecentMetaLeads().catch(() => undefined);
-      paint();
-    };
-    paint();
-    void sync();
-    const id = window.setInterval(() => { void sync(); }, 30_000);
+
+    void syncInbox();
+    const id = window.setInterval(() => { void syncInbox(); }, 45_000);
     return () => {
       alive = false;
       window.clearInterval(id);
     };
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     setRows(initialLeads);
@@ -299,12 +306,9 @@ export default function LeadsView({
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-auto px-6 pb-fab pt-1">
+      <div className="min-h-0 flex-1 overflow-auto px-6 pb-fab pt-1" data-no-pull>
         {listPending && leads.length === 0 && (
           <p className="mt-4 text-label font-medium text-ink-2">Cargando…</p>
-        )}
-        {listPending && leads.length > 0 && (
-          <p className="mt-2 text-label font-medium text-ink-3">Actualizando…</p>
         )}
         {!listPending && leads.length === 0 && (
           <EmptyState
@@ -329,6 +333,7 @@ export default function LeadsView({
             <Link
               key={lead.id}
               href={`/leads/${lead.id}`}
+              prefetch
               className="mt-2 flex items-center gap-3 rounded-row px-3.5 py-3 no-underline"
               style={{ background: paint.bg }}
             >
