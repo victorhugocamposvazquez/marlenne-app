@@ -20,7 +20,13 @@ export default function PhotoUpload({
   const options = open.length ? open : treatments.slice(0, 3);
   const [treatmentId, setTreatmentId] = useState(options[0]?.id ?? '');
 
-  if (!options.length) return null;
+  if (!options.length) {
+    return (
+      <p className="mb-3 rounded-row bg-surface-soft p-4 text-label font-semibold leading-snug text-ink-2">
+        Para guardar fotos, esta clienta necesita un tratamiento. Se abre al marcar una cita como hecha.
+      </p>
+    );
+  }
 
   const chosen = treatments.find(t => t.id === treatmentId) ?? options[0];
   const target = (kind: PhotoKind): PhotoTarget => ({

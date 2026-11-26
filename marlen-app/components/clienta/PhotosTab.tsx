@@ -26,7 +26,7 @@ type Group = {
 };
 
 function Frame({
-  photo, url, label, askId, pending, uploading, onAsk, onCancel, onDelete, onAdd,
+  photo, url, label, askId, pending, uploading, urlsReady, onAsk, onCancel, onDelete, onAdd,
 }: {
   photo?: TreatmentPhoto;
   url?: string;
@@ -34,6 +34,7 @@ function Frame({
   askId: string | null;
   pending: boolean;
   uploading: boolean;
+  urlsReady: boolean;
   onAsk: (id: string) => void;
   onCancel: () => void;
   onDelete: (photo: TreatmentPhoto) => void;
@@ -82,8 +83,12 @@ function Frame({
             </button>
           )}
         </div>
-      ) : photo ? (
+      ) : photo && !urlsReady ? (
         <Skeleton className="aspect-[3/4] w-full rounded-icon" />
+      ) : photo ? (
+        <p className="flex aspect-[3/4] w-full items-center justify-center rounded-icon border border-surface-line px-2 text-center text-caption font-semibold text-ink-2">
+          No se ha podido abrir
+        </p>
       ) : (
         <div className="flex aspect-[3/4] w-full flex-col justify-center rounded-icon border border-dashed border-handle bg-surface-bg/50 p-2.5">
           {uploading ? (
@@ -100,10 +105,11 @@ function Frame({
 }
 
 export default function PhotosTab({
-  treatments, urls, photoConsent, onUploaded,
+  treatments, urls, urlsReady = true, photoConsent, onUploaded,
 }: {
   treatments: TreatmentRow[];
   urls: Record<string, string>;
+  urlsReady?: boolean;
   photoConsent: boolean;
   onUploaded?: () => void;
 }) {
@@ -193,6 +199,7 @@ export default function PhotosTab({
               label="Antes"
               askId={askId}
               pending={pending || photo.pending}
+              urlsReady={urlsReady}
               uploading={photo.pending && photo.busy === photoBusyKey({ treatmentId: g.treatmentId, kind: 'before', zone: g.zone, sessionNo: g.session }) && !g.before}
               onAsk={setAskId}
               onCancel={() => setAskId(null)}
@@ -205,6 +212,7 @@ export default function PhotosTab({
               label="Después"
               askId={askId}
               pending={pending || photo.pending}
+              urlsReady={urlsReady}
               uploading={photo.pending && photo.busy === photoBusyKey({ treatmentId: g.treatmentId, kind: 'after', zone: g.zone, sessionNo: g.session }) && !g.after}
               onAsk={setAskId}
               onCancel={() => setAskId(null)}

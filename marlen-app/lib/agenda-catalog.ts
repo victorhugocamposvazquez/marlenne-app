@@ -40,9 +40,11 @@ export async function loadSignedPhotoUrls(sb: SupabaseClient, paths: string[]) {
   const map: Record<string, string> = {};
   if (!paths.length) return map;
   const { data } = await sb.storage.from('treatment-photos').createSignedUrls(paths, 60 * 30);
-  for (const item of data ?? []) {
-    if (item.path && item.signedUrl) map[item.path] = item.signedUrl;
-  }
+  (data ?? []).forEach((item, i) => {
+    if (!item.signedUrl) return;
+    const key = item.path && paths.includes(item.path) ? item.path : paths[i];
+    if (key) map[key] = item.signedUrl;
+  });
   return map;
 }
 
