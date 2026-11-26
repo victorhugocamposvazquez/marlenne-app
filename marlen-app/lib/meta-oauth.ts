@@ -51,14 +51,13 @@ export function metaAuthUrl(input: {
   url.searchParams.set('redirect_uri', input.redirectUri);
   url.searchParams.set('state', input.state);
   url.searchParams.set('response_type', 'code');
+  url.searchParams.set('scope', META_OAUTH_SCOPES.join(','));
   const configId = input.configId?.trim();
   if (configId) {
-    // La configuración ya lista permisos y activos. Meta rechaza el diálogo si además va scope.
+    // Sin los permisos, Facebook abre el inicio normal y esta app lo tiene cerrado.
     url.searchParams.set('config_id', configId);
     url.searchParams.set('override_default_response_type', 'true');
     url.searchParams.set('auth_type', 'rerequest');
-  } else {
-    url.searchParams.set('scope', META_OAUTH_SCOPES.join(','));
   }
   return url.toString();
 }

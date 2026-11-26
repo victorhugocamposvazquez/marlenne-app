@@ -50,7 +50,7 @@ test('la url de Facebook lleva el estado y no el secreto', () => {
   assert.equal(url.searchParams.has('config_id'), false);
 });
 
-test('con configuración de empresa no manda la lista de permisos', () => {
+test('con configuración de empresa mantiene el inicio de empresa', () => {
   const url = new URL(metaAuthUrl({
     appId: '123',
     redirectUri: 'https://app.marlenapp.com/api/meta/oauth/callback',
@@ -58,7 +58,7 @@ test('con configuración de empresa no manda la lista de permisos', () => {
     configId: '999',
   }));
   assert.equal(url.searchParams.get('config_id'), '999');
-  assert.equal(url.searchParams.has('scope'), false);
+  assert.equal(url.searchParams.get('scope')?.includes('leads_retrieval'), true);
   assert.equal(url.searchParams.get('response_type'), 'code');
   assert.equal(url.searchParams.get('override_default_response_type'), 'true');
   assert.equal(url.searchParams.get('auth_type'), 'rerequest');
