@@ -18,7 +18,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
-- 2026-11-27 — **Leads:** abrir una ficha ya no vuelve a la lista. El refresco al entrar sigue, sin pisar la navegación. Rama `cursor/leads-abrir-ficha-5156`.
+- 2026-11-27 — **Leads:** abrir una ficha ya no vuelve a la lista. El refresco al entrar sigue, sin pisar la navegación. PR #69 → `main`.
 - 2026-11-27 — **Leads:** al entrar en la bandeja se piden los nuevos a Facebook y se refresca la lista. PR #68 → `main`.
 - 2026-11-26 — **Leads:** entran solos (la página queda suscrita a Meta, la app abierta los pide cada 45 s y el cron de cada minuto también) y el push sale con cada lead reciente. El botón de Ajustes queda solo para el histórico. PR #67 → `main`.
 - 2026-11-26 — **Leads:** etiquetas para elegir (volver a llamar, con día opcional, no responde, no interesado, quiere cita, pensándoselo, número erróneo). PR #66 → `main`. Falta aplicar `supabase/migrations/20261126150000_lead_callback.sql` para que el día se guarde.
