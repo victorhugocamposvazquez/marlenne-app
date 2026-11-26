@@ -27,6 +27,7 @@ import {
 } from '@/app/actions/leads';
 import { shallowSet } from '@/hooks/useShallowQuery';
 import LeadAdLightbox from '@/components/leads/LeadAdLightbox';
+import LeadAdPicture from '@/components/leads/LeadAdPicture';
 import LeadWaTemplateSheet from '@/components/leads/LeadWaTemplateSheet';
 import MetaLogo from '@/components/leads/MetaLogo';
 import DarCitaLink from '@/components/ui/DarCitaLink';
@@ -227,12 +228,7 @@ export default function LeadFicha({
               className="relative mt-2 block w-full overflow-hidden rounded-field text-left"
               aria-label="Ampliar creatividad"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={lead.thumbnail_url}
-                alt=""
-                className="aspect-[4/5] w-full object-cover"
-              />
+              <LeadAdPicture src={lead.thumbnail_url} className="aspect-[4/5] w-full object-cover" />
               <span
                 className="pointer-events-none absolute bottom-2 left-2 flex h-9 min-w-[2.25rem] items-center justify-center rounded-pill bg-ink px-2.5 text-white shadow-md"
                 aria-hidden

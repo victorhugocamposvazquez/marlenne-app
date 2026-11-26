@@ -8,7 +8,7 @@ type Db = ReturnType<typeof createAdminClient> | ReturnType<typeof createClient>
 const GRAPH = 'https://graph.facebook.com/v21.0';
 
 const CREATIVE_FIELDS =
-  'name,creative{thumbnail_url,image_url,title,body,object_story_spec{link_data{picture},photo_data{url},video_data{image_url}}}';
+  'name,creative{id,thumbnail_url,image_url,title,body,effective_object_story_id,object_story_spec{link_data{picture},photo_data{url},video_data{image_url}},asset_feed_spec{images{url},videos{thumbnail_url}}}';
 
 export type MetaAdCreative = {
   thumbnail_url: string | null;
@@ -18,16 +18,51 @@ export type MetaAdCreative = {
 };
 
 type GraphCreative = {
+  id?: string;
   thumbnail_url?: string;
   image_url?: string;
   title?: string;
   body?: string;
+  effective_object_story_id?: string;
   object_story_spec?: {
     link_data?: { picture?: string };
     photo_data?: { url?: string };
     video_data?: { image_url?: string };
   };
+  asset_feed_spec?: {
+    images?: { url?: string }[];
+    videos?: { thumbnail_url?: string }[];
+  };
 };
+
+/** Píxeles que pide la URL de Facebook (`p64x64`, `s960x960`…). */
+export function fbImagePixels(url: string | null | undefined): number | null {
+  const m = url?.match(/(?:^|[^\d])[ps](\d{2,4})x(\d{2,4})(?:[^\d]|$)/i);
+  if (!m) return null;
+  return Math.max(Number(m[1]) || 0, Number(m[2]) || 0);
+}
+
+/**
+ * La miniatura de Meta lleva `p64x64` en la URL del CDN.
+ * El mismo archivo se puede pedir a 1080 si el parámetro existe.
+ */
+export function enlargeFbCdnUrl(url: string | null | undefined): string | null {
+  const raw = url?.trim();
+  if (!raw) return null;
+  const px = fbImagePixels(raw);
+  if (px != null && px >= 720) return raw;
+  if (!/[ps]\d{2,4}x\d{2,4}/i.test(raw)) return raw;
+  return raw.replace(/([ps])\d{2,4}x\d{2,4}/gi, '$11080x1080');
+}
+
+function creativeImageScore(url: string) {
+  const px = fbImagePixels(url) ?? 0;
+  let score = px * 10 + Math.min(url.length, 200);
+  const low = url.toLowerCase();
+  if (low.includes('thumbnail')) score -= 4000;
+  if (px > 0 && px < 400) score -= 5000;
+  return score;
+}
 
 /** Devuelve la URL más nítida que Meta da para la creatividad. */
 export function pickBestCreativeImageUrl(creative: GraphCreative | null | undefined): string | null {
@@ -37,8 +72,10 @@ export function pickBestCreativeImageUrl(creative: GraphCreative | null | undefi
     spec?.link_data?.picture,
     spec?.photo_data?.url,
     spec?.video_data?.image_url,
+    ...(creative.asset_feed_spec?.images ?? []).map(image => image.url),
     creative.image_url,
     creative.thumbnail_url,
+    ...(creative.asset_feed_spec?.videos ?? []).map(video => video.thumbnail_url),
   ];
   let best: string | null = null;
   let bestScore = -1;
@@ -54,42 +91,66 @@ export function pickBestCreativeImageUrl(creative: GraphCreative | null | undefi
   return best;
 }
 
-function creativeImageScore(url: string) {
-  let score = url.length;
-  const p = url.match(/[?&/](?:p|s)(\d+)x(\d+)/i);
-  if (p) score += Math.min(Number(p[1]) || 0, Number(p[2]) || 0);
-  const low = url.toLowerCase();
-  if (low.includes('thumbnail')) score -= 600;
-  if (low.includes('p50x50') || low.includes('p64x64') || low.includes('p130x130')) score -= 800;
-  return score;
-}
-
 export function isLikelyLowResAdImage(url: string | null | undefined) {
   const u = url?.trim();
   if (!u) return true;
-  const low = u.toLowerCase();
-  if (low.includes('thumbnail')) return true;
-  const small = low.match(/[?&/](?:p|s)(\d+)x(\d+)/i);
-  if (small) {
-    const w = Number(small[1]);
-    const h = Number(small[2]);
-    if (w > 0 && h > 0 && Math.max(w, h) < 400) return true;
-  }
-  return false;
+  if (u.toLowerCase().includes('thumbnail')) return true;
+  const px = fbImagePixels(u);
+  if (px == null) return true;
+  return px < 720;
 }
 
-export async function fetchMetaAdCreative(adId: string, token: string): Promise<MetaAdCreative | null> {
-  const url = new URL(`${GRAPH}/${encodeURIComponent(adId)}`);
-  url.searchParams.set('fields', CREATIVE_FIELDS);
+async function graphJson<T>(id: string, token: string, params: Record<string, string>): Promise<T | null> {
+  const url = new URL(`${GRAPH}/${encodeURIComponent(id)}`);
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
   url.searchParams.set('access_token', token);
   const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) return null;
-  const ad = await res.json() as { name?: string; creative?: GraphCreative };
-  const image = pickBestCreativeImageUrl(ad.creative);
+  return res.json() as Promise<T>;
+}
+
+function consider(bucket: { url: string; score: number }[], raw: string | null | undefined, bonus: number) {
+  const url = raw?.trim();
+  if (!url) return;
+  bucket.push({ url, score: creativeImageScore(url) + bonus });
+}
+
+export async function fetchMetaAdCreative(adId: string, token: string): Promise<MetaAdCreative | null> {
+  const basic = 'name,creative{id,thumbnail_url,image_url,title,body,effective_object_story_id}';
+  const ad = await graphJson<{ name?: string; creative?: GraphCreative }>(adId, token, { fields: CREATIVE_FIELDS })
+    ?? await graphJson<{ name?: string; creative?: GraphCreative }>(adId, token, { fields: basic });
+  if (!ad) return null;
+  const creative = ad.creative;
+  const bucket: { url: string; score: number }[] = [];
+  consider(bucket, pickBestCreativeImageUrl(creative), 0);
+
+  const extra: Promise<void>[] = [];
+  if (creative?.id) {
+    extra.push(graphJson<{ thumbnail_url?: string }>(creative.id, token, {
+      fields: 'thumbnail_url',
+      thumbnail_width: '1080',
+      thumbnail_height: '1080',
+    }).then(big => { consider(bucket, big?.thumbnail_url, 3000); }));
+  }
+  if (creative?.effective_object_story_id) {
+    extra.push(graphJson<{ full_picture?: string }>(creative.effective_object_story_id, token, {
+      fields: 'full_picture',
+    }).then(post => { consider(bucket, post?.full_picture, 8000); }));
+  }
+  await Promise.all(extra);
+
+  let best: string | null = null;
+  let bestScore = -1;
+  for (const item of bucket) {
+    if (item.score > bestScore) {
+      bestScore = item.score;
+      best = item.url;
+    }
+  }
   return {
-    thumbnail_url: image,
-    headline: ad.creative?.title || null,
-    body: ad.creative?.body || null,
+    thumbnail_url: best,
+    headline: creative?.title || null,
+    body: creative?.body || null,
     ad_name: ad.name?.trim() || null,
   };
 }
