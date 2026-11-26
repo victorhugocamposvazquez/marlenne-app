@@ -18,6 +18,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
+- 2026-11-26 — **Clientas:** las fotos se guardan en la ficha sin marcar una cita como hecha; PR #63 → `main`. Falta aplicar `supabase/migrations/20261126140000_client_photos.sql` (Hugo, contraseña de Postgres en Terminal).
 - 2026-11-26 — **Clientas:** la cámara y la galería de las fotos vuelven a abrirse al tocarlas; PR #62 → `main`.
 - 2026-11-26 — **Leads:** el fondo de llamado y de WhatsApp en el listado se ve más marcado; PR #61 → `main`.
 - 2026-11-25 — **Leads:** bandeja con filtro por campaña, ficha con deshacer y etiquetas del centro, y en Ajustes la admin conecta la página de Facebook; PR #60 → `main`.
