@@ -189,6 +189,10 @@ export default function LeadsView({
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
       <header className={screenHeaderCls}>
         <PageHeading title="Leads" subtitle={leads.length === 1 ? '1 ficha' : `${leads.length} fichas`}>
+          <span className="flex select-none items-center gap-0.5 text-[22px] leading-none" aria-hidden>
+            <span>🔥</span>
+            <span>💪</span>
+          </span>
           <HeaderIconButton label="Nuevo lead" onClick={() => setAdding(v => !v)}>
             <Plus size={22} strokeWidth={2.2} />
           </HeaderIconButton>

@@ -49,11 +49,16 @@ export type LeadEventRow = {
 };
 
 const LEAD_SELECT = 'id, full_name, phone, email, campaign_id, campaign_name, ad_id, ad_name, thumbnail_url, ad_headline, ad_body, tags, last_channel, client_id, created_at, deleted_at, form_fields, meta_lead_id';
+const LEAD_SELECT_NO_TRASH = LEAD_SELECT.replace(', deleted_at', '');
 
 const LEAD_LIST_SELECT = 'id, full_name, phone, campaign_name, ad_name, tags, last_channel, created_at';
 
 function missingTable(message: string) {
   return /feature_leads|relation .*leads|lead_events|lead_wa_templates/i.test(message);
+}
+
+function missingTrashColumn(message: string) {
+  return /deleted_at/i.test(message);
 }
 
 const PAGE = 40;
@@ -69,27 +74,35 @@ export async function listLeadsPage(
   const { on, me } = await leadsDesk();
   if (!on) return { rows: [], hasMore: false };
   const sb = createClient();
-  let query = sb
-    .from('leads')
-    .select(LEAD_LIST_SELECT)
-    .eq('salon_id', me.salon_id)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false })
-    .limit(PAGE + 1);
-  if (filters.before) query = query.lt('created_at', filters.before);
-  if (filters.tone && filters.tone !== 'todas') {
-    if (filters.tone === 'none') query = query.is('last_channel', null);
-    else query = query.eq('last_channel', filters.tone);
+
+  const buildQuery = (activeOnly: boolean) => {
+    let query = sb
+      .from('leads')
+      .select(LEAD_LIST_SELECT)
+      .eq('salon_id', me.salon_id)
+      .order('created_at', { ascending: false })
+      .limit(PAGE + 1);
+    if (activeOnly) query = query.is('deleted_at', null);
+    if (filters.before) query = query.lt('created_at', filters.before);
+    if (filters.tone && filters.tone !== 'todas') {
+      if (filters.tone === 'none') query = query.is('last_channel', null);
+      else query = query.eq('last_channel', filters.tone);
+    }
+    if (filters.groupName?.trim()) {
+      const col = filters.groupKind === 'ad' ? 'ad_name' : 'campaign_name';
+      query = query.eq(col, filters.groupName.trim());
+    }
+    const needle = searchNeedle(filters.q ?? '');
+    if (needle.length >= 2) {
+      query = query.or(`full_name.ilike.%${needle}%,phone.ilike.%${needle}%`);
+    }
+    return query;
+  };
+
+  let { data, error } = await buildQuery(true);
+  if (error && missingTrashColumn(error.message)) {
+    ({ data, error } = await buildQuery(false));
   }
-  if (filters.groupName?.trim()) {
-    const col = filters.groupKind === 'ad' ? 'ad_name' : 'campaign_name';
-    query = query.eq(col, filters.groupName.trim());
-  }
-  const needle = searchNeedle(filters.q ?? '');
-  if (needle.length >= 2) {
-    query = query.or(`full_name.ilike.%${needle}%,phone.ilike.%${needle}%`);
-  }
-  const { data, error } = await query;
   if (error) {
     if (missingTable(error.message)) return { rows: [], hasMore: false };
     throw new Error(error.message);
@@ -159,7 +172,10 @@ export async function getLead(id: string): Promise<LeadRow | null> {
   const { on, me } = await leadsDesk();
   if (!on) return null;
   const sb = createClient();
-  const { data, error } = await sb.from('leads').select(LEAD_SELECT).eq('id', id).maybeSingle();
+  let { data, error } = await sb.from('leads').select(LEAD_SELECT).eq('id', id).maybeSingle();
+  if (error && missingTrashColumn(error.message)) {
+    ({ data, error } = await sb.from('leads').select(LEAD_SELECT_NO_TRASH).eq('id', id).maybeSingle());
+  }
   if (error) return null;
   let lead = mapLeadRow(data as Record<string, unknown> | null);
   if (!lead) return null;
@@ -280,13 +296,21 @@ export async function listLeadGroupNames(kind: LeadsListGroup): Promise<string[]
     return (rows as { name: string }[]).map(row => row.name).filter(Boolean);
   }
   const col = kind === 'ad' ? 'ad_name' : 'campaign_name';
-  const { data: rows, error: rowErr } = await sb
+  let { data: rows, error: rowErr } = await sb
     .from('leads')
     .select(col)
     .eq('salon_id', me.salon_id)
     .is('deleted_at', null)
     .not(col, 'is', null)
     .limit(500);
+  if (rowErr && missingTrashColumn(rowErr.message)) {
+    ({ data: rows, error: rowErr } = await sb
+      .from('leads')
+      .select(col)
+      .eq('salon_id', me.salon_id)
+      .not(col, 'is', null)
+      .limit(500));
+  }
   if (rowErr) return [];
   const names = new Set<string>();
   for (const row of rows ?? []) {
@@ -306,12 +330,19 @@ export async function listLeadTagWords(): Promise<string[]> {
     if (typeof rows[0] === 'string') return rows as string[];
     return (rows as { tag: string }[]).map(row => row.tag).filter(Boolean);
   }
-  const { data: rows, error: rowErr } = await sb
+  let { data: rows, error: rowErr } = await sb
     .from('leads')
     .select('tags')
     .eq('salon_id', me.salon_id)
     .is('deleted_at', null)
     .limit(200);
+  if (rowErr && missingTrashColumn(rowErr.message)) {
+    ({ data: rows, error: rowErr } = await sb
+      .from('leads')
+      .select('tags')
+      .eq('salon_id', me.salon_id)
+      .limit(200));
+  }
   if (rowErr) return [];
   const words = new Set<string>();
   for (const row of rows ?? []) {
