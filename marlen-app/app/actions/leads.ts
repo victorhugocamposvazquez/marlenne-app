@@ -358,8 +358,24 @@ export async function markLeadChannel(leadId: string, channel: LeadChannel) {
   const { me, on } = await leadsDesk();
   if (!on) return { ok: false as const, error: 'Leads no está activado' };
   const sb = createClient();
-  const { error } = await sb.from('leads').update({ last_channel: channel }).eq('id', leadId);
+  let { data, error } = await sb
+    .from('leads')
+    .update({ last_channel: channel })
+    .eq('id', leadId)
+    .eq('salon_id', me.salon_id)
+    .select('id')
+    .maybeSingle();
+  if (error && missingTrashColumn(error.message)) {
+    ({ data, error } = await sb
+      .from('leads')
+      .update({ last_channel: channel })
+      .eq('id', leadId)
+      .eq('salon_id', me.salon_id)
+      .select('id')
+      .maybeSingle());
+  }
   if (error) return { ok: false as const, error: error.message };
+  if (!data?.id) return { ok: false as const, error: 'No se ha podido actualizar el lead' };
   await sb.from('lead_events').insert({
     salon_id: me.salon_id,
     lead_id: leadId,
@@ -375,8 +391,15 @@ export async function clearLeadChannel(leadId: string) {
   const { me, on } = await leadsDesk();
   if (!on) return { ok: false as const, error: 'Leads no está activado' };
   const sb = createClient();
-  const { error } = await sb.from('leads').update({ last_channel: null }).eq('id', leadId);
+  let { data, error } = await sb
+    .from('leads')
+    .update({ last_channel: null })
+    .eq('id', leadId)
+    .eq('salon_id', me.salon_id)
+    .select('id')
+    .maybeSingle();
   if (error) return { ok: false as const, error: error.message };
+  if (!data?.id) return { ok: false as const, error: 'No se ha podido actualizar el lead' };
   await sb.from('lead_events').insert({
     salon_id: me.salon_id,
     lead_id: leadId,

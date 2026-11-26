@@ -53,7 +53,7 @@ export function leadPushCopy(input: {
 }) {
   const name = input.name.trim() || 'Nuevo lead';
   const from = input.ad?.trim() || input.campaign?.trim();
-  const title = input.fromMeta ? 'Lead de Meta' : 'Nuevo lead';
+  const title = '🔥Nuevo lead 💪';
   const parts = [name];
   if (from) parts.push(from);
   const phone = input.phone?.trim();

@@ -140,6 +140,20 @@ export default function LeadsView({
     return () => window.clearTimeout(t);
   }, [q, fetchList]);
 
+  useEffect(() => {
+    const resync = () => {
+      if (document.visibilityState === 'visible') fetchList();
+    };
+    document.addEventListener('visibilitychange', resync);
+    window.addEventListener('pageshow', resync);
+    window.addEventListener('focus', resync);
+    return () => {
+      document.removeEventListener('visibilitychange', resync);
+      window.removeEventListener('pageshow', resync);
+      window.removeEventListener('focus', resync);
+    };
+  }, [fetchList]);
+
   const refreshTrash = useCallback((before?: string | null) => {
     startTrash(async () => {
       const page = await listTrashedLeads(before);
@@ -189,10 +203,6 @@ export default function LeadsView({
     <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
       <header className={screenHeaderCls}>
         <PageHeading title="Leads" subtitle={leads.length === 1 ? '1 ficha' : `${leads.length} fichas`}>
-          <span className="flex select-none items-center gap-0.5 text-[22px] leading-none" aria-hidden>
-            <span>🔥</span>
-            <span>💪</span>
-          </span>
           <HeaderIconButton label="Nuevo lead" onClick={() => setAdding(v => !v)}>
             <Plus size={22} strokeWidth={2.2} />
           </HeaderIconButton>

@@ -79,6 +79,14 @@ export default function LeadFicha({
     });
   };
 
+  const markContact = (channel: 'call' | 'whatsapp') => {
+    if (trashed) return;
+    void markLeadChannel(lead.id, channel).then(res => {
+      if (!res.ok) setError(res.error ?? 'No se ha podido marcar');
+      else router.refresh();
+    });
+  };
+
   return (
     <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-6 pb-fab pt-5">
       <Link
@@ -105,13 +113,13 @@ export default function LeadFicha({
           minute: '2-digit',
         })}
       </p>
-      {from && <p className="mt-1 text-label font-semibold text-ink-2">{from}</p>}
 
       {(lead.phone || wa) && (
         <div className="mt-4 flex gap-2">
           {lead.phone && (
             <a
               href={`tel:${lead.phone}`}
+              onClick={() => markContact('call')}
               className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-1.5 rounded-pill bg-[#E8F2FF] text-label font-bold text-[#0879FF] no-underline"
             >
               <Phone size={18} strokeWidth={2.4} aria-hidden />
@@ -121,7 +129,10 @@ export default function LeadFicha({
           {wa && (
             <button
               type="button"
-              onClick={() => goWhatsApp(wa)}
+              onClick={() => {
+                markContact('whatsapp');
+                goWhatsApp(wa);
+              }}
               className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-1.5 rounded-pill bg-[#E7F8EE] text-label font-bold text-[#15803D]"
             >
               <MessageCircle size={18} strokeWidth={2.4} aria-hidden />
@@ -150,7 +161,14 @@ export default function LeadFicha({
               />
             </button>
           ) : null}
+          {from && (
+            <p className="mt-2 text-label font-semibold leading-snug text-ink-2">{from}</p>
+          )}
         </div>
+      )}
+
+      {!showAdPreview && from && (
+        <p className="mt-4 text-label font-semibold text-ink-2">{from}</p>
       )}
 
       {adLightbox && lead.thumbnail_url && (
@@ -171,7 +189,7 @@ export default function LeadFicha({
       )}
 
       {lead.form_fields.length > 0 && (
-        <section className="mt-5" aria-labelledby="lead-form-heading">
+        <section className="mt-3" aria-labelledby="lead-form-heading">
           <h2 id="lead-form-heading" className="text-body font-bold text-ink">Formulario</h2>
           <dl className="mt-2 overflow-hidden rounded-row bg-surface-soft px-4">
             {lead.form_fields.map(row => (
@@ -213,7 +231,7 @@ export default function LeadFicha({
         )}
       </div>
       <p className="mt-2 text-label text-ink-3">
-        El color del listado cambia al marcar el contacto, no al abrir la llamada.
+        Al llamar o abrir WhatsApp el listado pone el color e icono; al volver a Leads se actualiza solo.
       </p>
 
       <div className="mt-5 flex flex-wrap gap-1.5">
