@@ -23,8 +23,8 @@ import { leadTone } from '@/lib/leads';
 
 const TONE = {
   none: { bg: '#F2F2F7', ink: '#6E6B7B' },
-  call: { bg: '#E8F2FF', ink: '#0879FF' },
-  whatsapp: { bg: '#E7F8EE', ink: '#15803D' },
+  call: { bg: '#B7D4FF', ink: '#0357C4' },
+  whatsapp: { bg: '#A6E6C3', ink: '#0D7A38' },
 } as const;
 
 const FILTERS = [

@@ -43,8 +43,8 @@ const HISTORY_TITLE: Record<LeadEventRow['kind'], string> = {
 
 const LIST_TONE = {
   none: { bg: '#F2F2F7', ink: '#6E6B7B', label: 'Sin tocar' },
-  call: { bg: '#E8F2FF', ink: '#0879FF', label: 'Llamada' },
-  whatsapp: { bg: '#E7F8EE', ink: '#15803D', label: 'WhatsApp' },
+  call: { bg: '#B7D4FF', ink: '#0357C4', label: 'Llamada' },
+  whatsapp: { bg: '#A6E6C3', ink: '#0D7A38', label: 'WhatsApp' },
 } as const;
 
 const TZ = 'Europe/Madrid';
