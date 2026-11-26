@@ -13,6 +13,7 @@ import {
   type LeadRow,
   type LeadTrashRow,
 } from '@/app/actions/leads';
+import { pullMyRecentMetaLeads } from '@/app/actions/leads-sync';
 import type { LeadsListGroup } from '@/lib/leads-list-group';
 import type { LeadsListFilter } from '@/lib/leads-list-query';
 import EmptyState from '@/components/ui/EmptyState';
@@ -81,6 +82,7 @@ export default function LeadsView({
   const [trashPending, startTrash] = useTransition();
   const leads = rows;
   const filtersReady = useRef(false);
+  const fetchListRef = useRef<(before?: string | null) => void>(() => undefined);
 
   const buildFilters = useCallback(
     (before?: string | null): LeadsListFilter => ({
@@ -110,6 +112,31 @@ export default function LeadsView({
     },
     [buildFilters],
   );
+
+  fetchListRef.current = fetchList;
+
+  useEffect(() => {
+    let alive = true;
+    let running = false;
+    const enter = () => {
+      if (running) return;
+      running = true;
+      void (async () => {
+        try {
+          await pullMyRecentMetaLeads().catch(() => undefined);
+          if (alive) fetchListRef.current();
+        } finally {
+          running = false;
+        }
+      })();
+    };
+    enter();
+    window.addEventListener('pageshow', enter);
+    return () => {
+      alive = false;
+      window.removeEventListener('pageshow', enter);
+    };
+  }, []);
 
   useEffect(() => {
     setRows(initialLeads);
@@ -145,11 +172,9 @@ export default function LeadsView({
       if (document.visibilityState === 'visible') fetchList();
     };
     document.addEventListener('visibilitychange', resync);
-    window.addEventListener('pageshow', resync);
     window.addEventListener('focus', resync);
     return () => {
       document.removeEventListener('visibilitychange', resync);
-      window.removeEventListener('pageshow', resync);
       window.removeEventListener('focus', resync);
     };
   }, [fetchList]);

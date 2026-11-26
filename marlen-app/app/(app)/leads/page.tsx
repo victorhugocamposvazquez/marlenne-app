@@ -1,4 +1,6 @@
 import LeadsView from '@/components/leads/LeadsView';
+
+export const dynamic = 'force-dynamic';
 import { listLeadGroupNames, listLeadsPage, listTrashedLeads } from '@/app/actions/leads';
 import { leadsDesk } from '@/lib/leads-desk';
 
