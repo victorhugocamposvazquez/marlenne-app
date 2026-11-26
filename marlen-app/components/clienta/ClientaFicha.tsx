@@ -51,6 +51,7 @@ export default function ClientaFicha({
   const tab = overlay ? tabLocal : urlTab;
   const router = useRouter();
   const [urls, setUrls] = useState<Record<string, string>>({});
+  const [urlsReady, setUrlsReady] = useState(false);
 
   const photoPaths = treatments.flatMap(t => (t.treatment_photos ?? []).map(p => p.storage_path));
   const metrics = new Set(treatments.flatMap(t => (t.measurements ?? []).map(m => m.metric)));
@@ -64,10 +65,16 @@ export default function ClientaFicha({
   const photoConsentBad = photoPaths.length > 0 && (!photoConsent || consentExpired(photoConsent));
 
   useEffect(() => {
-    if (tab !== 'fotos' || !photoPaths.length) return;
+    if (tab !== 'fotos' || !photoPaths.length) {
+      setUrlsReady(true);
+      return;
+    }
     let alive = true;
+    setUrlsReady(false);
     void loadSignedPhotoUrls(createClient(), photoPaths).then(map => {
-      if (alive) setUrls(map);
+      if (!alive) return;
+      setUrls(map);
+      setUrlsReady(true);
     });
     return () => { alive = false; };
   }, [tab, photoPaths.join('|')]);
@@ -207,6 +214,7 @@ export default function ClientaFicha({
           <PhotosTab
             treatments={treatments}
             urls={urls}
+            urlsReady={urlsReady}
             photoConsent={consents.some(c => c.kind === 'fotografia')}
             onUploaded={() => router.refresh()}
           />
