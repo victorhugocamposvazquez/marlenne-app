@@ -1,17 +1,15 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { pullMyRecentMetaLeads } from '@/app/actions/leads-sync';
 
 const EVERY_MS = 45_000;
 
-/** Con la app abierta, trae los leads nuevos y refresca la bandeja. */
+/** Fuera de la bandeja, sigue trayendo leads para el aviso. En Leads refresca la propia lista. */
 export default function LeadInboxPoll() {
-  const router = useRouter();
   const pathname = usePathname();
   const pathRef = useRef(pathname);
-  const seen = useRef<string | null>(null);
   pathRef.current = pathname;
 
   useEffect(() => {
@@ -20,14 +18,10 @@ export default function LeadInboxPoll() {
 
     const tick = async () => {
       if (!alive || busy || document.visibilityState === 'hidden') return;
+      if (pathRef.current === '/leads') return;
       busy = true;
       try {
-        const res = await pullMyRecentMetaLeads();
-        if (!alive || !res.ok) return;
-        const first = seen.current === null;
-        const changed = Boolean(res.newest && res.newest !== seen.current);
-        if (res.newest) seen.current = res.newest;
-        if (pathRef.current === '/leads' && (res.imported > 0 || (!first && changed))) router.refresh();
+        await pullMyRecentMetaLeads();
       } catch {
         /* El siguiente minuto lo reintenta. */
       } finally {
@@ -45,7 +39,7 @@ export default function LeadInboxPoll() {
       window.clearInterval(id);
       document.removeEventListener('visibilitychange', onShow);
     };
-  }, [router]);
+  }, []);
 
   return null;
 }

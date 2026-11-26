@@ -117,24 +117,23 @@ export default function LeadsView({
 
   useEffect(() => {
     let alive = true;
-    let running = false;
-    const enter = () => {
-      if (running) return;
-      running = true;
-      void (async () => {
-        try {
-          await pullMyRecentMetaLeads().catch(() => undefined);
-          if (alive) fetchListRef.current();
-        } finally {
-          running = false;
-        }
-      })();
+    const paint = () => {
+      if (!alive || window.location.pathname !== '/leads') return;
+      fetchListRef.current();
+      router.refresh();
     };
-    enter();
+    const sync = async () => {
+      await pullMyRecentMetaLeads().catch(() => undefined);
+      paint();
+    };
+    paint();
+    void sync();
+    const id = window.setInterval(() => { void sync(); }, 30_000);
     return () => {
       alive = false;
+      window.clearInterval(id);
     };
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     setRows(initialLeads);
@@ -303,6 +302,9 @@ export default function LeadsView({
       <div className="min-h-0 flex-1 overflow-auto px-6 pb-fab pt-1">
         {listPending && leads.length === 0 && (
           <p className="mt-4 text-label font-medium text-ink-2">Cargando…</p>
+        )}
+        {listPending && leads.length > 0 && (
+          <p className="mt-2 text-label font-medium text-ink-3">Actualizando…</p>
         )}
         {!listPending && leads.length === 0 && (
           <EmptyState
