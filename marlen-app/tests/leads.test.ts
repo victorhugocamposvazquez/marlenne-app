@@ -7,6 +7,7 @@ import {
   leadPushCopy,
   leadPushUrl,
   leadTone,
+  leadAdTitle,
   renderLeadTemplate,
   resolveLeadTemplate,
 } from '../lib/leads';
@@ -29,7 +30,12 @@ test('el mensaje rellena nombre, campaña y anuncio', () => {
     'Hola {{nombre}}, vi {{anuncio}} de {{campaña}} en {{centro}}.',
     { nombre: 'Lucía Campos', campana: 'Noviembre', anuncio: 'Láser', centro: 'Arlett' },
   );
-  assert.equal(text, 'Hola Lucía, vi Láser de Noviembre en Arlett.');
+  assert.equal(text, 'Hola Lucía, vi LÁSER de Noviembre en Arlett.');
+});
+
+test('el titular del anuncio va en mayúsculas', () => {
+  assert.equal(leadAdTitle('Limpieza facial'), 'LIMPIEZA FACIAL');
+  assert.equal(leadAdTitle('Título', 'nombre meta'), 'TÍTULO');
 });
 
 test('el push nombra al lead y abre su ficha', () => {

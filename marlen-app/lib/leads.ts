@@ -9,6 +9,12 @@ export function leadTone(channel: string | null | undefined): LeadTone {
   return 'none';
 }
 
+/** Titular del anuncio (creatividad): titular o nombre Meta, en mayúsculas. */
+export function leadAdTitle(headline: string | null | undefined, fallback?: string | null) {
+  const raw = headline?.trim() || fallback?.trim() || '';
+  return raw ? raw.toLocaleUpperCase('es-ES') : '';
+}
+
 export const DEFAULT_LEAD_WA =
   'Hola {{nombre}}, te escribo de {{centro}} por el anuncio {{anuncio}}. ¿Te va bien que te cuente?';
 
@@ -34,7 +40,7 @@ export function renderLeadTemplate(
   return body
     .replaceAll('{{nombre}}', nombre)
     .replaceAll('{{campaña}}', vars.campana?.trim() || 'la campaña')
-    .replaceAll('{{anuncio}}', vars.anuncio?.trim() || 'el anuncio')
+    .replaceAll('{{anuncio}}', leadAdTitle(vars.anuncio) || 'el anuncio')
     .replaceAll('{{centro}}', vars.centro?.trim() || 'el centro')
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')

@@ -30,7 +30,7 @@ import LeadAdLightbox from '@/components/leads/LeadAdLightbox';
 import LeadWaTemplateSheet from '@/components/leads/LeadWaTemplateSheet';
 import MetaLogo from '@/components/leads/MetaLogo';
 import DarCitaLink from '@/components/ui/DarCitaLink';
-import { leadTone, type LeadTone } from '@/lib/leads';
+import { leadAdTitle, leadTone, type LeadTone } from '@/lib/leads';
 
 const HISTORY_TITLE: Record<LeadEventRow['kind'], string> = {
   call: 'He llamado',
@@ -109,7 +109,7 @@ export default function LeadFicha({
   const from = [lead.campaign_name, lead.ad_name].filter(Boolean).join(' · ');
   const fromMeta = Boolean(lead.meta_lead_id?.trim())
     || Boolean(lead.ad_id?.trim() && lead.form_fields.length > 0);
-  const adTitle = lead.ad_headline || lead.ad_name || from || 'Anuncio';
+  const adTitle = leadAdTitle(lead.ad_headline, lead.ad_name || from) || 'ANUNCIO';
   const showAdPreview = Boolean(lead.thumbnail_url || lead.ad_headline || lead.ad_name || from);
   const [listToneLocal, setListToneLocal] = useState<LeadTone>(() => leadTone(lead.last_channel));
 
@@ -206,70 +206,13 @@ export default function LeadFicha({
         </div>
       )}
 
-      {!trashed && (
-        <section className="mt-3" aria-labelledby="lead-list-tone-heading">
-          <h2 id="lead-list-tone-heading" className="text-label font-bold text-ink-2">
-            En la bandeja de Leads
-          </h2>
-          <div
-            className="mt-2 flex min-h-[44px] items-center justify-between gap-3 rounded-field px-3.5"
-            style={{ background: LIST_TONE[listToneLocal].bg }}
-          >
-            <span className="inline-flex items-center gap-2 text-label font-bold" style={{ color: LIST_TONE[listToneLocal].ink }}>
-              {listToneLocal === 'call' && <Phone size={16} strokeWidth={2.3} aria-hidden />}
-              {listToneLocal === 'whatsapp' && <MessageCircle size={16} strokeWidth={2.3} aria-hidden />}
-              {LIST_TONE[listToneLocal].label}
-            </span>
-            {listToneLocal !== 'none' && (
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => setListTone('none')}
-                className="shrink-0 text-label font-bold text-ink-2 underline decoration-ink-3 underline-offset-2 disabled:opacity-50"
-              >
-                Dejar sin tocar
-              </button>
-            )}
-          </div>
-          <p className="mt-2 text-[12px] leading-snug text-ink-3">
-            Llamar o WhatsApp lo cambian al momento. Toca otro estado si hace falta.
-          </p>
-          <div className="mt-2 flex gap-1.5">
-            {(['none', 'call', 'whatsapp'] as LeadTone[]).map(tone => {
-              const paint = LIST_TONE[tone];
-              const on = listToneLocal === tone;
-              return (
-                <button
-                  key={tone}
-                  type="button"
-                  disabled={pending}
-                  onClick={() => { if (!on) setListTone(tone); }}
-                  className="inline-flex min-h-[40px] flex-1 items-center justify-center gap-1 rounded-pill px-2 text-label font-bold disabled:opacity-50"
-                  style={{
-                    background: on ? paint.bg : '#F2F2F7',
-                    color: on ? paint.ink : '#6E6B7B',
-                    boxShadow: on ? `inset 0 0 0 2px ${paint.ink}` : undefined,
-                    opacity: on ? 1 : 0.92,
-                  }}
-                  aria-pressed={on}
-                >
-                  {tone === 'call' && <Phone size={14} strokeWidth={2.3} aria-hidden />}
-                  {tone === 'whatsapp' && <MessageCircle size={14} strokeWidth={2.3} aria-hidden />}
-                  <span className="truncate">{paint.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
       <LeadWaTemplateSheet
         open={waSheetOpen}
         onClose={() => setWaSheetOpen(false)}
         phone={lead.phone ?? ''}
         fullName={lead.full_name}
         campaignName={lead.campaign_name}
-        adName={lead.ad_headline || lead.ad_name}
+        adName={leadAdTitle(lead.ad_headline, lead.ad_name) || null}
         salonName={salonName}
         templates={templates}
         onOpenWhatsApp={() => markContact('whatsapp')}
@@ -364,6 +307,35 @@ export default function LeadFicha({
           >
             Ver ficha
           </Link>
+        </div>
+      )}
+
+      {!trashed && (
+        <div className="mt-4 flex gap-1.5" role="group" aria-label="Estado del lead">
+          {(['none', 'call', 'whatsapp'] as LeadTone[]).map(tone => {
+            const paint = LIST_TONE[tone];
+            const on = listToneLocal === tone;
+            return (
+              <button
+                key={tone}
+                type="button"
+                disabled={pending}
+                onClick={() => { if (!on) setListTone(tone); }}
+                className="inline-flex min-h-[40px] flex-1 items-center justify-center gap-1 rounded-pill px-2 text-label font-bold disabled:opacity-50"
+                style={{
+                  background: on ? paint.bg : '#F2F2F7',
+                  color: on ? paint.ink : '#6E6B7B',
+                  boxShadow: on ? `inset 0 0 0 2px ${paint.ink}` : undefined,
+                  opacity: on ? 1 : 0.92,
+                }}
+                aria-pressed={on}
+              >
+                {tone === 'call' && <Phone size={14} strokeWidth={2.3} aria-hidden />}
+                {tone === 'whatsapp' && <MessageCircle size={14} strokeWidth={2.3} aria-hidden />}
+                <span className="truncate">{paint.label}</span>
+              </button>
+            );
+          })}
         </div>
       )}
 
