@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { addTreatmentPhoto } from '@/lib/agenda-write';
 import { compressImage } from '@/hooks/compressImage';
 import { useToast } from '@/components/Toast';
-import { photoBusyKey, type PhotoTarget } from '@/lib/photos';
+import { photoBusyKey, photoObjectPath, type PhotoTarget } from '@/lib/photos';
 
 export function useTreatmentPhoto(onUploaded?: () => void) {
   const toast = useToast();
@@ -15,7 +15,8 @@ export function useTreatmentPhoto(onUploaded?: () => void) {
   const [busy, setBusy] = useState<string | null>(null);
 
   const upload = (file: File | undefined, target: PhotoTarget) => {
-    if (!file || !target.treatmentId || busy) return;
+    if (!file || busy) return;
+    if (!target.treatmentId && !target.clientId) return;
     const key = photoBusyKey(target);
     setError(null);
     setBusy(key);
@@ -23,7 +24,7 @@ export function useTreatmentPhoto(onUploaded?: () => void) {
       let path = '';
       try {
         const blob = await compressImage(file);
-        path = `${target.treatmentId}/${target.kind}-${Date.now()}.jpg`;
+        path = photoObjectPath(target, Date.now());
         const sb = createClient();
         const { error: upErr } = await sb.storage.from('treatment-photos').upload(path, blob, {
           contentType: 'image/jpeg',
@@ -34,7 +35,8 @@ export function useTreatmentPhoto(onUploaded?: () => void) {
           return;
         }
         const r = await addTreatmentPhoto(sb, {
-          treatmentId: target.treatmentId,
+          treatmentId: target.treatmentId ?? undefined,
+          clientId: target.treatmentId ? undefined : target.clientId ?? undefined,
           kind: target.kind,
           zone: target.zone ?? undefined,
           sessionNo: target.sessionNo ?? undefined,

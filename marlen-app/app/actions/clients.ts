@@ -77,7 +77,7 @@ export async function resolveWaitlist(id: string) {
 export async function loadClientFicha(id: string) {
   const me = await requireCompany();
   const canEdit = me.role === 'admin' || me.role === 'reception';
-  const { client, treatments, packs } = await getClient(id);
+  const { client, treatments, packs, clientPhotos } = await getClient(id);
   if (!client) return null;
   const [appointments, consents, templates, services] = await Promise.all([
     listClientAppointments(client.id),
@@ -85,5 +85,5 @@ export async function loadClientFicha(id: string) {
     canEdit ? listSalonPackTemplates() : Promise.resolve([]),
     canEdit ? listServices() : Promise.resolve([]),
   ]);
-  return { client, treatments, packs, appointments, consents, templates, services, canEdit };
+  return { client, treatments, clientPhotos, packs, appointments, consents, templates, services, canEdit };
 }

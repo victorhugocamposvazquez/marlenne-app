@@ -1,7 +1,7 @@
 import { STATUS } from '@/lib/categories';
 import { CONSENT_KINDS, consentExpired, latestConsents, type ConsentKind } from '@/lib/consents';
 import { dateLbl, dayKey, shortWhen } from '@/lib/time';
-import type { AgendaAppt, ClientPack, ClientRow, Consent, TreatmentRow } from '@/lib/types';
+import type { AgendaAppt, ClientPack, ClientRow, Consent, TreatmentPhoto, TreatmentRow } from '@/lib/types';
 
 function slugName(name: string) {
   return name
@@ -21,12 +21,16 @@ export function fichaFileName(fullName: string, when = new Date()) {
 export function formatClientFicha(input: {
   client: ClientRow;
   treatments: TreatmentRow[];
+  clientPhotos?: TreatmentPhoto[];
   packs?: ClientPack[];
   appointments: AgendaAppt[];
   consents: Consent[];
 }) {
-  const { client, treatments, packs = [], appointments, consents } = input;
-  const photos = treatments.flatMap(t => t.treatment_photos ?? []);
+  const { client, treatments, clientPhotos = [], packs = [], appointments, consents } = input;
+  const photos = [
+    ...treatments.flatMap(t => t.treatment_photos ?? []),
+    ...clientPhotos,
+  ];
   const latest = latestConsents(consents);
   const lines: string[] = [
     'Marlén — copia de ficha',

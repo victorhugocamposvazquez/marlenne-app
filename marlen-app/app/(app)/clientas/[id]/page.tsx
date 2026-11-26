@@ -11,7 +11,7 @@ export default async function ClientaPage({
 }) {
   const [me, data] = await Promise.all([requireCompany(), getClient(params.id)]);
   const canEdit = me.role === 'admin' || me.role === 'reception';
-  const { client, treatments, packs } = data;
+  const { client, treatments, packs, clientPhotos } = data;
   if (!client) notFound();
 
   const [appointments, consents, templates, services] = await Promise.all([
@@ -25,6 +25,7 @@ export default async function ClientaPage({
     <ClientaFicha
       client={client}
       treatments={treatments}
+      clientPhotos={clientPhotos}
       packs={packs}
       templates={templates}
       services={services}
