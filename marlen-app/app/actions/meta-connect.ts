@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { leadsEnabled } from '@/lib/leads-enabled';
 import { metaAppConfigured } from '@/lib/meta-oauth';
+import { subscribePageToLeadgen } from '@/lib/meta-page-subscribe';
 
 export type MetaConnectStatus = {
   enabled: boolean;
@@ -88,6 +89,8 @@ export async function chooseMetaPage(pageId: string) {
     ad_account_name: choice.ad_account_name,
   });
   if (saveError) return { ok: false as const, error: saveError.message };
+  const token = (choice.page_access_token as string | null)?.trim();
+  if (token) await subscribePageToLeadgen(choice.page_id as string, token).catch(() => undefined);
   await admin.from('meta_page_choices').delete().eq('salon_id', me.salon_id);
   revalidatePath('/ajustes');
   revalidatePath('/ajustes/leads');

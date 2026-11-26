@@ -11,6 +11,7 @@ import {
   metaRedirectUri,
   pagesFromGraph,
 } from '@/lib/meta-oauth';
+import { subscribePageToLeadgen } from '@/lib/meta-page-subscribe';
 
 export const dynamic = 'force-dynamic';
 
@@ -118,6 +119,7 @@ export async function GET(req: Request) {
       ad_account_name: account?.name ?? null,
     });
     if (saveError) return fail('guardar');
+    await subscribePageToLeadgen(page.id, page.token).catch(() => undefined);
     await admin.from('meta_page_choices').delete().eq('salon_id', me.salon_id);
   }
 

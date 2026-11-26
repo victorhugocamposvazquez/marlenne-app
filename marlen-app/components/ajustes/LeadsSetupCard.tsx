@@ -74,7 +74,7 @@ export default function LeadsSetupCard({
 
       <h2 className="mt-2 text-body font-bold text-ink">Facebook</h2>
       <p className="text-label leading-snug text-ink-2">
-        Importa histórico o crea un lead de prueba. Los nuevos siguen entrando solos por el webhook.
+        Los leads nuevos entran solos y avisan al móvil. Este botón solo recupera los antiguos.
       </p>
       <div className="flex flex-wrap gap-2">
         <button
@@ -89,7 +89,7 @@ export default function LeadsSetupCard({
           })}
           className="min-h-[44px] rounded-pill bg-ink px-4 text-label font-bold text-white disabled:opacity-50"
         >
-          {syncing ? 'Trayendo…' : syncCursor ? 'Siguiente página' : 'Traer los de Facebook'}
+          {syncing ? 'Trayendo…' : syncCursor ? 'Siguiente página' : 'Traer el histórico'}
         </button>
         <button
           type="button"

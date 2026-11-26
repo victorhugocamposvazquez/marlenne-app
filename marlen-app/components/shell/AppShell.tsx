@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import PhoneShell, { type OpsBanner, type ShellSession } from '@/components/shell/PhoneShell';
 import WideShell from '@/components/shell/WideShell';
 import WarmScreens from '@/components/shell/WarmScreens';
+import LeadInboxPoll from '@/components/leads/LeadInboxPoll';
 import { isSlowNetwork } from '@/hooks/net-client';
 import { warmSheetCatalog } from '@/hooks/sheet-catalog';
 import { createClient } from '@/lib/supabase/client';
@@ -66,6 +67,7 @@ export default function AppShell({
   return (
     <>
       <WarmScreens role={session.role} />
+      {session.leads && session.role !== 'provider' && <LeadInboxPoll />}
       {shell}
     </>
   );
