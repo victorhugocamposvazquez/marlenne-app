@@ -1,11 +1,14 @@
 /** Inicio de sesión de Meta. Sin DOM ni next: la URL y lo que devuelve Graph. */
 
+import { appOriginFromEnv } from '@/lib/app-origin';
+
 export const META_OAUTH_SCOPES = [
   'pages_show_list',
   'pages_read_engagement',
   'pages_manage_metadata',
   'leads_retrieval',
   'ads_read',
+  'business_management',
 ] as const;
 
 export type MetaPageChoice = {
@@ -26,6 +29,18 @@ export function metaAppConfigured(env: { appId?: string | null; appSecret?: stri
 export function metaRedirectUri(origin: string) {
   const base = origin.replace(/\/$/, '');
   return `${base}/api/meta/oauth/callback`;
+}
+
+/** Meta solo acepta dominios dados de alta. La vuelta siempre va al host de APP_URL. */
+export function metaOAuthOrigin(req: Request) {
+  const env = appOriginFromEnv();
+  if (env && env !== 'http://localhost:3000') return env;
+  const url = new URL(req.url);
+  return metaOrigin({
+    origin: url.origin,
+    forwardedHost: req.headers.get('x-forwarded-host'),
+    forwardedProto: req.headers.get('x-forwarded-proto'),
+  });
 }
 
 /** El host con el que el admin abrió la app. Así Vercel y app.marlenapp.com vuelven cada uno a sí mismo. */
@@ -54,10 +69,8 @@ export function metaAuthUrl(input: {
   url.searchParams.set('scope', META_OAUTH_SCOPES.join(','));
   const configId = input.configId?.trim();
   if (configId) {
-    // Sin los permisos, Facebook abre el inicio normal y esta app lo tiene cerrado.
+    // Sin scope + config_id, Facebook abre el inicio normal y esta app lo tiene cerrado.
     url.searchParams.set('config_id', configId);
-    url.searchParams.set('override_default_response_type', 'true');
-    url.searchParams.set('auth_type', 'rerequest');
   }
   return url.toString();
 }

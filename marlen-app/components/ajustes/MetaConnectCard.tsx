@@ -16,9 +16,11 @@ const ERRORS: Record<string, string> = {
 export default function MetaConnectCard({
   status,
   error,
+  oauthStartUrl,
 }: {
   status: MetaConnectStatus;
   error?: string | null;
+  oauthStartUrl: string;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -73,16 +75,19 @@ export default function MetaConnectCard({
         </div>
       )}
       {status.configured && (
-        <a
-          href="/api/meta/oauth/start"
-          onClick={event => {
-            event.preventDefault();
-            window.location.assign(`/api/meta/oauth/start?fresh=${Date.now()}`);
-          }}
-          className="inline-flex min-h-[48px] items-center justify-center rounded-pill bg-ink px-4 text-body font-bold text-white no-underline"
-        >
-          {status.pageId ? 'Conectar otra página' : 'Conectar página de Facebook'}
-        </a>
+        <>
+          <p className="text-label leading-snug text-ink-2">
+            Facebook pide abrir el permiso fuera del icono instalado. Se abre en el navegador; al terminar vuelves aquí.
+          </p>
+          <a
+            href={oauthStartUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-[48px] items-center justify-center rounded-pill bg-ink px-4 text-body font-bold text-white no-underline"
+          >
+            {status.pageId ? 'Conectar otra página' : 'Conectar página de Facebook'}
+          </a>
+        </>
       )}
       {status.pageId && (
         <button

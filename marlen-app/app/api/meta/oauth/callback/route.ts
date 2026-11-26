@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { leadsEnabled } from '@/lib/leads-enabled';
 import {
   adAccountsFromGraph,
+  metaOAuthOrigin,
   metaOrigin,
   metaRedirectUri,
   pagesFromGraph,
@@ -42,7 +43,8 @@ async function graph<T>(path: string, token: string, fields: string): Promise<T 
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const back = new URL('/ajustes/leads', originOf(req));
+  const fbOrigin = metaOAuthOrigin(req);
+  const back = new URL('/ajustes/leads', fbOrigin);
   const fail = (code: string) => {
     back.searchParams.set('error', code);
     const res = NextResponse.redirect(back);
@@ -51,7 +53,7 @@ export async function GET(req: Request) {
   };
 
   const me = await getSession();
-  if (!me) return NextResponse.redirect(new URL('/login', originOf(req)));
+  if (!me) return NextResponse.redirect(new URL('/login', fbOrigin));
   if (me.role !== 'admin' || !await leadsEnabled(me.salon_id)) return fail('apagado');
 
   const cookie = cookies().get(STATE_COOKIE)?.value;
@@ -63,7 +65,7 @@ export async function GET(req: Request) {
   const secret = process.env.META_APP_SECRET?.trim();
   if (!code || !appId || !secret) return fail('config');
 
-  const redirectUri = metaRedirectUri(originOf(req));
+  const redirectUri = metaRedirectUri(fbOrigin);
   const tokenUrl = new URL('https://graph.facebook.com/v21.0/oauth/access_token');
   tokenUrl.searchParams.set('client_id', appId);
   tokenUrl.searchParams.set('client_secret', secret);

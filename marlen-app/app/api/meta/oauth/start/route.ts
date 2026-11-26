@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/queries';
 import { leadsEnabled } from '@/lib/leads-enabled';
-import { metaAppConfigured, metaAuthUrl, metaOrigin, metaRedirectUri } from '@/lib/meta-oauth';
+import { metaAppConfigured, metaAuthUrl, metaOAuthOrigin, metaOrigin, metaRedirectUri } from '@/lib/meta-oauth';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,10 +18,18 @@ function originOf(req: Request) {
 }
 
 export async function GET(req: Request) {
+  const fbOrigin = metaOAuthOrigin(req);
+  const here = originOf(req);
+  if (fbOrigin !== here) {
+    const jump = new URL(req.url);
+    jump.protocol = new URL(fbOrigin).protocol;
+    jump.host = new URL(fbOrigin).host;
+    return NextResponse.redirect(jump);
+  }
   const me = await getSession();
-  const back = new URL('/ajustes/leads', originOf(req));
-  if (!me) return NextResponse.redirect(new URL('/login', originOf(req)));
-  if (me.role !== 'admin') return NextResponse.redirect(new URL('/ajustes', originOf(req)));
+  const back = new URL('/ajustes/leads', fbOrigin);
+  if (!me) return NextResponse.redirect(new URL('/login', fbOrigin));
+  if (me.role !== 'admin') return NextResponse.redirect(new URL('/ajustes', fbOrigin));
   if (!await leadsEnabled(me.salon_id)) {
     back.searchParams.set('error', 'apagado');
     return NextResponse.redirect(back);
@@ -34,7 +42,7 @@ export async function GET(req: Request) {
   const state = randomBytes(16).toString('hex');
   const target = metaAuthUrl({
     appId,
-    redirectUri: metaRedirectUri(originOf(req)),
+    redirectUri: metaRedirectUri(fbOrigin),
     state,
     configId: process.env.META_LOGIN_CONFIG_ID,
   });
