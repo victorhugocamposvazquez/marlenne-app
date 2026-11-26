@@ -1,6 +1,12 @@
 import webpush from 'web-push';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { leadPushCopy, leadPushUrl } from '@/lib/leads';
+import {
+  leadPushCopy,
+  leadPushTag,
+  leadPushUrl,
+  META_PUSH_BADGE,
+  META_PUSH_ICON,
+} from '@/lib/leads';
 
 type PushSub = {
   id: string;
@@ -25,6 +31,9 @@ export async function notifyNewLead(input: {
   name: string;
   campaign?: string | null;
   ad?: string | null;
+  phone?: string | null;
+  /** Formulario de anuncios de Meta (webhook o import con id de Meta). */
+  fromMeta?: boolean;
 }): Promise<{ sent: number }> {
   if (!vapidReady()) return { sent: 0 };
   webpush.setVapidDetails(
@@ -50,12 +59,16 @@ export async function notifyNewLead(input: {
     .in('staff_id', ids);
   if (error || !subs?.length) return { sent: 0 };
 
-  const copy = leadPushCopy(input);
+  const fromMeta = input.fromMeta === true;
+  const copy = leadPushCopy({ ...input, fromMeta });
   const payload = JSON.stringify({
     title: copy.title,
     body: copy.body,
     url: leadPushUrl(input.leadId),
-    tag: `lead-${input.leadId}`,
+    tag: leadPushTag(input.leadId, fromMeta),
+    ...(fromMeta
+      ? { icon: META_PUSH_ICON, badge: META_PUSH_BADGE }
+      : {}),
   });
 
   let sent = 0;

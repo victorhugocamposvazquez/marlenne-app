@@ -36,6 +36,15 @@ test('el push nombra al lead y abre su ficha', () => {
     title: 'Nuevo lead',
     body: 'Lucía · Láser',
   });
+  assert.deepEqual(leadPushCopy({
+    name: 'Lucía',
+    ad: 'Láser',
+    phone: '+34600111222',
+    fromMeta: true,
+  }), {
+    title: 'Lead de Meta',
+    body: 'Lucía · Láser · +34600111222',
+  });
   assert.equal(leadPushUrl('abc'), '/leads/abc');
 });
 

@@ -261,7 +261,9 @@ export async function createTestLead(): Promise<{ ok: true; id: string; via: 'me
                 salonId: me.salon_id,
                 leadId: row.id as string,
                 name: 'Lead de prueba',
+                phone: '+34600000000',
                 campaign: 'Prueba',
+                fromMeta: true,
               }).catch(() => undefined);
             }
             revalidatePath('/leads');

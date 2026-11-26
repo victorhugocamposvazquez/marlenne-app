@@ -41,17 +41,35 @@ export function renderLeadTemplate(
     .trim();
 }
 
-export function leadPushCopy(input: { name: string; campaign?: string | null; ad?: string | null }) {
+export const META_PUSH_ICON = '/meta-push-192.png';
+export const META_PUSH_BADGE = '/meta-push-badge.png';
+
+export function leadPushCopy(input: {
+  name: string;
+  campaign?: string | null;
+  ad?: string | null;
+  phone?: string | null;
+  fromMeta?: boolean;
+}) {
   const name = input.name.trim() || 'Nuevo lead';
   const from = input.ad?.trim() || input.campaign?.trim();
+  const title = input.fromMeta ? 'Lead de Meta' : 'Nuevo lead';
+  const parts = [name];
+  if (from) parts.push(from);
+  const phone = input.phone?.trim();
+  if (phone) parts.push(phone);
   return {
-    title: 'Nuevo lead',
-    body: from ? `${name} · ${from}` : name,
+    title,
+    body: parts.join(' · '),
   };
 }
 
 export function leadPushUrl(leadId: string) {
   return `/leads/${leadId}`;
+}
+
+export function leadPushTag(leadId: string, fromMeta?: boolean) {
+  return fromMeta ? `lead-meta-${leadId}` : `lead-${leadId}`;
 }
 
 export type LeadFormField = { key: string; label: string; value: string };

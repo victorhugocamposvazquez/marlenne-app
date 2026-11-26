@@ -149,8 +149,10 @@ async function ingest(
     salonId,
     leadId: inserted.id as string,
     name: who.fullName,
+    phone: who.phone,
     campaign: lead.campaign_name,
     ad: lead.ad_name,
+    fromMeta: true,
   }).catch(() => undefined);
 }
 
