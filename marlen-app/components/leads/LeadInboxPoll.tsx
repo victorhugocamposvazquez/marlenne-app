@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { pullMyRecentMetaLeads } from '@/app/actions/leads-sync';
 
 const EVERY_MS = 45_000;
@@ -9,7 +9,10 @@ const EVERY_MS = 45_000;
 /** Con la app abierta, trae los leads nuevos y refresca la bandeja. */
 export default function LeadInboxPoll() {
   const router = useRouter();
+  const pathname = usePathname();
+  const pathRef = useRef(pathname);
   const seen = useRef<string | null>(null);
+  pathRef.current = pathname;
 
   useEffect(() => {
     let alive = true;
@@ -24,7 +27,7 @@ export default function LeadInboxPoll() {
         const first = seen.current === null;
         const changed = Boolean(res.newest && res.newest !== seen.current);
         if (res.newest) seen.current = res.newest;
-        if (res.imported > 0 || (!first && changed)) router.refresh();
+        if (pathRef.current === '/leads' && (res.imported > 0 || (!first && changed))) router.refresh();
       } catch {
         /* El siguiente minuto lo reintenta. */
       } finally {

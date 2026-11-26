@@ -271,10 +271,6 @@ export async function pullMyRecentMetaLeads(): Promise<
   if (!await leadsEnabled(me.salon_id)) return { ok: true, imported: 0, newest: null };
   try {
     const pulled = await pullSalonRecent(me.salon_id);
-    if (pulled.imported > 0) {
-      revalidatePath('/leads');
-      revalidatePath('/hoy');
-    }
     return { ok: true, imported: pulled.imported, newest: pulled.newest };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'No se han podido traer los leads' };

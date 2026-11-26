@@ -131,10 +131,8 @@ export default function LeadsView({
       })();
     };
     enter();
-    window.addEventListener('pageshow', enter);
     return () => {
       alive = false;
-      window.removeEventListener('pageshow', enter);
     };
   }, []);
 
