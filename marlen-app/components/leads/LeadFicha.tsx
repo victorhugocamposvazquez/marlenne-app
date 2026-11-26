@@ -47,6 +47,7 @@ export default function LeadFicha({
   const [adTemplate, setAdTemplate] = useState(templates.ad ?? '');
   const [campaignTemplate, setCampaignTemplate] = useState(templates.campaign ?? '');
   const [error, setError] = useState<string | null>(null);
+  const [adLightbox, setAdLightbox] = useState(false);
   const [pending, start] = useTransition();
 
   const resolved = resolveLeadTemplate(templates);
@@ -60,6 +61,8 @@ export default function LeadFicha({
   const from = [lead.campaign_name, lead.ad_name].filter(Boolean).join(' · ');
   const fromMeta = Boolean(lead.meta_lead_id?.trim())
     || Boolean(lead.ad_id?.trim() && lead.form_fields.length > 0);
+  const adTitle = lead.ad_headline || lead.ad_name || from || 'Anuncio';
+  const showAdPreview = Boolean(lead.thumbnail_url || lead.ad_headline || lead.ad_name || from);
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>) => {
     setError(null);
@@ -77,8 +80,8 @@ export default function LeadFicha({
         className="mb-3 inline-flex min-h-[44px] items-center gap-1.5 text-headline font-bold tracking-[-.02em] text-ink no-underline"
       >
         <ChevronLeft size={22} strokeWidth={2.4} aria-hidden />
-        {fromMeta && <MetaLogo size={22} />}
         <span>Leads</span>
+        {fromMeta && <MetaLogo size={20} />}
       </Link>
       <h1 className="text-title font-bold tracking-[-.03em] text-ink">{lead.full_name}</h1>
       <p className="mt-1 text-body text-ink-2">{lead.phone || 'Sin teléfono'}{lead.email ? ` · ${lead.email}` : ''}</p>
@@ -93,27 +96,49 @@ export default function LeadFicha({
       </p>
       {from && <p className="mt-1 text-label font-semibold text-ink-2">{from}</p>}
 
-      {(lead.thumbnail_url || lead.ad_headline || lead.ad_body || from) && (
-        <div className="mt-4 flex gap-3 rounded-row bg-surface-soft p-3">
-          {lead.thumbnail_url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={lead.thumbnail_url}
-              alt=""
-              className="h-[88px] w-[88px] shrink-0 rounded-field object-cover"
-            />
-          )}
-          <div className="min-w-0 flex-1 py-0.5">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-ink-3">Anuncio</p>
-            <p className="mt-0.5 text-body font-bold text-ink">
-              {lead.ad_headline || lead.ad_name || from || 'Anuncio'}
-            </p>
-            {lead.ad_body && <p className="mt-1 line-clamp-4 text-label text-ink-2">{lead.ad_body}</p>}
-            {!lead.thumbnail_url && from && (
-              <p className="mt-1 text-label text-ink-3">{from}</p>
-            )}
+      {showAdPreview && (
+        <div className="mt-4 overflow-hidden rounded-row bg-surface-soft p-2">
+          <div className="flex min-h-[100px] gap-2">
+            {lead.thumbnail_url ? (
+              <button
+                type="button"
+                onClick={() => setAdLightbox(true)}
+                className="w-[70%] shrink-0 overflow-hidden rounded-field text-left"
+                aria-label="Ver creatividad en grande"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={lead.thumbnail_url}
+                  alt=""
+                  className="aspect-[4/5] w-full object-cover"
+                />
+              </button>
+            ) : null}
+            <div
+              className={`flex min-w-0 flex-col justify-center py-1 pr-1 ${lead.thumbnail_url ? 'w-[30%]' : 'w-full'}`}
+            >
+              <p className="text-[10px] font-bold uppercase tracking-wide text-ink-3">Anuncio</p>
+              <p className="mt-1 line-clamp-6 text-label font-bold leading-snug text-ink">{adTitle}</p>
+            </div>
           </div>
         </div>
+      )}
+
+      {adLightbox && lead.thumbnail_url && (
+        <button
+          type="button"
+          aria-label="Cerrar imagen"
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-ink/70 p-6 backdrop-blur-sm"
+          onClick={() => setAdLightbox(false)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lead.thumbnail_url}
+            alt=""
+            className="max-h-[min(88dvh,900px)] max-w-full rounded-field object-contain shadow-lg"
+            onClick={e => e.stopPropagation()}
+          />
+        </button>
       )}
 
       {lead.form_fields.length > 0 && (
