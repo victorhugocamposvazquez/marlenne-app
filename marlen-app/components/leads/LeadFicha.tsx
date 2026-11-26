@@ -3,7 +3,17 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Expand, MessageCircle, Phone, Trash2 } from 'lucide-react';
+import {
+  ChevronLeft,
+  Expand,
+  MessageCircle,
+  Phone,
+  RotateCcw,
+  StickyNote,
+  Tag,
+  Trash2,
+  UserRound,
+} from 'lucide-react';
 import {
   addLeadNote,
   clearLeadChannel,
@@ -20,14 +30,49 @@ import LeadAdLightbox from '@/components/leads/LeadAdLightbox';
 import LeadWaTemplateSheet from '@/components/leads/LeadWaTemplateSheet';
 import MetaLogo from '@/components/leads/MetaLogo';
 
-const KIND: Record<LeadEventRow['kind'], string> = {
-  call: 'Llamada',
-  whatsapp: 'WhatsApp',
+const HISTORY_TITLE: Record<LeadEventRow['kind'], string> = {
+  call: 'He llamado',
+  whatsapp: 'He escrito',
   note: 'Nota',
   tag: 'Etiquetas',
-  convert: 'Clienta',
-  undo: 'Color',
+  convert: 'Pasada a clienta',
+  undo: 'Color quitado',
 };
+
+const TZ = 'Europe/Madrid';
+
+function madridYmd(iso: string) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+    new Date(iso),
+  );
+}
+
+function formatEventWhen(iso: string) {
+  const d = new Date(iso);
+  const time = d.toLocaleTimeString('es-ES', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
+  const today = madridYmd(iso) === madridYmd(new Date().toISOString());
+  if (today) return `Hoy ${time}`;
+  return d.toLocaleString('es-ES', {
+    timeZone: TZ,
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function historyVisual(kind: LeadEventRow['kind']) {
+  if (kind === 'call') {
+    return { bg: '#E8F2FF', ink: '#0879FF', icon: Phone };
+  }
+  if (kind === 'whatsapp') {
+    return { bg: '#E7F8EE', ink: '#15803D', icon: MessageCircle };
+  }
+  if (kind === 'note') return { bg: '#F2F2F7', ink: '#6E6B7B', icon: StickyNote };
+  if (kind === 'tag') return { bg: '#F2F2F7', ink: '#6E6B7B', icon: Tag };
+  if (kind === 'convert') return { bg: '#F2F2F7', ink: '#6E6B7B', icon: UserRound };
+  return { bg: '#F2F2F7', ink: '#6E6B7B', icon: RotateCcw };
+}
 
 export default function LeadFicha({
   lead,
@@ -419,19 +464,36 @@ export default function LeadFicha({
         </div>
       )}
 
-      <h2 className="mb-2 mt-6 text-body font-bold">Histórico</h2>
+      <h2 className="mb-1 mt-6 text-body font-bold">Histórico</h2>
       {events.length === 0 && <p className="text-label text-ink-3">Todavía no hay acciones.</p>}
-      <ul className="flex flex-col gap-2">
-        {events.map(event => (
-          <li key={event.id} className="rounded-row bg-surface-soft px-4 py-3">
-            <p className="text-label font-bold">{KIND[event.kind]}</p>
-            {event.body && <p className="mt-0.5 text-label text-ink">{event.body}</p>}
-            <p className="mt-1 text-[12px] text-ink-3">
-              {new Date(event.created_at).toLocaleString('es-ES', { timeZone: 'Europe/Madrid', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-              {event.staff_name ? ` · ${event.staff_name}` : ''}
-            </p>
-          </li>
-        ))}
+      <ul className="divide-y divide-surface-line border-b border-surface-line">
+        {events.map(event => {
+          const visual = historyVisual(event.kind);
+          const Icon = visual.icon;
+          const meta = [
+            formatEventWhen(event.created_at),
+            event.staff_name,
+          ].filter(Boolean).join(' · ');
+          const title = event.kind === 'note' && event.body?.trim()
+            ? event.body.trim()
+            : event.kind === 'tag' && event.body?.trim()
+              ? event.body.trim()
+              : HISTORY_TITLE[event.kind];
+          return (
+            <li key={event.id} className="flex items-center gap-3 py-3.5">
+              <span
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+                style={{ background: visual.bg }}
+              >
+                <Icon size={20} strokeWidth={2.2} style={{ color: visual.ink }} aria-hidden />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-body font-bold text-ink">{title}</p>
+                <p className="mt-0.5 text-label text-ink-3">{meta}</p>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
