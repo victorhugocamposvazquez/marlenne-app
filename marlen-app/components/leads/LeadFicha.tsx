@@ -144,22 +144,25 @@ export default function LeadFicha({
           <p className="text-[10px] font-bold uppercase tracking-wide text-ink-3">Anuncio</p>
           <p className="mt-1 text-body font-bold leading-snug text-ink">{adTitle}</p>
           {lead.thumbnail_url ? (
-            <div className="relative mt-2 overflow-hidden rounded-field">
+            <button
+              type="button"
+              onClick={() => setAdLightbox(true)}
+              className="relative mt-2 block w-full overflow-hidden rounded-field text-left"
+              aria-label="Ampliar creatividad"
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={lead.thumbnail_url}
                 alt=""
                 className="aspect-[4/5] w-full object-cover"
               />
-              <button
-                type="button"
-                onClick={() => setAdLightbox(true)}
-                className="absolute bottom-2 left-2 flex h-9 min-w-[2.25rem] items-center justify-center rounded-pill bg-ink px-2.5 text-white shadow-md"
-                aria-label="Ampliar creatividad"
+              <span
+                className="pointer-events-none absolute bottom-2 left-2 flex h-9 min-w-[2.25rem] items-center justify-center rounded-pill bg-ink px-2.5 text-white shadow-md"
+                aria-hidden
               >
-                <Expand size={17} strokeWidth={2.4} aria-hidden />
-              </button>
-            </div>
+                <Expand size={17} strokeWidth={2.4} />
+              </span>
+            </button>
           ) : null}
           {from && (
             <p className="mt-2 text-label font-semibold leading-snug text-ink-2">{from}</p>

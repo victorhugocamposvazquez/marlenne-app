@@ -31,10 +31,40 @@ export default function LeadWaTemplateSheet({
 }) {
   const resolved = useMemo(() => resolveLeadTemplate(templates), [templates]);
   const [scope, setScope] = useState<WaTemplateScope>(resolved.scope);
+  const [draft, setDraft] = useState('');
+  const [editingMsg, setEditingMsg] = useState(false);
+
+  const vars = useMemo(
+    () => ({
+      nombre: fullName,
+      campana: campaignName,
+      anuncio: adName,
+      centro: salonName,
+    }),
+    [fullName, campaignName, adName, salonName],
+  );
 
   useEffect(() => {
-    if (open) setScope(resolved.scope);
+    if (open) {
+      setScope(resolved.scope);
+      setEditingMsg(false);
+    }
   }, [open, resolved.scope]);
+
+  useEffect(() => {
+    if (!open) return;
+    setEditingMsg(false);
+    if (scope === 'none') {
+      setDraft('');
+      return;
+    }
+    const body = scope === 'ad'
+      ? templates.ad?.trim() ?? ''
+      : scope === 'campaign'
+        ? templates.campaign?.trim() ?? ''
+        : templates.salon?.trim() || DEFAULT_LEAD_WA;
+    setDraft(renderLeadTemplate(body, vars));
+  }, [open, scope, templates, vars]);
 
   const options = useMemo(() => {
     const rows: { scope: WaTemplateScope; label: string }[] = [
@@ -50,27 +80,11 @@ export default function LeadWaTemplateSheet({
   return rows;
   }, [templates]);
 
-  const templateBody = useMemo(() => {
-    if (scope === 'none') return '';
-    if (scope === 'ad') return templates.ad?.trim() ?? '';
-    if (scope === 'campaign') return templates.campaign?.trim() ?? '';
-    return templates.salon?.trim() || DEFAULT_LEAD_WA;
-  }, [scope, templates]);
-
-  const preview = useMemo(
-    () => renderLeadTemplate(templateBody, {
-      nombre: fullName,
-      campana: campaignName,
-      anuncio: adName,
-      centro: salonName,
-    }),
-    [templateBody, fullName, campaignName, adName, salonName],
-  );
-
   if (!open) return null;
 
   const send = () => {
-    const href = waHref(phone, scope === 'none' ? undefined : preview);
+    const text = scope === 'none' ? undefined : draft.trim();
+    const href = waHref(phone, text || undefined);
     if (!href) return;
     onOpenWhatsApp?.();
     goWhatsApp(href);
@@ -127,9 +141,27 @@ export default function LeadWaTemplateSheet({
         </ul>
 
         {scope !== 'none' && (
-          <p className="mt-3 whitespace-pre-wrap rounded-field bg-surface-soft p-3 text-label leading-snug text-ink">
-            {preview}
-          </p>
+          <div className="mt-3">
+            {editingMsg ? (
+              <textarea
+                value={draft}
+                onChange={e => setDraft(e.target.value)}
+                rows={5}
+                autoFocus
+                aria-label="Mensaje de WhatsApp"
+                className="w-full rounded-field bg-surface-soft px-3 py-3 text-label leading-snug text-ink outline-none"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditingMsg(true)}
+                className="w-full rounded-field bg-surface-soft p-3 text-left"
+              >
+                <p className="whitespace-pre-wrap text-label leading-snug text-ink">{draft}</p>
+                <p className="mt-2 text-[12px] font-semibold text-ink-3">Toca para editar el mensaje</p>
+              </button>
+            )}
+          </div>
         )}
 
         <button
