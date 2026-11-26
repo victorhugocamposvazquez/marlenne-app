@@ -17,6 +17,7 @@ import {
 import { goWhatsApp } from '@/hooks/open-whatsapp';
 import { renderLeadTemplate, resolveLeadTemplate } from '@/lib/leads';
 import { waHref } from '@/lib/phone';
+import MetaLogo from '@/components/leads/MetaLogo';
 
 const KIND: Record<LeadEventRow['kind'], string> = {
   call: 'Llamada',
@@ -57,6 +58,8 @@ export default function LeadFicha({
   });
   const wa = lead.phone ? waHref(lead.phone, message) : null;
   const from = [lead.campaign_name, lead.ad_name].filter(Boolean).join(' · ');
+  const fromMeta = Boolean(lead.meta_lead_id?.trim())
+    || Boolean(lead.ad_id?.trim() && lead.form_fields.length > 0);
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>) => {
     setError(null);
@@ -69,11 +72,15 @@ export default function LeadFicha({
 
   return (
     <div className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-6 pb-fab pt-5">
-      <Link href="/leads" className="mb-3 inline-flex min-h-[44px] items-center gap-1 text-body font-bold text-ink no-underline">
-        <ChevronLeft size={18} strokeWidth={2.4} />
-        Leads
+      <Link
+        href="/leads"
+        className="mb-3 inline-flex min-h-[44px] items-center gap-1.5 text-headline font-bold tracking-[-.02em] text-ink no-underline"
+      >
+        <ChevronLeft size={22} strokeWidth={2.4} aria-hidden />
+        {fromMeta && <MetaLogo size={22} />}
+        <span>Leads</span>
       </Link>
-      <h1 className="text-h1 font-bold tracking-[-.03em]">{lead.full_name}</h1>
+      <h1 className="text-title font-bold tracking-[-.03em] text-ink">{lead.full_name}</h1>
       <p className="mt-1 text-body text-ink-2">{lead.phone || 'Sin teléfono'}{lead.email ? ` · ${lead.email}` : ''}</p>
       <p className="mt-1 text-label text-ink-3">
         Entró {new Date(lead.created_at).toLocaleString('es-ES', {

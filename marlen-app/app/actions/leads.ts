@@ -29,6 +29,7 @@ export type LeadRow = {
   client_id: string | null;
   created_at: string;
   form_fields: LeadFormField[];
+  meta_lead_id: string | null;
 };
 
 export type LeadEventRow = {
@@ -39,7 +40,7 @@ export type LeadEventRow = {
   staff_name: string | null;
 };
 
-const LEAD_SELECT = 'id, full_name, phone, email, campaign_id, campaign_name, ad_id, ad_name, thumbnail_url, ad_headline, ad_body, tags, last_channel, client_id, created_at, form_fields';
+const LEAD_SELECT = 'id, full_name, phone, email, campaign_id, campaign_name, ad_id, ad_name, thumbnail_url, ad_headline, ad_body, tags, last_channel, client_id, created_at, form_fields, meta_lead_id';
 
 const LEAD_LIST_SELECT = 'id, full_name, phone, campaign_name, ad_name, tags, last_channel, created_at';
 
@@ -87,6 +88,7 @@ export async function listLeadsPage(
   const rows = (data ?? []).map(row => ({
     ...(row as LeadRow),
     form_fields: [] as LeadFormField[],
+    meta_lead_id: null,
   }));
   return { rows: rows.slice(0, PAGE), hasMore: rows.length > PAGE };
 }
