@@ -1,10 +1,9 @@
 import LeadsView from '@/components/leads/LeadsView';
-import { listLeadsPage, salonLeadWaTemplate } from '@/app/actions/leads';
-import { getLeadsListGroup } from '@/app/actions/leads-settings';
+import { listLeadGroupNames, listLeadsPage, salonLeadWaTemplate } from '@/app/actions/leads';
 import { leadsDesk } from '@/lib/leads-desk';
 
 export default async function LeadsPage() {
-  const { on } = await leadsDesk();
+  const { on, listGroup } = await leadsDesk();
   if (!on) {
     return (
       <div className="flex flex-1 flex-col justify-center px-6">
@@ -15,10 +14,10 @@ export default async function LeadsPage() {
       </div>
     );
   }
-  const [page, salonTemplate, listGroup] = await Promise.all([
+  const [page, salonTemplate, groupNames] = await Promise.all([
     listLeadsPage(),
     salonLeadWaTemplate(),
-    getLeadsListGroup(),
+    listLeadGroupNames(listGroup),
   ]);
   return (
     <LeadsView
@@ -26,6 +25,7 @@ export default async function LeadsPage() {
       hasMore={page.hasMore}
       salonTemplate={salonTemplate}
       listGroup={listGroup}
+      groupNames={groupNames}
     />
   );
 }

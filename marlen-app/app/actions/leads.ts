@@ -9,6 +9,8 @@ import { leadsDesk } from '@/lib/leads-desk';
 import { leadsEnabled } from '@/lib/leads-enabled';
 import { notifyNewLead } from '@/lib/lead-push';
 import type { LeadChannel } from '@/lib/leads';
+import type { LeadsListGroup } from '@/lib/leads-list-group';
+import { normalizeLeadsListFilter, type LeadsListFilter } from '@/lib/leads-list-query';
 
 export type LeadRow = {
   id: string;
@@ -46,16 +48,36 @@ function missingTable(message: string) {
 
 const PAGE = 40;
 
-export async function listLeadsPage(before?: string | null): Promise<{ rows: LeadRow[]; hasMore: boolean }> {
-  const { on } = await leadsDesk();
+function searchNeedle(raw: string) {
+  return raw.trim().replace(/[%,]/g, ' ').slice(0, 80);
+}
+
+export async function listLeadsPage(
+  input?: string | null | LeadsListFilter,
+): Promise<{ rows: LeadRow[]; hasMore: boolean }> {
+  const filters = normalizeLeadsListFilter(input);
+  const { on, me } = await leadsDesk();
   if (!on) return { rows: [], hasMore: false };
   const sb = createClient();
   let query = sb
     .from('leads')
     .select(LEAD_LIST_SELECT)
+    .eq('salon_id', me.salon_id)
     .order('created_at', { ascending: false })
     .limit(PAGE + 1);
-  if (before) query = query.lt('created_at', before);
+  if (filters.before) query = query.lt('created_at', filters.before);
+  if (filters.tone && filters.tone !== 'todas') {
+    if (filters.tone === 'none') query = query.is('last_channel', null);
+    else query = query.eq('last_channel', filters.tone);
+  }
+  if (filters.groupName?.trim()) {
+    const col = filters.groupKind === 'ad' ? 'ad_name' : 'campaign_name';
+    query = query.eq(col, filters.groupName.trim());
+  }
+  const needle = searchNeedle(filters.q ?? '');
+  if (needle.length >= 2) {
+    query = query.or(`full_name.ilike.%${needle}%,phone.ilike.%${needle}%`);
+  }
   const { data, error } = await query;
   if (error) {
     if (missingTable(error.message)) return { rows: [], hasMore: false };
@@ -178,14 +200,47 @@ export async function createManualLead(input: { fullName: string; phone?: string
   return { ok: true as const, id: data.id as string };
 }
 
+export async function listLeadGroupNames(kind: LeadsListGroup): Promise<string[]> {
+  const { on, me } = await leadsDesk();
+  if (!on) return [];
+  const sb = createClient();
+  const pKind = kind === 'ad' ? 'ad' : 'campaign';
+  const { data, error } = await sb.rpc('lead_group_names', { p_salon_id: me.salon_id, p_kind: pKind });
+  if (!error && data?.length) {
+    const rows = data as unknown[];
+    if (typeof rows[0] === 'string') return rows as string[];
+    return (rows as { name: string }[]).map(row => row.name).filter(Boolean);
+  }
+  const col = kind === 'ad' ? 'ad_name' : 'campaign_name';
+  const { data: rows, error: rowErr } = await sb
+    .from('leads')
+    .select(col)
+    .eq('salon_id', me.salon_id)
+    .not(col, 'is', null)
+    .limit(500);
+  if (rowErr) return [];
+  const names = new Set<string>();
+  for (const row of rows ?? []) {
+    const name = (row as Record<string, string | null>)[col]?.trim();
+    if (name) names.add(name);
+  }
+  return [...names].sort((a, b) => a.localeCompare(b, 'es'));
+}
+
 export async function listLeadTagWords(): Promise<string[]> {
   const { on, me } = await leadsDesk();
   if (!on) return [];
   const sb = createClient();
-  const { data, error } = await sb.from('leads').select('tags').eq('salon_id', me.salon_id);
-  if (error) return [];
+  const { data, error } = await sb.rpc('lead_distinct_tags', { p_salon_id: me.salon_id });
+  if (!error && data?.length) {
+    const rows = data as unknown[];
+    if (typeof rows[0] === 'string') return rows as string[];
+    return (rows as { tag: string }[]).map(row => row.tag).filter(Boolean);
+  }
+  const { data: rows, error: rowErr } = await sb.from('leads').select('tags').eq('salon_id', me.salon_id).limit(200);
+  if (rowErr) return [];
   const words = new Set<string>();
-  for (const row of data ?? []) {
+  for (const row of rows ?? []) {
     for (const tag of (row as { tags?: string[] }).tags ?? []) {
       const trimmed = tag.trim();
       if (trimmed) words.add(trimmed);

@@ -4,17 +4,11 @@ import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/require-session';
 import { createClient } from '@/lib/supabase/server';
 import { parseLeadsListGroup, type LeadsListGroup } from '@/lib/leads-list-group';
+import { leadsDesk } from '@/lib/leads-desk';
 
 export async function getLeadsListGroup(): Promise<LeadsListGroup> {
-  const me = await requireRole('admin', 'reception');
-  const sb = createClient();
-  const { data, error } = await sb
-    .from('salons')
-    .select('leads_list_group')
-    .eq('id', me.salon_id)
-    .maybeSingle();
-  if (error) return 'campaign';
-  return parseLeadsListGroup((data as { leads_list_group?: string } | null)?.leads_list_group);
+  const { listGroup } = await leadsDesk();
+  return listGroup;
 }
 
 export async function saveLeadsListGroup(group: LeadsListGroup) {

@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MessageCircle, Phone, Plus, Search, UserRound } from 'lucide-react';
 import { createManualLead, listLeadsPage, saveLeadTemplate, type LeadRow } from '@/app/actions/leads';
 import type { LeadsListGroup } from '@/lib/leads-list-group';
+import type { LeadsListFilter } from '@/lib/leads-list-query';
 import Chip from '@/components/ui/Chip';
 import EmptyState from '@/components/ui/EmptyState';
 import PageHeading from '@/components/ui/PageHeading';
@@ -30,11 +31,13 @@ export default function LeadsView({
   hasMore: initialHasMore,
   salonTemplate,
   listGroup,
+  groupNames,
 }: {
   leads: LeadRow[];
   hasMore: boolean;
   salonTemplate: string | null;
   listGroup: LeadsListGroup;
+  groupNames: string[];
 }) {
   const router = useRouter();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]['id']>('todas');
@@ -49,34 +52,57 @@ export default function LeadsView({
   const [rows, setRows] = useState(initialLeads);
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [pending, start] = useTransition();
+  const [listPending, startList] = useTransition();
   const leads = rows;
+  const filtersReady = useRef(false);
+
+  const buildFilters = useCallback(
+    (before?: string | null): LeadsListFilter => ({
+      before,
+      tone: filter,
+      groupKind: listGroup,
+      groupName: campaignFilter,
+      q: q.trim().length >= 2 ? q : undefined,
+    }),
+    [filter, listGroup, campaignFilter, q],
+  );
+
+  const fetchList = useCallback(
+    (before?: string | null) => {
+      startList(async () => {
+        const page = await listLeadsPage(buildFilters(before));
+        if (before) {
+          setRows(current => {
+            const seen = new Set(current.map(lead => lead.id));
+            return [...current, ...page.rows.filter(lead => !seen.has(lead.id))];
+          });
+        } else {
+          setRows(page.rows);
+        }
+        setHasMore(page.hasMore);
+      });
+    },
+    [buildFilters],
+  );
 
   useEffect(() => {
     setRows(initialLeads);
     setHasMore(initialHasMore);
   }, [initialLeads, initialHasMore]);
 
-  const groupOptions = useMemo(() => {
-    const names = new Set<string>();
-    for (const lead of leads) {
-      const name = (listGroup === 'ad' ? lead.ad_name : lead.campaign_name)?.trim();
-      if (name) names.add(name);
+  useEffect(() => {
+    if (!filtersReady.current) {
+      filtersReady.current = true;
+      return;
     }
-    return [...names].sort((a, b) => a.localeCompare(b, 'es'));
-  }, [leads, listGroup]);
+    fetchList();
+  }, [filter, campaignFilter, listGroup, fetchList]);
 
-  const shown = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return leads.filter(lead => {
-      const tone = leadTone(lead.last_channel);
-      if (filter !== 'todas' && tone !== filter) return false;
-      const groupName = (listGroup === 'ad' ? lead.ad_name : lead.campaign_name)?.trim();
-      if (campaignFilter && groupName !== campaignFilter) return false;
-      if (!needle) return true;
-      const hay = `${lead.full_name} ${lead.phone ?? ''}`.toLowerCase();
-      return hay.includes(needle);
-    });
-  }, [leads, filter, campaignFilter, q, listGroup]);
+  useEffect(() => {
+    if (!filtersReady.current) return;
+    const t = window.setTimeout(() => fetchList(), 320);
+    return () => window.clearTimeout(t);
+  }, [q, fetchList]);
 
   const saveNew = () => {
     setError(null);
@@ -156,12 +182,12 @@ export default function LeadsView({
             </Chip>
           ))}
         </div>
-        {groupOptions.length > 0 && (
+        {groupNames.length > 0 && (
           <div className="mt-2 flex gap-1.5 overflow-x-auto">
             <Chip className="shrink-0" active={campaignFilter == null} onClick={() => setCampaignFilter(null)}>
               {listGroup === 'ad' ? 'Anuncios' : 'Campañas'}
             </Chip>
-            {groupOptions.map(name => (
+            {groupNames.map(name => (
               <Chip key={name} className="shrink-0" active={campaignFilter === name} onClick={() => setCampaignFilter(name)}>
                 {name}
               </Chip>
@@ -171,14 +197,25 @@ export default function LeadsView({
       </header>
 
       <div className="min-h-0 flex-1 overflow-auto px-6 pb-fab pt-1">
-        {shown.length === 0 && (
+        {listPending && leads.length === 0 && (
+          <p className="mt-4 text-label font-medium text-ink-2">Cargando…</p>
+        )}
+        {!listPending && leads.length === 0 && (
           <EmptyState
             icon={UserRound}
-            title={leads.length === 0 ? 'Todavía no hay leads.' : 'Ningún lead con ese filtro.'}
-            hint={leads.length === 0 ? 'Importa desde Facebook en Ajustes → Leads, o crea uno con + arriba.' : undefined}
+            title={
+              filter === 'todas' && !campaignFilter && q.trim().length < 2
+                ? 'Todavía no hay leads.'
+                : 'Ningún lead con ese filtro.'
+            }
+            hint={
+              filter === 'todas' && !campaignFilter && q.trim().length < 2
+                ? 'Importa desde Facebook en Ajustes → Leads, o crea uno con + arriba.'
+                : undefined
+            }
           />
         )}
-        {shown.map(lead => {
+        {leads.map(lead => {
           const tone = leadTone(lead.last_channel);
           const paint = TONE[tone];
           const from = (listGroup === 'ad' ? lead.ad_name : lead.campaign_name)?.trim() ?? '';
@@ -208,17 +245,11 @@ export default function LeadsView({
         {hasMore && (
           <button
             type="button"
-            disabled={pending}
-            onClick={() => start(async () => {
+            disabled={listPending}
+            onClick={() => {
               const last = rows[rows.length - 1]?.created_at;
-              if (!last) return;
-              const page = await listLeadsPage(last);
-              setRows(current => {
-                const seen = new Set(current.map(lead => lead.id));
-                return [...current, ...page.rows.filter(lead => !seen.has(lead.id))];
-              });
-              setHasMore(page.hasMore);
-            })}
+              if (last) fetchList(last);
+            }}
             className="mt-3 min-h-[44px] w-full rounded-pill bg-surface-soft text-label font-bold text-ink disabled:opacity-50"
           >
             Ver más
