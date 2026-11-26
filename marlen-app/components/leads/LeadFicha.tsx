@@ -30,7 +30,8 @@ import LeadAdLightbox from '@/components/leads/LeadAdLightbox';
 import LeadWaTemplateSheet from '@/components/leads/LeadWaTemplateSheet';
 import MetaLogo from '@/components/leads/MetaLogo';
 import DarCitaLink from '@/components/ui/DarCitaLink';
-import { leadAdTitle, leadTone, type LeadTone } from '@/lib/leads';
+import { inputCls } from '@/components/Sheet';
+import { isLeadTagId, LEAD_CALLBACK_TAG, LEAD_TAGS, leadTagLabel, leadTone, leadAdTitle, type LeadTone } from '@/lib/leads';
 
 const HISTORY_TITLE: Record<LeadEventRow['kind'], string> = {
   call: 'He llamado',
@@ -87,17 +88,14 @@ export default function LeadFicha({
   events,
   templates,
   salonName,
-  knownTags = [],
 }: {
   lead: LeadRow;
   events: LeadEventRow[];
   templates: { ad: string | null; campaign: string | null; salon: string | null };
   salonName: string;
-  knownTags?: string[];
 }) {
   const router = useRouter();
   const [note, setNote] = useState('');
-  const [tag, setTag] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [adLightbox, setAdLightbox] = useState(false);
   const [waSheetOpen, setWaSheetOpen] = useState(false);
@@ -340,49 +338,51 @@ export default function LeadFicha({
       )}
 
       <div className="mt-5 flex flex-wrap gap-1.5">
-        {lead.tags.map(item => (
-          <button
-            key={item}
-            type="button"
-            onClick={() => run(() => setLeadTags(lead.id, lead.tags.filter(t => t !== item)))}
-            className="rounded-pill bg-surface-soft px-3 py-1.5 text-label font-bold"
-          >
-            {item} ×
-          </button>
-        ))}
+        {LEAD_TAGS.map(item => {
+          const on = lead.tags.includes(item.id);
+          return (
+            <button
+              key={item.id}
+              type="button"
+              disabled={pending}
+              aria-pressed={on}
+              onClick={() => {
+                const next = on ? lead.tags.filter(t => t !== item.id) : [...lead.tags, item.id];
+                const day = item.id === LEAD_CALLBACK_TAG && on ? null : lead.callback_at;
+                run(() => setLeadTags(lead.id, next, day));
+              }}
+              className={`min-h-[40px] rounded-pill px-3 py-1.5 text-label font-bold disabled:opacity-50 ${on ? 'bg-ink text-white' : 'border border-surface-line text-ink-2'}`}
+            >
+              {item.label}
+            </button>
+          );
+        })}
       </div>
-      <form
-        className="mt-2 flex gap-2"
-        onSubmit={e => {
-          e.preventDefault();
-          const next = tag.trim();
-          if (!next) return;
-          run(async () => {
-            const res = await setLeadTags(lead.id, [...lead.tags, next]);
-            if (res.ok) setTag('');
-            return res;
-          });
-        }}
-      >
-        <input
-          value={tag}
-          onChange={e => setTag(e.target.value)}
-          placeholder="Etiqueta"
-          aria-label="Nueva etiqueta"
-          className="min-w-0 flex-1 rounded-field bg-surface-soft px-4 py-3 text-[16px] outline-none"
-        />
-        <button type="submit" className="rounded-pill bg-ink px-4 text-label font-bold text-white">Añadir</button>
-      </form>
-      {knownTags.filter(item => !lead.tags.includes(item)).length > 0 && (
+      {lead.tags.includes(LEAD_CALLBACK_TAG) && (
+        <div className="mt-3">
+          <label className="text-label font-bold text-ink-2" htmlFor="lead-callback">
+            Cuándo volver a llamar
+          </label>
+          <input
+            id="lead-callback"
+            type="date"
+            className={`${inputCls} mt-1`}
+            value={lead.callback_at?.slice(0, 10) ?? ''}
+            onChange={e => run(() => setLeadTags(lead.id, lead.tags, e.target.value || null))}
+          />
+          <p className="mt-1 text-caption font-medium text-ink-3">Si no eliges día, se queda solo la etiqueta.</p>
+        </div>
+      )}
+      {lead.tags.some(item => !isLeadTagId(item)) && (
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {knownTags.filter(item => !lead.tags.includes(item)).map(item => (
+          {lead.tags.filter(item => !isLeadTagId(item)).map(item => (
             <button
               key={item}
               type="button"
-              onClick={() => run(() => setLeadTags(lead.id, [...lead.tags, item]))}
-              className="rounded-pill border border-surface-line px-3 py-1.5 text-label font-bold text-ink-2"
+              onClick={() => run(() => setLeadTags(lead.id, lead.tags.filter(t => t !== item), lead.callback_at))}
+              className="rounded-pill bg-surface-soft px-3 py-1.5 text-label font-bold"
             >
-              {item}
+              {leadTagLabel(item)} ×
             </button>
           ))}
         </div>

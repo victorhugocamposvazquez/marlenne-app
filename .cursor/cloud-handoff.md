@@ -18,6 +18,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
+- 2026-11-26 — **Leads:** etiquetas para elegir (volver a llamar, con día opcional, no responde, no interesado, quiere cita, pensándoselo, número erróneo). Rama `cursor/leads-etiquetas-5156`. Falta aplicar `supabase/migrations/20261126150000_lead_callback.sql` para que el día se guarde.
 - 2026-11-26 — **Clientas:** el fondo de hacer foto, galería y la confirmación de consentimiento deja de cerrarse en círculo. PR #65 → `main`.
 - 2026-11-26 — **Clientas:** cada foto va a un tratamiento. Sin cita, se elige el servicio de la misma lista y se abre ese compartimento. Hacer foto queda tan ligero como Galería. PR #64 → `main`.
 - 2026-11-26 — **Clientas:** las fotos se guardan en la ficha sin marcar una cita como hecha; PR #63 → `main`. La migración `20261126140000_client_photos.sql` ya no hace falta para esto.
