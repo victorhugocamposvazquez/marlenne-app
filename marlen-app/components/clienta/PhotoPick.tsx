@@ -64,7 +64,7 @@ function Hit({
         disabled={disabled}
         aria-label={label}
         onChange={onChange}
-        className="absolute inset-0 z-10 block h-full w-full cursor-pointer opacity-[0.02] disabled:pointer-events-none"
+        className="absolute inset-0 z-10 block h-full w-full cursor-pointer opacity-0 file:hidden disabled:pointer-events-none"
       />
       {icon}
       <span aria-hidden>{caption}</span>

@@ -62,7 +62,7 @@ export default function ConsentsCard({
       </div>
 
       {ask && (
-        <div className="mt-3 rounded-icon border border-v/30 bg-v-tint p-3">
+        <div className="mt-3 rounded-row border border-v/30 bg-v-tint p-3">
           <p className="text-body font-bold text-v-d">{CONSENT_KINDS[ask]}</p>
           <p className="mt-1.5 text-label font-medium leading-snug text-ink-2">{CONSENT_COPY[ask]}</p>
           <div className="mt-3 flex gap-2">

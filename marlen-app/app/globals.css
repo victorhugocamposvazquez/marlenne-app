@@ -116,6 +116,22 @@
   select {
     font-size: 16px !important;
   }
+  button,
+  input[type='file'],
+  input[type='button'],
+  input[type='submit'] {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  input[type='file'] {
+    color: transparent;
+  }
+  input[type='file']::-webkit-file-upload-button,
+  input[type='file']::file-selector-button {
+    display: none;
+    -webkit-appearance: none;
+    appearance: none;
+  }
   input[type='checkbox'] {
     width: 1.25rem;
     height: 1.25rem;
