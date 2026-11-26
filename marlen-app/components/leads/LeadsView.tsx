@@ -7,7 +7,6 @@ import { MessageCircle, Phone, Plus, Search, UserRound } from 'lucide-react';
 import { createManualLead, listLeadsPage, type LeadRow } from '@/app/actions/leads';
 import type { LeadsListGroup } from '@/lib/leads-list-group';
 import type { LeadsListFilter } from '@/lib/leads-list-query';
-import Chip from '@/components/ui/Chip';
 import EmptyState from '@/components/ui/EmptyState';
 import PageHeading from '@/components/ui/PageHeading';
 import { HeaderIconButton, screenHeaderCls } from '@/components/ui/ScreenHeader';
@@ -88,6 +87,10 @@ export default function LeadsView({
   }, [initialLeads, initialHasMore]);
 
   useEffect(() => {
+    setCampaignFilter(null);
+  }, [listGroup]);
+
+  useEffect(() => {
     if (!filtersReady.current) {
       filtersReady.current = true;
       return;
@@ -162,35 +165,45 @@ export default function LeadsView({
             </button>
           </form>
         )}
-        <div className="mt-3 flex h-[54px] items-center gap-2.5 rounded-field bg-surface-soft px-4">
-          <Search size={18} className="text-ink-3" strokeWidth={2.2} />
+        <div className="mt-2 flex h-11 items-center gap-2 rounded-field bg-surface-soft px-3">
+          <Search size={17} className="shrink-0 text-ink-3" strokeWidth={2.2} aria-hidden />
           <input
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="Buscar"
             aria-label="Buscar leads"
-            className="h-6 flex-1 border-0 bg-transparent text-[16px] outline-none placeholder:text-ink-3"
+            className="min-w-0 flex-1 border-0 bg-transparent text-[16px] outline-none placeholder:text-ink-3"
           />
         </div>
-        <div className="mt-2 flex gap-1.5 overflow-x-auto">
-          {FILTERS.map(f => (
-            <Chip key={f.id} className="shrink-0" active={filter === f.id} onClick={() => setFilter(f.id)}>
-              {f.label}
-            </Chip>
-          ))}
+        <div className="mt-1.5 flex gap-2">
+          <label className="min-w-0 flex-1">
+            <span className="sr-only">Estado</span>
+            <select
+              value={filter}
+              onChange={e => setFilter(e.target.value as (typeof FILTERS)[number]['id'])}
+              className="h-10 w-full min-w-0 rounded-field bg-surface-soft px-2.5 text-label font-semibold text-ink outline-none"
+            >
+              {FILTERS.map(f => (
+                <option key={f.id} value={f.id}>{f.label}</option>
+              ))}
+            </select>
+          </label>
+          {groupNames.length > 0 && (
+            <label className="min-w-0 flex-1">
+              <span className="sr-only">{listGroup === 'ad' ? 'Anuncio' : 'Campaña'}</span>
+              <select
+                value={campaignFilter ?? ''}
+                onChange={e => setCampaignFilter(e.target.value || null)}
+                className="h-10 w-full min-w-0 truncate rounded-field bg-surface-soft px-2.5 text-label font-semibold text-ink outline-none"
+              >
+                <option value="">{listGroup === 'ad' ? 'Anuncios' : 'Campañas'}</option>
+                {groupNames.map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
-        {groupNames.length > 0 && (
-          <div className="mt-2 flex gap-1.5 overflow-x-auto">
-            <Chip className="shrink-0" active={campaignFilter == null} onClick={() => setCampaignFilter(null)}>
-              {listGroup === 'ad' ? 'Anuncios' : 'Campañas'}
-            </Chip>
-            {groupNames.map(name => (
-              <Chip key={name} className="shrink-0" active={campaignFilter === name} onClick={() => setCampaignFilter(name)}>
-                {name}
-              </Chip>
-            ))}
-          </div>
-        )}
       </header>
 
       <div className="min-h-0 flex-1 overflow-auto px-6 pb-fab pt-1">
