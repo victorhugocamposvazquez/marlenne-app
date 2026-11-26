@@ -8,7 +8,7 @@ import { createClientRecord } from '@/lib/client-write';
 import { leadsDesk } from '@/lib/leads-desk';
 import { leadsEnabled } from '@/lib/leads-enabled';
 import { notifyNewLead } from '@/lib/lead-push';
-import type { LeadChannel } from '@/lib/leads';
+import { parseLeadFormFields, type LeadChannel, type LeadFormField } from '@/lib/leads';
 import type { LeadsListGroup } from '@/lib/leads-list-group';
 import { normalizeLeadsListFilter, type LeadsListFilter } from '@/lib/leads-list-query';
 
@@ -28,6 +28,7 @@ export type LeadRow = {
   last_channel: LeadChannel | null;
   client_id: string | null;
   created_at: string;
+  form_fields: LeadFormField[];
 };
 
 export type LeadEventRow = {
@@ -38,7 +39,7 @@ export type LeadEventRow = {
   staff_name: string | null;
 };
 
-const LEAD_SELECT = 'id, full_name, phone, email, campaign_id, campaign_name, ad_id, ad_name, thumbnail_url, ad_headline, ad_body, tags, last_channel, client_id, created_at';
+const LEAD_SELECT = 'id, full_name, phone, email, campaign_id, campaign_name, ad_id, ad_name, thumbnail_url, ad_headline, ad_body, tags, last_channel, client_id, created_at, form_fields';
 
 const LEAD_LIST_SELECT = 'id, full_name, phone, campaign_name, ad_name, tags, last_channel, created_at';
 
@@ -83,7 +84,10 @@ export async function listLeadsPage(
     if (missingTable(error.message)) return { rows: [], hasMore: false };
     throw new Error(error.message);
   }
-  const rows = (data ?? []) as LeadRow[];
+  const rows = (data ?? []).map(row => ({
+    ...(row as LeadRow),
+    form_fields: [] as LeadFormField[],
+  }));
   return { rows: rows.slice(0, PAGE), hasMore: rows.length > PAGE };
 }
 
@@ -106,13 +110,39 @@ export async function countUntouchedLeads(): Promise<number> {
   return count ?? 0;
 }
 
+function mapLeadRow(raw: Record<string, unknown> | null): LeadRow | null {
+  if (!raw) return null;
+  return {
+    ...(raw as LeadRow),
+    form_fields: parseLeadFormFields(raw.form_fields),
+  };
+}
+
 export async function getLead(id: string): Promise<LeadRow | null> {
-  const { on } = await leadsDesk();
+  const { on, me } = await leadsDesk();
   if (!on) return null;
   const sb = createClient();
   const { data, error } = await sb.from('leads').select(LEAD_SELECT).eq('id', id).maybeSingle();
   if (error) return null;
-  return (data as LeadRow | null) ?? null;
+  let lead = mapLeadRow(data as Record<string, unknown> | null);
+  if (!lead) return null;
+  if (lead.ad_id && !lead.thumbnail_url) {
+    const { data: ad } = await sb
+      .from('meta_ads')
+      .select('thumbnail_url, headline, body')
+      .eq('salon_id', me.salon_id)
+      .eq('ad_id', lead.ad_id)
+      .maybeSingle();
+    if (ad) {
+      lead = {
+        ...lead,
+        thumbnail_url: (ad.thumbnail_url as string | null) ?? lead.thumbnail_url,
+        ad_headline: lead.ad_headline || ((ad.headline as string | null) ?? null),
+        ad_body: lead.ad_body || ((ad.body as string | null) ?? null),
+      };
+    }
+  }
+  return lead;
 }
 
 export async function listLeadEvents(leadId: string): Promise<LeadEventRow[]> {

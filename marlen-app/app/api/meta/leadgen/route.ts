@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { leadFieldsFromMeta } from '@/lib/leads';
+import { fetchMetaAdCreative, upsertMetaAdRow } from '@/lib/meta-lead-creative';
+import { leadFieldsFromMeta, leadFormRowsFromMeta } from '@/lib/leads';
 import { notifyNewLead } from '@/lib/lead-push';
 
 export const dynamic = 'force-dynamic';
@@ -106,25 +107,26 @@ async function ingest(
   let thumbnail: string | null = null;
   let headline: string | null = null;
   let adBody: string | null = null;
+  let adName = lead.ad_name ?? null;
   if (adId) {
-    const ad = await graph<{
-      name?: string;
-      creative?: { thumbnail_url?: string; title?: string; body?: string; image_url?: string };
-    }>(adId, token, 'name,creative{thumbnail_url,title,body,image_url}');
-    thumbnail = ad?.creative?.image_url || ad?.creative?.thumbnail_url || null;
-    headline = ad?.creative?.title || null;
-    adBody = ad?.creative?.body || null;
-    await saveAd(sb, {
-      salonId,
-      campaignId: lead.campaign_id ?? null,
-      campaignName: lead.campaign_name ?? null,
-      adId,
-      adName: lead.ad_name ?? ad?.name ?? null,
-      thumbnail,
-      headline,
-      body: adBody,
-    });
+    const creative = await fetchMetaAdCreative(adId, token);
+    if (creative) {
+      thumbnail = creative.thumbnail_url;
+      headline = creative.headline;
+      adBody = creative.body;
+      adName = adName || creative.ad_name;
+      await upsertMetaAdRow(sb, {
+        salonId,
+        campaignId: lead.campaign_id ?? null,
+        campaignName: lead.campaign_name ?? null,
+        adId,
+        adName,
+        creative,
+      });
+    }
   }
+
+  const formFields = leadFormRowsFromMeta(lead.field_data);
 
   const { data: inserted, error } = await sb.from('leads').insert({
     salon_id: salonId,
@@ -135,10 +137,11 @@ async function ingest(
     campaign_id: lead.campaign_id ?? null,
     campaign_name: lead.campaign_name ?? null,
     ad_id: adId ?? null,
-    ad_name: lead.ad_name ?? null,
+    ad_name: adName,
     thumbnail_url: thumbnail,
     ad_headline: headline,
     ad_body: adBody,
+    form_fields: formFields,
   }).select('id').maybeSingle();
 
   if (error || !inserted?.id) return;
@@ -151,39 +154,3 @@ async function ingest(
   }).catch(() => undefined);
 }
 
-async function saveAd(
-  sb: ReturnType<typeof createAdminClient>,
-  ad: {
-    salonId: string;
-    campaignId: string | null;
-    campaignName: string | null;
-    adId: string;
-    adName: string | null;
-    thumbnail: string | null;
-    headline: string | null;
-    body: string | null;
-  },
-) {
-  const row = {
-    salon_id: ad.salonId,
-    campaign_id: ad.campaignId,
-    campaign_name: ad.campaignName,
-    ad_id: ad.adId,
-    ad_name: ad.adName,
-    thumbnail_url: ad.thumbnail,
-    headline: ad.headline,
-    body: ad.body,
-  };
-  const { data: existing, error: readError } = await sb
-    .from('meta_ads')
-    .select('id')
-    .eq('salon_id', ad.salonId)
-    .eq('ad_id', ad.adId)
-    .maybeSingle();
-  if (readError) return;
-  if (existing?.id) {
-    await sb.from('meta_ads').update(row).eq('id', existing.id);
-    return;
-  }
-  await sb.from('meta_ads').insert(row);
-}

@@ -54,6 +54,77 @@ export function leadPushUrl(leadId: string) {
   return `/leads/${leadId}`;
 }
 
+export type LeadFormField = { key: string; label: string; value: string };
+
+const FORM_LABELS: Record<string, string> = {
+  full_name: 'Nombre',
+  first_name: 'Nombre',
+  last_name: 'Apellidos',
+  phone_number: 'Teléfono',
+  phone: 'Teléfono',
+  email: 'Email',
+  city: 'Ciudad',
+  state: 'Provincia',
+  country: 'País',
+  zip: 'Código postal',
+  postal_code: 'Código postal',
+  street_address: 'Dirección',
+  company_name: 'Empresa',
+  job_title: 'Cargo',
+  work_phone_number: 'Teléfono trabajo',
+  work_email: 'Email trabajo',
+  date_of_birth: 'Fecha de nacimiento',
+  gender: 'Género',
+  marital_status: 'Estado civil',
+  relationship_status: 'Estado civil',
+  military_status: 'Situación militar',
+};
+
+export function leadFormFieldLabel(key: string) {
+  const norm = key.trim().toLowerCase().replace(/-/g, '_');
+  if (FORM_LABELS[norm]) return FORM_LABELS[norm];
+  const pretty = norm.replace(/_/g, ' ');
+  return pretty.charAt(0).toUpperCase() + pretty.slice(1);
+}
+
+/** Todas las respuestas del formulario de Meta, para la ficha. */
+export function leadFormRowsFromMeta(fields: { name?: string; values?: string[] }[] | null | undefined): LeadFormField[] {
+  const rows: LeadFormField[] = [];
+  const seen = new Set<string>();
+  for (const field of fields ?? []) {
+    const rawKey = field.name?.trim();
+    if (!rawKey) continue;
+    const key = rawKey.toLowerCase();
+    if (seen.has(key)) continue;
+    const value = (field.values ?? [])
+      .map(v => v?.trim())
+      .filter(Boolean)
+      .join(', ');
+    if (!value) continue;
+    seen.add(key);
+    rows.push({ key, label: leadFormFieldLabel(rawKey), value });
+  }
+  return rows;
+}
+
+export function parseLeadFormFields(raw: unknown): LeadFormField[] {
+  if (!Array.isArray(raw)) return [];
+  const out: LeadFormField[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const row = item as { key?: string; label?: string; value?: string };
+    const value = row.value?.trim();
+    if (!value) continue;
+    const key = row.key?.trim() || value;
+    out.push({
+      key,
+      label: row.label?.trim() || leadFormFieldLabel(key),
+      value,
+    });
+  }
+  return out;
+}
+
 /** Campos típicos del formulario de Meta. */
 export function leadFieldsFromMeta(fields: { name?: string; values?: string[] }[] | null | undefined) {
   const map = new Map<string, string>();

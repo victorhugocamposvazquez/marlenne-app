@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/require-session';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { leadsEnabled } from '@/lib/leads-enabled';
-import { leadFieldsFromMeta } from '@/lib/leads';
+import { enrichLeadsAdCreative } from '@/lib/meta-lead-creative';
+import { leadFieldsFromMeta, leadFormRowsFromMeta } from '@/lib/leads';
 import { notifyNewLead } from '@/lib/lead-push';
 import {
   META_LEADS_PAGE,
@@ -69,6 +70,7 @@ async function listFormIds(pageId: string, token: string) {
 async function savePage(
   salonId: string,
   rows: GraphLead[],
+  token?: string | null,
 ) {
   const admin = createAdminClient();
   const ids = rows.map(row => row.id?.trim()).filter((id): id is string => Boolean(id));
@@ -88,6 +90,7 @@ async function savePage(
   const payload = fresh.map(row => {
     const who = leadFieldsFromMeta(row.field_data);
     const when = metaLeadWhen(row.created_time);
+    const formFields = leadFormRowsFromMeta(row.field_data);
     return {
       salon_id: salonId,
       full_name: who.fullName,
@@ -98,11 +101,28 @@ async function savePage(
       campaign_name: row.campaign_name ?? null,
       ad_id: row.ad_id ?? null,
       ad_name: row.ad_name ?? null,
+      form_fields: formFields,
       ...(when ? { created_at: when } : {}),
     };
   });
   const { error } = await admin.from('leads').insert(payload);
   if (error) throw new Error(error.message);
+
+  const access = token?.trim();
+  if (access) {
+    const seen = new Set<string>();
+    for (const row of fresh) {
+      const adId = row.ad_id?.trim();
+      if (!adId || seen.has(adId)) continue;
+      seen.add(adId);
+      await enrichLeadsAdCreative(admin, salonId, adId, access, {
+        campaignId: row.campaign_id ?? null,
+        campaignName: row.campaign_name ?? null,
+        adName: row.ad_name ?? null,
+      }).catch(() => undefined);
+    }
+  }
+
   return { imported: fresh.length, skipped: ids.length - fresh.length };
 }
 
@@ -153,7 +173,7 @@ export async function importMetaLeadsPage(cursor?: MetaSyncCursor | null): Promi
       return { ok: false, error: err instanceof Error ? err.message : 'No se han podido leer los leads' };
     }
     try {
-      const saved = await savePage(me.salon_id, page.data ?? []);
+      const saved = await savePage(me.salon_id, page.data ?? [], token);
       imported += saved.imported;
       skipped += saved.skipped;
     } catch (err) {
@@ -224,7 +244,7 @@ export async function createTestLead(): Promise<{ ok: true; id: string; via: 'me
           });
           let imported = 0;
           try {
-            const saved = await savePage(me.salon_id, [lead.id ? lead : { id: body.id, field_data: TEST_LEAD_FIELDS }]);
+            const saved = await savePage(me.salon_id, [lead.id ? lead : { id: body.id, field_data: TEST_LEAD_FIELDS }], token);
             imported = saved.imported;
           } catch {
             imported = 0;

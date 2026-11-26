@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   leadFieldsFromMeta,
+  leadFormRowsFromMeta,
   leadPushCopy,
   leadPushUrl,
   leadTone,
@@ -36,6 +37,17 @@ test('el push nombra al lead y abre su ficha', () => {
     body: 'Lucía · Láser',
   });
   assert.equal(leadPushUrl('abc'), '/leads/abc');
+});
+
+test('expone todas las respuestas del formulario con etiquetas', () => {
+  const rows = leadFormRowsFromMeta([
+    { name: 'full_name', values: ['Ana'] },
+    { name: 'city', values: ['Madrid'] },
+    { name: 'pregunta_personalizada', values: ['Quiero más info'] },
+  ]);
+  assert.equal(rows.length, 3);
+  assert.equal(rows[1].label, 'Ciudad');
+  assert.equal(rows[2].label, 'Pregunta personalizada');
 });
 
 test('lee nombre y teléfono del formulario de Meta', () => {

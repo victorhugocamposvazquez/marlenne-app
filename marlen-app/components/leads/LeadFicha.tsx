@@ -87,18 +87,40 @@ export default function LeadFicha({
       {from && <p className="mt-1 text-label font-semibold text-ink-2">{from}</p>}
 
       {(lead.thumbnail_url || lead.ad_headline || lead.ad_body || from) && (
-        <div className="mt-4 overflow-hidden rounded-row bg-surface-soft">
+        <div className="mt-4 flex gap-3 rounded-row bg-surface-soft p-3">
           {lead.thumbnail_url && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={lead.thumbnail_url} alt="" className="aspect-[1.91/1] w-full object-cover" />
+            <img
+              src={lead.thumbnail_url}
+              alt=""
+              className="h-[88px] w-[88px] shrink-0 rounded-field object-cover"
+            />
           )}
-          <div className="px-4 py-3">
-            {lead.ad_headline
-              ? <p className="text-body font-bold">{lead.ad_headline}</p>
-              : from && <p className="text-body font-bold">{from}</p>}
-            {lead.ad_body && <p className="mt-1 text-label text-ink-2">{lead.ad_body}</p>}
+          <div className="min-w-0 flex-1 py-0.5">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-ink-3">Anuncio</p>
+            <p className="mt-0.5 text-body font-bold text-ink">
+              {lead.ad_headline || lead.ad_name || from || 'Anuncio'}
+            </p>
+            {lead.ad_body && <p className="mt-1 line-clamp-4 text-label text-ink-2">{lead.ad_body}</p>}
+            {!lead.thumbnail_url && from && (
+              <p className="mt-1 text-label text-ink-3">{from}</p>
+            )}
           </div>
         </div>
+      )}
+
+      {lead.form_fields.length > 0 && (
+        <section className="mt-5" aria-labelledby="lead-form-heading">
+          <h2 id="lead-form-heading" className="text-body font-bold text-ink">Formulario</h2>
+          <dl className="mt-2 overflow-hidden rounded-row bg-surface-soft px-4">
+            {lead.form_fields.map(row => (
+              <div key={row.key} className="flex gap-3 border-b border-white/60 py-3 last:border-0">
+                <dt className="w-[40%] shrink-0 text-label font-semibold text-ink-2">{row.label}</dt>
+                <dd className="min-w-0 flex-1 text-label font-medium text-ink">{row.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       )}
 
       <div className="mt-4 flex flex-wrap gap-2">
