@@ -18,6 +18,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
+- 2026-11-27 — **Leads:** al entrar y cada 30 s en la bandeja se refresca la lista. Abrir una ficha no vuelve atrás. Rama `cursor/leads-refresco-sigue-5156`.
 - 2026-11-27 — **Leads:** abrir una ficha ya no vuelve a la lista. El refresco al entrar sigue, sin pisar la navegación. PR #69 → `main`.
 - 2026-11-27 — **Leads:** al entrar en la bandeja se piden los nuevos a Facebook y se refresca la lista. PR #68 → `main`.
 - 2026-11-26 — **Leads:** entran solos (la página queda suscrita a Meta, la app abierta los pide cada 45 s y el cron de cada minuto también) y el push sale con cada lead reciente. El botón de Ajustes queda solo para el histórico. PR #67 → `main`.
