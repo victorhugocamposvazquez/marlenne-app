@@ -16,10 +16,9 @@ import {
   type LeadEventRow,
   type LeadRow,
 } from '@/app/actions/leads';
-import { goWhatsApp } from '@/hooks/open-whatsapp';
 import { shallowSet } from '@/hooks/useShallowQuery';
-import { renderLeadTemplate, resolveLeadTemplate } from '@/lib/leads';
-import { waHref } from '@/lib/phone';
+import LeadAdLightbox from '@/components/leads/LeadAdLightbox';
+import LeadWaTemplateSheet from '@/components/leads/LeadWaTemplateSheet';
 import MetaLogo from '@/components/leads/MetaLogo';
 
 const KIND: Record<LeadEventRow['kind'], string> = {
@@ -51,19 +50,12 @@ export default function LeadFicha({
   const [campaignTemplate, setCampaignTemplate] = useState(templates.campaign ?? '');
   const [error, setError] = useState<string | null>(null);
   const [adLightbox, setAdLightbox] = useState(false);
+  const [waSheetOpen, setWaSheetOpen] = useState(false);
   const [trashAsk, setTrashAsk] = useState(false);
   const [purgeAsk, setPurgeAsk] = useState(false);
   const [pending, start] = useTransition();
   const trashed = Boolean(lead.deleted_at);
 
-  const resolved = resolveLeadTemplate(templates);
-  const message = renderLeadTemplate(resolved.body, {
-    nombre: lead.full_name,
-    campana: lead.campaign_name,
-    anuncio: lead.ad_name || lead.ad_headline,
-    centro: salonName,
-  });
-  const wa = lead.phone ? waHref(lead.phone, message) : null;
   const from = [lead.campaign_name, lead.ad_name].filter(Boolean).join(' · ');
   const fromMeta = Boolean(lead.meta_lead_id?.trim())
     || Boolean(lead.ad_id?.trim() && lead.form_fields.length > 0);
@@ -114,33 +106,38 @@ export default function LeadFicha({
         })}
       </p>
 
-      {(lead.phone || wa) && (
+      {lead.phone && (
         <div className="mt-4 flex gap-2">
-          {lead.phone && (
-            <a
-              href={`tel:${lead.phone}`}
-              onClick={() => markContact('call')}
-              className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-1.5 rounded-pill bg-[#E8F2FF] text-label font-bold text-[#0879FF] no-underline"
-            >
-              <Phone size={18} strokeWidth={2.4} aria-hidden />
-              Llamar
-            </a>
-          )}
-          {wa && (
-            <button
-              type="button"
-              onClick={() => {
-                markContact('whatsapp');
-                goWhatsApp(wa);
-              }}
-              className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-1.5 rounded-pill bg-[#E7F8EE] text-label font-bold text-[#15803D]"
-            >
-              <MessageCircle size={18} strokeWidth={2.4} aria-hidden />
-              WhatsApp
-            </button>
-          )}
+          <a
+            href={`tel:${lead.phone}`}
+            onClick={() => markContact('call')}
+            className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-1.5 rounded-pill bg-[#E8F2FF] text-label font-bold text-[#0879FF] no-underline"
+          >
+            <Phone size={18} strokeWidth={2.4} aria-hidden />
+            Llamar
+          </a>
+          <button
+            type="button"
+            onClick={() => setWaSheetOpen(true)}
+            className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-1.5 rounded-pill bg-[#E7F8EE] text-label font-bold text-[#15803D]"
+          >
+            <MessageCircle size={18} strokeWidth={2.4} aria-hidden />
+            WhatsApp
+          </button>
         </div>
       )}
+
+      <LeadWaTemplateSheet
+        open={waSheetOpen}
+        onClose={() => setWaSheetOpen(false)}
+        phone={lead.phone ?? ''}
+        fullName={lead.full_name}
+        campaignName={lead.campaign_name}
+        adName={lead.ad_name || lead.ad_headline}
+        salonName={salonName}
+        templates={templates}
+        onOpenWhatsApp={() => markContact('whatsapp')}
+      />
 
       {showAdPreview && (
         <div className="mt-4 overflow-hidden rounded-row bg-surface-soft p-3">
@@ -175,20 +172,12 @@ export default function LeadFicha({
       )}
 
       {adLightbox && lead.thumbnail_url && (
-        <button
-          type="button"
-          aria-label="Cerrar imagen"
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-ink/70 p-6 backdrop-blur-sm"
-          onClick={() => setAdLightbox(false)}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={lead.thumbnail_url}
-            alt=""
-            className="max-h-[min(88dvh,900px)] max-w-full rounded-field object-contain shadow-lg"
-            onClick={e => e.stopPropagation()}
-          />
-        </button>
+        <LeadAdLightbox
+          src={lead.thumbnail_url}
+          onClose={() => {
+            setAdLightbox(false);
+          }}
+        />
       )}
 
       {lead.form_fields.length > 0 && (
