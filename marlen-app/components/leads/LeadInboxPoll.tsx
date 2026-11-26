@@ -29,7 +29,7 @@ export default function LeadInboxPoll() {
       }
     };
 
-    const start = window.setTimeout(() => { void tick(); }, 1500);
+    const start = window.setTimeout(() => { void tick(); }, 12_000);
     const id = window.setInterval(() => { void tick(); }, EVERY_MS);
     const onShow = () => { if (document.visibilityState === 'visible') void tick(); };
     document.addEventListener('visibilitychange', onShow);

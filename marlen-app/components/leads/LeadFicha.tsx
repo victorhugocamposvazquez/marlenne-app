@@ -22,6 +22,7 @@ import {
   restoreLead,
   setLeadTags,
   trashLead,
+  upgradeLeadAdPhoto,
   type LeadEventRow,
   type LeadRow,
 } from '@/app/actions/leads';
@@ -97,6 +98,7 @@ export default function LeadFicha({
 }) {
   const router = useRouter();
   const [note, setNote] = useState('');
+  const [photo, setPhoto] = useState(lead.thumbnail_url);
   const [error, setError] = useState<string | null>(null);
   const [adLightbox, setAdLightbox] = useState(false);
   const [waSheetOpen, setWaSheetOpen] = useState(false);
@@ -111,6 +113,24 @@ export default function LeadFicha({
   const adTitle = leadAdTitle(lead.ad_headline, lead.ad_name || from) || 'ANUNCIO';
   const showAdPreview = Boolean(lead.thumbnail_url || lead.ad_headline || lead.ad_name || from);
   const [listToneLocal, setListToneLocal] = useState<LeadTone>(() => leadTone(lead.last_channel));
+
+  useEffect(() => {
+    setPhoto(lead.thumbnail_url);
+  }, [lead.id, lead.thumbnail_url]);
+
+  useEffect(() => {
+    if (!lead.ad_id) return;
+    let alive = true;
+    const wait = window.setTimeout(() => {
+      void upgradeLeadAdPhoto(lead.id).then(url => {
+        if (alive && url) setPhoto(url);
+      });
+    }, 400);
+    return () => {
+      alive = false;
+      window.clearTimeout(wait);
+    };
+  }, [lead.id, lead.ad_id]);
 
   useEffect(() => {
     setListToneLocal(leadTone(lead.last_channel));
@@ -221,14 +241,14 @@ export default function LeadFicha({
         <div className="mt-4 overflow-hidden rounded-row bg-surface-soft p-3">
           <p className="text-[10px] font-bold uppercase tracking-wide text-ink-3">Anuncio</p>
           <p className="mt-1 text-body font-bold leading-snug text-ink">{adTitle}</p>
-          {lead.thumbnail_url ? (
+          {photo ? (
             <button
               type="button"
               onClick={() => setAdLightbox(true)}
               className="relative mt-2 block w-full overflow-hidden rounded-field text-left"
               aria-label="Ampliar creatividad"
             >
-              <LeadAdPicture src={lead.thumbnail_url} className="aspect-[4/5] w-full object-cover" />
+              <LeadAdPicture src={photo} className="aspect-[4/5] w-full object-cover" />
               <span
                 className="pointer-events-none absolute bottom-2 left-2 flex h-9 min-w-[2.25rem] items-center justify-center rounded-pill bg-ink px-2.5 text-white shadow-md"
                 aria-hidden
@@ -247,9 +267,9 @@ export default function LeadFicha({
         <p className="mt-4 text-label font-semibold text-ink-2">{from}</p>
       )}
 
-      {adLightbox && lead.thumbnail_url && (
+      {adLightbox && photo && (
         <LeadAdLightbox
-          src={lead.thumbnail_url}
+          src={photo}
           onClose={() => {
             setAdLightbox(false);
           }}

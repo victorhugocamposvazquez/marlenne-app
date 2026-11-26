@@ -224,26 +224,39 @@ export async function getLead(id: string): Promise<LeadRow | null> {
         ad_body: lead.ad_body || ((ad.body as string | null) ?? null),
       };
     }
-    if (isLikelyLowResAdImage(lead.thumbnail_url)) {
-      try {
-        const admin = createAdminClient();
-        const upgraded = await refreshLeadAdImage(admin, me.salon_id, {
-          leadId: lead.id,
-          adId,
-          thumbnailUrl: lead.thumbnail_url,
-          campaignId: lead.campaign_id,
-          campaignName: lead.campaign_name,
-          adName: lead.ad_name,
-        });
-        if (upgraded && upgraded !== lead.thumbnail_url) {
-          lead = { ...lead, thumbnail_url: upgraded };
-        }
-      } catch {
-        /* Sin token de página o Graph caído: se queda la miniatura. */
-      }
-    }
   }
   return lead;
+}
+
+/** Después de pintar la ficha: cambia la miniatura por la foto grande, sin frenar la navegación. */
+export async function upgradeLeadAdPhoto(leadId: string): Promise<string | null> {
+  const { on, me } = await leadsDesk();
+  if (!on) return null;
+  const sb = createClient();
+  const { data } = await sb
+    .from('leads')
+    .select('id, ad_id, thumbnail_url, campaign_id, campaign_name, ad_name')
+    .eq('id', leadId)
+    .maybeSingle();
+  const adId = (data?.ad_id as string | null)?.trim();
+  if (!data?.id || !adId) return null;
+  const current = (data.thumbnail_url as string | null) ?? null;
+  if (!isLikelyLowResAdImage(current)) return null;
+  try {
+    const admin = createAdminClient();
+    const next = await refreshLeadAdImage(admin, me.salon_id, {
+      leadId: data.id as string,
+      adId,
+      thumbnailUrl: current,
+      campaignId: (data.campaign_id as string | null) ?? null,
+      campaignName: (data.campaign_name as string | null) ?? null,
+      adName: (data.ad_name as string | null) ?? null,
+    });
+    if (next && next !== current) return next;
+  } catch {
+    /* Sin token o Graph caído: se queda la miniatura. */
+  }
+  return null;
 }
 
 export async function listLeadEvents(leadId: string): Promise<LeadEventRow[]> {
