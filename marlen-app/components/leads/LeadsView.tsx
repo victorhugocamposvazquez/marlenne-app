@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MessageCircle, Phone, Plus, Search, UserRound } from 'lucide-react';
 import { createManualLead, listLeadsPage, saveLeadTemplate, type LeadRow } from '@/app/actions/leads';
-import { createTestLead, importMetaLeadsPage, type MetaSyncResult } from '@/app/actions/leads-sync';
-import type { MetaSyncCursor } from '@/lib/meta-leads-sync';
+import type { LeadsListGroup } from '@/lib/leads-list-group';
 import Chip from '@/components/ui/Chip';
 import EmptyState from '@/components/ui/EmptyState';
 import PageHeading from '@/components/ui/PageHeading';
@@ -26,21 +25,16 @@ const FILTERS = [
   { id: 'whatsapp', label: 'WhatsApp' },
 ] as const;
 
-function syncSummary(res: MetaSyncResult) {
-  if (!res.ok) return res.error;
-  const entered = res.imported === 1 ? 'Entró 1 nuevo' : `Entraron ${res.imported} nuevos`;
-  const already = res.skipped > 0 ? `. ${res.skipped} ya estaban` : '';
-  return res.done ? `${entered}${already}. No quedan más en Facebook.` : `${entered}${already}. Hay más.`;
-}
-
 export default function LeadsView({
   leads: initialLeads,
   hasMore: initialHasMore,
   salonTemplate,
+  listGroup,
 }: {
   leads: LeadRow[];
   hasMore: boolean;
   salonTemplate: string | null;
+  listGroup: LeadsListGroup;
 }) {
   const router = useRouter();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]['id']>('todas');
@@ -54,10 +48,7 @@ export default function LeadsView({
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState(initialLeads);
   const [hasMore, setHasMore] = useState(initialHasMore);
-  const [syncCursor, setSyncCursor] = useState<MetaSyncCursor | null>(null);
-  const [syncNote, setSyncNote] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const [syncing, startSync] = useTransition();
   const leads = rows;
 
   useEffect(() => {
@@ -65,26 +56,27 @@ export default function LeadsView({
     setHasMore(initialHasMore);
   }, [initialLeads, initialHasMore]);
 
-  const campaigns = useMemo(() => {
+  const groupOptions = useMemo(() => {
     const names = new Set<string>();
     for (const lead of leads) {
-      const name = lead.campaign_name?.trim();
+      const name = (listGroup === 'ad' ? lead.ad_name : lead.campaign_name)?.trim();
       if (name) names.add(name);
     }
     return [...names].sort((a, b) => a.localeCompare(b, 'es'));
-  }, [leads]);
+  }, [leads, listGroup]);
 
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return leads.filter(lead => {
       const tone = leadTone(lead.last_channel);
       if (filter !== 'todas' && tone !== filter) return false;
-      if (campaignFilter && lead.campaign_name?.trim() !== campaignFilter) return false;
+      const groupName = (listGroup === 'ad' ? lead.ad_name : lead.campaign_name)?.trim();
+      if (campaignFilter && groupName !== campaignFilter) return false;
       if (!needle) return true;
       const hay = `${lead.full_name} ${lead.phone ?? ''}`.toLowerCase();
       return hay.includes(needle);
     });
-  }, [leads, filter, campaignFilter, q]);
+  }, [leads, filter, campaignFilter, q, listGroup]);
 
   const saveNew = () => {
     setError(null);
@@ -164,12 +156,12 @@ export default function LeadsView({
             </Chip>
           ))}
         </div>
-        {campaigns.length > 0 && (
+        {groupOptions.length > 0 && (
           <div className="mt-2 flex gap-1.5 overflow-x-auto">
             <Chip className="shrink-0" active={campaignFilter == null} onClick={() => setCampaignFilter(null)}>
-              Campañas
+              {listGroup === 'ad' ? 'Anuncios' : 'Campañas'}
             </Chip>
-            {campaigns.map(name => (
+            {groupOptions.map(name => (
               <Chip key={name} className="shrink-0" active={campaignFilter === name} onClick={() => setCampaignFilter(name)}>
                 {name}
               </Chip>
@@ -179,51 +171,17 @@ export default function LeadsView({
       </header>
 
       <div className="min-h-0 flex-1 overflow-auto px-6 pb-fab pt-1">
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={syncing}
-            onClick={() => startSync(async () => {
-              const res = await importMetaLeadsPage(syncCursor);
-              setSyncNote(syncSummary(res));
-              if (!res.ok) return;
-              setSyncCursor(res.done ? null : res.cursor);
-              if (res.imported > 0) router.refresh();
-            })}
-            className="min-h-[44px] rounded-pill bg-ink px-4 text-label font-bold text-white disabled:opacity-50"
-          >
-            {syncing ? 'Trayendo…' : syncCursor ? 'Siguiente página' : 'Traer los de Facebook'}
-          </button>
-          <button
-            type="button"
-            disabled={syncing}
-            onClick={() => startSync(async () => {
-              const res = await createTestLead();
-              if (!res.ok) {
-                setSyncNote(res.error);
-                return;
-              }
-              setSyncNote(res.via === 'meta' ? 'Lead de prueba creado en Facebook.' : 'Lead de prueba creado en la bandeja.');
-              router.push(`/leads/${res.id}`);
-            })}
-            className="min-h-[44px] rounded-pill bg-surface-soft px-4 text-label font-bold text-ink disabled:opacity-50"
-          >
-            Lead de prueba
-          </button>
-        </div>
-        {syncNote && <p className="mt-2 text-label font-semibold text-ink-2">{syncNote}</p>}
-
         {shown.length === 0 && (
           <EmptyState
             icon={UserRound}
             title={leads.length === 0 ? 'Todavía no hay leads.' : 'Ningún lead con ese filtro.'}
-            hint={leads.length === 0 ? 'Trae los que ya están en Facebook o crea uno de prueba.' : undefined}
+            hint={leads.length === 0 ? 'Importa desde Facebook en Ajustes → Leads, o crea uno con + arriba.' : undefined}
           />
         )}
         {shown.map(lead => {
           const tone = leadTone(lead.last_channel);
           const paint = TONE[tone];
-          const from = [lead.campaign_name, lead.ad_name].filter(Boolean).join(' · ');
+          const from = (listGroup === 'ad' ? lead.ad_name : lead.campaign_name)?.trim() ?? '';
           return (
             <Link
               key={lead.id}
@@ -250,8 +208,8 @@ export default function LeadsView({
         {hasMore && (
           <button
             type="button"
-            disabled={syncing}
-            onClick={() => startSync(async () => {
+            disabled={pending}
+            onClick={() => start(async () => {
               const last = rows[rows.length - 1]?.created_at;
               if (!last) return;
               const page = await listLeadsPage(last);
