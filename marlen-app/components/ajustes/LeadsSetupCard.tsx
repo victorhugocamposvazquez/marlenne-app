@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveLeadsListGroup } from '@/app/actions/leads-settings';
+import { saveLeadTemplate } from '@/app/actions/leads';
 import { createTestLead, importMetaLeadsPage } from '@/app/actions/leads-sync';
+import { DEFAULT_LEAD_WA } from '@/lib/leads';
 import type { LeadsListGroup } from '@/lib/leads-list-group';
 import type { MetaSyncCursor } from '@/lib/meta-leads-sync';
 import { metaSyncSummary } from '@/lib/leads-sync-summary';
@@ -14,14 +16,26 @@ const GROUPS: { id: LeadsListGroup; label: string; hint: string }[] = [
   { id: 'ad', label: 'Anuncios', hint: 'Filtros y listado por anuncio.' },
 ];
 
-export default function LeadsSetupCard({ listGroup }: { listGroup: LeadsListGroup }) {
+export default function LeadsSetupCard({
+  listGroup,
+  salonTemplate,
+}: {
+  listGroup: LeadsListGroup;
+  salonTemplate: string | null;
+}) {
   const router = useRouter();
   const [group, setGroup] = useState(listGroup);
+  const [template, setTemplate] = useState(salonTemplate?.trim() || DEFAULT_LEAD_WA);
+  const [templateNote, setTemplateNote] = useState<string | null>(null);
   const [syncCursor, setSyncCursor] = useState<MetaSyncCursor | null>(null);
   const [syncNote, setSyncNote] = useState<string | null>(null);
   const [groupNote, setGroupNote] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [syncing, startSync] = useTransition();
+
+  useEffect(() => {
+    setTemplate(salonTemplate?.trim() || DEFAULT_LEAD_WA);
+  }, [salonTemplate]);
 
   const pickGroup = (next: LeadsListGroup) => {
     setGroupNote(null);
@@ -94,6 +108,48 @@ export default function LeadsSetupCard({ listGroup }: { listGroup: LeadsListGrou
         </button>
       </div>
       {syncNote && <p className="text-label font-semibold text-ink-2">{syncNote}</p>}
+
+      <form
+        id="plantilla"
+        className="mt-6 border-t border-surface-soft pt-6"
+        onSubmit={e => {
+          e.preventDefault();
+          setTemplateNote(null);
+          start(async () => {
+            const res = await saveLeadTemplate({ scope: 'salon', body: template });
+            setTemplateNote(res.ok ? 'Plantilla guardada.' : res.error);
+            if (res.ok) router.refresh();
+          });
+        }}
+      >
+        <h2 className="text-body font-bold text-ink">WhatsApp del centro</h2>
+        <p className="mt-1 text-label leading-snug text-ink-2">
+          Texto por defecto al abrir WhatsApp desde un lead. Si el anuncio o la campaña tienen el suyo, mandan ellos.
+          Comodines: {'{{nombre}}'} {'{{campaña}}'} {'{{anuncio}}'} {'{{centro}}'}.
+        </p>
+        <p className="mt-1 text-label text-ink-3">
+          Plantillas solo de una campaña o anuncio se guardan en la ficha de un lead de esa campaña.
+        </p>
+        <textarea
+          value={template}
+          onChange={e => setTemplate(e.target.value)}
+          rows={4}
+          aria-label="Plantilla WhatsApp del centro"
+          className="mt-3 w-full rounded-field bg-surface-soft px-4 py-3 text-[16px] font-medium outline-none"
+        />
+        <button
+          type="submit"
+          disabled={pending}
+          className="mt-2 min-h-[44px] rounded-pill bg-ink px-4 text-label font-bold text-white disabled:opacity-50"
+        >
+          {pending ? 'Guardando…' : 'Guardar plantilla'}
+        </button>
+        {templateNote && (
+          <p className={`mt-2 text-label font-semibold ${templateNote === 'Plantilla guardada.' ? 'text-ink-2' : 'text-danger-fg'}`}>
+            {templateNote}
+          </p>
+        )}
+      </form>
     </div>
   );
 }

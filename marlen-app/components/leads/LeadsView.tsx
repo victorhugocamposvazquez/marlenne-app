@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MessageCircle, Phone, Plus, Search, UserRound } from 'lucide-react';
-import { createManualLead, listLeadsPage, saveLeadTemplate, type LeadRow } from '@/app/actions/leads';
+import { createManualLead, listLeadsPage, type LeadRow } from '@/app/actions/leads';
 import type { LeadsListGroup } from '@/lib/leads-list-group';
 import type { LeadsListFilter } from '@/lib/leads-list-query';
 import Chip from '@/components/ui/Chip';
@@ -29,13 +29,11 @@ const FILTERS = [
 export default function LeadsView({
   leads: initialLeads,
   hasMore: initialHasMore,
-  salonTemplate,
   listGroup,
   groupNames,
 }: {
   leads: LeadRow[];
   hasMore: boolean;
-  salonTemplate: string | null;
   listGroup: LeadsListGroup;
   groupNames: string[];
 }) {
@@ -47,7 +45,6 @@ export default function LeadsView({
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [campaign, setCampaign] = useState('');
-  const [template, setTemplate] = useState(salonTemplate ?? '');
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState(initialLeads);
   const [hasMore, setHasMore] = useState(initialHasMore);
@@ -255,34 +252,6 @@ export default function LeadsView({
             Ver más
           </button>
         )}
-
-        <form
-          className="mt-6"
-          onSubmit={e => {
-            e.preventDefault();
-            start(async () => {
-              const res = await saveLeadTemplate({ scope: 'salon', body: template });
-              setError(res.ok ? null : res.error);
-            });
-          }}
-        >
-          <label className="block text-label font-bold text-ink-2" htmlFor="lead-wa-salon">
-            WhatsApp del centro
-          </label>
-          <p className="mt-1 text-label text-ink-3">
-            Se usa si el anuncio o la campaña no tienen el suyo. Comodines: {'{{nombre}}'} {'{{campaña}}'} {'{{anuncio}}'} {'{{centro}}'}.
-          </p>
-          <textarea
-            id="lead-wa-salon"
-            value={template}
-            onChange={e => setTemplate(e.target.value)}
-            rows={3}
-            className="mt-2 w-full rounded-field bg-surface-soft px-4 py-3 text-[16px] font-medium outline-none"
-          />
-          <button type="submit" disabled={pending} className="mt-2 min-h-[44px] rounded-pill bg-ink px-4 text-label font-bold text-white disabled:opacity-50">
-            Guardar plantilla
-          </button>
-        </form>
       </div>
     </div>
   );

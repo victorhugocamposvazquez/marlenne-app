@@ -1,5 +1,5 @@
 import LeadsView from '@/components/leads/LeadsView';
-import { listLeadGroupNames, listLeadsPage, salonLeadWaTemplate } from '@/app/actions/leads';
+import { listLeadGroupNames, listLeadsPage } from '@/app/actions/leads';
 import { leadsDesk } from '@/lib/leads-desk';
 
 export default async function LeadsPage() {
@@ -14,16 +14,11 @@ export default async function LeadsPage() {
       </div>
     );
   }
-  const [page, salonTemplate, groupNames] = await Promise.all([
-    listLeadsPage(),
-    salonLeadWaTemplate(),
-    listLeadGroupNames(listGroup),
-  ]);
+  const [page, groupNames] = await Promise.all([listLeadsPage(), listLeadGroupNames(listGroup)]);
   return (
     <LeadsView
       leads={page.rows}
       hasMore={page.hasMore}
-      salonTemplate={salonTemplate}
       listGroup={listGroup}
       groupNames={groupNames}
     />

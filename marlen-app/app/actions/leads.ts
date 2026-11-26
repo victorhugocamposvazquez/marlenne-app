@@ -170,6 +170,7 @@ export async function leadTemplates(input: { campaignId?: string | null; adId?: 
 function refresh(id?: string) {
   revalidatePath('/leads');
   revalidatePath('/hoy');
+  revalidatePath('/ajustes/leads');
   if (id) revalidatePath(`/leads/${id}`);
 }
 
