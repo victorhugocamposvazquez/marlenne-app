@@ -433,7 +433,7 @@ export async function getClient(id: string) {
     sb.from('clients').select('*').eq('id', id).maybeSingle(),
     sb.from('treatments')
       .select(`
-        id, zone, sessions_done, sessions_total, last_params, note, opened_at, closed_at,
+        id, service_id, zone, sessions_done, sessions_total, last_params, note, opened_at, closed_at,
         service:services(name, category),
         provider:staff!treatments_provider_id_fkey(full_name),
         measurements(id, metric, value_num, value_text, unit, session_no, is_baseline, measured_at),

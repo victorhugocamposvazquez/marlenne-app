@@ -337,6 +337,39 @@ export async function closeSession(
   return { ok: true, error: null };
 }
 
+/** Abre el compartimento del servicio sin marcar ninguna cita como hecha. */
+export async function openTreatmentForPhotos(
+  sb: SupabaseClient,
+  input: { clientId: string; serviceId: string },
+): Promise<WriteResult> {
+  const { data: existing } = await sb
+    .from('treatments')
+    .select('id')
+    .eq('client_id', input.clientId)
+    .eq('service_id', input.serviceId)
+    .is('closed_at', null)
+    .order('opened_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (existing?.id) return { ok: true, error: null, id: existing.id };
+
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return { ok: false, error: 'Sin sesión' };
+  const { data: staff } = await sb.from('staff').select('salon_id').eq('id', user.id).maybeSingle();
+  if (!staff?.salon_id) return { ok: false, error: 'Sin sesión' };
+  const { data: svc } = await sb.from('services').select('default_sessions').eq('id', input.serviceId).maybeSingle();
+  const total = Math.max(Number(svc?.default_sessions) || 1, 1);
+  const { data, error } = await sb.from('treatments').insert({
+    salon_id: staff.salon_id,
+    client_id: input.clientId,
+    service_id: input.serviceId,
+    sessions_done: 0,
+    sessions_total: total,
+  }).select('id').single();
+  if (error || !data) return { ok: false, error: error?.message ?? 'No se ha podido abrir el tratamiento' };
+  return { ok: true, error: null, id: data.id };
+}
+
 export async function addTreatmentPhoto(
   sb: SupabaseClient,
   input: {

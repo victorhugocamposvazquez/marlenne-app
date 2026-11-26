@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { addTreatmentPhoto } from '@/lib/agenda-write';
+import { addTreatmentPhoto, openTreatmentForPhotos } from '@/lib/agenda-write';
 import { compressImage } from '@/hooks/compressImage';
 import { useToast } from '@/components/Toast';
 import { photoBusyKey, photoObjectPath, type PhotoTarget } from '@/lib/photos';
@@ -16,7 +16,7 @@ export function useTreatmentPhoto(onUploaded?: () => void) {
 
   const upload = (file: File | undefined, target: PhotoTarget) => {
     if (!file || busy) return;
-    if (!target.treatmentId && !target.clientId) return;
+    if (!target.treatmentId && !(target.serviceId && target.clientId)) return;
     const key = photoBusyKey(target);
     setError(null);
     setBusy(key);
@@ -24,8 +24,24 @@ export function useTreatmentPhoto(onUploaded?: () => void) {
       let path = '';
       try {
         const blob = await compressImage(file);
-        path = photoObjectPath(target, Date.now());
         const sb = createClient();
+        let treatmentId = target.treatmentId ?? undefined;
+        if (!treatmentId && target.serviceId && target.clientId) {
+          const opened = await openTreatmentForPhotos(sb, {
+            clientId: target.clientId,
+            serviceId: target.serviceId,
+          });
+          if (!opened.ok || !opened.id) {
+            setError(opened.error ?? 'No se ha podido abrir el tratamiento');
+            return;
+          }
+          treatmentId = opened.id;
+        }
+        if (!treatmentId) {
+          setError('Elige un tratamiento');
+          return;
+        }
+        path = photoObjectPath({ ...target, treatmentId }, Date.now());
         const { error: upErr } = await sb.storage.from('treatment-photos').upload(path, blob, {
           contentType: 'image/jpeg',
           upsert: false,
@@ -35,8 +51,7 @@ export function useTreatmentPhoto(onUploaded?: () => void) {
           return;
         }
         const r = await addTreatmentPhoto(sb, {
-          treatmentId: target.treatmentId ?? undefined,
-          clientId: target.treatmentId ? undefined : target.clientId ?? undefined,
+          treatmentId,
           kind: target.kind,
           zone: target.zone ?? undefined,
           sessionNo: target.sessionNo ?? undefined,

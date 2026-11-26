@@ -28,7 +28,7 @@ export default function PhotoPick({
         disabled={disabled}
         onChange={take}
         icon={<Camera size={15} strokeWidth={2.3} aria-hidden />}
-        className="bg-grad text-white"
+        className="border border-surface-line bg-surface-card text-ink shadow-card"
       />
       <Hit
         label={`Galería de ${label}`}

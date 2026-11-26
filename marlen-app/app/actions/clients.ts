@@ -83,7 +83,7 @@ export async function loadClientFicha(id: string) {
     listClientAppointments(client.id),
     listConsents(client.id),
     canEdit ? listSalonPackTemplates() : Promise.resolve([]),
-    canEdit ? listServices() : Promise.resolve([]),
+    listServices(),
   ]);
   return { client, treatments, clientPhotos, packs, appointments, consents, templates, services, canEdit };
 }
