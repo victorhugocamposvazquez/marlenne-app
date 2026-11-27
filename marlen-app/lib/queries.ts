@@ -458,11 +458,11 @@ async function treatmentPhotosByTreatmentId(
 
 export async function getClient(id: string) {
   const sb = createClient();
-  const [client, treatmentsRes, packs] = await Promise.all([
+  const [client, treatmentsRes, packs, loose] = await Promise.all([
     sb.from('clients').select('*').eq('id', id).maybeSingle(),
     sb.from('treatments')
       .select(`
-        id, zone, sessions_done, sessions_total, last_params, note, opened_at, closed_at,
+        id, service_id, zone, sessions_done, sessions_total, last_params, note, opened_at, closed_at,
         service:services(name, category),
         provider:staff!treatments_provider_id_fkey(full_name),
         measurements(id, metric, value_num, value_text, unit, session_no, is_baseline, measured_at)
@@ -470,6 +470,11 @@ export async function getClient(id: string) {
       .eq('client_id', id)
       .order('opened_at', { ascending: false }),
     listClientPacks(sb, id),
+    sb.from('treatment_photos')
+      .select('id, kind, zone, session_no, storage_path, taken_at')
+      .eq('client_id', id)
+      .is('treatment_id', null)
+      .order('taken_at', { ascending: false }),
   ]);
   const base = (treatmentsRes.data ?? []) as unknown as Omit<TreatmentRow, 'treatment_photos'>[];
   const photosByTx = await treatmentPhotosByTreatmentId(sb, base.map(t => t.id));
@@ -481,6 +486,7 @@ export async function getClient(id: string) {
     client: (client.data ?? null) as ClientRow | null,
     treatments,
     packs,
+    clientPhotos: (loose.error ? [] : loose.data ?? []) as TreatmentPhoto[],
   };
 }
 

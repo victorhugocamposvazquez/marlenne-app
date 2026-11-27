@@ -22,15 +22,18 @@ import {
   restoreLead,
   setLeadTags,
   trashLead,
+  upgradeLeadAdPhoto,
   type LeadEventRow,
   type LeadRow,
 } from '@/app/actions/leads';
 import { shallowSet } from '@/hooks/useShallowQuery';
 import LeadAdLightbox from '@/components/leads/LeadAdLightbox';
+import LeadAdPicture from '@/components/leads/LeadAdPicture';
 import LeadWaTemplateSheet from '@/components/leads/LeadWaTemplateSheet';
 import MetaLogo from '@/components/leads/MetaLogo';
 import DarCitaLink from '@/components/ui/DarCitaLink';
-import { leadAdTitle, leadTone, type LeadTone } from '@/lib/leads';
+import { inputCls } from '@/components/Sheet';
+import { isLeadTagId, LEAD_CALLBACK_TAG, LEAD_TAGS, leadTagLabel, leadTone, leadAdTitle, type LeadTone } from '@/lib/leads';
 
 const HISTORY_TITLE: Record<LeadEventRow['kind'], string> = {
   call: 'He llamado',
@@ -43,8 +46,8 @@ const HISTORY_TITLE: Record<LeadEventRow['kind'], string> = {
 
 const LIST_TONE = {
   none: { bg: '#F2F2F7', ink: '#6E6B7B', label: 'Sin tocar' },
-  call: { bg: '#E8F2FF', ink: '#0879FF', label: 'Llamada' },
-  whatsapp: { bg: '#E7F8EE', ink: '#15803D', label: 'WhatsApp' },
+  call: { bg: '#B7D4FF', ink: '#0357C4', label: 'Llamada' },
+  whatsapp: { bg: '#A6E6C3', ink: '#0D7A38', label: 'WhatsApp' },
 } as const;
 
 const TZ = 'Europe/Madrid';
@@ -87,17 +90,15 @@ export default function LeadFicha({
   events,
   templates,
   salonName,
-  knownTags = [],
 }: {
   lead: LeadRow;
   events: LeadEventRow[];
   templates: { ad: string | null; campaign: string | null; salon: string | null };
   salonName: string;
-  knownTags?: string[];
 }) {
   const router = useRouter();
   const [note, setNote] = useState('');
-  const [tag, setTag] = useState('');
+  const [photo, setPhoto] = useState(lead.thumbnail_url);
   const [error, setError] = useState<string | null>(null);
   const [adLightbox, setAdLightbox] = useState(false);
   const [waSheetOpen, setWaSheetOpen] = useState(false);
@@ -112,6 +113,24 @@ export default function LeadFicha({
   const adTitle = leadAdTitle(lead.ad_headline, lead.ad_name || from) || 'ANUNCIO';
   const showAdPreview = Boolean(lead.thumbnail_url || lead.ad_headline || lead.ad_name || from);
   const [listToneLocal, setListToneLocal] = useState<LeadTone>(() => leadTone(lead.last_channel));
+
+  useEffect(() => {
+    setPhoto(lead.thumbnail_url);
+  }, [lead.id, lead.thumbnail_url]);
+
+  useEffect(() => {
+    if (!lead.ad_id) return;
+    let alive = true;
+    const wait = window.setTimeout(() => {
+      void upgradeLeadAdPhoto(lead.id).then(url => {
+        if (alive && url) setPhoto(url);
+      });
+    }, 400);
+    return () => {
+      alive = false;
+      window.clearTimeout(wait);
+    };
+  }, [lead.id, lead.ad_id]);
 
   useEffect(() => {
     setListToneLocal(leadTone(lead.last_channel));
@@ -222,19 +241,14 @@ export default function LeadFicha({
         <div className="mt-4 overflow-hidden rounded-row bg-surface-soft p-3">
           <p className="text-[10px] font-bold uppercase tracking-wide text-ink-3">Anuncio</p>
           <p className="mt-1 text-body font-bold leading-snug text-ink">{adTitle}</p>
-          {lead.thumbnail_url ? (
+          {photo ? (
             <button
               type="button"
               onClick={() => setAdLightbox(true)}
               className="relative mt-2 block w-full overflow-hidden rounded-field text-left"
               aria-label="Ampliar creatividad"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={lead.thumbnail_url}
-                alt=""
-                className="aspect-[4/5] w-full object-cover"
-              />
+              <LeadAdPicture src={photo} className="aspect-[4/5] w-full object-cover" />
               <span
                 className="pointer-events-none absolute bottom-2 left-2 flex h-9 min-w-[2.25rem] items-center justify-center rounded-pill bg-ink px-2.5 text-white shadow-md"
                 aria-hidden
@@ -253,9 +267,9 @@ export default function LeadFicha({
         <p className="mt-4 text-label font-semibold text-ink-2">{from}</p>
       )}
 
-      {adLightbox && lead.thumbnail_url && (
+      {adLightbox && photo && (
         <LeadAdLightbox
-          src={lead.thumbnail_url}
+          src={photo}
           onClose={() => {
             setAdLightbox(false);
           }}
@@ -340,49 +354,51 @@ export default function LeadFicha({
       )}
 
       <div className="mt-5 flex flex-wrap gap-1.5">
-        {lead.tags.map(item => (
-          <button
-            key={item}
-            type="button"
-            onClick={() => run(() => setLeadTags(lead.id, lead.tags.filter(t => t !== item)))}
-            className="rounded-pill bg-surface-soft px-3 py-1.5 text-label font-bold"
-          >
-            {item} ×
-          </button>
-        ))}
+        {LEAD_TAGS.map(item => {
+          const on = lead.tags.includes(item.id);
+          return (
+            <button
+              key={item.id}
+              type="button"
+              disabled={pending}
+              aria-pressed={on}
+              onClick={() => {
+                const next = on ? lead.tags.filter(t => t !== item.id) : [...lead.tags, item.id];
+                const day = item.id === LEAD_CALLBACK_TAG && on ? null : lead.callback_at;
+                run(() => setLeadTags(lead.id, next, day));
+              }}
+              className={`min-h-[40px] rounded-pill px-3 py-1.5 text-label font-bold disabled:opacity-50 ${on ? 'bg-ink text-white' : 'border border-surface-line text-ink-2'}`}
+            >
+              {item.label}
+            </button>
+          );
+        })}
       </div>
-      <form
-        className="mt-2 flex gap-2"
-        onSubmit={e => {
-          e.preventDefault();
-          const next = tag.trim();
-          if (!next) return;
-          run(async () => {
-            const res = await setLeadTags(lead.id, [...lead.tags, next]);
-            if (res.ok) setTag('');
-            return res;
-          });
-        }}
-      >
-        <input
-          value={tag}
-          onChange={e => setTag(e.target.value)}
-          placeholder="Etiqueta"
-          aria-label="Nueva etiqueta"
-          className="min-w-0 flex-1 rounded-field bg-surface-soft px-4 py-3 text-[16px] outline-none"
-        />
-        <button type="submit" className="rounded-pill bg-ink px-4 text-label font-bold text-white">Añadir</button>
-      </form>
-      {knownTags.filter(item => !lead.tags.includes(item)).length > 0 && (
+      {lead.tags.includes(LEAD_CALLBACK_TAG) && (
+        <div className="mt-3">
+          <label className="text-label font-bold text-ink-2" htmlFor="lead-callback">
+            Cuándo volver a llamar
+          </label>
+          <input
+            id="lead-callback"
+            type="date"
+            className={`${inputCls} mt-1`}
+            value={lead.callback_at?.slice(0, 10) ?? ''}
+            onChange={e => run(() => setLeadTags(lead.id, lead.tags, e.target.value || null))}
+          />
+          <p className="mt-1 text-caption font-medium text-ink-3">Si no eliges día, se queda solo la etiqueta.</p>
+        </div>
+      )}
+      {lead.tags.some(item => !isLeadTagId(item)) && (
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {knownTags.filter(item => !lead.tags.includes(item)).map(item => (
+          {lead.tags.filter(item => !isLeadTagId(item)).map(item => (
             <button
               key={item}
               type="button"
-              onClick={() => run(() => setLeadTags(lead.id, [...lead.tags, item]))}
-              className="rounded-pill border border-surface-line px-3 py-1.5 text-label font-bold text-ink-2"
+              onClick={() => run(() => setLeadTags(lead.id, lead.tags.filter(t => t !== item), lead.callback_at))}
+              className="rounded-pill bg-surface-soft px-3 py-1.5 text-label font-bold"
             >
-              {item}
+              {leadTagLabel(item)} ×
             </button>
           ))}
         </div>

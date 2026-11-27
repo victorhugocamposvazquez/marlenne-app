@@ -13,18 +13,19 @@ import {
   type LeadRow,
   type LeadTrashRow,
 } from '@/app/actions/leads';
+import { pullMyRecentMetaLeads } from '@/app/actions/leads-sync';
 import type { LeadsListGroup } from '@/lib/leads-list-group';
 import type { LeadsListFilter } from '@/lib/leads-list-query';
 import EmptyState from '@/components/ui/EmptyState';
 import FilterDropdown from '@/components/ui/FilterDropdown';
 import PageHeading from '@/components/ui/PageHeading';
 import { HeaderIconButton, screenHeaderCls } from '@/components/ui/ScreenHeader';
-import { leadTone } from '@/lib/leads';
+import { leadTagsSummary, leadTone } from '@/lib/leads';
 
 const TONE = {
   none: { bg: '#F2F2F7', ink: '#6E6B7B' },
-  call: { bg: '#E8F2FF', ink: '#0879FF' },
-  whatsapp: { bg: '#E7F8EE', ink: '#15803D' },
+  call: { bg: '#B7D4FF', ink: '#0357C4' },
+  whatsapp: { bg: '#A6E6C3', ink: '#0D7A38' },
 } as const;
 
 const FILTERS = [
@@ -81,6 +82,7 @@ export default function LeadsView({
   const [trashPending, startTrash] = useTransition();
   const leads = rows;
   const filtersReady = useRef(false);
+  const fetchListRef = useRef<(before?: string | null) => void>(() => undefined);
 
   const buildFilters = useCallback(
     (before?: string | null): LeadsListFilter => ({
@@ -93,23 +95,53 @@ export default function LeadsView({
     [filter, listGroup, campaignFilter, q],
   );
 
+  const applyPage = useCallback((page: { rows: LeadRow[]; hasMore: boolean }, before?: string | null) => {
+    if (before) {
+      setRows(current => {
+        const seen = new Set(current.map(lead => lead.id));
+        return [...current, ...page.rows.filter(lead => !seen.has(lead.id))];
+      });
+    } else {
+      setRows(page.rows);
+    }
+    setHasMore(page.hasMore);
+  }, []);
+
   const fetchList = useCallback(
     (before?: string | null) => {
-      startList(async () => {
-        const page = await listLeadsPage(buildFilters(before));
-        if (before) {
-          setRows(current => {
-            const seen = new Set(current.map(lead => lead.id));
-            return [...current, ...page.rows.filter(lead => !seen.has(lead.id))];
-          });
-        } else {
-          setRows(page.rows);
-        }
-        setHasMore(page.hasMore);
-      });
+      const run = listLeadsPage(buildFilters(before)).then(page => applyPage(page, before));
+      if (before) startList(() => { void run; });
+      else void run;
     },
-    [buildFilters],
+    [applyPage, buildFilters],
   );
+
+  fetchListRef.current = fetchList;
+
+  useEffect(() => {
+    let alive = true;
+    let busy = false;
+    const onInbox = () => alive && window.location.pathname === '/leads';
+
+    const syncInbox = async () => {
+      if (!onInbox() || busy) return;
+      busy = true;
+      try {
+        await pullMyRecentMetaLeads().catch(() => undefined);
+        if (onInbox()) fetchListRef.current();
+      } finally {
+        busy = false;
+      }
+    };
+
+    const first = window.setTimeout(() => { void syncInbox(); }, 2500);
+    const id = window.setInterval(() => { void syncInbox(); }, 45_000);
+    return () => {
+      alive = false;
+      window.clearTimeout(first);
+      window.clearInterval(id);
+    };
+  }, []);
 
   useEffect(() => {
     setRows(initialLeads);
@@ -145,12 +177,8 @@ export default function LeadsView({
       if (document.visibilityState === 'visible') fetchList();
     };
     document.addEventListener('visibilitychange', resync);
-    window.addEventListener('pageshow', resync);
-    window.addEventListener('focus', resync);
     return () => {
       document.removeEventListener('visibilitychange', resync);
-      window.removeEventListener('pageshow', resync);
-      window.removeEventListener('focus', resync);
     };
   }, [fetchList]);
 
@@ -277,7 +305,7 @@ export default function LeadsView({
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-auto px-6 pb-fab pt-1">
+      <div className="min-h-0 flex-1 overflow-auto px-6 pb-fab pt-1" data-no-pull>
         {listPending && leads.length === 0 && (
           <p className="mt-4 text-label font-medium text-ink-2">Cargando…</p>
         )}
@@ -315,7 +343,7 @@ export default function LeadsView({
                 </span>
                 <span className="mt-0.5 block truncate text-label text-ink-3">{leadDateTime(lead.created_at)}</span>
                 {lead.tags.length > 0 && (
-                  <span className="mt-0.5 block truncate text-label text-ink-3">{lead.tags.join(' · ')}</span>
+                  <span className="mt-0.5 block truncate text-label text-ink-3">{leadTagsSummary(lead.tags, lead.callback_at)}</span>
                 )}
               </span>
               {tone === 'call' && <Phone size={20} strokeWidth={2.2} style={{ color: paint.ink }} aria-label="Llamado" />}

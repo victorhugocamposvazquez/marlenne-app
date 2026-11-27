@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Camera, Images, Plus } from 'lucide-react';
 
+const ACCEPT = 'image/*,.heic,.heif';
+
 /**
- * Un solo botón en UI; al pulsar, menú con dos rutas técnicas:
- * - cámara (`capture`) — no depende de que el SO muestre «Tomar foto»
- * - galería (sin `capture`) — rollo y archivos
+ * Un solo botón; menú con cámara (`capture`) y galería (sin `capture`).
+ * Acepta HEIC del iPhone.
  */
 export default function PhotoPick({
   label,
@@ -55,7 +56,7 @@ export default function PhotoPick({
       <input
         ref={cameraRef}
         type="file"
-        accept="image/*"
+        accept={ACCEPT}
         capture="environment"
         disabled={disabled}
         onChange={take}
@@ -65,7 +66,7 @@ export default function PhotoPick({
       <input
         ref={galleryRef}
         type="file"
-        accept="image/*"
+        accept={ACCEPT}
         disabled={disabled}
         onChange={take}
         className="sr-only"

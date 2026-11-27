@@ -52,6 +52,7 @@ export default function ClientFichaSheet({
         <ClientaFicha
           client={data.client}
           treatments={data.treatments}
+          clientPhotos={data.clientPhotos}
           packs={data.packs}
           templates={data.templates}
           services={data.services}

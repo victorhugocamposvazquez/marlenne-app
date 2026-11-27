@@ -18,20 +18,32 @@ create index if not exists treatment_photos_treatment_session_idx
 
 alter table public.treatment_photos enable row level security;
 
-drop policy if exists photos_all on public.treatment_photos;
-create policy photos_all on public.treatment_photos for all
-  using (
-    exists (
-      select 1 from public.treatments t
-      where t.id = treatment_id and t.salon_id = my_salon()
+-- Si ya corrió 20261126140000_client_photos.sql, no pisar RLS ni Storage (fotos client/…).
+do $policy$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'treatment_photos' and column_name = 'client_id'
+  ) then
+    return;
+  end if;
+
+  drop policy if exists photos_all on public.treatment_photos;
+  create policy photos_all on public.treatment_photos for all
+    using (
+      exists (
+        select 1 from public.treatments t
+        where t.id = treatment_id and t.salon_id = my_salon()
+      )
     )
-  )
-  with check (
-    exists (
-      select 1 from public.treatments t
-      where t.id = treatment_id and t.salon_id = my_salon()
-    )
-  );
+    with check (
+      exists (
+        select 1 from public.treatments t
+        where t.id = treatment_id and t.salon_id = my_salon()
+      )
+    );
+end;
+$policy$;
 
 grant select, insert, update, delete on public.treatment_photos to authenticated;
 
@@ -39,42 +51,53 @@ insert into storage.buckets (id, name, public)
 values ('treatment-photos', 'treatment-photos', false)
 on conflict (id) do nothing;
 
-drop policy if exists treatment_photos_read on storage.objects;
-create policy treatment_photos_read on storage.objects for select
-  using (
-    bucket_id = 'treatment-photos'
-    and exists (
-      select 1 from public.treatments t
-      where t.id::text = (storage.foldername(name))[1] and t.salon_id = my_salon()
-    )
-  );
+do $storage$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'treatment_photos' and column_name = 'client_id'
+  ) then
+    return;
+  end if;
 
-drop policy if exists treatment_photos_insert on storage.objects;
-create policy treatment_photos_insert on storage.objects for insert
-  with check (
-    bucket_id = 'treatment-photos'
-    and exists (
-      select 1 from public.treatments t
-      where t.id::text = (storage.foldername(name))[1] and t.salon_id = my_salon()
-    )
-  );
+  drop policy if exists treatment_photos_read on storage.objects;
+  create policy treatment_photos_read on storage.objects for select
+    using (
+      bucket_id = 'treatment-photos'
+      and exists (
+        select 1 from public.treatments t
+        where t.id::text = (storage.foldername(name))[1] and t.salon_id = my_salon()
+      )
+    );
 
-drop policy if exists treatment_photos_update on storage.objects;
-create policy treatment_photos_update on storage.objects for update
-  using (
-    bucket_id = 'treatment-photos'
-    and exists (
-      select 1 from public.treatments t
-      where t.id::text = (storage.foldername(name))[1] and t.salon_id = my_salon()
-    )
-  );
+  drop policy if exists treatment_photos_insert on storage.objects;
+  create policy treatment_photos_insert on storage.objects for insert
+    with check (
+      bucket_id = 'treatment-photos'
+      and exists (
+        select 1 from public.treatments t
+        where t.id::text = (storage.foldername(name))[1] and t.salon_id = my_salon()
+      )
+    );
 
-drop policy if exists treatment_photos_delete on storage.objects;
-create policy treatment_photos_delete on storage.objects for delete
-  using (
-    bucket_id = 'treatment-photos'
-    and exists (
-      select 1 from public.treatments t
-      where t.id::text = (storage.foldername(name))[1] and t.salon_id = my_salon()
-    )
-  );
+  drop policy if exists treatment_photos_update on storage.objects;
+  create policy treatment_photos_update on storage.objects for update
+    using (
+      bucket_id = 'treatment-photos'
+      and exists (
+        select 1 from public.treatments t
+        where t.id::text = (storage.foldername(name))[1] and t.salon_id = my_salon()
+      )
+    );
+
+  drop policy if exists treatment_photos_delete on storage.objects;
+  create policy treatment_photos_delete on storage.objects for delete
+    using (
+      bucket_id = 'treatment-photos'
+      and exists (
+        select 1 from public.treatments t
+        where t.id::text = (storage.foldername(name))[1] and t.salon_id = my_salon()
+      )
+    );
+end;
+$storage$;

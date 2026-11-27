@@ -128,6 +128,14 @@ export async function deleteClientRecord(
     if (phErr) return { ok: false, error: phErr.message };
     paths = (photos ?? []).map(p => p.storage_path).filter(Boolean);
   }
+  const loose = await sb
+    .from('treatment_photos')
+    .select('storage_path')
+    .eq('client_id', id)
+    .is('treatment_id', null);
+  if (!loose.error) {
+    paths.push(...(loose.data ?? []).map(p => p.storage_path).filter(Boolean));
+  }
 
   // Hay que borrar Storage con los tratamientos aún vivos: la política mira esa fila.
   for (let i = 0; i < paths.length; i += STORAGE_CHUNK) {

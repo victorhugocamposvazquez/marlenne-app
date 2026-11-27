@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { X } from 'lucide-react';
+import LeadAdPicture from '@/components/leads/LeadAdPicture';
 
 export default function LeadAdLightbox({ src, onClose }: { src: string; onClose: () => void }) {
   const [scale, setScale] = useState(1);
@@ -91,11 +92,8 @@ export default function LeadAdLightbox({ src, onClose }: { src: string; onClose:
         onTouchCancel={onTouchEnd}
         onDoubleClick={onDoubleClick}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <LeadAdPicture
           src={src}
-          alt=""
-          draggable={false}
           className="max-h-[min(82dvh,900px)] max-w-full select-none"
           style={{
             transform: `translate3d(${pos.x}px, ${pos.y}px, 0) scale(${scale})`,

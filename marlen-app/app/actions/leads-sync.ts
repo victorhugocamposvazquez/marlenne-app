@@ -7,11 +7,14 @@ import { leadsEnabled } from '@/lib/leads-enabled';
 import { enrichLeadsAdCreative } from '@/lib/meta-lead-creative';
 import { leadFieldsFromMeta, leadFormRowsFromMeta } from '@/lib/leads';
 import { notifyNewLead } from '@/lib/lead-push';
+import { subscribePageToLeadgen } from '@/lib/meta-page-subscribe';
 import {
   META_LEADS_PAGE,
   TEST_LEAD_FIELDS,
   graphAfter,
+  metaLeadIsFresh,
   metaLeadWhen,
+  newestMetaInstant,
   nextImportCursor,
   type MetaSyncCursor,
 } from '@/lib/meta-leads-sync';
@@ -105,8 +108,25 @@ async function savePage(
       ...(when ? { created_at: when } : {}),
     };
   });
-  const { error } = await admin.from('leads').insert(payload);
+  const { data: inserted, error } = await admin
+    .from('leads')
+    .insert(payload)
+    .select('id, meta_lead_id, full_name, phone, campaign_name, ad_name, created_at');
   if (error) throw new Error(error.message);
+  const whenByMeta = new Map(payload.map(row => [row.meta_lead_id, row.created_at ?? null]));
+  await Promise.all((inserted ?? []).map(async row => {
+    const when = whenByMeta.get(row.meta_lead_id as string);
+    if (!metaLeadIsFresh(when)) return;
+    await notifyNewLead({
+      salonId,
+      leadId: row.id as string,
+      name: (row.full_name as string) || 'Nuevo lead',
+      phone: (row.phone as string | null) ?? null,
+      campaign: (row.campaign_name as string | null) ?? null,
+      ad: (row.ad_name as string | null) ?? null,
+      fromMeta: true,
+    }).catch(() => undefined);
+  }));
 
   const access = token?.trim();
   if (access) {
@@ -210,6 +230,84 @@ export async function importMetaLeadsPage(cursor?: MetaSyncCursor | null): Promi
   };
 }
 
+const RECENT_FORMS = 40;
+/** Con la app abierta: basta con los formularios más recientes. */
+const RECENT_FORMS_INBOX = 8;
+
+async function pullSalonRecent(salonId: string, maxForms = RECENT_FORMS) {
+  const admin = createAdminClient();
+  const { data: conn, error } = await admin
+    .from('meta_connections')
+    .select('page_id, page_access_token')
+    .eq('salon_id', salonId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  const pageId = (conn?.page_id as string | undefined)?.trim();
+  const token = (conn?.page_access_token as string | undefined)?.trim();
+  if (!pageId || !token) return { imported: 0, newest: null as string | null };
+  await subscribePageToLeadgen(pageId, token).catch(() => undefined);
+  const forms = (await listFormIds(pageId, token)).slice(0, maxForms);
+  let imported = 0;
+  const times: (string | null | undefined)[] = [];
+  for (const formId of forms) {
+    try {
+      const page = await graphGet<{ data?: GraphLead[] }>(`${encodeURIComponent(formId)}/leads`, token, {
+        fields: 'id,created_time,ad_id,ad_name,campaign_id,campaign_name,field_data',
+        limit: String(META_LEADS_PAGE),
+      });
+      for (const row of page.data ?? []) times.push(row.created_time);
+      const saved = await savePage(salonId, page.data ?? [], token);
+      imported += saved.imported;
+    } catch {
+      /* Un formulario caído no frena al resto. */
+    }
+  }
+  return { imported, newest: newestMetaInstant(times) };
+}
+
+/** Mientras la app está abierta: los leads nuevos entran sin pulsar nada. */
+export async function pullMyRecentMetaLeads(): Promise<
+  { ok: true; imported: number; newest: string | null } | { ok: false; error: string }
+> {
+  const me = await requireRole('admin', 'reception');
+  if (!await leadsEnabled(me.salon_id)) return { ok: true, imported: 0, newest: null };
+  try {
+    const pulled = await pullSalonRecent(me.salon_id, RECENT_FORMS_INBOX);
+    return { ok: true, imported: pulled.imported, newest: pulled.newest };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'No se han podido traer los leads' };
+  }
+}
+
+/** Con el móvil cerrado: el cron de cada minuto hace lo mismo en todos los centros. */
+export async function pullAllRecentMetaLeads(): Promise<{ imported: number; salons: number; error?: string }> {
+  const admin = createAdminClient();
+  const { data: conns, error } = await admin.from('meta_connections').select('salon_id');
+  if (error) return { imported: 0, salons: 0, error: error.message };
+  const salonIds = [...new Set((conns ?? []).map(row => row.salon_id as string).filter(Boolean))];
+  if (!salonIds.length) return { imported: 0, salons: 0 };
+  const { data: salons, error: salonError } = await admin
+    .from('salons')
+    .select('id, feature_leads')
+    .in('id', salonIds);
+  if (salonError) return { imported: 0, salons: 0, error: salonError.message };
+  const open = (salons ?? []).filter(row => row.feature_leads).map(row => row.id as string);
+  let imported = 0;
+  let firstError: string | undefined;
+  for (const salonId of open) {
+    try {
+      imported += (await pullSalonRecent(salonId)).imported;
+    } catch (err) {
+      firstError ??= err instanceof Error ? err.message : 'No se han podido traer los leads';
+    }
+  }
+  if (imported > 0) {
+    revalidatePath('/leads');
+    revalidatePath('/hoy');
+  }
+  return { imported, salons: open.length, ...(firstError ? { error: firstError } : {}) };
+}
+
 export async function createTestLead(): Promise<{ ok: true; id: string; via: 'meta' | 'local' } | { ok: false; error: string }> {
   const me = await requireRole('admin', 'reception');
   if (!await leadsEnabled(me.salon_id)) {
@@ -256,16 +354,6 @@ export async function createTestLead(): Promise<{ ok: true; id: string; via: 'me
             .eq('meta_lead_id', body.id)
             .maybeSingle();
           if (row?.id) {
-            if (imported > 0) {
-              await notifyNewLead({
-                salonId: me.salon_id,
-                leadId: row.id as string,
-                name: 'Lead de prueba',
-                phone: '+34600000000',
-                campaign: 'Prueba',
-                fromMeta: true,
-              }).catch(() => undefined);
-            }
             revalidatePath('/leads');
             revalidatePath('/hoy');
             return { ok: true, id: row.id as string, via: 'meta' };

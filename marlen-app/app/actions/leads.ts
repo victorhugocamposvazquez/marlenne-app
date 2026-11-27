@@ -8,7 +8,9 @@ import { createClientRecord } from '@/lib/client-write';
 import { leadsDesk } from '@/lib/leads-desk';
 import { leadsEnabled } from '@/lib/leads-enabled';
 import { notifyNewLead } from '@/lib/lead-push';
-import { parseLeadFormFields, type LeadChannel, type LeadFormField } from '@/lib/leads';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { isLikelyLowResAdImage, refreshLeadAdImage } from '@/lib/meta-lead-creative';
+import { leadTagsSummary, normalizeLeadDay, parseLeadFormFields, LEAD_CALLBACK_TAG, type LeadChannel, type LeadFormField } from '@/lib/leads';
 import type { LeadsListGroup } from '@/lib/leads-list-group';
 import { normalizeLeadsListFilter, type LeadsListFilter } from '@/lib/leads-list-query';
 
@@ -25,6 +27,7 @@ export type LeadRow = {
   ad_headline: string | null;
   ad_body: string | null;
   tags: string[];
+  callback_at: string | null;
   last_channel: LeadChannel | null;
   client_id: string | null;
   created_at: string;
@@ -48,10 +51,17 @@ export type LeadEventRow = {
   staff_name: string | null;
 };
 
-const LEAD_SELECT = 'id, full_name, phone, email, campaign_id, campaign_name, ad_id, ad_name, thumbnail_url, ad_headline, ad_body, tags, last_channel, client_id, created_at, deleted_at, form_fields, meta_lead_id';
-const LEAD_SELECT_NO_TRASH = LEAD_SELECT.replace(', deleted_at', '');
+const LEAD_SELECT = 'id, full_name, phone, email, campaign_id, campaign_name, ad_id, ad_name, thumbnail_url, ad_headline, ad_body, tags, callback_at, last_channel, client_id, created_at, deleted_at, form_fields, meta_lead_id';
 
-const LEAD_LIST_SELECT = 'id, full_name, phone, campaign_name, ad_name, tags, last_channel, created_at';
+function leadDetailSelect(opts: { trash: boolean; callback: boolean }) {
+  let select = LEAD_SELECT;
+  if (!opts.trash) select = select.replace(', deleted_at', '');
+  if (!opts.callback) select = select.replace(', callback_at', '');
+  return select;
+}
+
+const LEAD_LIST_SELECT = 'id, full_name, phone, campaign_name, ad_name, tags, callback_at, last_channel, created_at';
+const LEAD_LIST_SELECT_NO_CALLBACK = LEAD_LIST_SELECT.replace(', callback_at', '');
 
 function missingTable(message: string) {
   return /feature_leads|relation .*leads|lead_events|lead_wa_templates/i.test(message);
@@ -59,6 +69,10 @@ function missingTable(message: string) {
 
 function missingTrashColumn(message: string) {
   return /deleted_at/i.test(message);
+}
+
+function missingCallbackColumn(message: string) {
+  return /callback_at/i.test(message);
 }
 
 const PAGE = 40;
@@ -75,10 +89,10 @@ export async function listLeadsPage(
   if (!on) return { rows: [], hasMore: false };
   const sb = createClient();
 
-  const buildQuery = (activeOnly: boolean) => {
+  const buildQuery = (activeOnly: boolean, withCallback = true) => {
     let query = sb
       .from('leads')
-      .select(LEAD_LIST_SELECT)
+      .select(withCallback ? LEAD_LIST_SELECT : LEAD_LIST_SELECT_NO_CALLBACK)
       .eq('salon_id', me.salon_id)
       .order('created_at', { ascending: false })
       .limit(PAGE + 1);
@@ -99,16 +113,24 @@ export async function listLeadsPage(
     return query;
   };
 
-  let { data, error } = await buildQuery(true);
+  let withCallback = true;
+  let activeOnly = true;
+  let { data, error } = await buildQuery(activeOnly, withCallback);
+  if (error && missingCallbackColumn(error.message)) {
+    withCallback = false;
+    ({ data, error } = await buildQuery(activeOnly, withCallback));
+  }
   if (error && missingTrashColumn(error.message)) {
-    ({ data, error } = await buildQuery(false));
+    activeOnly = false;
+    ({ data, error } = await buildQuery(activeOnly, withCallback));
   }
   if (error) {
     if (missingTable(error.message)) return { rows: [], hasMore: false };
     throw new Error(error.message);
   }
   const rows = (data ?? []).map(row => ({
-    ...(row as LeadRow),
+    ...(row as unknown as LeadRow),
+    callback_at: (row as unknown as { callback_at?: string | null }).callback_at ?? null,
     deleted_at: null,
     form_fields: [] as LeadFormField[],
     meta_lead_id: null,
@@ -140,6 +162,7 @@ function mapLeadRow(raw: Record<string, unknown> | null): LeadRow | null {
   if (!raw) return null;
   return {
     ...(raw as LeadRow),
+    callback_at: (raw.callback_at as string | null) ?? null,
     deleted_at: (raw.deleted_at as string | null) ?? null,
     form_fields: parseLeadFormFields(raw.form_fields),
   };
@@ -172,19 +195,26 @@ export async function getLead(id: string): Promise<LeadRow | null> {
   const { on, me } = await leadsDesk();
   if (!on) return null;
   const sb = createClient();
-  let { data, error } = await sb.from('leads').select(LEAD_SELECT).eq('id', id).maybeSingle();
-  if (error && missingTrashColumn(error.message)) {
-    ({ data, error } = await sb.from('leads').select(LEAD_SELECT_NO_TRASH).eq('id', id).maybeSingle());
+  let trash = true;
+  let callback = true;
+  let { data, error } = await sb.from('leads').select(leadDetailSelect({ trash, callback })).eq('id', id).maybeSingle();
+  for (let i = 0; i < 2 && error; i += 1) {
+    let changed = false;
+    if (missingTrashColumn(error.message) && trash) { trash = false; changed = true; }
+    if (missingCallbackColumn(error.message) && callback) { callback = false; changed = true; }
+    if (!changed) break;
+    ({ data, error } = await sb.from('leads').select(leadDetailSelect({ trash, callback })).eq('id', id).maybeSingle());
   }
   if (error) return null;
   let lead = mapLeadRow(data as Record<string, unknown> | null);
   if (!lead) return null;
-  if (lead.ad_id && !lead.thumbnail_url) {
+  const adId = lead.ad_id?.trim() || null;
+  if (adId) {
     const { data: ad } = await sb
       .from('meta_ads')
       .select('thumbnail_url, headline, body')
       .eq('salon_id', me.salon_id)
-      .eq('ad_id', lead.ad_id)
+      .eq('ad_id', adId)
       .maybeSingle();
     if (ad) {
       lead = {
@@ -196,6 +226,37 @@ export async function getLead(id: string): Promise<LeadRow | null> {
     }
   }
   return lead;
+}
+
+/** Después de pintar la ficha: cambia la miniatura por la foto grande, sin frenar la navegación. */
+export async function upgradeLeadAdPhoto(leadId: string): Promise<string | null> {
+  const { on, me } = await leadsDesk();
+  if (!on) return null;
+  const sb = createClient();
+  const { data } = await sb
+    .from('leads')
+    .select('id, ad_id, thumbnail_url, campaign_id, campaign_name, ad_name')
+    .eq('id', leadId)
+    .maybeSingle();
+  const adId = (data?.ad_id as string | null)?.trim();
+  if (!data?.id || !adId) return null;
+  const current = (data.thumbnail_url as string | null) ?? null;
+  if (!isLikelyLowResAdImage(current)) return null;
+  try {
+    const admin = createAdminClient();
+    const next = await refreshLeadAdImage(admin, me.salon_id, {
+      leadId: data.id as string,
+      adId,
+      thumbnailUrl: current,
+      campaignId: (data.campaign_id as string | null) ?? null,
+      campaignName: (data.campaign_name as string | null) ?? null,
+      adName: (data.ad_name as string | null) ?? null,
+    });
+    if (next && next !== current) return next;
+  } catch {
+    /* Sin token o Graph caído: se queda la miniatura. */
+  }
+  return null;
 }
 
 export async function listLeadEvents(leadId: string): Promise<LeadEventRow[]> {
@@ -422,19 +483,34 @@ export async function addLeadNote(leadId: string, body: string) {
   return { ok: true as const };
 }
 
-export async function setLeadTags(leadId: string, tags: string[]) {
+export async function setLeadTags(leadId: string, tags: string[], callbackOn?: string | null) {
   const { me, on } = await leadsDesk();
   if (!on) return { ok: false as const, error: 'Leads no está activado' };
   const clean = [...new Set(tags.map(t => t.trim()).filter(Boolean))].slice(0, 12);
+  const day = clean.includes(LEAD_CALLBACK_TAG) ? normalizeLeadDay(callbackOn) : null;
   const sb = createClient();
-  const { error } = await sb.from('leads').update({ tags: clean }).eq('id', leadId);
+  let { error } = await sb.from('leads').update({ tags: clean, callback_at: day }).eq('id', leadId);
+  if (error && missingCallbackColumn(error.message)) {
+    ({ error } = await sb.from('leads').update({ tags: clean }).eq('id', leadId));
+    if (error) return { ok: false as const, error: error.message };
+    await sb.from('lead_events').insert({
+      salon_id: me.salon_id,
+      lead_id: leadId,
+      staff_id: me.id,
+      kind: 'tag',
+      body: leadTagsSummary(clean, null) || 'Sin etiquetas',
+    });
+    refresh(leadId);
+    if (day) return { ok: false as const, error: 'La fecha aún no está en la base. Hay que aplicar la migración de leads.' };
+    return { ok: true as const };
+  }
   if (error) return { ok: false as const, error: error.message };
   await sb.from('lead_events').insert({
     salon_id: me.salon_id,
     lead_id: leadId,
     staff_id: me.id,
     kind: 'tag',
-    body: clean.join(', ') || 'Sin etiquetas',
+    body: leadTagsSummary(clean, day) || 'Sin etiquetas',
   });
   refresh(leadId);
   return { ok: true as const };

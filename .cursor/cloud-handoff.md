@@ -26,6 +26,21 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
+- 2026-11-27 — **Leads:** la ficha abre al momento. La foto grande se pide después de pintar, y Facebook espera 2,5 s al entrar en la bandeja para no frenar el toque. PR #74 → `main`.
+- 2026-11-27 — **Leads:** la foto del anuncio se pide a 1080 y, al abrir la ficha, se cambia la miniatura por `full_picture` si Meta la da. PR #73 → `main`.
+
+- 2026-11-27 — **Leads:** la creatividad del anuncio (p. ej. HIFU) pide la imagen grande a Meta si solo había miniatura. PR #72 → `main`.
+- 2026-11-27 — **Leads:** la bandeja ya no se queda en «Actualizando…», abre el detalle y sigue refrescando cada 45 s. PR #71 → `main`.
+- 2026-11-27 — **Leads:** al entrar y cada 30 s en la bandeja se refresca la lista. Abrir una ficha no vuelve atrás. PR #70 → `main`.
+- 2026-11-27 — **Leads:** abrir una ficha ya no vuelve a la lista. El refresco al entrar sigue, sin pisar la navegación. PR #69 → `main`.
+- 2026-11-27 — **Leads:** al entrar en la bandeja se piden los nuevos a Facebook y se refresca la lista. PR #68 → `main`.
+- 2026-11-26 — **Leads:** entran solos (la página queda suscrita a Meta, la app abierta los pide cada 45 s y el cron de cada minuto también) y el push sale con cada lead reciente. El botón de Ajustes queda solo para el histórico. PR #67 → `main`.
+- 2026-11-26 — **Leads:** etiquetas para elegir (volver a llamar, con día opcional, no responde, no interesado, quiere cita, pensándoselo, número erróneo). PR #66 → `main`. Falta aplicar `supabase/migrations/20261126150000_lead_callback.sql` para que el día se guarde.
+- 2026-11-26 — **Clientas:** el fondo de hacer foto, galería y la confirmación de consentimiento deja de cerrarse en círculo. PR #65 → `main`.
+- 2026-11-26 — **Clientas:** cada foto va a un tratamiento. Sin cita, se elige el servicio de la misma lista y se abre ese compartimento. Hacer foto queda tan ligero como Galería. PR #64 → `main`.
+- 2026-11-26 — **Clientas:** las fotos se guardan en la ficha sin marcar una cita como hecha; PR #63 → `main`. La migración `20261126140000_client_photos.sql` ya no hace falta para esto.
+- 2026-11-26 — **Clientas:** la cámara y la galería de las fotos vuelven a abrirse al tocarlas; PR #62 → `main`.
+- 2026-11-26 — **Leads:** el fondo de llamado y de WhatsApp en el listado se ve más marcado; PR #61 → `main`.
 - 2026-11-25 — **Leads:** bandeja con filtro por campaña, ficha con deshacer y etiquetas del centro, y en Ajustes la admin conecta la página de Facebook; PR #60 → `main`.
 - 2026-11-25 — **Leads:** OPS enciende la bandeja por centro; cada lead nuevo avisa con un push que abre esa ficha; PR #59 → `main`.
 - 2026-11-20 — **Clientas:** al buscar, X arriba para salir y bajar el teclado; el campo queda como el combobox de Google; PR #58 → `main`.
