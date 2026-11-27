@@ -13,13 +13,13 @@ export default function PhotoPick({
   label,
   disabled,
   onFile,
-  circle = false,
+  square = false,
 }: {
   label: string;
   disabled?: boolean;
   onFile: (file: File) => void;
-  /** Círculo para añadir junto a las fotos del tratamiento. */
-  circle?: boolean;
+  /** Cuadrado para añadir junto a las fotos del tratamiento. */
+  square?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -83,12 +83,12 @@ export default function PhotoPick({
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen(o => !o)}
-        className={circle
-          ? 'grid h-[88px] w-[88px] place-items-center rounded-full border border-dashed border-handle bg-surface-card text-v motion-safe:active:scale-[.98] disabled:opacity-40'
+        className={square
+          ? 'grid aspect-square w-full place-items-center rounded-row border border-dashed border-handle bg-surface-card text-v motion-safe:active:scale-[.98] disabled:opacity-40'
           : 'inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-chip border border-surface-line bg-surface-card px-2.5 text-caption font-extrabold text-ink shadow-card motion-safe:active:scale-[.98] disabled:opacity-40'}
       >
-        <Camera size={circle ? 18 : 15} strokeWidth={2.3} className="text-v" aria-hidden />
-        {circle ? <span className="sr-only">Añadir foto ({label})</span> : (
+        <Camera size={square ? 18 : 15} strokeWidth={2.3} className="text-v" aria-hidden />
+        {square ? <span className="sr-only">Añadir foto ({label})</span> : (
           <>
             Añadir foto
             <span className="sr-only"> ({label})</span>
@@ -98,7 +98,7 @@ export default function PhotoPick({
       {open && (
         <ul
           role="menu"
-          className={circle
+          className={square
             ? 'absolute bottom-[calc(100%+6px)] left-0 z-30 w-44 overflow-hidden rounded-row border border-surface-line bg-surface-card py-1 shadow-lift'
             : 'absolute bottom-[calc(100%+6px)] left-0 right-0 z-30 overflow-hidden rounded-row border border-surface-line bg-surface-card py-1 shadow-lift'}
         >

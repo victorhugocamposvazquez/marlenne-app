@@ -111,12 +111,12 @@ function TreatmentCard({
                   key={photo.id}
                   src={url}
                   alt=""
-                  className={`h-11 w-11 rounded-full border-2 border-surface-soft object-cover ${index ? '-ml-3' : ''}`}
+                  className={`h-11 w-11 rounded-[8px] border-2 border-surface-soft object-cover ${index ? '-ml-2' : ''}`}
                 />
               ) : (
                 <span
                   key={photo.id}
-                  className={`h-11 w-11 rounded-full border-2 border-surface-soft bg-surface-line ${index ? '-ml-3' : ''}`}
+                  className={`h-11 w-11 rounded-[8px] border-2 border-surface-soft bg-surface-line ${index ? '-ml-2' : ''}`}
                 />
               );
             })}
