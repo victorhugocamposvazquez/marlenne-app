@@ -124,6 +124,48 @@ export default function ClientaFicha({
         </div>
       )}
 
+      <QuickNotes clientId={client.id} notes={client.notes} canEdit={canEdit} />
+
+      <div className="mt-3">
+        <Tabs
+          active={tab}
+          onSelect={goTab}
+          counts={{
+            tratamientos: treatments.length,
+            medidas: metrics.size,
+            fotos: photoPaths.length,
+            historial: appointments.length,
+          }}
+        />
+      </div>
+
+      <div className="mt-3">
+        {tab === 'tratamientos' && (
+          <TreatmentsTab
+            treatments={treatments}
+            clientId={client.id}
+            urls={urls}
+            onOpenPhotos={() => goTab('fotos')}
+          />
+        )}
+        {tab === 'medidas' && <MeasurementsTab treatments={treatments} />}
+        {tab === 'fotos' && (
+          <PhotosTab
+            clientId={client.id}
+            treatments={treatments}
+            services={services}
+            clientPhotos={clientPhotos}
+            urls={urls}
+            urlsReady={urlsReady}
+            photoConsent={consents.some(c => c.kind === 'fotografia')}
+            onUploaded={() => router.refresh()}
+          />
+        )}
+        {tab === 'historial' && (
+          <HistoryTab appointments={appointments} clientId={client.id} linked={!overlay} />
+        )}
+      </div>
+
       {photoConsentBad && (
         <p className="mt-2.5 flex items-start gap-2 rounded-row border border-warn-line bg-warn-bg p-3 text-label font-semibold leading-snug text-warn-fg">
           <ShieldAlert size={16} strokeWidth={2.2} className="mt-px shrink-0" />
@@ -194,8 +236,6 @@ export default function ClientaFicha({
         )}
       </div>
 
-      <QuickNotes clientId={client.id} notes={client.notes} canEdit={canEdit} />
-
       <ConsentsCard clientId={client.id} consents={consents} canEdit={canEdit} />
 
       <PacksCard
@@ -207,45 +247,6 @@ export default function ClientaFicha({
         canEdit={canEdit}
       />
 
-      <div className="mt-3.5">
-        <Tabs
-          active={tab}
-          onSelect={goTab}
-          counts={{
-            tratamientos: treatments.length,
-            medidas: metrics.size,
-            fotos: photoPaths.length,
-            historial: appointments.length,
-          }}
-        />
-      </div>
-
-      <div className="mt-3">
-        {tab === 'tratamientos' && (
-          <TreatmentsTab
-            treatments={treatments}
-            clientId={client.id}
-            urls={urls}
-            onOpenPhotos={() => goTab('fotos')}
-          />
-        )}
-        {tab === 'medidas' && <MeasurementsTab treatments={treatments} />}
-        {tab === 'fotos' && (
-          <PhotosTab
-            clientId={client.id}
-            treatments={treatments}
-            services={services}
-            clientPhotos={clientPhotos}
-            urls={urls}
-            urlsReady={urlsReady}
-            photoConsent={consents.some(c => c.kind === 'fotografia')}
-            onUploaded={() => router.refresh()}
-          />
-        )}
-        {tab === 'historial' && (
-          <HistoryTab appointments={appointments} clientId={client.id} linked={!overlay} />
-        )}
-      </div>
       {canEdit && (overlay ? editLocal : editar === '1') && (
         <EditClientSheet
           client={client}
