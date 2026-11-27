@@ -49,7 +49,7 @@ export default function PhoneShell({
 }) {
   const alta = useShallowParam('alta');
   return (
-    <div className="@container relative mx-auto mt-[var(--keyboard-top)] flex h-[calc(100dvh-var(--keyboard-inset)-var(--keyboard-top))] w-full max-w-[440px] flex-col overflow-hidden bg-surface-bg pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+    <div className="phone-shell @container relative mx-auto mt-[var(--keyboard-top)] flex h-[calc(100dvh-var(--keyboard-inset)-var(--keyboard-top))] w-full max-w-[440px] flex-col overflow-hidden bg-surface-bg pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       <OfflineBanner />
       <OpsSupportBanner serverOps={serverOps} />
       <EmbedPanelHint />
