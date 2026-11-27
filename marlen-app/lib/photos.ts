@@ -109,7 +109,7 @@ export type PhotoAlbum = {
   sessions: PhotoSessionGroup[];
 };
 
-/** Un bloque por tratamiento. Dentro, las sesiones; en cada una, todos los círculos. */
+/** Un bloque por tratamiento. Dentro, las sesiones; en cada una, las fotos en cuadrado. */
 export function groupPhotosByTreatment(
   treatments: { id: string; title: string; photos: PhotoCircleItem[] }[],
   clientPhotos: PhotoCircleItem[] = [],

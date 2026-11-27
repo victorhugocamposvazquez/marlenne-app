@@ -40,24 +40,24 @@ function PhotoCircle({
   const asking = askId === photo.id;
 
   return (
-    <div className="flex w-[88px] shrink-0 flex-col items-center gap-1">
+    <div className="flex min-w-0 flex-col items-center gap-1">
       {url ? (
-        <div className="relative">
+        <div className="relative w-full">
           <button
             type="button"
             onClick={() => onOpen(photo)}
-            className="block overflow-hidden rounded-full border border-surface-line motion-safe:active:scale-[.98]"
+            className="block aspect-square w-full overflow-hidden rounded-row border border-surface-line motion-safe:active:scale-[.98]"
             aria-label={`Ver foto ${label}`}
           >
             <img
               src={url}
               alt={`${label} · ${photo.zone ?? ''}`}
               loading="lazy"
-              className="h-[88px] w-[88px] object-cover"
+              className="h-full w-full object-cover"
             />
           </button>
           {asking ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center rounded-full bg-ink/70">
+            <div className="absolute inset-0 flex flex-col items-center justify-center rounded-row bg-ink/70">
               <button
                 type="button"
                 disabled={pending}
@@ -82,9 +82,9 @@ function PhotoCircle({
           )}
         </div>
       ) : !urlsReady ? (
-        <Skeleton className="h-[88px] w-[88px] rounded-full" />
+        <Skeleton className="aspect-square w-full rounded-row" />
       ) : (
-        <p className="grid h-[88px] w-[88px] place-items-center rounded-full border border-surface-line px-2 text-center text-micro font-semibold text-ink-2">
+        <p className="grid aspect-square w-full place-items-center rounded-row border border-surface-line px-2 text-center text-micro font-semibold text-ink-2">
           No se abre
         </p>
       )}
@@ -194,7 +194,7 @@ export default function PhotosTab({
               return (
                 <div key={session.key}>
                   <p className="mb-2 text-micro font-semibold text-ink-3">{caption}</p>
-                  <div className="flex flex-wrap gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     {session.photos.map(item => (
                       <PhotoCircle
                         key={item.id}
@@ -215,14 +215,14 @@ export default function PhotosTab({
                         : { clientId, kind, zone: session.zone, sessionNo: session.session };
                       const uploading = photo.pending && photo.busy === photoBusyKey(target);
                       return (
-                        <div key={kind} className="flex w-[88px] shrink-0 flex-col items-center gap-1">
+                        <div key={kind} className="flex min-w-0 flex-col items-center gap-1">
                           {uploading ? (
-                            <p className="grid h-[88px] w-[88px] place-items-center rounded-full border border-dashed border-handle text-center text-micro font-semibold text-ink-2">
+                            <p className="grid aspect-square w-full place-items-center rounded-row border border-dashed border-handle px-2 text-center text-micro font-semibold text-ink-2">
                               Subiendo…
                             </p>
                           ) : (
                             <PhotoPick
-                              circle
+                              square
                               label={KIND_LABEL[kind].toLowerCase()}
                               disabled={pending || photo.pending}
                               onFile={addTo(album.treatmentId, session, kind)}
