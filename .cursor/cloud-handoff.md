@@ -27,6 +27,8 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
+- 2026-11-27 — **Agenda:** en tablet y escritorio, la vista de día lleva la tira de la semana que se desliza, como en el móvil. PR #81 → `main`.
+
 - 2026-11-27 — **Citas:** una cita ya creada también se puede marcar recurrente. Se queda esa y se añaden las semanas siguientes. PR #80 → `main`. Sigue faltando aplicar `20261127190000_appointment_series.sql` para agrupar la serie.
 
 - 2026-11-27 — **PWA tablet:** la agenda deja de quedar en una ventana de móvil con franjas negras. Arranque del iPad en vertical y horizontal, y el ancho de la tablet en vertical. PR #79 → `main`. Hay que borrar el icono y volver a añadirlo desde Safari para que iPadOS coja las pantallas nuevas.

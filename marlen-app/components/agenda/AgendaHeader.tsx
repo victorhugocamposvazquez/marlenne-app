@@ -186,6 +186,21 @@ export default function AgendaHeader({
           </button>
         </div>
 
+        {mode === 'dia' && (
+          <div className="mt-3 w-full">
+            <DayStrip
+              selectedOffset={day}
+              startOffset={start}
+              busyOffsets={busy}
+              onSelect={offset => go(skipSunday(offset, 1), { strip: weekMondayOffset(offset) })}
+              onShiftWeek={delta => {
+                const mon = weekMondayOffset(day) + delta;
+                go(mon, { strip: mon });
+              }}
+            />
+          </div>
+        )}
+
         {mode === 'semana' && team.length > 1 && (
           <div className="mt-3.5 flex flex-wrap gap-2">
             {team.map(p => {
