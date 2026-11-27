@@ -1,5 +1,3 @@
-import { toBlob } from 'html-to-image';
-
 /** Espera a que todas las <img> del nodo estén listas (export off-screen). */
 async function waitForImages(root: HTMLElement, timeoutMs = 12000) {
   const imgs = Array.from(root.querySelectorAll('img'));
@@ -40,6 +38,7 @@ async function waitForImages(root: HTMLElement, timeoutMs = 12000) {
 
 /** Captura un nodo (CreativeCanvas a 1080 px de ancho, sin escalar) como PNG */
 export async function nodeToPng(node: HTMLElement): Promise<Blob> {
+  const { toBlob } = await import('html-to-image');
   await waitForImages(node);
 
   const opts = {

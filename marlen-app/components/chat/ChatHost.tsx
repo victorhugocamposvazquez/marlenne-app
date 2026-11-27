@@ -6,6 +6,7 @@ import { shallowSet } from '@/hooks/useShallowQuery';
 import MarlenChat, { GRAD } from '@/components/chat/MarlenChat';
 import { createMarlenChatApi } from '@/lib/chat/api';
 import { createVoiceAdapter } from '@/lib/chat/voice-adapter';
+import { voiceUiEnabled } from '@/lib/voice-ui';
 
 const TITLES: Record<string, string> = {
   '/hoy': 'Hoy',
@@ -24,6 +25,8 @@ function screenTitle(pathname: string) {
   }
   return 'Marlén';
 }
+
+const voiceOn = voiceUiEnabled();
 
 export default function ChatHost({ role }: { role: string }) {
   const pathname = usePathname() || '/hoy';
@@ -52,7 +55,7 @@ export default function ChatHost({ role }: { role: string }) {
     clientaId: pathname.match(/^\/clientas\/([^/]+)/)?.[1] ?? searchParams.get('client') ?? undefined,
   }), [pathname, searchParams]);
 
-  if (pathname.startsWith('/ajustes/marketing')) return null;
+  if (!voiceOn || pathname.startsWith('/ajustes/marketing')) return null;
 
   const fabBottom = pathname.startsWith('/agenda') || pathname.startsWith('/clientas')
     ? 'bottom-[calc(9.25rem+env(safe-area-inset-bottom))] standalone:bottom-[calc(8.75rem+max(6px,calc(env(safe-area-inset-bottom)-12px)))]'

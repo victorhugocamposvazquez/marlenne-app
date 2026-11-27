@@ -1,4 +1,4 @@
-const SHELL = 'marlenne-shell-v29';
+const SHELL = 'marlenne-shell-v30';
 const PAGES = 'marlenne-pages-v2';
 const NET_WAIT_MS = 3000;
 
@@ -11,60 +11,6 @@ const PRECACHE = [
   '/icon-1024.png',
   '/icon-maskable-512.png',
   '/apple-touch-icon.png',
-  '/voice/dime.mp3',
-  '/voice/te-escucho.mp3',
-  '/voice/bien-aqui.mp3',
-  '/voice/de-nada.mp3',
-  '/voice/hasta-luego.mp3',
-  '/voice/cuando-quieras.mp3',
-  '/voice/algo-mas.mp3',
-  '/voice/no-lo-he-pillado.mp3',
-  '/voice/vale.mp3',
-  '/voice/claro.mp3',
-  '/voice/perfecto.mp3',
-  '/voice/listo.mp3',
-  '/voice/hecho.mp3',
-  '/voice/la-guardo.mp3',
-  '/voice/lo-apuntamos.mp3',
-  '/voice/de-acuerdo.mp3',
-  '/voice/que-servicio.mp3',
-  '/voice/a-que-hora.mp3',
-  '/voice/para-quien.mp3',
-  '/voice/el-nombre.mp3',
-  '/voice/nueva-cita.mp3',
-  '/voice/abro-la-agenda.mp3',
-  '/voice/no-pasa-nada.mp3',
-  '/voice/un-segundo.mp3',
-  '/voice/ahora-miro.mp3',
-  '/voice/citas-huecos.mp3',
-  '/voice/soy-marlenne.mp3',
-  '/voice/gracias-algo-mas.mp3',
-  '/voice/buenos-dias.mp3',
-  '/voice/buenas-tardes.mp3',
-  '/voice/la-guardo-para.mp3',
-  '/voice/guardo-cita-para.mp3',
-  '/voice/a-las.mp3',
-  '/voice/a-la.mp3',
-  '/voice/dia-hoy.mp3',
-  '/voice/dia-manana.mp3',
-  '/voice/tengo.mp3',
-  '/voice/huecos.mp3',
-  '/voice/o.mp3',
-  '/voice/de-media-hora.mp3',
-  '/voice/de-una-hora.mp3',
-  '/voice/de-dos-horas.mp3',
-  '/voice/con-cavitacion.mp3',
-  '/voice/cual.mp3',
-  '/voice/cual-de-estas.mp3',
-  '/voice/toca-una.mp3',
-  '/voice/hay-varias.mp3',
-  '/voice/no-la-tengo.mp3',
-  '/voice/doy-de-alta.mp3',
-  '/voice/apunto-igual.mp3',
-  '/voice/que-telefono.mp3',
-  '/voice/el-telefono.mp3',
-  '/voice/sin-red.mp3',
-  '/voice/sin-nube.mp3',
 ];
 
 self.addEventListener('install', event => {
@@ -87,18 +33,6 @@ self.addEventListener('activate', event => {
     const keys = await caches.keys();
     await Promise.all(keys.filter(k => !keep.has(k)).map(k => caches.delete(k)));
     await self.clients.claim();
-    try {
-      const res = await fetch('/voice/manifest.json');
-      if (!res.ok) return;
-      const { clips } = await res.json();
-      const cache = await caches.open(SHELL);
-      const have = new Set((await cache.keys()).map(r => new URL(r.url).pathname));
-      const rest = (clips ?? []).filter(u => !have.has(u));
-      for (let i = 0; i < rest.length; i += 20) {
-        const batch = rest.slice(i, i + 20);
-        await Promise.all(batch.map(u => cache.add(u).catch(() => undefined)));
-      }
-    } catch { /* sin manifest, el fetch cachea bajo demanda */ }
   })());
 });
 

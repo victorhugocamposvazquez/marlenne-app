@@ -12,6 +12,7 @@ import PasswordForm from '@/components/PasswordForm';
 import PasskeySettingsCard from '@/components/PasskeySettingsCard';
 import IosShortcutsCard from '@/components/IosShortcutsCard';
 import VoiceSettingsCard from '@/components/VoiceSettingsCard';
+import { voiceUiEnabled } from '@/lib/voice-ui';
 import StaffReminderSettings from '@/components/StaffReminderSettings';
 
 const ROADMAP = [
@@ -50,7 +51,7 @@ export default async function CuentaPage() {
           {showIosShortcuts && <IosShortcutsCard />}
         </div>
         <div>
-          <VoiceSettingsCard initialVoice={initialVoice} />
+          {voiceUiEnabled() ? <VoiceSettingsCard initialVoice={initialVoice} /> : null}
           <PasswordForm />
         </div>
       </div>

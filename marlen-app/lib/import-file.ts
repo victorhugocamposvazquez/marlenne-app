@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx';
 import { normHeader } from '@/lib/csv';
 
 const EXCEL_EXT = /\.(xlsx|xls|xlsm)$/i;
@@ -9,12 +8,13 @@ export async function readImportFile(file: File): Promise<string> {
   return readImportBuffer(buf, file.name);
 }
 
-export function readImportBuffer(buf: ArrayBuffer, filename: string): string {
+export async function readImportBuffer(buf: ArrayBuffer, filename: string): Promise<string> {
   if (EXCEL_EXT.test(filename)) return excelBufferToCsv(buf);
   return new TextDecoder('utf-8').decode(buf);
 }
 
-function excelBufferToCsv(buf: ArrayBuffer): string {
+async function excelBufferToCsv(buf: ArrayBuffer): Promise<string> {
+  const XLSX = await import('xlsx');
   const wb = XLSX.read(buf, { type: 'array', cellDates: true, dateNF: 'dd/mm/yyyy' });
   const name = wb.SheetNames[0];
   if (!name) return '';

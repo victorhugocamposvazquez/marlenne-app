@@ -1,7 +1,12 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import MarketingStudio from '@/components/marketing/MarketingStudio';
+import Skeleton from '@/components/ui/Skeleton';
+
+const MarketingStudio = dynamic(() => import('@/components/marketing/MarketingStudio'), {
+  loading: () => <Skeleton className="min-h-[420px] w-full rounded-row" />,
+});
 import { setActiveCatalog } from '@/lib/marketing/data';
 import { isAllowedBrandImageUrl, stockProxyPath } from '@/lib/marketing/stock';
 import type { CreativeType } from '@/lib/marketing/types';

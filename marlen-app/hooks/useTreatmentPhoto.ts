@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { addTreatmentPhoto, openTreatmentForPhotos } from '@/lib/agenda-write';
 import { compressImage } from '@/hooks/compressImage';
@@ -20,7 +19,6 @@ function withTimeout<T>(p: Promise<T>, ms: number, msg: string): Promise<T> {
 
 export function useTreatmentPhoto(onUploaded?: () => void) {
   const toast = useToast();
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -103,7 +101,6 @@ export function useTreatmentPhoto(onUploaded?: () => void) {
           return;
         }
         toast('Foto guardada');
-        router.refresh();
         onUploaded?.();
       } catch (e) {
         setError(e instanceof Error ? e.message : 'No se ha podido subir');

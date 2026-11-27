@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CalendarPlus, Mail, MessageCircle, Pencil, Phone, ShieldAlert } from 'lucide-react';
@@ -13,9 +14,18 @@ import ConsentsCard from '@/components/clienta/ConsentsCard';
 import QuickNotes from '@/components/clienta/QuickNotes';
 import Tabs, { parseTab, type TabId } from '@/components/clienta/Tabs';
 import TreatmentsTab from '@/components/clienta/TreatmentsTab';
-import MeasurementsTab from '@/components/clienta/MeasurementsTab';
-import PhotosTab from '@/components/clienta/PhotosTab';
-import HistoryTab from '@/components/clienta/HistoryTab';
+import Skeleton from '@/components/ui/Skeleton';
+
+const tabSkeleton = <Skeleton className="min-h-[12rem] w-full rounded-row" />;
+const MeasurementsTab = dynamic(() => import('@/components/clienta/MeasurementsTab'), {
+  loading: () => tabSkeleton,
+});
+const PhotosTab = dynamic(() => import('@/components/clienta/PhotosTab'), {
+  loading: () => tabSkeleton,
+});
+const HistoryTab = dynamic(() => import('@/components/clienta/HistoryTab'), {
+  loading: () => tabSkeleton,
+});
 import PacksCard from '@/components/clienta/PacksCard';
 import { loadSignedPhotoUrls } from '@/lib/agenda-catalog';
 import { createClient } from '@/lib/supabase/client';

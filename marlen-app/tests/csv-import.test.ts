@@ -52,7 +52,7 @@ test('une nombre y apellidos si no hay columna completa', () => {
   assert.equal(rows[0]?.action, 'create');
 });
 
-test('lee Excel (.xlsx) y convierte a clientas', () => {
+test('lee Excel (.xlsx) y convierte a clientas', async () => {
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([
     ['Nombre completo', 'Móvil', 'Email'],
@@ -60,7 +60,7 @@ test('lee Excel (.xlsx) y convierte a clientas', () => {
   ]);
   XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
   const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
-  const csv = readImportBuffer(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), 'clientes.xlsx');
+  const csv = await readImportBuffer(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), 'clientes.xlsx');
   const preview = buildPreview({
     clientsCsv: csv,
     existing: { services: [], clients: [], staff: [], appointments: [], blocks: [] },
@@ -80,11 +80,11 @@ test('parseImportPhone ignora móviles genéricos de SimplyBook', () => {
   assert.equal(parseImportPhone('34666666666'), null);
 });
 
-test('SimplyBook xls: salta cabecera del informe y lee teléfonos', () => {
+test('SimplyBook xls: salta cabecera del informe y lee teléfonos', async () => {
   const path = '/Users/hugocamposvazquez/Downloads/5374324776ab0fc12b55243.25337096.xls';
   if (!fs.existsSync(path)) return;
   const buf = fs.readFileSync(path);
-  const csv = readImportBuffer(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), 'clientas.xls');
+  const csv = await readImportBuffer(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), 'clientas.xls');
   const clients = previewClients(csv, []);
   const withPhone = clients.filter(c => c.phone?.trim());
   assert.ok(clients.length >= 1800);
