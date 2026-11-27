@@ -8,6 +8,14 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Pendiente (hazlo en el MacBook o mergea la rama cloud)
 
+- **Supabase — migraciones Leads:** si faltan bandeja, formulario o papelera, un solo `db push --linked` en **Terminal.app** (contraseña Postgres). Orden en repo:
+  1. `20261125220000_leads.sql` — tablas base + en cada lead `thumbnail_url`, `ad_headline`, `ad_body` (URL Meta, no bucket)
+  2. `20261125233000_leads_ads.sql` — tabla **`meta_ads`** (caché miniatura/título por `ad_id`; lectura en ficha si el lead no trae imagen)
+  3. `20261126100000_leads_list_group.sql` — `salons.leads_list_group`
+  4. `20261126110000_leads_perf.sql` — índice + RPC filtros/tags
+  5. `20261126120000_leads_form_fields.sql` — `leads.form_fields`
+  6. `20261126130000_leads_trash.sql` — papelera `deleted_at`
+- **Fotos de tratamiento (clientas):** aplicar **`20261126220000_treatment_photos_ensure.sql`** + **`20261127093000_treatment_photos_postgrest_fk.sql`** (FK PostgREST, `NOTIFY`). Código: ficha ya no embebe fotos en `/treatments` (evita error `client_id` en schema cache). Un `db push` también lleva Leads pendientes. Script: `./scripts/supabase-db-push.sh` en Terminal.app.
 - **Leads / Meta, conectar Arlett:** `META_LOGIN_CONFIG_ID` ya está en Vercel y el diálogo de OAuth usa la configuración de Inicio de sesión para empresas. Falta que Hugo pulse Conectar en `https://app.marlenapp.com/ajustes/leads` con el perfil que administra la página de Arlett. Si Meta dice que la URI no es válida, en Configuración de ese producto tiene que estar `https://app.marlenapp.com/api/meta/oauth/callback`. El webhook sigue en `https://marlenne-app.vercel.app/api/meta/leadgen` hasta pasarlo a `https://app.marlenapp.com/api/meta/leadgen` y volver a verificar.
 - **Supabase Auth:** Site URL + Redirect URLs → `https://app.marlenapp.com` (y `/**`). Mantener `marlenne-app.vercel.app` un tiempo.
 - **Vercel `marlen-website`:** conectar GitHub del monorepo (falló por Login Connection) para deploys automáticos; Root `main-website`.
@@ -68,4 +76,4 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 | **MacBook / Cursor local** | Al abrir el repo: **leer este archivo primero**. Si hay rama o PR en «Pendiente», continuar ahí antes de otra cosa. |
 | **Hugo** | Cuando algo esté en prod, borrar de «Pendiente» o pasarlo a «Hecho». |
 
-**Última actualización:** 2026-11-26 — OAuth de Leads usa la configuración de Facebook Login for Business. Falta conectar Arlett y pasar el webhook a `app.marlenapp.com`.
+**Última actualización:** 2026-11-26 — Pendientes: **db push** de las 4 migraciones Leads arriba; OAuth Arlett; webhook en `app.marlenapp.com`.

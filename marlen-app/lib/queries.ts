@@ -10,7 +10,7 @@ import { voiceFromStaffPrefs } from '@/lib/staff-app-prefs';
 import { salonAgendaFeaturesFromRow, type SalonAgendaFeatures } from '@/lib/salon-features';
 import type {
   AgendaAppt, AgendaBlock, ClientListRow, ClientOption, ClientPack, ClientRow, Consent, PackTemplate, Provider,
-  RecallRow, ServiceCategory, ServiceOption, TreatmentRow, WaitItem, WeekDay,
+  RecallRow, ServiceCategory, ServiceOption, TreatmentPhoto, TreatmentRow, WaitItem, WeekDay,
 } from '@/lib/types';
 
 export async function getSalonAgendaFeatures(salonId: string): Promise<SalonAgendaFeatures> {
@@ -426,25 +426,60 @@ export async function listClients(): Promise<ClientListRow[]> {
   }));
 }
 
+async function treatmentPhotosByTreatmentId(
+  sb: ReturnType<typeof createClient>,
+  treatmentIds: string[],
+): Promise<Map<string, TreatmentPhoto[]>> {
+  const byTreatment = new Map<string, TreatmentPhoto[]>();
+  if (!treatmentIds.length) return byTreatment;
+
+  for (const chunk of chunkIds(treatmentIds)) {
+    const { data, error } = await sb
+      .from('treatment_photos')
+      .select('id, treatment_id, kind, zone, session_no, storage_path, taken_at')
+      .in('treatment_id', chunk);
+    if (error) return byTreatment;
+    for (const row of data ?? []) {
+      const treatmentId = row.treatment_id as string;
+      const list = byTreatment.get(treatmentId) ?? [];
+      list.push({
+        id: row.id as string,
+        kind: row.kind as TreatmentPhoto['kind'],
+        zone: (row.zone as string | null) ?? null,
+        session_no: (row.session_no as number | null) ?? null,
+        storage_path: row.storage_path as string,
+        taken_at: row.taken_at as string,
+      });
+      byTreatment.set(treatmentId, list);
+    }
+  }
+  return byTreatment;
+}
+
 export async function getClient(id: string) {
   const sb = createClient();
-  const [client, treatments, packs] = await Promise.all([
+  const [client, treatmentsRes, packs] = await Promise.all([
     sb.from('clients').select('*').eq('id', id).maybeSingle(),
     sb.from('treatments')
       .select(`
         id, zone, sessions_done, sessions_total, last_params, note, opened_at, closed_at,
         service:services(name, category),
         provider:staff!treatments_provider_id_fkey(full_name),
-        measurements(id, metric, value_num, value_text, unit, session_no, is_baseline, measured_at),
-        treatment_photos(id, kind, zone, session_no, storage_path, taken_at)
+        measurements(id, metric, value_num, value_text, unit, session_no, is_baseline, measured_at)
       `)
       .eq('client_id', id)
       .order('opened_at', { ascending: false }),
     listClientPacks(sb, id),
   ]);
+  const base = (treatmentsRes.data ?? []) as unknown as Omit<TreatmentRow, 'treatment_photos'>[];
+  const photosByTx = await treatmentPhotosByTreatmentId(sb, base.map(t => t.id));
+  const treatments: TreatmentRow[] = base.map(t => ({
+    ...t,
+    treatment_photos: photosByTx.get(t.id) ?? [],
+  }));
   return {
     client: (client.data ?? null) as ClientRow | null,
-    treatments: (treatments.data ?? []) as unknown as TreatmentRow[],
+    treatments,
     packs,
   };
 }
