@@ -155,6 +155,11 @@
   /* Hueco para el micrófono; la barra inferior ya está fuera del scroll. */
   .pb-fab { padding-bottom: 5.5rem; }
 
+  /* iPad en vertical: la agenda usa el ancho de la tablet, no una columna de móvil. */
+  @media (min-width: 744px) and (min-height: 700px) {
+    .phone-shell { max-width: none; }
+  }
+
   /*
    * Escala fluida al ancho real del shell (@container en layout app). Ref. 440px.
    * cqw = ancho del contenedor, no 100vw (evita saltos SE ↔ Pro Max).
