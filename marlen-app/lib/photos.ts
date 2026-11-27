@@ -11,9 +11,12 @@ export type PhotoTarget = {
   sessionNo?: number | null;
 };
 
+export type PhotoChoiceSection = 'open' | 'closed' | 'service';
+
 export type PhotoChoice = {
   key: string;
   label: string;
+  section: PhotoChoiceSection;
   treatmentId?: string;
   serviceId?: string;
   zone?: string | null;
@@ -21,7 +24,10 @@ export type PhotoChoice = {
 };
 
 export function photoBusyKey(target: PhotoTarget) {
-  const who = target.treatmentId || (target.serviceId ? `s:${target.serviceId}` : '');
+  const who =
+    target.treatmentId
+    || (target.serviceId ? `s:${target.serviceId}` : null)
+    || (target.clientId ? `c:${target.clientId}` : '');
   return `${who}:${target.kind}:${target.zone ?? ''}:${target.sessionNo ?? 0}`;
 }
 
@@ -41,10 +47,21 @@ export function photoChoices(
   const closed = treatments.filter(t => t.closed);
   const taken = new Set(treatments.map(t => t.serviceId).filter((id): id is string => !!id));
   const rows: PhotoChoice[] = [];
-  for (const t of [...open, ...closed]) {
+  for (const t of open) {
     rows.push({
       key: `t:${t.id}`,
       label: t.zone ? `${t.name} · ${t.zone}` : t.name,
+      section: 'open',
+      treatmentId: t.id,
+      zone: t.zone ?? null,
+      sessionNo: t.sessionsDone || undefined,
+    });
+  }
+  for (const t of closed) {
+    rows.push({
+      key: `t:${t.id}`,
+      label: t.zone ? `${t.name} · ${t.zone}` : t.name,
+      section: 'closed',
       treatmentId: t.id,
       zone: t.zone ?? null,
       sessionNo: t.sessionsDone || undefined,
@@ -52,8 +69,18 @@ export function photoChoices(
   }
   for (const s of services) {
     if (s.category === 'valoracion' || taken.has(s.id)) continue;
-    rows.push({ key: `s:${s.id}`, label: s.name, serviceId: s.id });
+    rows.push({
+      key: `s:${s.id}`,
+      label: s.name,
+      section: 'service',
+      serviceId: s.id,
+    });
   }
+  rows.push({
+    key: 'client',
+    label: 'Ficha (sin vincular a un tratamiento)',
+    section: 'service',
+  });
   return rows;
 }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { Camera, Images, Plus } from 'lucide-react';
+import { Camera, Images } from 'lucide-react';
 
 const ACCEPT = 'image/*,.heic,.heif';
 
@@ -48,7 +48,9 @@ export default function PhotoPick({
 
   const launch = (which: 'camera' | 'gallery') => {
     setOpen(false);
-    (which === 'camera' ? cameraRef : galleryRef).current?.click();
+    window.setTimeout(() => {
+      (which === 'camera' ? cameraRef : galleryRef).current?.click();
+    }, 80);
   };
 
   return (
@@ -78,9 +80,9 @@ export default function PhotoPick({
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen(o => !o)}
-        className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-chip bg-grad px-2.5 text-caption font-extrabold text-white motion-safe:active:scale-[.98] disabled:opacity-40"
+        className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-chip border border-surface-line bg-surface-card px-2.5 text-caption font-extrabold text-ink shadow-card motion-safe:active:scale-[.98] disabled:opacity-40"
       >
-        <Plus size={15} strokeWidth={2.5} aria-hidden />
+        <Camera size={15} strokeWidth={2.3} className="text-v" aria-hidden />
         Añadir foto
         <span className="sr-only"> ({label})</span>
       </button>

@@ -177,6 +177,7 @@ export default function PhotosTab({
     const target: PhotoTarget = g.treatmentId
       ? {
           treatmentId: g.treatmentId,
+          clientId,
           kind,
           zone: g.zone,
           sessionNo: g.session ?? undefined,
@@ -202,6 +203,11 @@ export default function PhotosTab({
         onPick={photo.upload}
       />
       {!list.length && <Empty>Todavía no hay fotos de esta clienta.</Empty>}
+      {photo.error && (
+        <p className="rounded-row border border-danger-line bg-danger-bg px-3 py-2 text-label font-semibold text-danger-fg">
+          {photo.error}
+        </p>
+      )}
       {list.length > 0 && !photoConsent && (
         <p className="flex items-start gap-2 rounded-row border border-warn-line bg-warn-bg p-3 text-label font-semibold leading-snug text-warn-fg">
           <ShieldAlert size={16} strokeWidth={2.2} className="mt-px shrink-0" />

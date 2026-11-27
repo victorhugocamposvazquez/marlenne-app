@@ -22,6 +22,7 @@ ENC_PASS="$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.ar
 URL="postgresql://${POOL_USER}:${ENC_PASS}@${POOL_HOST}:5432/postgres"
 
 echo "Aplicando migraciones pendientes…"
-supabase db push --db-url "$URL"
+echo "(--include-all: hay SQL en repo más antiguo que la última versión ya aplicada en remoto, p. ej. tras merges de Cursor.)"
+supabase db push --db-url "$URL" --include-all --yes
 echo ""
 echo "Listo."

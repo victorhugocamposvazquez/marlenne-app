@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Camera } from 'lucide-react';
 import { inputCls } from '@/components/Sheet';
 import PhotoPick from '@/components/clienta/PhotoPick';
-import { photoBusyKey, photoChoices, type PhotoKind, type PhotoTarget } from '@/lib/photos';
+import { photoBusyKey, photoChoices, type PhotoChoiceSection, type PhotoKind, type PhotoTarget } from '@/lib/photos';
 import type { ServiceOption, TreatmentRow } from '@/lib/types';
 
 export default function PhotoUpload({
@@ -57,9 +57,21 @@ export default function PhotoUpload({
           value={chosen?.key ?? ''}
           onChange={e => setKey(e.target.value)}
         >
-          {choices.map(c => (
-            <option key={c.key} value={c.key}>{c.label}</option>
-          ))}
+          {(['open', 'closed', 'service'] as PhotoChoiceSection[]).map(section => {
+            const group = choices.filter(c => c.section === section);
+            if (!group.length) return null;
+            const label =
+              section === 'open' ? 'En curso'
+                : section === 'closed' ? 'Tratamientos cerrados'
+                  : 'Servicios y ficha';
+            return (
+              <optgroup key={section} label={label}>
+                {group.map(c => (
+                  <option key={c.key} value={c.key}>{c.label}</option>
+                ))}
+              </optgroup>
+            );
+          })}
         </select>
       ) : (
         <p className="mb-2 text-label font-semibold leading-snug text-ink-2">
@@ -67,7 +79,7 @@ export default function PhotoUpload({
         </p>
       )}
       <p className="mb-2 text-caption font-medium leading-snug text-ink-2">
-        Antes y después por separado. «Añadir foto» te deja elegir cámara o galería.
+        Elige el tratamiento arriba (o abre uno nuevo). Antes y después van por separado.
       </p>
       <div className="flex gap-2.5">
         <Slot

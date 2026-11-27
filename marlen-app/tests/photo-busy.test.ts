@@ -19,14 +19,14 @@ test('sin cita, la lista sigue siendo de tratamientos o servicios', () => {
     { id: 's1', name: 'Láser', category: 'corporal' },
     { id: 's2', name: 'Valoración', category: 'valoracion' },
   ]);
-  assert.deepEqual(none.map(c => c.label), ['Láser']);
+  assert.deepEqual(none.map(c => c.label), ['Láser', 'Ficha (sin vincular a un tratamiento)']);
   assert.equal(none[0].serviceId, 's1');
 
   const withTx = photoChoices(
     [{ id: 't1', serviceId: 's1', name: 'Láser', zone: 'Axila', closed: false, sessionsDone: 0 }],
     [{ id: 's1', name: 'Láser', category: 'corporal' }, { id: 's3', name: 'HIFU', category: 'corporal' }],
   );
-  assert.deepEqual(withTx.map(c => c.key), ['t:t1', 's:s3']);
+  assert.deepEqual(withTx.map(c => c.key), ['t:t1', 's:s3', 'client']);
 });
 
 test('photoObjectPath guarda en la clienta si no hay tratamiento', () => {
