@@ -16,6 +16,7 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
   5. `20261126120000_leads_form_fields.sql` — `leads.form_fields`
   6. `20261126130000_leads_trash.sql` — papelera `deleted_at`
 - **Fotos de tratamiento (clientas):** aplicar **`20261126220000_treatment_photos_ensure.sql`** + **`20261127093000_treatment_photos_postgrest_fk.sql`** (FK PostgREST, `NOTIFY`). Código: ficha ya no embebe fotos en `/treatments` (evita error `client_id` en schema cache). Un `db push` también lleva Leads pendientes. Script: `./scripts/supabase-db-push.sh` en Terminal.app.
+- **Citas recurrentes:** aplicar **`20261127190000_appointment_series.sql`** en el mismo `db push` para agrupar la serie. Sin esa columna las citas se crean igual, solo que sueltas.
 - **Leads / Meta, conectar Arlett:** `META_LOGIN_CONFIG_ID` ya está en Vercel y el diálogo de OAuth usa la configuración de Inicio de sesión para empresas. Falta que Hugo pulse Conectar en `https://app.marlenapp.com/ajustes/leads` con el perfil que administra la página de Arlett. Si Meta dice que la URI no es válida, en Configuración de ese producto tiene que estar `https://app.marlenapp.com/api/meta/oauth/callback`. El webhook sigue en `https://marlenne-app.vercel.app/api/meta/leadgen` hasta pasarlo a `https://app.marlenapp.com/api/meta/leadgen` y volver a verificar.
 - **Supabase Auth:** Site URL + Redirect URLs → `https://app.marlenapp.com` (y `/**`). Mantener `marlenne-app.vercel.app` un tiempo.
 - **Vercel `marlen-website`:** conectar GitHub del monorepo (falló por Login Connection) para deploys automáticos; Root `main-website`.
@@ -25,6 +26,8 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 ---
 
 ## Hecho desde cloud (mergeado o aplicado en main)
+
+- 2026-11-27 — **Citas:** al crear se puede marcar recurrente (cada semana). El día y la hora se cambian ahí si se quiere, sin calendario. PR #78 → `main`. Falta aplicar `20261127190000_appointment_series.sql` para agrupar la serie.
 
 - 2026-11-27 — **Clientas:** tratamientos, medidas y fotos quedan justo debajo de las notas, arriba de la ficha. PR #77 → `main`.
 
