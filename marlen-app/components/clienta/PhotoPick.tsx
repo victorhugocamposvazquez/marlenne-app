@@ -1,9 +1,13 @@
 'use client';
 
-import { useRef, type ChangeEvent } from 'react';
-import { Camera, Images } from 'lucide-react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { Camera, Images, Plus } from 'lucide-react';
 
-/** Cámara y galería por separado: `capture` en un solo input tapa el rollo en el móvil. */
+/**
+ * Un solo botón en UI; al pulsar, menú con dos rutas técnicas:
+ * - cámara (`capture`) — no depende de que el SO muestre «Tomar foto»
+ * - galería (sin `capture`) — rollo y archivos
+ */
 export default function PhotoPick({
   label,
   disabled,
@@ -13,17 +17,41 @@ export default function PhotoPick({
   disabled?: boolean;
   onFile: (file: File) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
 
   const take = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
+    setOpen(false);
     if (file) onFile(file);
   };
 
+  const launch = (which: 'camera' | 'gallery') => {
+    setOpen(false);
+    (which === 'camera' ? cameraRef : galleryRef).current?.click();
+  };
+
   return (
-    <div className="flex w-full flex-col gap-1.5">
+    <div ref={wrapRef} className="relative w-full">
       <input
         ref={cameraRef}
         type="file"
@@ -46,23 +74,46 @@ export default function PhotoPick({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => cameraRef.current?.click()}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen(o => !o)}
         className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-chip bg-grad px-2.5 text-caption font-extrabold text-white motion-safe:active:scale-[.98] disabled:opacity-40"
       >
-        <Camera size={15} strokeWidth={2.3} aria-hidden />
-        Hacer foto
-        <span className="sr-only"> de {label}</span>
+        <Plus size={15} strokeWidth={2.5} aria-hidden />
+        Añadir foto
+        <span className="sr-only"> ({label})</span>
       </button>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => galleryRef.current?.click()}
-        className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-chip border border-surface-line bg-surface-card px-2.5 text-caption font-extrabold text-ink shadow-card motion-safe:active:scale-[.98] disabled:opacity-40"
-      >
-        <Images size={15} strokeWidth={2.3} aria-hidden />
-        Galería
-        <span className="sr-only"> de {label}</span>
-      </button>
+      {open && (
+        <ul
+          role="menu"
+          className="absolute bottom-[calc(100%+6px)] left-0 right-0 z-30 overflow-hidden rounded-row border border-surface-line bg-surface-card py-1 shadow-lift"
+        >
+          <li role="none">
+            <button
+              type="button"
+              role="menuitem"
+              disabled={disabled}
+              onClick={() => launch('camera')}
+              className="flex min-h-[44px] w-full items-center gap-2 px-3 text-left text-caption font-extrabold text-ink motion-safe:active:bg-surface-soft disabled:opacity-40"
+            >
+              <Camera size={16} strokeWidth={2.2} className="shrink-0 text-v" aria-hidden />
+              Hacer foto
+            </button>
+          </li>
+          <li role="none">
+            <button
+              type="button"
+              role="menuitem"
+              disabled={disabled}
+              onClick={() => launch('gallery')}
+              className="flex min-h-[44px] w-full items-center gap-2 px-3 text-left text-caption font-extrabold text-ink motion-safe:active:bg-surface-soft disabled:opacity-40"
+            >
+              <Images size={16} strokeWidth={2.2} className="shrink-0 text-v" aria-hidden />
+              Galería
+            </button>
+          </li>
+        </ul>
+      )}
     </div>
   );
 }

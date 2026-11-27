@@ -50,7 +50,7 @@ export default function PhotoUpload({
         ))}
       </select>
       <p className="mb-2 text-caption font-medium leading-snug text-ink-2">
-        Un lado es el antes, el otro el después. Cámara o el rollo.
+        Antes y después por separado. «Añadir foto» te deja elegir cámara o galería.
       </p>
       <div className="flex gap-2.5">
         <Slot
