@@ -18,7 +18,7 @@ import { syncAppointmentReminderAction } from '@/app/actions/reminder-sync';
 import { cancelAppointment, createAppointment, createRecurringAppointments, updateAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import { alignStripStart, DAY_END, dateFromOffset, dayKey, durLbl, fmt, minutesOfDay, offsetFromDay, skipSunday, toTimestamp } from '@/lib/time';
-import { clockToMinutes, minutesToClock, RECUR_WEEKS_DEFAULT, RECUR_WEEKS_MAX, RECUR_WEEKS_MIN, recurringWeekDates } from '@/lib/recurring';
+import { clockToMinutes, minutesToClock, RECUR_WEEKS_DEFAULT, RECUR_WEEKS_MAX, RECUR_WEEKS_MIN, recurringFollowDates, recurringWeekDates } from '@/lib/recurring';
 import { filterClientOptions } from '@/lib/client-pick';
 import { bestNameMatches, fold, parseClock } from '@/lib/voice';
 import { findOpenPackForTemplate, packFitsService, packIsOpen, packLabel, packMatchesSearch, packUsableBy, packsForSection, pickPackForService, templatesForSection, usableOpenPacksForClient } from '@/lib/packs';
@@ -484,40 +484,49 @@ export function NewAppointmentSheetBody({
         soldLabel = `${tpl.name} · ${tpl.sessions_total} ses.`;
       }
 
-      const recurDates = !editing && repeat ? recurringWeekDates(bookDay, repeatWeeks) : null;
-      const recur = recurDates
-        ? await createRecurringAppointments(sb, {
-            clientId: client?.id,
-            clientName: client ? undefined : who,
-            serviceId: service.id,
-            providerId,
-            dates: recurDates,
-            startMin,
-            clientPackId,
-          })
-        : null;
-      const r = editing
-        ? await updateAppointment(sb, {
-            id: editing.id,
-            clientId: client?.id,
-            clientName: client ? undefined : who,
-            serviceId: service.id,
-            providerId,
-            date: bookDay,
-            startMin,
-          })
-        : recur ?? await createAppointment(sb, {
-            clientId: client?.id,
-            clientName: client ? undefined : who,
-            serviceId: service.id,
-            providerId,
-            date: bookDay,
-            startMin,
-            clientPackId,
+      const recurInput = {
+        clientId: client?.id,
+        clientName: client ? undefined : who,
+        serviceId: service.id,
+        providerId,
+        startMin,
+      };
+      let recur: Awaited<ReturnType<typeof createRecurringAppointments>> | null = null;
+      let r: Awaited<ReturnType<typeof updateAppointment>>;
+      if (editing) {
+        r = await updateAppointment(sb, {
+          id: editing.id,
+          clientId: client?.id,
+          clientName: client ? undefined : who,
+          serviceId: service.id,
+          providerId,
+          date: bookDay,
+          startMin,
+        });
+        if (r.ok && repeat) {
+          recur = await createRecurringAppointments(sb, {
+            ...recurInput,
+            dates: recurringFollowDates(bookDay, repeatWeeks),
+            anchorId: editing.id,
           });
-      if (!r.ok) {
+        }
+      } else if (repeat) {
+        recur = await createRecurringAppointments(sb, {
+          ...recurInput,
+          dates: recurringWeekDates(bookDay, repeatWeeks),
+          clientPackId,
+        });
+        r = recur;
+      } else {
+        r = await createAppointment(sb, {
+          ...recurInput,
+          date: bookDay,
+          clientPackId,
+        });
+      }
+      if (!r.ok || (recur && !recur.ok)) {
         waWin?.close();
-        toast(r.error ?? 'No se ha podido guardar', 'err');
+        toast((recur && !recur.ok ? recur.error : r.error) ?? 'No se ha podido guardar', 'err');
         return;
       }
       const apptId = editing?.id ?? r.id;
@@ -984,8 +993,7 @@ export function NewAppointmentSheetBody({
                   )}
                 </div>
               )}
-              {!editing && (
-                <div className="mt-4">
+              <div className="mt-4">
                   <button type="button" onClick={() => setRepeat(v => !v)} className="flex items-center gap-3 px-1">
                     <span
                       className="grid h-[26px] w-[26px] place-items-center rounded-[8px]"
@@ -998,7 +1006,9 @@ export function NewAppointmentSheetBody({
                     </span>
                     <span className="text-left">
                       <span className="block text-[15px] font-semibold">Cita recurrente</span>
-                      <span className="block text-label text-ink-2">Cada semana, a esta hora</span>
+                      <span className="block text-label text-ink-2">
+                        {editing ? 'Esta y las siguientes, cada semana' : 'Cada semana, a esta hora'}
+                      </span>
                     </span>
                   </button>
                   {repeat && (
@@ -1029,7 +1039,9 @@ export function NewAppointmentSheetBody({
                       </div>
                       <p className="mt-2 text-label text-ink-2">
                         {ctxDate}, {startMin != null ? fmt(startMin) : '—'}
-                        {(packId || templateId) ? ' · el bono cuenta en la primera' : ''}
+                        {(packId || templateId)
+                          ? (editing ? ' · el bono se queda en esta' : ' · el bono cuenta en la primera')
+                          : ''}
                       </p>
                       <button
                         type="button"
@@ -1068,7 +1080,6 @@ export function NewAppointmentSheetBody({
                     </div>
                   )}
                 </div>
-              )}
               {waHref(client?.phone) ? (
                 <button type="button" onClick={() => setWa(v => !v)} className="mt-4 flex items-center gap-3 px-1">
                   <span
