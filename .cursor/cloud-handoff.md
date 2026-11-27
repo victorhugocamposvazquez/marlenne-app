@@ -27,6 +27,8 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
+- 2026-11-27 — **Citas:** una cita ya creada también se puede marcar recurrente. Se queda esa y se añaden las semanas siguientes. PR #80 → `main`. Sigue faltando aplicar `20261127190000_appointment_series.sql` para agrupar la serie.
+
 - 2026-11-27 — **PWA tablet:** la agenda deja de quedar en una ventana de móvil con franjas negras. Arranque del iPad en vertical y horizontal, y el ancho de la tablet en vertical. PR #79 → `main`. Hay que borrar el icono y volver a añadirlo desde Safari para que iPadOS coja las pantallas nuevas.
 
 - 2026-11-27 — **Citas:** al crear se puede marcar recurrente (cada semana). El día y la hora se cambian ahí si se quiere, sin calendario. PR #78 → `main`. Falta aplicar `20261127190000_appointment_series.sql` para agrupar la serie.
