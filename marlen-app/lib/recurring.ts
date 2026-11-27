@@ -10,6 +10,11 @@ export function recurringWeekDates(startDate: string, weeks: number): string[] {
   return Array.from({ length: count }, (_, i) => addDays(startDate, i * 7));
 }
 
+/** Las semanas que siguen a una cita que ya existe. Esa no se vuelve a crear. */
+export function recurringFollowDates(startDate: string, weeks: number): string[] {
+  return recurringWeekDates(startDate, weeks).slice(1);
+}
+
 /** `09:30` → minutos. No empuja la mañana a la tarde. */
 export function clockToMinutes(value: string): number | null {
   const match = value.trim().match(/^(\d{1,2}):(\d{2})$/);

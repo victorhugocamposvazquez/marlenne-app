@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   clockToMinutes,
   minutesToClock,
+  recurringFollowDates,
   recurringWeekDates,
   RECUR_WEEKS_MAX,
   RECUR_WEEKS_MIN,
@@ -12,6 +13,13 @@ test('cada semana repite el mismo día, incluida la cita de ahora', () => {
   assert.deepEqual(
     recurringWeekDates('2026-11-03', 3),
     ['2026-11-03', '2026-11-10', '2026-11-17'],
+  );
+});
+
+test('una cita ya creada no se repite: solo salen las siguientes', () => {
+  assert.deepEqual(
+    recurringFollowDates('2026-11-03', 4),
+    ['2026-11-10', '2026-11-17', '2026-11-24'],
   );
 });
 
