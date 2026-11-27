@@ -84,6 +84,75 @@ export function photoChoices(
   return rows;
 }
 
+export type PhotoCircleItem = {
+  id: string;
+  kind: PhotoKind;
+  zone: string | null;
+  session_no: number | null;
+  storage_path: string;
+  taken_at: string;
+};
+
+export type PhotoSessionGroup = {
+  key: string;
+  session: number | null;
+  zone: string | null;
+  takenAt: string;
+  photos: PhotoCircleItem[];
+};
+
+export type PhotoAlbum = {
+  key: string;
+  treatmentId: string;
+  title: string;
+  latestAt: string;
+  sessions: PhotoSessionGroup[];
+};
+
+/** Un bloque por tratamiento. Dentro, las sesiones; en cada una, todos los círculos. */
+export function groupPhotosByTreatment(
+  treatments: { id: string; title: string; photos: PhotoCircleItem[] }[],
+  clientPhotos: PhotoCircleItem[] = [],
+): PhotoAlbum[] {
+  const albums: PhotoAlbum[] = [];
+
+  const push = (key: string, treatmentId: string, title: string, photos: PhotoCircleItem[]) => {
+    if (!photos.length) return;
+    const sessions = new Map<string, PhotoSessionGroup>();
+    for (const photo of photos) {
+      const sessionKey = `${photo.session_no ?? 0}|${photo.zone ?? ''}`;
+      const group = sessions.get(sessionKey) ?? {
+        key: `${key}|${sessionKey}`,
+        session: photo.session_no,
+        zone: photo.zone,
+        takenAt: photo.taken_at,
+        photos: [],
+      };
+      group.photos.push(photo);
+      if (+new Date(photo.taken_at) > +new Date(group.takenAt)) group.takenAt = photo.taken_at;
+      sessions.set(sessionKey, group);
+    }
+    const list = [...sessions.values()].map(session => ({
+      ...session,
+      photos: [...session.photos].sort((a, b) => {
+        if (a.kind !== b.kind) return a.kind === 'before' ? -1 : 1;
+        return +new Date(a.taken_at) - +new Date(b.taken_at);
+      }),
+    })).sort((a, b) => +new Date(b.takenAt) - +new Date(a.takenAt));
+    albums.push({
+      key,
+      treatmentId,
+      title,
+      latestAt: list[0]?.takenAt ?? photos[0].taken_at,
+      sessions: list,
+    });
+  };
+
+  for (const treatment of treatments) push(treatment.id, treatment.id, treatment.title, treatment.photos);
+  push('client', '', 'Sin tratamiento', clientPhotos);
+  return albums.sort((a, b) => +new Date(b.latestAt) - +new Date(a.latestAt));
+}
+
 /** Carpeta del bucket: el tratamiento, o `client/<id>` si la foto es de la ficha. */
 export function photoObjectPath(target: PhotoTarget, stamp: number) {
   const folder = target.treatmentId

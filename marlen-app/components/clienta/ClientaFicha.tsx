@@ -79,7 +79,7 @@ export default function ClientaFicha({
   const photoConsentBad = photoPaths.length > 0 && (!photoConsent || consentExpired(photoConsent));
 
   useEffect(() => {
-    if (tab !== 'fotos' || !photoPaths.length) {
+    if ((tab !== 'fotos' && tab !== 'tratamientos') || !photoPaths.length) {
       setUrlsReady(true);
       return;
     }
@@ -222,7 +222,12 @@ export default function ClientaFicha({
 
       <div className="mt-3">
         {tab === 'tratamientos' && (
-          <TreatmentsTab treatments={treatments} clientId={client.id} />
+          <TreatmentsTab
+            treatments={treatments}
+            clientId={client.id}
+            urls={urls}
+            onOpenPhotos={() => goTab('fotos')}
+          />
         )}
         {tab === 'medidas' && <MeasurementsTab treatments={treatments} />}
         {tab === 'fotos' && (
