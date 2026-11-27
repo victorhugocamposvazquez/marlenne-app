@@ -1,74 +1,72 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { ShieldAlert, Trash2 } from 'lucide-react';
+import { ShieldAlert, Trash2, X } from 'lucide-react';
 import { dateLbl } from '@/lib/time';
 import { deleteTreatmentPhoto } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/Toast';
 import { useTreatmentPhoto } from '@/hooks/useTreatmentPhoto';
-import { photoBusyKey, type PhotoKind, type PhotoTarget } from '@/lib/photos';
+import {
+  groupPhotosByTreatment,
+  photoBusyKey,
+  type PhotoCircleItem,
+  type PhotoKind,
+  type PhotoSessionGroup,
+  type PhotoTarget,
+} from '@/lib/photos';
 import type { ServiceOption, TreatmentPhoto, TreatmentRow } from '@/lib/types';
 import Skeleton from '@/components/ui/Skeleton';
 import { Empty } from './Tabs';
 import PhotoPick from './PhotoPick';
 import PhotoUpload from './PhotoUpload';
 
-type Group = {
-  key: string;
-  treatmentId: string;
-  title: string;
-  zone: string | null;
-  session: number | null;
-  takenAt: string;
-  before?: TreatmentPhoto;
-  after?: TreatmentPhoto;
-};
+const KIND_LABEL: Record<PhotoKind, string> = { before: 'Antes', after: 'Después' };
 
-function Frame({
-  photo, url, label, askId, pending, uploading, urlsReady, onAsk, onCancel, onDelete, onAdd,
+function PhotoCircle({
+  photo, url, askId, pending, urlsReady, onAsk, onCancel, onDelete, onOpen,
 }: {
-  photo?: TreatmentPhoto;
+  photo: PhotoCircleItem;
   url?: string;
-  label: string;
   askId: string | null;
   pending: boolean;
-  uploading: boolean;
   urlsReady: boolean;
   onAsk: (id: string) => void;
   onCancel: () => void;
   onDelete: (photo: TreatmentPhoto) => void;
-  onAdd?: (file: File) => void;
+  onOpen: (photo: PhotoCircleItem) => void;
 }) {
-  const asking = !!(photo && askId === photo.id);
+  const label = KIND_LABEL[photo.kind];
+  const asking = askId === photo.id;
 
   return (
-    <div className="min-w-0 flex-1">
-      <div className="mb-1 text-caption font-bold uppercase tracking-[.03em] text-ink-2">{label}</div>
-      {photo && url ? (
+    <div className="flex w-[88px] shrink-0 flex-col items-center gap-1">
+      {url ? (
         <div className="relative">
-          {/* Enlace firmado y temporal del bucket privado: no pasa por el optimizador. */}
-          <img
-            src={url}
-            alt={`${label} · ${photo.zone ?? ''}`}
-            loading="lazy"
-            className="aspect-[3/4] w-full rounded-icon border border-surface-line object-cover"
-          />
+          <button
+            type="button"
+            onClick={() => onOpen(photo)}
+            className="block overflow-hidden rounded-full border border-surface-line motion-safe:active:scale-[.98]"
+            aria-label={`Ver foto ${label}`}
+          >
+            <img
+              src={url}
+              alt={`${label} · ${photo.zone ?? ''}`}
+              loading="lazy"
+              className="h-[88px] w-[88px] object-cover"
+            />
+          </button>
           {asking ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 rounded-icon bg-ink/60 p-2">
+            <div className="absolute inset-0 flex flex-col items-center justify-center rounded-full bg-ink/70">
               <button
                 type="button"
                 disabled={pending}
                 onClick={() => onDelete(photo)}
-                className="min-h-[44px] rounded-chip bg-danger px-3 text-label font-extrabold text-white disabled:opacity-40"
+                className="text-micro font-extrabold text-white disabled:opacity-40"
               >
                 Borrar
               </button>
-              <button
-                type="button"
-                onClick={onCancel}
-                className="min-h-[44px] text-caption font-bold text-white"
-              >
+              <button type="button" onClick={onCancel} className="mt-1 text-micro font-bold text-white/80">
                 Dejarla
               </button>
             </div>
@@ -77,29 +75,20 @@ function Frame({
               type="button"
               aria-label={`Borrar foto ${label}`}
               onClick={() => onAsk(photo.id)}
-              className="absolute right-1.5 top-1.5 grid h-11 w-11 place-items-center rounded-icon bg-surface-card/90 text-danger-fg shadow-card motion-safe:active:scale-[.96]"
+              className="absolute -right-0.5 -top-0.5 grid h-8 w-8 place-items-center rounded-full bg-surface-card text-danger-fg shadow-card motion-safe:active:scale-[.96]"
             >
-              <Trash2 size={14} strokeWidth={2.3} />
+              <Trash2 size={13} strokeWidth={2.3} />
             </button>
           )}
         </div>
-      ) : photo && !urlsReady ? (
-        <Skeleton className="aspect-[3/4] w-full rounded-icon" />
-      ) : photo ? (
-        <p className="flex aspect-[3/4] w-full items-center justify-center rounded-icon border border-surface-line px-2 text-center text-caption font-semibold text-ink-2">
-          No se ha podido abrir
-        </p>
+      ) : !urlsReady ? (
+        <Skeleton className="h-[88px] w-[88px] rounded-full" />
       ) : (
-        <div className="flex aspect-[3/4] w-full flex-col justify-center rounded-row border border-dashed border-handle bg-surface-bg/50 p-2.5">
-          {uploading ? (
-            <p className="text-center text-caption font-semibold text-ink-2">Subiendo…</p>
-          ) : onAdd ? (
-            <PhotoPick label={label.toLowerCase()} disabled={pending} onFile={onAdd} />
-          ) : (
-            <p className="text-center text-caption font-semibold text-ink-2">Sin foto</p>
-          )}
-        </div>
+        <p className="grid h-[88px] w-[88px] place-items-center rounded-full border border-surface-line px-2 text-center text-micro font-semibold text-ink-2">
+          No se abre
+        </p>
       )}
+      <span className="text-micro font-bold uppercase tracking-[.03em] text-ink-2">{label}</span>
     </div>
   );
 }
@@ -118,78 +107,53 @@ export default function PhotosTab({
 }) {
   const toast = useToast();
   const [askId, setAskId] = useState<string | null>(null);
+  const [openPhoto, setOpenPhoto] = useState<PhotoCircleItem | null>(null);
   const [pending, startTransition] = useTransition();
   const photo = useTreatmentPhoto(onUploaded);
-  const groups = new Map<string, Group>();
+  const albums = groupPhotosByTreatment(
+    treatments.map(t => ({
+      id: t.id,
+      title: t.service?.name ?? 'Tratamiento',
+      photos: t.treatment_photos ?? [],
+    })),
+    clientPhotos,
+  );
 
-  for (const t of treatments) {
-    for (const p of t.treatment_photos ?? []) {
-      const key = `${t.id}|${p.session_no ?? 0}|${p.zone ?? ''}`;
-      const g = groups.get(key) ?? {
-        key,
-        treatmentId: t.id,
-        title: t.service?.name ?? 'Tratamiento',
-        zone: p.zone ?? t.zone,
-        session: p.session_no,
-        takenAt: p.taken_at,
-      };
-      if (p.kind === 'before') g.before = p;
-      else g.after = p;
-      if (+new Date(p.taken_at) > +new Date(g.takenAt)) g.takenAt = p.taken_at;
-      groups.set(key, g);
-    }
-  }
-
-  for (const p of clientPhotos) {
-    const key = `client|${p.session_no ?? 0}|${p.zone ?? ''}`;
-    const g = groups.get(key) ?? {
-      key,
-      treatmentId: '',
-      title: 'Clienta',
-      zone: p.zone,
-      session: p.session_no,
-      takenAt: p.taken_at,
-    };
-    if (p.kind === 'before') g.before = p;
-    else g.after = p;
-    if (+new Date(p.taken_at) > +new Date(g.takenAt)) g.takenAt = p.taken_at;
-    groups.set(key, g);
-  }
-
-  const list = [...groups.values()].sort((a, b) => +new Date(b.takenAt) - +new Date(a.takenAt));
-
-  const remove = (photo: TreatmentPhoto) => {
+  const remove = (item: TreatmentPhoto) => {
     startTransition(async () => {
       const r = await deleteTreatmentPhoto(createClient(), {
-        id: photo.id,
-        storagePath: photo.storage_path,
+        id: item.id,
+        storagePath: item.storage_path,
       });
       if (!r.ok) toast(r.error ?? 'No se ha podido borrar', 'err');
       else {
         setAskId(null);
+        setOpenPhoto(current => (current?.id === item.id ? null : current));
         toast('Foto borrada');
         onUploaded?.();
       }
     });
   };
 
-  const addTo = (g: Group, kind: PhotoKind) => (file: File) => {
-    const target: PhotoTarget = g.treatmentId
+  const addTo = (treatmentId: string, session: PhotoSessionGroup, kind: PhotoKind) => (file: File) => {
+    const target: PhotoTarget = treatmentId
       ? {
-          treatmentId: g.treatmentId,
+          treatmentId,
           clientId,
           kind,
-          zone: g.zone,
-          sessionNo: g.session ?? undefined,
+          zone: session.zone,
+          sessionNo: session.session ?? undefined,
         }
       : {
           clientId,
           kind,
-          zone: g.zone,
-          sessionNo: g.session ?? undefined,
+          zone: session.zone,
+          sessionNo: session.session ?? undefined,
         };
     photo.upload(file, target);
   };
+
+  const openUrl = openPhoto ? urls[openPhoto.storage_path] : undefined;
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -202,13 +166,13 @@ export default function PhotosTab({
         error={photo.error}
         onPick={photo.upload}
       />
-      {!list.length && <Empty>Todavía no hay fotos de esta clienta.</Empty>}
+      {!albums.length && <Empty>Todavía no hay fotos de esta clienta.</Empty>}
       {photo.error && (
         <p className="rounded-row border border-danger-line bg-danger-bg px-3 py-2 text-label font-semibold text-danger-fg">
           {photo.error}
         </p>
       )}
-      {list.length > 0 && !photoConsent && (
+      {albums.length > 0 && !photoConsent && (
         <p className="flex items-start gap-2 rounded-row border border-warn-line bg-warn-bg p-3 text-label font-semibold leading-snug text-warn-fg">
           <ShieldAlert size={16} strokeWidth={2.2} className="mt-px shrink-0" />
           Hay fotos guardadas y no consta consentimiento de imagen. Son datos de salud:
@@ -216,53 +180,85 @@ export default function PhotosTab({
         </p>
       )}
 
-      {list.map(g => (
-        <article key={g.key} className="rounded-row bg-surface-soft p-4">
-          <div className="mb-2.5 flex items-baseline gap-2">
-            <h3 className="min-w-0 flex-1 truncate text-body font-bold tracking-[-.01em]">{g.title}</h3>
-            {g.session !== null && (
-              <span className="shrink-0 rounded-badge bg-v-soft px-2 py-1 text-micro font-bold text-v-d">
-                Sesión {g.session}
-              </span>
-            )}
+      {albums.map(album => (
+        <article key={album.key} className="rounded-row bg-surface-soft p-4">
+          <h3 className="mb-3 truncate text-body font-bold tracking-[-.01em]">{album.title}</h3>
+          <div className="flex flex-col gap-3.5">
+            {album.sessions.map(session => {
+              const has = new Set(session.photos.map(item => item.kind));
+              const caption = [
+                session.session !== null ? `Sesión ${session.session}` : null,
+                session.zone,
+                dateLbl(session.takenAt),
+              ].filter(Boolean).join(' · ');
+              return (
+                <div key={session.key}>
+                  <p className="mb-2 text-micro font-semibold text-ink-3">{caption}</p>
+                  <div className="flex flex-wrap gap-3">
+                    {session.photos.map(item => (
+                      <PhotoCircle
+                        key={item.id}
+                        photo={item}
+                        url={urls[item.storage_path]}
+                        askId={askId}
+                        pending={pending || photo.pending}
+                        urlsReady={urlsReady}
+                        onAsk={setAskId}
+                        onCancel={() => setAskId(null)}
+                        onDelete={remove}
+                        onOpen={setOpenPhoto}
+                      />
+                    ))}
+                    {(['before', 'after'] as const).filter(kind => !has.has(kind)).map(kind => {
+                      const target: PhotoTarget = album.treatmentId
+                        ? { treatmentId: album.treatmentId, kind, zone: session.zone, sessionNo: session.session }
+                        : { clientId, kind, zone: session.zone, sessionNo: session.session };
+                      const uploading = photo.pending && photo.busy === photoBusyKey(target);
+                      return (
+                        <div key={kind} className="flex w-[88px] shrink-0 flex-col items-center gap-1">
+                          {uploading ? (
+                            <p className="grid h-[88px] w-[88px] place-items-center rounded-full border border-dashed border-handle text-center text-micro font-semibold text-ink-2">
+                              Subiendo…
+                            </p>
+                          ) : (
+                            <PhotoPick
+                              circle
+                              label={KIND_LABEL[kind].toLowerCase()}
+                              disabled={pending || photo.pending}
+                              onFile={addTo(album.treatmentId, session, kind)}
+                            />
+                          )}
+                          <span className="text-micro font-bold uppercase tracking-[.03em] text-ink-2">
+                            {KIND_LABEL[kind]}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div className="flex gap-2.5">
-            <Frame
-              photo={g.before}
-              url={g.before && urls[g.before.storage_path]}
-              label="Antes"
-              askId={askId}
-              pending={pending || photo.pending}
-              urlsReady={urlsReady}
-              uploading={photo.pending && photo.busy === photoBusyKey(g.treatmentId
-                ? { treatmentId: g.treatmentId, kind: 'before', zone: g.zone, sessionNo: g.session }
-                : { clientId, kind: 'before', zone: g.zone, sessionNo: g.session }) && !g.before}
-              onAsk={setAskId}
-              onCancel={() => setAskId(null)}
-              onDelete={remove}
-              onAdd={addTo(g, 'before')}
-            />
-            <Frame
-              photo={g.after}
-              url={g.after && urls[g.after.storage_path]}
-              label="Después"
-              askId={askId}
-              pending={pending || photo.pending}
-              urlsReady={urlsReady}
-              uploading={photo.pending && photo.busy === photoBusyKey(g.treatmentId
-                ? { treatmentId: g.treatmentId, kind: 'after', zone: g.zone, sessionNo: g.session }
-                : { clientId, kind: 'after', zone: g.zone, sessionNo: g.session }) && !g.after}
-              onAsk={setAskId}
-              onCancel={() => setAskId(null)}
-              onDelete={remove}
-              onAdd={addTo(g, 'after')}
-            />
-          </div>
-          <p className="mt-2 text-micro font-semibold text-ink-3">
-            {[g.zone, dateLbl(g.takenAt)].filter(Boolean).join(' · ')}
-          </p>
         </article>
       ))}
+
+      {openPhoto && openUrl && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-ink/80 p-4" role="dialog" aria-modal="true" aria-label="Foto">
+          <button
+            type="button"
+            aria-label="Cerrar foto"
+            onClick={() => setOpenPhoto(null)}
+            className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] grid h-11 w-11 place-items-center rounded-full bg-white/15 text-white"
+          >
+            <X size={18} strokeWidth={2.4} />
+          </button>
+          <img
+            src={openUrl}
+            alt={KIND_LABEL[openPhoto.kind]}
+            className="max-h-[85vh] max-w-full rounded-row object-contain"
+          />
+        </div>
+      )}
     </div>
   );
 }

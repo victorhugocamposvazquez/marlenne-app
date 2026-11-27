@@ -14,10 +14,12 @@ import type { TreatmentRow } from '@/lib/types';
 import { Empty } from './Tabs';
 
 export default function TreatmentsTab({
-  treatments, clientId,
+  treatments, clientId, urls = {}, onOpenPhotos,
 }: {
   treatments: TreatmentRow[];
   clientId: string;
+  urls?: Record<string, string>;
+  onOpenPhotos?: () => void;
 }) {
   if (!treatments.length) {
     return (
@@ -34,13 +36,20 @@ export default function TreatmentsTab({
   return (
     <div className="flex flex-col gap-2.5">
       {treatments.map(t => (
-        <TreatmentCard key={t.id} t={t} clientId={clientId} />
+        <TreatmentCard key={t.id} t={t} clientId={clientId} urls={urls} onOpenPhotos={onOpenPhotos} />
       ))}
     </div>
   );
 }
 
-function TreatmentCard({ t, clientId }: { t: TreatmentRow; clientId: string }) {
+function TreatmentCard({
+  t, clientId, urls, onOpenPhotos,
+}: {
+  t: TreatmentRow;
+  clientId: string;
+  urls: Record<string, string>;
+  onOpenPhotos?: () => void;
+}) {
   const cat = catStyle(t.service?.category ?? 'corporal');
   const open = !t.closed_at;
   const [note, setNote] = useState(t.note ?? '');
@@ -64,6 +73,8 @@ function TreatmentCard({ t, clientId }: { t: TreatmentRow; clientId: string }) {
     });
   };
 
+  const photos = t.treatment_photos ?? [];
+
   return (
     <article className="rounded-row bg-surface-soft p-4">
       <div className="flex items-start gap-2.5">
@@ -84,6 +95,37 @@ function TreatmentCard({ t, clientId }: { t: TreatmentRow; clientId: string }) {
           {open ? 'Abierto' : `Cerrado ${dateLbl(t.closed_at!)}`}
         </span>
       </div>
+
+      {photos.length > 0 && (
+        <button
+          type="button"
+          onClick={onOpenPhotos}
+          className="mt-3 flex items-center gap-2.5 text-left"
+          aria-label={`Fotos de ${t.service?.name ?? 'este tratamiento'}`}
+        >
+          <span className="flex">
+            {photos.slice(0, 6).map((photo, index) => {
+              const url = urls[photo.storage_path];
+              return url ? (
+                <img
+                  key={photo.id}
+                  src={url}
+                  alt=""
+                  className={`h-11 w-11 rounded-full border-2 border-surface-soft object-cover ${index ? '-ml-3' : ''}`}
+                />
+              ) : (
+                <span
+                  key={photo.id}
+                  className={`h-11 w-11 rounded-full border-2 border-surface-soft bg-surface-line ${index ? '-ml-3' : ''}`}
+                />
+              );
+            })}
+          </span>
+          <span className="text-label font-bold text-v-d">
+            {photos.length === 1 ? '1 foto' : `${photos.length} fotos`}
+          </span>
+        </button>
+      )}
 
       <div className="mt-3 flex items-center gap-2.5">
         <div className="h-1.5 flex-1 overflow-hidden rounded bg-surface-line">

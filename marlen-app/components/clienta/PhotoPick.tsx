@@ -13,10 +13,13 @@ export default function PhotoPick({
   label,
   disabled,
   onFile,
+  circle = false,
 }: {
   label: string;
   disabled?: boolean;
   onFile: (file: File) => void;
+  /** Círculo para añadir junto a las fotos del tratamiento. */
+  circle?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -80,16 +83,24 @@ export default function PhotoPick({
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen(o => !o)}
-        className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-chip border border-surface-line bg-surface-card px-2.5 text-caption font-extrabold text-ink shadow-card motion-safe:active:scale-[.98] disabled:opacity-40"
+        className={circle
+          ? 'grid h-[88px] w-[88px] place-items-center rounded-full border border-dashed border-handle bg-surface-card text-v motion-safe:active:scale-[.98] disabled:opacity-40'
+          : 'inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-chip border border-surface-line bg-surface-card px-2.5 text-caption font-extrabold text-ink shadow-card motion-safe:active:scale-[.98] disabled:opacity-40'}
       >
-        <Camera size={15} strokeWidth={2.3} className="text-v" aria-hidden />
-        Añadir foto
-        <span className="sr-only"> ({label})</span>
+        <Camera size={circle ? 18 : 15} strokeWidth={2.3} className="text-v" aria-hidden />
+        {circle ? <span className="sr-only">Añadir foto ({label})</span> : (
+          <>
+            Añadir foto
+            <span className="sr-only"> ({label})</span>
+          </>
+        )}
       </button>
       {open && (
         <ul
           role="menu"
-          className="absolute bottom-[calc(100%+6px)] left-0 right-0 z-30 overflow-hidden rounded-row border border-surface-line bg-surface-card py-1 shadow-lift"
+          className={circle
+            ? 'absolute bottom-[calc(100%+6px)] left-0 z-30 w-44 overflow-hidden rounded-row border border-surface-line bg-surface-card py-1 shadow-lift'
+            : 'absolute bottom-[calc(100%+6px)] left-0 right-0 z-30 overflow-hidden rounded-row border border-surface-line bg-surface-card py-1 shadow-lift'}
         >
           <li role="none">
             <button
