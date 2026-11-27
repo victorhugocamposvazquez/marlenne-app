@@ -26,6 +26,8 @@ Lista viva de lo pedido en **Cursor Cloud** para no perderlo al abrir el repo en
 
 ## Hecho desde cloud (mergeado o aplicado en main)
 
+- 2026-11-27 — **Clientas:** las fotos de la ficha son cuadradas, a dos por fila dentro de cada tratamiento. PR #76 → `main`.
+
 - 2026-11-27 — **Clientas:** las fotos van en círculos, agrupadas por tratamiento y sesión. En Tratamientos, esos círculos abren Fotos. PR #75 → `main`.
 
 - 2026-11-27 — **Leads:** la ficha abre al momento. La foto grande se pide después de pintar, y Facebook espera 2,5 s al entrar en la bandeja para no frenar el toque. PR #74 → `main`.
