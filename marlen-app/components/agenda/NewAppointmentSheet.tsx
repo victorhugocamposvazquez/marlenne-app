@@ -9,15 +9,16 @@ import { providerAgendaLabel } from '@/lib/team';
 import DayStrip from '@/components/agenda/DayStrip';
 import MonthCalendar from '@/components/agenda/MonthCalendar';
 import { usePlace } from '@/components/agenda/PlaceContext';
-import { useCloseSheet } from '@/components/Sheet';
+import { inputCls, useCloseSheet } from '@/components/Sheet';
 import SheetShell, { SheetGrab, SheetHandle, useSheetShellClose } from '@/components/SheetShell';
 import { avatarColor, catStyle, initials } from '@/lib/categories';
 import { loadClientPickerSearch } from '@/app/actions/client-list';
 import LineSearch from '@/components/LineSearch';
 import { syncAppointmentReminderAction } from '@/app/actions/reminder-sync';
-import { cancelAppointment, createAppointment, updateAppointment, slotsFor } from '@/lib/agenda-write';
+import { cancelAppointment, createAppointment, createRecurringAppointments, updateAppointment, slotsFor } from '@/lib/agenda-write';
 import { createClient } from '@/lib/supabase/client';
 import { alignStripStart, DAY_END, dateFromOffset, dayKey, durLbl, fmt, minutesOfDay, offsetFromDay, skipSunday, toTimestamp } from '@/lib/time';
+import { clockToMinutes, minutesToClock, RECUR_WEEKS_DEFAULT, RECUR_WEEKS_MAX, RECUR_WEEKS_MIN, recurringWeekDates } from '@/lib/recurring';
 import { filterClientOptions } from '@/lib/client-pick';
 import { bestNameMatches, fold, parseClock } from '@/lib/voice';
 import { findOpenPackForTemplate, packFitsService, packIsOpen, packLabel, packMatchesSearch, packUsableBy, packsForSection, pickPackForService, templatesForSection, usableOpenPacksForClient } from '@/lib/packs';
@@ -118,6 +119,9 @@ export function NewAppointmentSheetBody({
   const [cal, setCal] = useState(false);
   const [hours, setHours] = useState<number[] | null>(null);
   const [wa, setWa] = useState(false);
+  const [repeat, setRepeat] = useState(false);
+  const [repeatWeeks, setRepeatWeeks] = useState(RECUR_WEEKS_DEFAULT);
+  const [editWhen, setEditWhen] = useState(false);
   const [askDelete, setAskDelete] = useState(false);
   const [fichaOpen, setFichaOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
@@ -480,6 +484,18 @@ export function NewAppointmentSheetBody({
         soldLabel = `${tpl.name} · ${tpl.sessions_total} ses.`;
       }
 
+      const recurDates = !editing && repeat ? recurringWeekDates(bookDay, repeatWeeks) : null;
+      const recur = recurDates
+        ? await createRecurringAppointments(sb, {
+            clientId: client?.id,
+            clientName: client ? undefined : who,
+            serviceId: service.id,
+            providerId,
+            dates: recurDates,
+            startMin,
+            clientPackId,
+          })
+        : null;
       const r = editing
         ? await updateAppointment(sb, {
             id: editing.id,
@@ -490,7 +506,7 @@ export function NewAppointmentSheetBody({
             date: bookDay,
             startMin,
           })
-        : await createAppointment(sb, {
+        : recur ?? await createAppointment(sb, {
             clientId: client?.id,
             clientName: client ? undefined : who,
             serviceId: service.id,
@@ -505,7 +521,11 @@ export function NewAppointmentSheetBody({
         return;
       }
       const apptId = editing?.id ?? r.id;
-      if (apptId) void syncAppointmentReminderAction(apptId);
+      if (recur?.ids.length) {
+        for (const id of recur.ids) void syncAppointmentReminderAction(id);
+      } else if (apptId) {
+        void syncAppointmentReminderAction(apptId);
+      }
       const savedId = editing?.id ?? r.id;
       if (draftHref && savedId) {
         const token = await issueAppointmentLink(sb, savedId);
@@ -529,7 +549,9 @@ export function NewAppointmentSheetBody({
             ? `${service.name} · ${soldLabel}`
             : tpl
               ? `${service.name} · ${tpl.name}`
-              : service.name,
+              : recur && recur.saved > 1
+                ? `${service.name} · ${recur.saved} citas${recur.skipped ? ` · ${recur.skipped} no cabían` : ''}`
+                : service.name,
         },
       });
       requestClose();
@@ -959,6 +981,91 @@ export function NewAppointmentSheetBody({
                   />
                   {payError && (
                     <p className="mt-2 text-label font-semibold text-danger-fg">{payError}</p>
+                  )}
+                </div>
+              )}
+              {!editing && (
+                <div className="mt-4">
+                  <button type="button" onClick={() => setRepeat(v => !v)} className="flex items-center gap-3 px-1">
+                    <span
+                      className="grid h-[26px] w-[26px] place-items-center rounded-[8px]"
+                      style={{
+                        background: repeat ? 'rgb(var(--c-ink))' : '#fff',
+                        boxShadow: repeat ? undefined : 'inset 0 0 0 1.5px #C4C2CF',
+                      }}
+                    >
+                      {repeat && <Check size={14} strokeWidth={3} className="text-white" />}
+                    </span>
+                    <span className="text-left">
+                      <span className="block text-[15px] font-semibold">Cita recurrente</span>
+                      <span className="block text-label text-ink-2">Cada semana, a esta hora</span>
+                    </span>
+                  </button>
+                  {repeat && (
+                    <div className="mt-3 rounded-row bg-surface-soft px-4 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[15px] font-semibold">Semanas</span>
+                        <span className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            aria-label="Menos semanas"
+                            disabled={repeatWeeks <= RECUR_WEEKS_MIN}
+                            onClick={() => setRepeatWeeks(n => Math.max(RECUR_WEEKS_MIN, n - 1))}
+                            className="grid h-11 w-11 place-items-center rounded-row bg-surface-card text-body font-bold disabled:opacity-40"
+                          >
+                            −
+                          </button>
+                          <span className="w-8 text-center text-body font-bold tabular-nums">{repeatWeeks}</span>
+                          <button
+                            type="button"
+                            aria-label="Más semanas"
+                            disabled={repeatWeeks >= RECUR_WEEKS_MAX}
+                            onClick={() => setRepeatWeeks(n => Math.min(RECUR_WEEKS_MAX, n + 1))}
+                            className="grid h-11 w-11 place-items-center rounded-row bg-surface-card text-body font-bold disabled:opacity-40"
+                          >
+                            +
+                          </button>
+                        </span>
+                      </div>
+                      <p className="mt-2 text-label text-ink-2">
+                        {ctxDate}, {startMin != null ? fmt(startMin) : '—'}
+                        {(packId || templateId) ? ' · el bono cuenta en la primera' : ''}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setEditWhen(v => !v)}
+                        className="mt-2 min-h-[44px] text-left text-[14px] font-bold text-v-2"
+                      >
+                        {editWhen ? 'Listo' : 'Cambiar día y hora'}
+                      </button>
+                      {editWhen && startMin != null && (
+                        <div className="mt-1 grid grid-cols-2 gap-2">
+                          <label className="min-w-0">
+                            <span className="mb-1 block text-caption font-bold uppercase tracking-[.03em] text-ink-2">Día</span>
+                            <input
+                              type="date"
+                              value={bookDay}
+                              onChange={e => {
+                                if (e.target.value) setDayOff(offsetFromDay(e.target.value));
+                              }}
+                              className={inputCls}
+                            />
+                          </label>
+                          <label className="min-w-0">
+                            <span className="mb-1 block text-caption font-bold uppercase tracking-[.03em] text-ink-2">Hora</span>
+                            <input
+                              type="time"
+                              value={minutesToClock(startMin)}
+                              onChange={e => {
+                                const next = clockToMinutes(e.target.value);
+                                if (next != null) setStartMin(next);
+                              }}
+                              className={inputCls}
+                            />
+                          </label>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}

@@ -96,6 +96,46 @@ export async function createAppointment(
   return { ok: false, error: FORBIDDEN };
 }
 
+/** La primera cita tiene que caber. Las siguientes se saltan si el hueco está ocupado. El bono solo cuenta en la primera. */
+export async function createRecurringAppointments(
+  sb: SupabaseClient,
+  input: {
+    clientId?: string; clientName?: string; serviceId: string; providerId: string;
+    dates: string[]; startMin: number; clientPackId?: string;
+  },
+): Promise<WriteResult & { saved: number; skipped: number; ids: string[] }> {
+  const ids: string[] = [];
+  let skipped = 0;
+  let lastErr: string | null = null;
+  for (let i = 0; i < input.dates.length; i += 1) {
+    const created = await createAppointment(sb, {
+      clientId: input.clientId,
+      clientName: input.clientName,
+      serviceId: input.serviceId,
+      providerId: input.providerId,
+      date: input.dates[i],
+      startMin: input.startMin,
+      clientPackId: i === 0 ? input.clientPackId : undefined,
+    });
+    if (created.ok && created.id) {
+      ids.push(created.id);
+      continue;
+    }
+    if (i === 0) {
+      return { ok: false, error: created.error ?? FORBIDDEN, saved: 0, skipped: 0, ids: [] };
+    }
+    skipped += 1;
+    lastErr = created.error;
+  }
+  if (!ids.length) {
+    return { ok: false, error: lastErr ?? FORBIDDEN, saved: 0, skipped, ids: [] };
+  }
+  if (ids.length > 1) {
+    await sb.from('appointments').update({ series_id: crypto.randomUUID() }).in('id', ids);
+  }
+  return { ok: true, error: null, id: ids[0], saved: ids.length, skipped, ids };
+}
+
 export async function updateStatus(sb: SupabaseClient, id: string, status: string): Promise<WriteResult> {
   const off = refuseOffline();
   if (off) return off;
